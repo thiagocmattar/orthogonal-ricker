@@ -1,0 +1,14 @@
+experiment_name: baseline
+model:
+  provider: huggingface
+  name: TODO_MODEL_NAME
+data:
+  name: TODO_DATASET_NAME
+  split: TODO_SPLIT
+evaluation:
+  metric: TODO_METRIC
+run:
+  seed: 0
+  max_examples: 100
+output:
+  dir: results
