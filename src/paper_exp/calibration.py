@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import nullcontext
 import time
 from pathlib import Path
 from typing import Any
@@ -16,6 +17,7 @@ def run_calibration(
     config_path: str | Path,
     command: str,
     run_id: str | None = None,
+    mode: str = "calibrate",
 ) -> Path:
     validate_config(config, allow_todos=False)
 
@@ -54,7 +56,6 @@ def run_calibration(
         auto_config=auto_config,
         auto_model=auto_model,
         model_config=config["model"],
-        dtype=dtype,
         device=device,
     )
     model.train()
@@ -96,7 +97,10 @@ def run_calibration(
         optimizer.zero_grad(set_to_none=True)
         for _ in range(grad_accum):
             batch = _sample_batch(torch, np, train_tokens, block_size, micro_batch_size, device)
-            output = model(input_ids=batch, labels=batch)
+            with _autocast_context(torch, device, dtype):
+                output = model(input_ids=batch, labels=batch)
+            if not bool(torch.isfinite(output.loss.detach()).item()):
+                raise RuntimeError(f"Non-finite training loss at step {step}.")
             loss = output.loss / grad_accum
             loss.backward()
             step_loss += float(loss.detach().cpu()) * grad_accum
@@ -144,6 +148,7 @@ def run_calibration(
                 batch_size=int(validation_config["batch_size"]),
                 eval_batches=validation_config.get("eval_batches"),
                 device=device,
+                dtype=dtype,
             )
             validation_elapsed = time.perf_counter() - validation_start
             validation_losses.append((step, validation_result["loss"]))
@@ -182,6 +187,7 @@ def run_calibration(
             batch_size=int(validation_config["batch_size"]),
             eval_batches=validation_config.get("eval_batches"),
             device=device,
+            dtype=dtype,
         )
         validation_elapsed = time.perf_counter() - validation_start
         validation_losses.append((completed_steps, validation_result["loss"]))
@@ -229,7 +235,7 @@ def run_calibration(
         "calibration/wall_seconds_total": total_elapsed,
         "calibration/tokens_per_second": tokens_seen / train_elapsed if train_elapsed > 0 else None,
         "calibration/device": str(device),
-        "calibration/precision": str(dtype).replace("torch.", "") if dtype is not None else "float32",
+        "calibration/precision": _precision_label(dtype, device),
         "calibration/peak_gpu_memory_mb": _peak_gpu_memory_mb(torch, device),
         "calibration/peak_gpu_reserved_mb": _peak_gpu_reserved_mb(torch, device),
         "calibration/learning_rate_final": final_learning_rate,
@@ -244,7 +250,7 @@ def run_calibration(
         config_path=config_path,
         run_id=numbered_run_id,
         command=command,
-        mode="calibrate",
+        mode=mode,
         config_id=experiment_id,
         result_path=run_dir,
     )
@@ -265,6 +271,7 @@ def run_calibration(
         "architecture": config["model"]["architecture"],
         "initialization": config["model"]["initialization"],
         "loaded_checkpoint_weights": False,
+        "parameter_dtype": _parameter_dtype(model),
     }
     manifest["validation"] = validation_config
     manifest["checkpoint"] = checkpoint_metadata
@@ -294,7 +301,6 @@ def _build_random_model(
     auto_config: Any,
     auto_model: Any,
     model_config: dict[str, Any],
-    dtype: Any,
     device: Any,
 ) -> Any:
     if model_config["initialization"] != "random":
@@ -303,10 +309,15 @@ def _build_random_model(
     architecture_kwargs = {"revision": model_config.get("revision")}
     architecture_kwargs = {key: value for key, value in architecture_kwargs.items() if value is not None}
     architecture = auto_config.from_pretrained(model_config["architecture"], **architecture_kwargs)
+    architecture.torch_dtype = torch.float32
     model = auto_model.from_config(architecture)
+    return model.to(device=device, dtype=torch.float32)
+
+
+def _autocast_context(torch: Any, device: Any, dtype: Any) -> Any:
     if dtype is not None and device.type == "cuda":
-        return model.to(device=device, dtype=dtype)
-    return model.to(device)
+        return torch.autocast(device_type=device.type, dtype=dtype)
+    return nullcontext()
 
 
 def _evaluate_loss(
@@ -319,6 +330,7 @@ def _evaluate_loss(
     batch_size: int,
     eval_batches: int | None,
     device: Any,
+    dtype: Any,
 ) -> dict[str, Any]:
     model.eval()
     weighted_loss = 0.0
@@ -334,7 +346,11 @@ def _evaluate_loss(
                 batch = np.stack([tokens[start : start + block_size] for start in batch_starts])
                 input_ids = torch.as_tensor(batch, dtype=torch.long, device=device)
                 batch_sequences = len(batch_starts)
-                loss = float(model(input_ids=input_ids, labels=input_ids).loss.detach().cpu())
+                with _autocast_context(torch, device, dtype):
+                    output = model(input_ids=input_ids, labels=input_ids)
+                if not bool(torch.isfinite(output.loss.detach()).item()):
+                    raise RuntimeError("Non-finite validation loss.")
+                loss = float(output.loss.detach().cpu())
                 weighted_loss += loss * batch_sequences
                 total_sequences += batch_sequences
                 total_tokens += batch_sequences * block_size
@@ -342,7 +358,11 @@ def _evaluate_loss(
         else:
             for _ in range(int(eval_batches)):
                 input_ids = _sample_batch(torch, np, tokens, block_size, batch_size, device)
-                loss = float(model(input_ids=input_ids, labels=input_ids).loss.detach().cpu())
+                with _autocast_context(torch, device, dtype):
+                    output = model(input_ids=input_ids, labels=input_ids)
+                if not bool(torch.isfinite(output.loss.detach()).item()):
+                    raise RuntimeError("Non-finite validation loss.")
+                loss = float(output.loss.detach().cpu())
                 weighted_loss += loss * batch_size
                 total_sequences += batch_size
                 total_tokens += batch_size * block_size
@@ -423,6 +443,19 @@ def _select_dtype(torch: Any, device: Any, requested: str) -> Any:
     if requested == "auto":
         return torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
     raise ValueError(f"Unknown precision: {requested}")
+
+
+def _precision_label(dtype: Any, device: Any) -> str:
+    if dtype is None or device.type != "cuda":
+        return "float32"
+    return f"{str(dtype).replace('torch.', '')}_autocast"
+
+
+def _parameter_dtype(model: Any) -> str:
+    first_parameter = next(model.parameters(), None)
+    if first_parameter is None:
+        return "unknown"
+    return str(first_parameter.dtype).replace("torch.", "")
 
 
 def _set_seed(torch: Any, seed: int) -> None:

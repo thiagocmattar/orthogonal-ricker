@@ -42,7 +42,28 @@ Current cleanup note:
 - Pretraining configs now require `model.initialization: random`.
 - The harness constructs the model with `AutoModelForCausalLM.from_config(...)`, not `from_pretrained(...)`.
 - Previous Pythia runs that loaded released checkpoint weights were removed from the paper map and experiment log.
-- The next valid calibration must be rerun from random initialization.
+- The first random-initialized full-MiniPile checkpoint has now been run with FP32 parameters and bf16 autocast.
+
+First valid full-MiniPile random-init checkpoint:
+
+- Config: `configs/03-pythia-14m-minipile-random-full-10min.yaml`.
+- Result: `results/03-pythia-14m-minipile-random-full-10min/003-20260627-142522-7fc1e76f/`.
+- Figure: `figures/01-pythia-14m-minipile-random-full-10min-diagnostics.pdf`.
+- Model: Pythia-14M architecture, random initialization, no checkpoint weights loaded.
+- Parameter dtype: float32.
+- Compute precision: bf16 autocast.
+- Full train token cache: 1,000,000 documents, 1,491,711,416 tokens.
+- Validation token cache: 500 documents, 693,668 tokens.
+- Settings: micro-batch 4, gradient accumulation 8, block size 2048, learning rate 0.00003, 100 warmup steps.
+- Completed 1,316 optimizer steps and 86,245,376 tokens in 600.3 training seconds.
+- Estimated fraction of one MiniPile token pass: 0.0578 epochs.
+- Observed throughput: 143,666 tokens/sec.
+- Validation overhead: 11.6 seconds total; final configured validation pass took 1.64 seconds.
+- Train loss moved from 10.8567 at step 1 to 7.6701 at the final logged step.
+- Validation loss moved from 10.8504 at step 1 to 7.5450 at the final step.
+- Peak allocated GPU memory: 5,997.0 MB; peak reserved GPU memory: 7,428.0 MB.
+- Final checkpoint size: 53.67 MB.
+- Note: an earlier run in the same result folder (`002-20260627-141159-10a3e24a`) went non-finite because the random model parameters were float16. The harness now forces FP32 parameters for random initialization and aborts on non-finite losses.
 
 ## Expected Ablations
 

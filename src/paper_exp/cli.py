@@ -27,6 +27,9 @@ def build_parser() -> argparse.ArgumentParser:
     calibrate = subparsers.add_parser("calibrate", help="Run a short model throughput calibration.")
     calibrate.add_argument("--config", default="configs/01-pythia-14m-minipile-smoke.yaml")
 
+    pretrain = subparsers.add_parser("pretrain", help="Run a random-initialized pretraining job.")
+    pretrain.add_argument("--config", default="configs/02-pythia-14m-minipile-baseline.yaml")
+
     plots = subparsers.add_parser("plots", help="Regenerate paper-style plots from saved results.")
     plots.add_argument("--results", default="results")
     plots.add_argument("--figures", default="figures")
@@ -68,6 +71,12 @@ def main(argv: list[str] | None = None) -> int:
             config = load_config(args.config, allow_todos=False)
             run_dir = run_calibration(config, config_path=args.config, command=command)
             print(f"Calibration run written to {run_dir}")
+            return 0
+
+        if args.command == "pretrain":
+            config = load_config(args.config, allow_todos=False)
+            run_dir = run_calibration(config, config_path=args.config, command=command, mode="pretrain")
+            print(f"Pretraining run written to {run_dir}")
             return 0
 
         if args.command == "plots":

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 from pathlib import Path
 from typing import Any
 
@@ -112,13 +113,16 @@ def collect_numeric_metrics(results_dir: Path) -> list[dict[str, Any]]:
         for metric_name, value in metrics.items():
             if isinstance(value, bool) or not isinstance(value, int | float):
                 continue
+            numeric_value = float(value)
+            if not math.isfinite(numeric_value):
+                continue
             rows.append(
                 {
                     "experiment_name": manifest.get("experiment_name", metrics_path.parent.parent.name),
                     "config_id": manifest.get("config_id", metrics_path.parent.parent.name),
                     "run_id": manifest.get("run_id", metrics_path.parent.name),
                     "metric_name": metric_name,
-                    "value": float(value),
+                    "value": numeric_value,
                 }
             )
     return rows

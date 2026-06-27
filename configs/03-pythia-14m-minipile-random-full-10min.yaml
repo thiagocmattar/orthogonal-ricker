@@ -1,0 +1,48 @@
+experiment_name: pythia_14m_minipile_random_full_10min
+model:
+  provider: huggingface
+  name: pythia-14m-random
+  architecture: EleutherAI/pythia-14m-deduped
+  revision: main
+  initialization: random
+data:
+  name: JeanKaddour/minipile
+  revision: main
+  split: train
+  text_column: text
+  max_documents: null
+evaluation:
+  metric: training_loss
+run:
+  seed: 0
+  max_examples: 1000000
+tokenizer:
+  name: EleutherAI/pythia-14m-deduped
+  revision: main
+preprocessing:
+  output_dir: data/tokenized
+  block_size: 2048
+  append_eos: true
+  overwrite: false
+training:
+  max_steps: 100000
+  max_wall_seconds: 600
+  warmup_steps: 100
+  micro_batch_size: 4
+  gradient_accumulation_steps: 8
+  learning_rate: 0.00003
+  precision: auto
+  device: auto
+  log_every: 10
+validation:
+  enabled: true
+  split: validation
+  max_documents: 500
+  eval_every_steps: 250
+  eval_batches: null
+  batch_size: 4
+checkpoint:
+  save_final: true
+  save_optimizer: false
+output:
+  dir: results

@@ -211,7 +211,7 @@ def _write_token_cache(
 def _read_metadata(metadata_path: Path) -> dict[str, Any]:
     import json
 
-    with metadata_path.open("r", encoding="utf-8") as handle:
+    with metadata_path.open("r", encoding="utf-8-sig") as handle:
         return json.load(handle)
 
 

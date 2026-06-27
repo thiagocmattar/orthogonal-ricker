@@ -28,6 +28,7 @@ make test      # run lightweight unit tests
 make smoke     # run a tiny harness sanity check
 make prepare-minipile      # tokenize the configured MiniPile subset locally
 make calibrate-pythia-14m  # random-init Pythia-14M pretraining calibration
+make pretrain-pythia-14m-full-10min  # 10-minute full-MiniPile pretraining checkpoint
 make baseline  # blocked until the pretraining budget is chosen
 make plots     # regenerate figures from saved results
 ```
@@ -77,9 +78,19 @@ checkpoints/final/
 
 `manifest.json` records the model architecture, random initialization, config path, command, seed, dataset, Python version, package versions, and git commit when available.
 
+First valid full-MiniPile random-init checkpoint:
+
+```text
+config: configs/03-pythia-14m-minipile-random-full-10min.yaml
+result: results/03-pythia-14m-minipile-random-full-10min/003-20260627-142522-7fc1e76f/
+figure: figures/01-pythia-14m-minipile-random-full-10min-diagnostics.pdf
+tokens seen: 86,245,376
+final train loss: 7.6701
+final validation loss: 7.5450
+```
+
 ## Known TODOs
 
-- `TODO:` rerun calibration from random initialization.
 - `TODO:` choose the MiniPile pretraining budget.
 - `TODO:` add ablation configs when the method is defined.
 - `TODO:` consider scaling within the Pythia family up to 160M only after the 14M random-init path is reproducible.
