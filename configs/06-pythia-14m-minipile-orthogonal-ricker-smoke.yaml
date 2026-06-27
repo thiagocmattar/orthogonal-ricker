@@ -1,0 +1,58 @@
+experiment_name: pythia_14m_minipile_orthogonal_ricker_smoke
+model:
+  provider: huggingface
+  name: pythia-14m-random
+  architecture: EleutherAI/pythia-14m-deduped
+  revision: main
+  initialization: random
+data:
+  name: JeanKaddour/minipile
+  revision: main
+  split: train
+  text_column: text
+  max_documents: 128
+evaluation:
+  metric: training_loss
+run:
+  seed: 0
+  max_examples: 128
+tokenizer:
+  name: EleutherAI/pythia-14m-deduped
+  revision: main
+preprocessing:
+  output_dir: data/tokenized
+  block_size: 2048
+  append_eos: true
+  overwrite: false
+training:
+  max_steps: 20
+  max_wall_seconds: 120
+  warmup_steps: 10
+  micro_batch_size: 4
+  gradient_accumulation_steps: 1
+  learning_rate: 0.001
+  precision: auto
+  device: auto
+  log_every: 5
+activation_pressure:
+  enabled: true
+  method: orthogonal_ricker
+  sites: [mlp_hiddens]
+  weight: 0.1
+  ricker_c: 0.05
+  ricker_sigma: 0.05
+  step_budget: 0.5
+  eps: 1.0e-12
+  log_thresholds: [0.0, 0.001, 0.01]
+validation:
+  enabled: true
+  split: validation
+  max_documents: 32
+  eval_every_steps: 10
+  eval_batches: 1
+  batch_size: 4
+checkpoint:
+  save_final: false
+  save_optimizer: false
+output:
+  dir: results

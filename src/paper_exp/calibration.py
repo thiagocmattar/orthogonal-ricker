@@ -5,6 +5,14 @@ import time
 from pathlib import Path
 from typing import Any
 
+from paper_exp.activation_pressure import accumulate_grads
+from paper_exp.activation_pressure import activation_near_zero_metrics
+from paper_exp.activation_pressure import activation_pressure_config
+from paper_exp.activation_pressure import apply_adam_step_orthogonal_pressure
+from paper_exp.activation_pressure import clone_grads
+from paper_exp.activation_pressure import grad_metrics
+from paper_exp.activation_pressure import pressure_loss
+from paper_exp.activations import ActivationCapture
 from paper_exp.config import validate_config
 from paper_exp.data import tokenized_cache_dir, validation_metadata_path
 from paper_exp.run import create_run_dir, write_run_artifacts
@@ -62,6 +70,8 @@ def run_calibration(
 
     base_learning_rate = float(training["learning_rate"])
     optimizer = torch.optim.AdamW(model.parameters(), lr=base_learning_rate)
+    trainable_params = [parameter for parameter in model.parameters() if parameter.requires_grad]
+    pressure_config = activation_pressure_config(config)
     max_steps = int(training["max_steps"])
     max_wall_seconds = training.get("max_wall_seconds")
     max_wall_seconds = float(max_wall_seconds) if max_wall_seconds is not None else None
@@ -86,90 +96,114 @@ def run_calibration(
     final_grad_norm = None
     final_weight_norm = None
     final_learning_rate = None
+    final_pressure_metrics: dict[str, Any] = {}
     completed_steps = 0
 
-    for step in range(1, max_steps + 1):
-        step_start = time.perf_counter()
-        learning_rate = _learning_rate_for_step(step, base_learning_rate, warmup_steps)
-        _set_optimizer_lr(optimizer, learning_rate)
+    capture_sites = pressure_config.sites if pressure_config.enabled else []
+    capture_context = (
+        ActivationCapture(model, capture_sites, torch=torch)
+        if capture_sites
+        else nullcontext(None)
+    )
 
-        step_loss = 0.0
-        optimizer.zero_grad(set_to_none=True)
-        for _ in range(grad_accum):
-            batch = _sample_batch(torch, np, train_tokens, block_size, micro_batch_size, device)
-            with _autocast_context(torch, device, dtype):
-                output = model(input_ids=batch, labels=batch)
-            if not bool(torch.isfinite(output.loss.detach()).item()):
-                raise RuntimeError(f"Non-finite training loss at step {step}.")
-            loss = output.loss / grad_accum
-            loss.backward()
-            step_loss += float(loss.detach().cpu()) * grad_accum
-        step_loss /= grad_accum
+    with capture_context as activation_capture:
+        for step in range(1, max_steps + 1):
+            step_start = time.perf_counter()
+            learning_rate = _learning_rate_for_step(step, base_learning_rate, warmup_steps)
+            _set_optimizer_lr(optimizer, learning_rate)
 
-        should_log = step == 1 or step % log_every == 0 or step == max_steps
-        should_eval = (
-            validation_tokens is not None
-            and (step == 1 or step % int(validation_config["eval_every_steps"]) == 0 or step == max_steps)
-        )
-        grad_norm = _global_grad_norm(model) if should_log or should_eval else None
-        optimizer.step()
-        weight_norm = _global_weight_norm(model) if should_log or should_eval else None
+            step_result = _run_training_step(
+                model=model,
+                optimizer=optimizer,
+                params=trainable_params,
+                torch=torch,
+                np=np,
+                train_tokens=train_tokens,
+                block_size=block_size,
+                micro_batch_size=micro_batch_size,
+                grad_accum=grad_accum,
+                device=device,
+                dtype=dtype,
+                pressure_config=pressure_config,
+                activation_capture=activation_capture,
+                step=step,
+            )
 
-        tokens_seen = step * tokens_per_step
-        estimated_epoch = tokens_seen / train_metadata["tokens"]
-        train_losses.append(step_loss)
+            should_log = step == 1 or step % log_every == 0 or step == max_steps
+            should_eval = (
+                validation_tokens is not None
+                and (step == 1 or step % int(validation_config["eval_every_steps"]) == 0 or step == max_steps)
+            )
+            grad_norm = step_result["pressure/task_gradient_norm"] if should_log or should_eval else None
+            weight_norm = _global_weight_norm(model) if should_log or should_eval else None
 
-        if should_log:
-            final_grad_norm = grad_norm
-            final_weight_norm = weight_norm
-            final_learning_rate = learning_rate
-            events.append(
-                {
+            tokens_seen = step * tokens_per_step
+            estimated_epoch = tokens_seen / train_metadata["tokens"]
+            step_loss = step_result["task_loss"]
+            train_losses.append(step_loss)
+
+            if should_log:
+                final_grad_norm = grad_norm
+                final_weight_norm = weight_norm
+                final_learning_rate = learning_rate
+                final_pressure_metrics = {
+                    key: value
+                    for key, value in step_result.items()
+                    if key.startswith("pressure/") or key.startswith("activation/") or key in {
+                        "pressure_loss",
+                        "pressure_weight",
+                        "weighted_pressure_loss",
+                        "augmented_loss",
+                    }
+                }
+                event = {
                     "event": "train",
                     "step": step,
                     "estimated_epoch": estimated_epoch,
                     "tokens_seen": tokens_seen,
                     "train_loss": step_loss,
+                    "task_loss": step_loss,
                     "learning_rate": learning_rate,
                     "grad_norm": grad_norm,
                     "weight_norm": weight_norm,
                     "step_wall_seconds": time.perf_counter() - step_start,
                 }
-            )
+                event.update(final_pressure_metrics)
+                events.append(event)
 
-        if should_eval and validation_tokens is not None:
-            validation_start = time.perf_counter()
-            validation_result = _evaluate_loss(
-                model=model,
-                torch=torch,
-                np=np,
-                tokens=validation_tokens,
-                block_size=block_size,
-                batch_size=int(validation_config["batch_size"]),
-                eval_batches=validation_config.get("eval_batches"),
-                device=device,
-                dtype=dtype,
-            )
-            validation_elapsed = time.perf_counter() - validation_start
-            validation_losses.append((step, validation_result["loss"]))
-            validation_wall_seconds.append(validation_elapsed)
-            final_validation_batches = validation_result["batches"]
-            final_validation_tokens = validation_result["tokens"]
-            events.append(
-                {
-                    "event": "validation",
-                    "step": step,
-                    "estimated_epoch": estimated_epoch,
-                    "tokens_seen": tokens_seen,
-                    "validation_loss": validation_result["loss"],
-                    "validation_batches": validation_result["batches"],
-                    "validation_tokens": validation_result["tokens"],
-                    "validation_wall_seconds": validation_elapsed,
-                }
-            )
-        completed_steps = step
-        if max_wall_seconds is not None and time.perf_counter() - train_start >= max_wall_seconds:
-            break
+            if should_eval and validation_tokens is not None:
+                validation_start = time.perf_counter()
+                validation_result = _evaluate_loss(
+                    model=model,
+                    torch=torch,
+                    np=np,
+                    tokens=validation_tokens,
+                    block_size=block_size,
+                    batch_size=int(validation_config["batch_size"]),
+                    eval_batches=validation_config.get("eval_batches"),
+                    device=device,
+                    dtype=dtype,
+                )
+                validation_elapsed = time.perf_counter() - validation_start
+                validation_losses.append((step, validation_result["loss"]))
+                validation_wall_seconds.append(validation_elapsed)
+                final_validation_batches = validation_result["batches"]
+                final_validation_tokens = validation_result["tokens"]
+                events.append(
+                    {
+                        "event": "validation",
+                        "step": step,
+                        "estimated_epoch": estimated_epoch,
+                        "tokens_seen": tokens_seen,
+                        "validation_loss": validation_result["loss"],
+                        "validation_batches": validation_result["batches"],
+                        "validation_tokens": validation_result["tokens"],
+                        "validation_wall_seconds": validation_elapsed,
+                    }
+                )
+            completed_steps = step
+            if max_wall_seconds is not None and time.perf_counter() - train_start >= max_wall_seconds:
+                break
 
     if device.type == "cuda":
         torch.cuda.synchronize(device)
@@ -245,6 +279,7 @@ def run_calibration(
         "checkpoint/final_size_mb": checkpoint_metadata["size_mb"],
         "checkpoint/final_saved": checkpoint_metadata["saved"],
     }
+    metrics.update({f"final/{key}": value for key, value in final_pressure_metrics.items()})
     manifest = build_manifest(
         config=config,
         config_path=config_path,
@@ -266,6 +301,17 @@ def run_calibration(
         "loss_logged_as": "mean_micro_batch_loss_over_gradient_accumulation",
         "sampling": "random_contiguous_blocks_with_replacement",
     }
+    manifest["activation_pressure"] = {
+        "enabled": pressure_config.enabled,
+        "method": pressure_config.method,
+        "sites": pressure_config.sites,
+        "weight": pressure_config.weight,
+        "pressure_kind": pressure_config.pressure_kind,
+        "ricker_c": pressure_config.ricker_c,
+        "ricker_sigma": pressure_config.ricker_sigma,
+        "step_budget": pressure_config.step_budget,
+        "log_thresholds": list(pressure_config.log_thresholds),
+    }
     manifest["model"] = {
         "name": config["model"]["name"],
         "architecture": config["model"]["architecture"],
@@ -279,6 +325,177 @@ def run_calibration(
     write_run_artifacts(run_dir, config=config, metrics=metrics, manifest=manifest, predictions=events)
     write_jsonl(run_dir / "events.jsonl", events)
     return run_dir
+
+
+def _run_training_step(
+    *,
+    model: Any,
+    optimizer: Any,
+    params: list[Any],
+    torch: Any,
+    np: Any,
+    train_tokens: Any,
+    block_size: int,
+    micro_batch_size: int,
+    grad_accum: int,
+    device: Any,
+    dtype: Any,
+    pressure_config: Any,
+    activation_capture: Any,
+    step: int,
+) -> dict[str, Any]:
+    if pressure_config.enabled and activation_capture is None:
+        raise ValueError("Activation pressure is enabled but no activation capture is registered.")
+
+    if pressure_config.orthogonal:
+        return _run_orthogonal_pressure_step(
+            model=model,
+            optimizer=optimizer,
+            params=params,
+            torch=torch,
+            np=np,
+            train_tokens=train_tokens,
+            block_size=block_size,
+            micro_batch_size=micro_batch_size,
+            grad_accum=grad_accum,
+            device=device,
+            dtype=dtype,
+            pressure_config=pressure_config,
+            activation_capture=activation_capture,
+            step=step,
+        )
+
+    optimizer.zero_grad(set_to_none=True)
+    task_loss_total = 0.0
+    pressure_loss_total = 0.0
+    activation_metrics: dict[str, float] = {}
+    task_grads_for_metrics: list[Any | None] = []
+    pressure_grads_for_metrics: list[Any | None] = []
+
+    for _ in range(grad_accum):
+        if activation_capture is not None:
+            activation_capture.clear()
+        batch = _sample_batch(torch, np, train_tokens, block_size, micro_batch_size, device)
+        with _autocast_context(torch, device, dtype):
+            output = model(input_ids=batch, labels=batch)
+            task_loss = output.loss
+            current_pressure_loss = pressure_loss(torch, activation_capture.activations, pressure_config) if pressure_config.enabled else None
+            augmented_loss = (
+                task_loss + pressure_config.weight * current_pressure_loss
+                if current_pressure_loss is not None
+                else task_loss
+            )
+        _require_finite_loss(torch, task_loss, f"task loss at step {step}")
+        _require_finite_loss(torch, augmented_loss, f"training loss at step {step}")
+        if pressure_config.enabled and current_pressure_loss is not None:
+            task_grads_for_metrics = accumulate_grads(
+                task_grads_for_metrics,
+                torch.autograd.grad(task_loss / grad_accum, params, retain_graph=True, allow_unused=True),
+            )
+            pressure_grads_for_metrics = accumulate_grads(
+                pressure_grads_for_metrics,
+                torch.autograd.grad(current_pressure_loss / grad_accum, params, retain_graph=True, allow_unused=True),
+            )
+        (augmented_loss / grad_accum).backward()
+        task_loss_total += float(task_loss.detach().cpu())
+        if current_pressure_loss is not None:
+            _require_finite_loss(torch, current_pressure_loss, f"pressure loss at step {step}")
+            pressure_loss_total += float(current_pressure_loss.detach().cpu())
+            activation_metrics = activation_near_zero_metrics(activation_capture.activations, pressure_config.log_thresholds)
+
+    task_grads = task_grads_for_metrics if pressure_config.enabled else clone_grads(params)
+    pressure_grads = pressure_grads_for_metrics if pressure_config.enabled else [None for _ in params]
+    step_metrics = grad_metrics(torch, task_grads, pressure_grads)
+    optimizer.step()
+
+    task_loss_mean = task_loss_total / grad_accum
+    pressure_loss_mean = pressure_loss_total / grad_accum if pressure_config.enabled else None
+    result = {
+        "task_loss": task_loss_mean,
+        "pressure/task_gradient_norm": step_metrics["pressure/task_gradient_norm"],
+    }
+    if pressure_config.enabled:
+        result.update(step_metrics)
+        result.update(
+            {
+                "pressure_loss": pressure_loss_mean,
+                "pressure_weight": pressure_config.weight,
+                "weighted_pressure_loss": pressure_config.weight * pressure_loss_mean,
+                "augmented_loss": task_loss_mean + pressure_config.weight * pressure_loss_mean,
+            }
+        )
+        result.update(activation_metrics)
+    return result
+
+
+def _run_orthogonal_pressure_step(
+    *,
+    model: Any,
+    optimizer: Any,
+    params: list[Any],
+    torch: Any,
+    np: Any,
+    train_tokens: Any,
+    block_size: int,
+    micro_batch_size: int,
+    grad_accum: int,
+    device: Any,
+    dtype: Any,
+    pressure_config: Any,
+    activation_capture: Any,
+    step: int,
+) -> dict[str, Any]:
+    optimizer.zero_grad(set_to_none=True)
+    task_loss_total = 0.0
+    pressure_loss_total = 0.0
+    pressure_grads: list[Any | None] = []
+    activation_metrics: dict[str, float] = {}
+
+    for _ in range(grad_accum):
+        activation_capture.clear()
+        batch = _sample_batch(torch, np, train_tokens, block_size, micro_batch_size, device)
+        with _autocast_context(torch, device, dtype):
+            output = model(input_ids=batch, labels=batch)
+            task_loss = output.loss
+            current_pressure_loss = pressure_loss(torch, activation_capture.activations, pressure_config)
+        _require_finite_loss(torch, task_loss, f"task loss at step {step}")
+        _require_finite_loss(torch, current_pressure_loss, f"pressure loss at step {step}")
+
+        (task_loss / grad_accum).backward(retain_graph=True)
+        new_pressure_grads = torch.autograd.grad(
+            current_pressure_loss / grad_accum,
+            params,
+            allow_unused=True,
+        )
+        pressure_grads = accumulate_grads(pressure_grads, new_pressure_grads)
+        task_loss_total += float(task_loss.detach().cpu())
+        pressure_loss_total += float(current_pressure_loss.detach().cpu())
+        activation_metrics = activation_near_zero_metrics(activation_capture.activations, pressure_config.log_thresholds)
+
+    task_grads = clone_grads(params)
+    result = {
+        "task_loss": task_loss_total / grad_accum,
+        "pressure_loss": pressure_loss_total / grad_accum,
+        "pressure_weight": pressure_config.weight,
+        "weighted_pressure_loss": pressure_config.weight * pressure_loss_total / grad_accum,
+        "augmented_loss": task_loss_total / grad_accum + pressure_config.weight * pressure_loss_total / grad_accum,
+    }
+    result.update(grad_metrics(torch, task_grads, pressure_grads))
+
+    optimizer.step()
+    result.update(
+        apply_adam_step_orthogonal_pressure(
+            optimizer,
+            params,
+            task_grads,
+            pressure_grads,
+            pressure_weight=pressure_config.weight,
+            step_budget=pressure_config.step_budget,
+            eps=pressure_config.eps,
+        )
+    )
+    result.update(activation_metrics)
+    return result
 
 
 def _sample_batch(
@@ -318,6 +535,11 @@ def _autocast_context(torch: Any, device: Any, dtype: Any) -> Any:
     if dtype is not None and device.type == "cuda":
         return torch.autocast(device_type=device.type, dtype=dtype)
     return nullcontext()
+
+
+def _require_finite_loss(torch: Any, loss: Any, label: str) -> None:
+    if not bool(torch.isfinite(loss.detach()).item()):
+        raise RuntimeError(f"Non-finite {label}.")
 
 
 def _evaluate_loss(

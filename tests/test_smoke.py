@@ -6,7 +6,7 @@ from pathlib import Path
 import yaml
 
 from paper_exp.config import load_config
-from paper_exp.plots import generate_plots
+from paper_exp.plots import generate_clipping_frontier, generate_plots
 from paper_exp.run import run_smoke
 
 
@@ -49,6 +49,29 @@ def test_plots_command_can_generate_pdf_from_smoke_results(tmp_path: Path) -> No
     assert tmp_path / "figures" / "01-results-summary.pdf" in outputs
     assert (tmp_path / "figures" / "01-results-summary.pdf").exists()
     assert (tmp_path / "figures" / "01-results-summary.png").exists()
+
+
+def test_clipping_frontier_plot_generates_pdf_and_png(tmp_path: Path) -> None:
+    run_dir = tmp_path / "results" / "01-clipping" / "001-test-run"
+    run_dir.mkdir(parents=True)
+    rows = [
+        {"threshold": 0.0, "achieved_sparsity": 0.0, "validation_loss": 7.6, "validation_tokens": 8192},
+        {"threshold": 0.01, "achieved_sparsity": 0.05, "validation_loss": 7.61, "validation_tokens": 8192},
+    ]
+    with (run_dir / "clipping_frontier.jsonl").open("w", encoding="utf-8") as handle:
+        for row in rows:
+            handle.write(json.dumps(row))
+            handle.write("\n")
+
+    outputs = generate_clipping_frontier(
+        run_dir=run_dir,
+        output=tmp_path / "figures" / "02-clipping-frontier.pdf",
+        save_png=True,
+    )
+
+    assert tmp_path / "figures" / "02-clipping-frontier.pdf" in outputs
+    assert (tmp_path / "figures" / "02-clipping-frontier.pdf").exists()
+    assert (tmp_path / "figures" / "02-clipping-frontier.png").exists()
 
 
 def _write_temp_config(tmp_path: Path) -> Path:

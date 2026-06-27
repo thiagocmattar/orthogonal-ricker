@@ -36,6 +36,7 @@ Training/calibration tracking:
 - Validation uses a separately tokenized validation split cache when `validation.enabled` is true.
 - Current tracked summaries include train loss, validation loss, throughput, wall-clock time, validation wall-clock time, estimated epoch, learning rate, gradient norm, weight norm, peak GPU memory, and final checkpoint metadata.
 - Calibration and baseline runs can save final model weights under `checkpoints/final/` when `checkpoint.save_final` is true.
+- Activation-pressure runs log task loss and pressure loss separately, task/pressure gradient interference metrics, near-zero activation mass at configured thresholds, and Adam-step projection metrics for orthogonal methods.
 
 Current cleanup note:
 
@@ -64,6 +65,24 @@ First valid full-MiniPile random-init checkpoint:
 - Peak allocated GPU memory: 5,997.0 MB; peak reserved GPU memory: 7,428.0 MB.
 - Final checkpoint size: 53.67 MB.
 - Note: an earlier run in the same result folder (`002-20260627-141159-10a3e24a`) went non-finite because the random model parameters were float16. The harness now forces FP32 parameters for random initialization and aborts on non-finite losses.
+
+Activation pressure implementation:
+
+- Site support: `mlp_hiddens` for Pythia/GPT-NeoX, hooked at `gpt_neox.layers.N.mlp.act`.
+- Naive methods: `ricker_naive` and `l1_naive` optimize `task_loss + weight * pressure_loss`.
+- Orthogonal methods: `orthogonal_ricker` and `orthogonal_l1` compute task gradients and pressure gradients separately; AdamW steps on task gradients only; then a memoryless pressure correction is applied in AdamW step space.
+- Orthogonal projection fires only when the pressure update direction conflicts with the AdamW task update direction. The trust budget caps the final pressure/task update ratio.
+- Post-hoc clipping sweeps load a saved checkpoint and evaluate validation loss versus achieved exact-zero fraction for configured thresholds or quantiles.
+
+Early method smoke evidence:
+
+- Ricker naive smoke: `results/04-pythia-14m-minipile-ricker-naive-smoke/004-20260627-150149-42219854/`; final task loss 8.8505, final validation loss 9.0221, pressure gradient norm 0.7826, task/pressure gradient cosine -0.0079, aggregate `abs(a) <= 1e-2` mass 10.30%.
+- L1 naive smoke: `results/05-pythia-14m-minipile-l1-naive-smoke/004-20260627-150208-e5734c8a/`; final task loss 8.8517, final validation loss 9.0234, pressure gradient norm 0.0964, task/pressure gradient cosine 0.0114, aggregate `abs(a) <= 1e-2` mass 5.20%.
+- Orthogonal Ricker smoke: `results/06-pythia-14m-minipile-orthogonal-ricker-smoke/002-20260627-150025-e84f3b57/`; projection fired, raw pressure/task update ratio 2.9745, final ratio capped to 0.5, aggregate `abs(a) <= 1e-2` mass 8.10%.
+- Orthogonal L1 smoke: `results/07-pythia-14m-minipile-orthogonal-l1-smoke/002-20260627-150050-5217fb84/`; projection fired, final pressure/task update ratio 0.2015, aggregate `abs(a) <= 1e-2` mass 5.60%.
+- Post-hoc clipping smoke: `results/03-pythia-14m-minipile-random-full-10min-clipping-sweep/002-20260627-150326-6a61b34d/`; thresholds `[0, 0.001, 0.01, 0.03]`, 2 validation batches, achieved exact sparsity from 0.0% to 19.28%, validation loss from 7.6309 to 7.6324. Figure: `figures/02-pythia-14m-minipile-clipping-frontier-smoke.pdf`.
+
+These smoke runs verify plumbing and metric emission. They are not paper-quality evidence because they use very short runs and tiny validation samples.
 
 ## Expected Ablations
 

@@ -55,9 +55,13 @@ def generate_plots(
     figures_path = Path(figures_dir)
     figures_path.mkdir(parents=True, exist_ok=True)
 
-    rows = collect_numeric_metrics(Path(results_dir))
-    output_pdf = figures_path / "01-results-summary.pdf"
+    results_path = Path(results_dir)
+    outputs = _generate_known_paper_figures(results_path, figures_path, save_png=save_png)
+    if outputs:
+        return outputs
 
+    rows = collect_numeric_metrics(results_path)
+    output_pdf = figures_path / "01-results-summary.pdf"
     if rows:
         _plot_metric_summary(rows, output_pdf)
     else:
@@ -73,6 +77,35 @@ def generate_plots(
         outputs.append(output_png)
 
     return outputs
+
+
+def _generate_known_paper_figures(results_path: Path, figures_path: Path, *, save_png: bool) -> list[Path]:
+    outputs: list[Path] = []
+
+    diagnostic_run = _latest_run_with(
+        results_path / "03-pythia-14m-minipile-random-full-10min",
+        "events.jsonl",
+    )
+    if diagnostic_run is not None:
+        output_pdf = figures_path / "01-pythia-14m-minipile-random-full-10min-diagnostics.pdf"
+        outputs.extend(generate_run_diagnostics(run_dir=diagnostic_run, output=output_pdf, save_png=save_png))
+
+    clipping_run = _latest_run_with(
+        results_path / "03-pythia-14m-minipile-random-full-10min-clipping-sweep",
+        "clipping_frontier.jsonl",
+    )
+    if clipping_run is not None:
+        output_pdf = figures_path / "02-pythia-14m-minipile-clipping-frontier-smoke.pdf"
+        outputs.extend(generate_clipping_frontier(run_dir=clipping_run, output=output_pdf, save_png=save_png))
+
+    return outputs
+
+
+def _latest_run_with(experiment_dir: Path, artifact_name: str) -> Path | None:
+    if not experiment_dir.exists():
+        return None
+    candidates = [path for path in sorted(experiment_dir.iterdir()) if (path / artifact_name).exists()]
+    return candidates[-1] if candidates else None
 
 
 def generate_run_diagnostics(
@@ -99,6 +132,32 @@ def generate_run_diagnostics(
     if save_png:
         png_path = output_path.with_suffix(".png")
         _plot_run_diagnostics(train_events, validation_events, metrics, png_path)
+        outputs.append(png_path)
+    return outputs
+
+
+def generate_clipping_frontier(
+    *,
+    run_dir: str | Path,
+    output: str | Path,
+    save_png: bool = False,
+) -> list[Path]:
+    plt.rcParams.update(PLOT_STYLE)
+
+    run_path = Path(run_dir)
+    output_path = Path(output)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    frontier_path = run_path / "clipping_frontier.jsonl"
+    rows = _read_jsonl(frontier_path)
+    if not rows:
+        raise ValueError(f"No clipping frontier rows found in {frontier_path}")
+
+    _plot_clipping_frontier(rows, output_path)
+    outputs = [output_path]
+    if save_png:
+        png_path = output_path.with_suffix(".png")
+        _plot_clipping_frontier(rows, png_path)
         outputs.append(png_path)
     return outputs
 
@@ -249,6 +308,78 @@ def _draw_stats_panel(ax: Any, stats: list[tuple[str, Any, str]]) -> None:
             fontsize=12,
             fontweight="bold",
         )
+
+
+def _plot_clipping_frontier(rows: list[dict[str, Any]], output_path: Path) -> None:
+    finite_rows = [
+        row
+        for row in rows
+        if row.get("achieved_sparsity") is not None
+        and row.get("validation_loss") is not None
+        and math.isfinite(float(row["achieved_sparsity"]))
+        and math.isfinite(float(row["validation_loss"]))
+    ]
+    if not finite_rows:
+        raise ValueError("No finite clipping frontier points to plot.")
+
+    finite_rows = sorted(finite_rows, key=lambda row: float(row["achieved_sparsity"]))
+    sparsity = [100.0 * float(row["achieved_sparsity"]) for row in finite_rows]
+    loss = [float(row["validation_loss"]) for row in finite_rows]
+
+    fig, ax = plt.subplots(figsize=(6.5, 4.1))
+    ax.plot(sparsity, loss, marker="o", linewidth=1.5, markersize=4.5)
+    ax.set_title("Post-hoc Activation Clipping Frontier")
+    ax.set_xlabel("Achieved exact-zero activation sparsity (%)")
+    ax.set_ylabel("Validation loss")
+
+    for index, (point_x, point_y, row) in enumerate(zip(sparsity, loss, finite_rows, strict=True)):
+        label = _clipping_label(row)
+        ax.annotate(
+            label,
+            (point_x, point_y),
+            textcoords="offset points",
+            xytext=_clipping_label_offset(index, len(finite_rows)),
+            fontsize=7,
+        )
+
+    loss_span = max(loss) - min(loss)
+    if min(loss) > 0.0:
+        margin = max(loss_span * 0.15, 1e-4)
+        ax.set_ylim(min(loss) - margin, max(loss) + margin)
+        axis_note = "validation-loss axis zoomed"
+    else:
+        axis_note = "validation-loss axis starts at zero"
+
+    eval_tokens = sorted({int(row["validation_tokens"]) for row in finite_rows if row.get("validation_tokens")})
+    token_note = f"; {eval_tokens[0]:,} validation tokens/point" if len(eval_tokens) == 1 else ""
+    ax.text(
+        0.99,
+        0.02,
+        f"n={len(finite_rows)} sweep points{token_note}; {axis_note}",
+        transform=ax.transAxes,
+        ha="right",
+        va="bottom",
+        fontsize=8,
+    )
+    fig.tight_layout()
+    fig.savefig(output_path)
+    plt.close(fig)
+
+
+def _clipping_label(row: dict[str, Any]) -> str:
+    if row.get("threshold") is not None:
+        return f"t={float(row['threshold']):g}"
+    if row.get("quantile") is not None:
+        return f"q={float(row['quantile']):g}"
+    return str(row.get("mode", "clip"))
+
+
+def _clipping_label_offset(index: int, total: int) -> tuple[int, int]:
+    if index == 0:
+        return (6, -16)
+    if index == total - 1:
+        return (-36, 6)
+    return (6, 8 + 5 * (index % 2))
 
 
 def _plot_metric_summary(rows: list[dict[str, Any]], output_path: Path) -> None:

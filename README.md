@@ -29,6 +29,10 @@ make smoke     # run a tiny harness sanity check
 make prepare-minipile      # tokenize the configured MiniPile subset locally
 make calibrate-pythia-14m  # random-init Pythia-14M pretraining calibration
 make pretrain-pythia-14m-full-10min  # 10-minute full-MiniPile pretraining checkpoint
+make pressure-smoke-ricker-naive
+make pressure-smoke-l1-naive
+make pressure-smoke-orthogonal-ricker
+make pressure-smoke-orthogonal-l1
 make baseline  # blocked until the pretraining budget is chosen
 make plots     # regenerate figures from saved results
 ```
@@ -49,6 +53,29 @@ model:
 ```
 
 The harness builds the model with `AutoConfig.from_pretrained(model.architecture)` followed by `AutoModelForCausalLM.from_config(...)`. This loads the architecture/config only and initializes weights randomly.
+
+## Activation Pressure
+
+The harness supports the first activation-pressure methods on Pythia MLP hidden activations:
+
+- `ricker_naive`: adds Ricker pressure directly to task loss.
+- `l1_naive`: adds activation L1 pressure directly to task loss.
+- `orthogonal_ricker`: AdamW moments see task gradients only, then a projected Ricker correction is applied after the AdamW step.
+- `orthogonal_l1`: same Adam-step orthogonal correction using activation L1 pressure.
+
+The initial site target is `mlp_hiddens`, implemented with hooks on each Pythia layer's MLP activation module. The harness logs pressure loss, task/pressure gradient interference metrics, Adam-step projection metrics for orthogonal methods, and near-zero activation mass.
+
+Post-hoc clipping frontiers can be run with:
+
+```bash
+python -m paper_exp.cli clip-sweep --run-dir <checkpoint-run-dir> --thresholds 0,0.001,0.01,0.03 --eval-batches 2
+```
+
+and plotted with:
+
+```bash
+python -m paper_exp.cli plot-clipping-frontier --run-dir <clipping-sweep-run-dir> --output figures/02-pythia-14m-minipile-clipping-frontier-smoke.pdf --png
+```
 
 ## Numbering Convention
 
@@ -87,6 +114,15 @@ figure: figures/01-pythia-14m-minipile-random-full-10min-diagnostics.pdf
 tokens seen: 86,245,376
 final train loss: 7.6701
 final validation loss: 7.5450
+```
+
+First pressure smoke checks completed for all four method variants on the 128-document MiniPile smoke subset. These are plumbing checks only.
+
+First post-hoc clipping smoke frontier:
+
+```text
+result: results/03-pythia-14m-minipile-random-full-10min-clipping-sweep/002-20260627-150326-6a61b34d/
+figure: figures/02-pythia-14m-minipile-clipping-frontier-smoke.pdf
 ```
 
 ## Known TODOs

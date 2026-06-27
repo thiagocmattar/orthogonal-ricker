@@ -5,9 +5,10 @@ import sys
 from pathlib import Path
 
 from paper_exp.calibration import run_calibration
+from paper_exp.clipping import run_clipping_sweep
 from paper_exp.config import ConfigError, load_config
 from paper_exp.data import prepare_tokenized_data
-from paper_exp.plots import generate_plots, generate_run_diagnostics
+from paper_exp.plots import generate_clipping_frontier, generate_plots, generate_run_diagnostics
 from paper_exp.run import run_baseline, run_smoke
 
 
@@ -39,6 +40,20 @@ def build_parser() -> argparse.ArgumentParser:
     plot_run.add_argument("--run-dir", required=True)
     plot_run.add_argument("--output", required=True)
     plot_run.add_argument("--png", action="store_true", help="Also save a PNG copy.")
+
+    plot_clipping = subparsers.add_parser(
+        "plot-clipping-frontier",
+        help="Generate a clipping frontier plot from a clipping sweep run.",
+    )
+    plot_clipping.add_argument("--run-dir", required=True)
+    plot_clipping.add_argument("--output", required=True)
+    plot_clipping.add_argument("--png", action="store_true", help="Also save a PNG copy.")
+
+    clip_sweep = subparsers.add_parser("clip-sweep", help="Run a post-hoc activation clipping frontier.")
+    clip_sweep.add_argument("--run-dir", required=True)
+    clip_sweep.add_argument("--thresholds", default="0,0.001,0.003,0.01,0.03,0.05")
+    clip_sweep.add_argument("--quantiles", default="")
+    clip_sweep.add_argument("--eval-batches", type=int, default=None)
 
     return parser
 
@@ -90,6 +105,23 @@ def main(argv: list[str] | None = None) -> int:
             for output in outputs:
                 print(f"Wrote {output}")
             return 0
+
+        if args.command == "plot-clipping-frontier":
+            outputs = generate_clipping_frontier(run_dir=args.run_dir, output=args.output, save_png=args.png)
+            for output in outputs:
+                print(f"Wrote {output}")
+            return 0
+
+        if args.command == "clip-sweep":
+            run_dir = run_clipping_sweep(
+                checkpoint_run_dir=args.run_dir,
+                command=command,
+                thresholds=_parse_float_list(args.thresholds),
+                quantiles=_parse_float_list(args.quantiles),
+                eval_batches=args.eval_batches,
+            )
+            print(f"Clipping sweep written to {run_dir}")
+            return 0
     except ConfigError as exc:
         print(f"Config error: {exc}", file=sys.stderr)
         return 2
@@ -111,6 +143,12 @@ def _command_string(argv: list[str] | None) -> str:
     if argv is None:
         return " ".join([Path(sys.executable).name, *sys.argv])
     return " ".join([Path(sys.executable).name, "-m", "paper_exp.cli", *argv])
+
+
+def _parse_float_list(value: str) -> list[float]:
+    if not value.strip():
+        return []
+    return [float(part.strip()) for part in value.split(",") if part.strip()]
 
 
 if __name__ == "__main__":
