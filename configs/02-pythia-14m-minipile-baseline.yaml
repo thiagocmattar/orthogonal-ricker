@@ -1,9 +1,10 @@
 experiment_name: pythia_14m_minipile_baseline
 model:
   provider: huggingface
-  name: EleutherAI/pythia-14m-deduped
+  name: pythia-14m-random
+  architecture: EleutherAI/pythia-14m-deduped
   revision: main
-  initialization: pretrained
+  initialization: random
 data:
   name: JeanKaddour/minipile
   revision: main
@@ -28,7 +29,7 @@ training:
   warmup_steps: TODO_CHOOSE_AFTER_BASELINE_BUDGET
   micro_batch_size: 4
   gradient_accumulation_steps: 8
-  learning_rate: 0.00001
+  learning_rate: TODO_CHOOSE_FOR_RANDOM_INIT_PRETRAINING
   precision: auto
   device: auto
   log_every: 10

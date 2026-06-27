@@ -16,6 +16,8 @@ REQUIRED_FIELDS: tuple[tuple[str, ...], ...] = (
     ("experiment_name",),
     ("model", "provider"),
     ("model", "name"),
+    ("model", "architecture"),
+    ("model", "initialization"),
     ("data", "name"),
     ("data", "split"),
     ("evaluation", "metric"),
@@ -65,6 +67,10 @@ def validate_config(config: Mapping[str, Any], *, allow_todos: bool = True) -> N
     max_examples = _get_required(config, ("run", "max_examples"))
     if isinstance(max_examples, bool) or not isinstance(max_examples, int) or max_examples <= 0:
         raise ConfigError("Config field run.max_examples must be a positive integer.")
+
+    initialization = _get_required(config, ("model", "initialization"))
+    if initialization != "random":
+        raise ConfigError("Config field model.initialization must be 'random' for pretraining runs.")
 
     if not allow_todos:
         todos = list(find_todo_values(config))

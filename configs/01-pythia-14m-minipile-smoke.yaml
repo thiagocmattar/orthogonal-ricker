@@ -1,9 +1,10 @@
 experiment_name: pythia_14m_minipile_smoke
 model:
   provider: huggingface
-  name: EleutherAI/pythia-14m-deduped
+  name: pythia-14m-random
+  architecture: EleutherAI/pythia-14m-deduped
   revision: main
-  initialization: pretrained
+  initialization: random
 data:
   name: JeanKaddour/minipile
   revision: main
@@ -25,10 +26,10 @@ preprocessing:
   overwrite: false
 training:
   max_steps: 50
-  warmup_steps: 1
+  warmup_steps: 10
   micro_batch_size: 4
   gradient_accumulation_steps: 1
-  learning_rate: 0.00001
+  learning_rate: 0.001
   precision: auto
   device: auto
   log_every: 10

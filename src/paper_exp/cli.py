@@ -7,7 +7,7 @@ from pathlib import Path
 from paper_exp.calibration import run_calibration
 from paper_exp.config import ConfigError, load_config
 from paper_exp.data import prepare_tokenized_data
-from paper_exp.plots import generate_plots
+from paper_exp.plots import generate_plots, generate_run_diagnostics
 from paper_exp.run import run_baseline, run_smoke
 
 
@@ -31,6 +31,11 @@ def build_parser() -> argparse.ArgumentParser:
     plots.add_argument("--results", default="results")
     plots.add_argument("--figures", default="figures")
     plots.add_argument("--png", action="store_true", help="Also save PNG copies.")
+
+    plot_run = subparsers.add_parser("plot-run", help="Generate diagnostics for one run directory.")
+    plot_run.add_argument("--run-dir", required=True)
+    plot_run.add_argument("--output", required=True)
+    plot_run.add_argument("--png", action="store_true", help="Also save a PNG copy.")
 
     return parser
 
@@ -67,6 +72,12 @@ def main(argv: list[str] | None = None) -> int:
 
         if args.command == "plots":
             outputs = generate_plots(results_dir=args.results, figures_dir=args.figures, save_png=args.png)
+            for output in outputs:
+                print(f"Wrote {output}")
+            return 0
+
+        if args.command == "plot-run":
+            outputs = generate_run_diagnostics(run_dir=args.run_dir, output=args.output, save_png=args.png)
             for output in outputs:
                 print(f"Wrote {output}")
             return 0

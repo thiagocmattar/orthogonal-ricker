@@ -19,7 +19,7 @@ def run_calibration(
 ) -> Path:
     validate_config(config, allow_todos=False)
 
-    torch, np, auto_model = _load_training_dependencies()
+    torch, np, auto_config, auto_model = _load_training_dependencies()
     _set_seed(torch, config["run"]["seed"])
 
     experiment_id, numbered_run_id, run_dir = create_run_dir(config, config_path, run_id=run_id)
@@ -49,16 +49,21 @@ def run_calibration(
     device = _select_device(torch, training.get("device", "auto"))
     dtype = _select_dtype(torch, device, training.get("precision", "auto"))
 
-    model_kwargs: dict[str, Any] = {"revision": config["model"].get("revision")}
-    if dtype is not None and device.type == "cuda":
-        model_kwargs["dtype"] = dtype
-    model = auto_model.from_pretrained(config["model"]["name"], **model_kwargs)
-    model.to(device)
+    model = _build_random_model(
+        torch=torch,
+        auto_config=auto_config,
+        auto_model=auto_model,
+        model_config=config["model"],
+        dtype=dtype,
+        device=device,
+    )
     model.train()
 
     base_learning_rate = float(training["learning_rate"])
     optimizer = torch.optim.AdamW(model.parameters(), lr=base_learning_rate)
     max_steps = int(training["max_steps"])
+    max_wall_seconds = training.get("max_wall_seconds")
+    max_wall_seconds = float(max_wall_seconds) if max_wall_seconds is not None else None
     warmup_steps = int(training.get("warmup_steps", 0))
     grad_accum = int(training["gradient_accumulation_steps"])
     micro_batch_size = int(training["micro_batch_size"])
@@ -74,9 +79,13 @@ def run_calibration(
     events: list[dict[str, Any]] = []
     train_losses: list[float] = []
     validation_losses: list[tuple[int, float]] = []
+    validation_wall_seconds: list[float] = []
+    final_validation_batches = None
+    final_validation_tokens = None
     final_grad_norm = None
     final_weight_norm = None
     final_learning_rate = None
+    completed_steps = 0
 
     for step in range(1, max_steps + 1):
         step_start = time.perf_counter()
@@ -91,6 +100,7 @@ def run_calibration(
             loss = output.loss / grad_accum
             loss.backward()
             step_loss += float(loss.detach().cpu()) * grad_accum
+        step_loss /= grad_accum
 
         should_log = step == 1 or step % log_every == 0 or step == max_steps
         should_eval = (
@@ -124,6 +134,7 @@ def run_calibration(
             )
 
         if should_eval and validation_tokens is not None:
+            validation_start = time.perf_counter()
             validation_result = _evaluate_loss(
                 model=model,
                 torch=torch,
@@ -134,7 +145,11 @@ def run_calibration(
                 eval_batches=validation_config.get("eval_batches"),
                 device=device,
             )
+            validation_elapsed = time.perf_counter() - validation_start
             validation_losses.append((step, validation_result["loss"]))
+            validation_wall_seconds.append(validation_elapsed)
+            final_validation_batches = validation_result["batches"]
+            final_validation_tokens = validation_result["tokens"]
             events.append(
                 {
                     "event": "validation",
@@ -144,14 +159,48 @@ def run_calibration(
                     "validation_loss": validation_result["loss"],
                     "validation_batches": validation_result["batches"],
                     "validation_tokens": validation_result["tokens"],
+                    "validation_wall_seconds": validation_elapsed,
                 }
             )
+        completed_steps = step
+        if max_wall_seconds is not None and time.perf_counter() - train_start >= max_wall_seconds:
+            break
 
     if device.type == "cuda":
         torch.cuda.synchronize(device)
     train_elapsed = time.perf_counter() - train_start
 
-    tokens_seen = max_steps * tokens_per_step
+    tokens_seen = completed_steps * tokens_per_step
+    if validation_tokens is not None and (not validation_losses or validation_losses[-1][0] != completed_steps):
+        validation_start = time.perf_counter()
+        validation_result = _evaluate_loss(
+            model=model,
+            torch=torch,
+            np=np,
+            tokens=validation_tokens,
+            block_size=block_size,
+            batch_size=int(validation_config["batch_size"]),
+            eval_batches=validation_config.get("eval_batches"),
+            device=device,
+        )
+        validation_elapsed = time.perf_counter() - validation_start
+        validation_losses.append((completed_steps, validation_result["loss"]))
+        validation_wall_seconds.append(validation_elapsed)
+        final_validation_batches = validation_result["batches"]
+        final_validation_tokens = validation_result["tokens"]
+        events.append(
+            {
+                "event": "validation",
+                "step": completed_steps,
+                "estimated_epoch": tokens_seen / train_metadata["tokens"],
+                "tokens_seen": tokens_seen,
+                "validation_loss": validation_result["loss"],
+                "validation_batches": validation_result["batches"],
+                "validation_tokens": validation_result["tokens"],
+                "validation_wall_seconds": validation_elapsed,
+            }
+        )
+
     checkpoint_metadata = _save_final_checkpoint(config, run_dir, model, optimizer, torch)
     total_elapsed = time.perf_counter() - total_start
 
@@ -164,8 +213,14 @@ def run_calibration(
         "calibration/validation_loss_final_step": final_validation[0] if final_validation else None,
         "calibration/validation_loss_best": best_validation[1] if best_validation else None,
         "calibration/validation_loss_best_step": best_validation[0] if best_validation else None,
+        "calibration/validation_wall_seconds_total": sum(validation_wall_seconds),
+        "calibration/validation_wall_seconds_final": validation_wall_seconds[-1] if validation_wall_seconds else None,
+        "calibration/validation_batches_final": final_validation_batches,
+        "calibration/validation_tokens_final": final_validation_tokens,
         "calibration/loss_final": train_losses[-1] if train_losses else None,
-        "calibration/optimizer_steps": max_steps,
+        "calibration/optimizer_steps": completed_steps,
+        "calibration/planned_optimizer_steps": max_steps,
+        "calibration/target_wall_seconds": max_wall_seconds,
         "calibration/tokens_seen": tokens_seen,
         "calibration/tokens_per_step": tokens_per_step,
         "calibration/estimated_epochs": tokens_seen / train_metadata["tokens"],
@@ -176,6 +231,7 @@ def run_calibration(
         "calibration/device": str(device),
         "calibration/precision": str(dtype).replace("torch.", "") if dtype is not None else "float32",
         "calibration/peak_gpu_memory_mb": _peak_gpu_memory_mb(torch, device),
+        "calibration/peak_gpu_reserved_mb": _peak_gpu_reserved_mb(torch, device),
         "calibration/learning_rate_final": final_learning_rate,
         "calibration/grad_norm_final": final_grad_norm,
         "calibration/weight_norm_final": final_weight_norm,
@@ -198,8 +254,17 @@ def run_calibration(
         "micro_batch_size": micro_batch_size,
         "gradient_accumulation_steps": grad_accum,
         "max_steps": max_steps,
+        "completed_steps": completed_steps,
+        "max_wall_seconds": max_wall_seconds,
         "tokens_per_step": tokens_per_step,
+        "loss_logged_as": "mean_micro_batch_loss_over_gradient_accumulation",
         "sampling": "random_contiguous_blocks_with_replacement",
+    }
+    manifest["model"] = {
+        "name": config["model"]["name"],
+        "architecture": config["model"]["architecture"],
+        "initialization": config["model"]["initialization"],
+        "loaded_checkpoint_weights": False,
     }
     manifest["validation"] = validation_config
     manifest["checkpoint"] = checkpoint_metadata
@@ -223,6 +288,27 @@ def _sample_batch(
     return torch.as_tensor(batch, dtype=torch.long, device=device)
 
 
+def _build_random_model(
+    *,
+    torch: Any,
+    auto_config: Any,
+    auto_model: Any,
+    model_config: dict[str, Any],
+    dtype: Any,
+    device: Any,
+) -> Any:
+    if model_config["initialization"] != "random":
+        raise ValueError("This pretraining harness only supports model.initialization: random.")
+
+    architecture_kwargs = {"revision": model_config.get("revision")}
+    architecture_kwargs = {key: value for key, value in architecture_kwargs.items() if value is not None}
+    architecture = auto_config.from_pretrained(model_config["architecture"], **architecture_kwargs)
+    model = auto_model.from_config(architecture)
+    if dtype is not None and device.type == "cuda":
+        return model.to(device=device, dtype=dtype)
+    return model.to(device)
+
+
 def _evaluate_loss(
     *,
     model: Any,
@@ -235,7 +321,9 @@ def _evaluate_loss(
     device: Any,
 ) -> dict[str, Any]:
     model.eval()
-    losses: list[float] = []
+    weighted_loss = 0.0
+    total_sequences = 0
+    total_tokens = 0
     batches = 0
     with torch.no_grad():
         if eval_batches is None:
@@ -245,18 +333,25 @@ def _evaluate_loss(
                 batch_starts = starts[offset : offset + batch_size]
                 batch = np.stack([tokens[start : start + block_size] for start in batch_starts])
                 input_ids = torch.as_tensor(batch, dtype=torch.long, device=device)
-                losses.append(float(model(input_ids=input_ids, labels=input_ids).loss.detach().cpu()))
+                batch_sequences = len(batch_starts)
+                loss = float(model(input_ids=input_ids, labels=input_ids).loss.detach().cpu())
+                weighted_loss += loss * batch_sequences
+                total_sequences += batch_sequences
+                total_tokens += batch_sequences * block_size
                 batches += 1
         else:
             for _ in range(int(eval_batches)):
                 input_ids = _sample_batch(torch, np, tokens, block_size, batch_size, device)
-                losses.append(float(model(input_ids=input_ids, labels=input_ids).loss.detach().cpu()))
+                loss = float(model(input_ids=input_ids, labels=input_ids).loss.detach().cpu())
+                weighted_loss += loss * batch_size
+                total_sequences += batch_size
+                total_tokens += batch_size * block_size
                 batches += 1
     model.train()
     return {
-        "loss": sum(losses) / len(losses),
+        "loss": weighted_loss / total_sequences,
         "batches": batches,
-        "tokens": batches * batch_size * block_size,
+        "tokens": total_tokens,
     }
 
 
@@ -348,13 +443,20 @@ def _peak_gpu_memory_mb(torch: Any, device: Any) -> float | None:
     return torch.cuda.max_memory_allocated(device) / (1024 * 1024)
 
 
-def _load_training_dependencies() -> tuple[Any, Any, Any]:
+def _peak_gpu_reserved_mb(torch: Any, device: Any) -> float | None:
+    if device.type != "cuda":
+        return None
+    return torch.cuda.max_memory_reserved(device) / (1024 * 1024)
+
+
+def _load_training_dependencies() -> tuple[Any, Any, Any, Any]:
     try:
         import numpy as np
         import torch
+        from transformers import AutoConfig
         from transformers import AutoModelForCausalLM
     except ImportError as exc:
         raise RuntimeError(
             "Calibration requires numpy, torch, and transformers. Run `make install` first."
         ) from exc
-    return torch, np, AutoModelForCausalLM
+    return torch, np, AutoConfig, AutoModelForCausalLM

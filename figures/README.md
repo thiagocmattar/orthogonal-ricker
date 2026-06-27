@@ -1,12 +1,12 @@
 # Figures
 
-Paper-ready figures generated from saved results go here.
+Paper-ready figures generated from saved random-initialized pretraining results go here.
 
 Use sequential figure names:
 
 ```text
 01-results-summary.pdf
-02-ablation-summary.pdf
+02-random-init-calibration.pdf
 03-scale-ladder.pdf
 ```
 

@@ -54,7 +54,12 @@ def test_plots_command_can_generate_pdf_from_smoke_results(tmp_path: Path) -> No
 def _write_temp_config(tmp_path: Path) -> Path:
     config = {
         "experiment_name": "smoke_test",
-        "model": {"provider": "huggingface", "name": "TODO_MODEL_NAME"},
+        "model": {
+            "provider": "huggingface",
+            "name": "TODO_MODEL_NAME",
+            "architecture": "TODO_MODEL_ARCHITECTURE",
+            "initialization": "random",
+        },
         "data": {"name": "TODO_DATASET_NAME", "split": "TODO_SPLIT"},
         "evaluation": {"metric": "TODO_METRIC"},
         "run": {"seed": 0, "max_examples": 100},

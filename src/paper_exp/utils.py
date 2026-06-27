@@ -19,7 +19,7 @@ def write_json(path: str | Path, data: MappingLike) -> None:
 
 
 def read_json(path: str | Path) -> Any:
-    with Path(path).open("r", encoding="utf-8") as handle:
+    with Path(path).open("r", encoding="utf-8-sig") as handle:
         return json.load(handle)
 
 
@@ -80,6 +80,8 @@ def build_manifest(
         "mode": mode,
         "model_provider": config["model"]["provider"],
         "model_name": config["model"]["name"],
+        "model_architecture": config["model"].get("architecture"),
+        "model_initialization": config["model"].get("initialization"),
         "dataset_name": config["data"]["name"],
         "dataset_split": config["data"]["split"],
         "metric": config["evaluation"]["metric"],

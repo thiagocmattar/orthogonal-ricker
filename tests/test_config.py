@@ -10,7 +10,9 @@ def test_load_baseline_config_allows_todos() -> None:
 
     assert config["experiment_name"] == "pythia_14m_minipile_smoke"
     assert config["model"]["provider"] == "huggingface"
-    assert config["model"]["name"] == "EleutherAI/pythia-14m-deduped"
+    assert config["model"]["name"] == "pythia-14m-random"
+    assert config["model"]["architecture"] == "EleutherAI/pythia-14m-deduped"
+    assert config["model"]["initialization"] == "random"
 
 
 def test_required_config_fields_are_checked() -> None:
@@ -32,7 +34,12 @@ def test_pythia_smoke_config_has_no_todos() -> None:
 def test_todo_placeholders_can_be_rejected() -> None:
     config = {
         "experiment_name": "todo_config",
-        "model": {"provider": "huggingface", "name": "TODO_MODEL"},
+        "model": {
+            "provider": "huggingface",
+            "name": "TODO_MODEL",
+            "architecture": "TODO_MODEL_ARCHITECTURE",
+            "initialization": "random",
+        },
         "data": {"name": "JeanKaddour/minipile", "split": "train"},
         "evaluation": {"metric": "training_loss"},
         "run": {"seed": 0, "max_examples": 1},
@@ -46,3 +53,22 @@ def test_todo_placeholders_can_be_rejected() -> None:
 def test_config_filenames_must_be_numbered() -> None:
     with pytest.raises(ConfigError, match="Config filenames must be numbered"):
         validate_config_filename("baseline.yaml")
+
+
+def test_pretraining_configs_must_use_random_initialization() -> None:
+    config = {
+        "experiment_name": "bad_init",
+        "model": {
+            "provider": "huggingface",
+            "name": "pythia-14m",
+            "architecture": "EleutherAI/pythia-14m-deduped",
+            "initialization": "pretrained",
+        },
+        "data": {"name": "JeanKaddour/minipile", "split": "train"},
+        "evaluation": {"metric": "training_loss"},
+        "run": {"seed": 0, "max_examples": 1},
+        "output": {"dir": "results"},
+    }
+
+    with pytest.raises(ConfigError, match="initialization"):
+        validate_config(config, allow_todos=False)

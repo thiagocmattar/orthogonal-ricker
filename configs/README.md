@@ -2,6 +2,19 @@
 
 Each experiment should have a numbered YAML config. Start from the closest existing config, copy it, and change only the fields needed for the experiment.
 
+For pretraining runs, keep model architecture and weight initialization explicit:
+
+```yaml
+model:
+  provider: huggingface
+  name: pythia-14m-random
+  architecture: EleutherAI/pythia-14m-deduped
+  revision: main
+  initialization: random
+```
+
+`architecture` is the Hugging Face config source. `initialization: random` means the harness does not load released checkpoint weights.
+
 Use sequential names:
 
 ```text
@@ -17,6 +30,8 @@ Required fields:
 - `experiment_name`
 - `model.provider`
 - `model.name`
+- `model.architecture`
+- `model.initialization`
 - `data.name`
 - `data.split`
 - `evaluation.metric`

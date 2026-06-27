@@ -60,7 +60,7 @@ def run_baseline(
 ) -> Path:
     validate_config(config, allow_todos=False)
     raise NotImplementedError(
-        "TODO: implement the Hugging Face baseline after the model, dataset, task, and metric are provided."
+        "TODO: choose the random-initialized pretraining budget before enabling the baseline run."
     )
 
 

@@ -24,6 +24,7 @@ Rules:
 
 - Do not invent scientific claims, datasets, models, metrics, or results.
 - Use `TODO:` placeholders when information is missing.
+- Pythia experiments are pretraining runs: use the Pythia architecture with `model.initialization: random`; do not load released checkpoint weights unless the user explicitly requests a continuation/fine-tuning run.
 - Every experiment should have a config.
 - Configs, result folders, run folders, and figures should use sequential prefixes such as `01-baseline.yaml`, `001-<timestamp>-<id>`, and `01-results-summary.pdf`.
 - Every run should save its config, metrics, predictions, and manifest.
