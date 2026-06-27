@@ -444,6 +444,7 @@ def _plot_pressure_comparison(series: list[dict[str, Any]], output_path: Path) -
     ax_near_zero = fig.add_subplot(grid[1, 0])
     ax_pressure = fig.add_subplot(grid[1, 1])
     token_limit = _short_run_token_limit(series)
+    colors = _series_colors([item["label"] for item in series])
 
     for item in series:
         label = item["label"]
@@ -456,6 +457,7 @@ def _plot_pressure_comparison(series: list[dict[str, Any]], output_path: Path) -
             marker="o",
             markersize=2.2,
             linewidth=1.2,
+            color=colors[label],
             label=label,
         )
 
@@ -466,6 +468,7 @@ def _plot_pressure_comparison(series: list[dict[str, Any]], output_path: Path) -
                 marker="s",
                 markersize=2.5,
                 linewidth=1.2,
+                color=colors[label],
                 label=label,
             )
 
@@ -479,6 +482,7 @@ def _plot_pressure_comparison(series: list[dict[str, Any]], output_path: Path) -
                 marker="o",
                 markersize=2.2,
                 linewidth=1.2,
+                color=colors[label],
                 label=label,
             )
 
@@ -490,6 +494,7 @@ def _plot_pressure_comparison(series: list[dict[str, Any]], output_path: Path) -
                 marker="o",
                 markersize=2.2,
                 linewidth=1.2,
+                color=colors[label],
                 label=label,
             )
 
@@ -541,6 +546,7 @@ def _plot_clipping_comparison(series: list[dict[str, Any]], output_path: Path) -
     fig, ax = plt.subplots(figsize=(6.8, 4.4))
     all_losses: list[float] = []
     total_points = 0
+    colors = _series_colors([item["label"] for item in series])
 
     for item in series:
         rows = sorted(item["rows"], key=lambda row: float(row["achieved_sparsity"]))
@@ -554,6 +560,7 @@ def _plot_clipping_comparison(series: list[dict[str, Any]], output_path: Path) -
             marker="o",
             markersize=3.5,
             linewidth=1.2,
+            color=colors[item["label"]],
             label=item["label"],
         )
 
@@ -602,6 +609,14 @@ def _events_up_to(events: list[dict[str, Any]], token_limit: int | None) -> list
     if token_limit is None:
         return events
     return [event for event in events if int(event.get("tokens_seen", 0)) <= token_limit]
+
+
+def _series_colors(labels: list[str]) -> dict[str, str]:
+    unique_labels = list(dict.fromkeys(labels))
+    return {
+        label: COLORBLIND_SAFE_COLORS[index % len(COLORBLIND_SAFE_COLORS)]
+        for index, label in enumerate(unique_labels)
+    }
 
 
 def _plot_clipping_frontier(rows: list[dict[str, Any]], output_path: Path) -> None:

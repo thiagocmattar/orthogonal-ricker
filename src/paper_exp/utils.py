@@ -46,6 +46,43 @@ def collect_git_commit(root: str | Path | None = None) -> str | None:
     return result.stdout.strip() or None
 
 
+def collect_git_dirty(root: str | Path | None = None) -> bool | None:
+    try:
+        result = subprocess.run(
+            ["git", "status", "--short"],
+            cwd=Path(root) if root is not None else None,
+            capture_output=True,
+            check=True,
+            text=True,
+        )
+    except (OSError, subprocess.CalledProcessError):
+        return None
+    return bool(result.stdout.strip())
+
+
+def collect_gpu_info() -> list[dict[str, str]]:
+    try:
+        result = subprocess.run(
+            [
+                "nvidia-smi",
+                "--query-gpu=name,driver_version,memory.total",
+                "--format=csv,noheader",
+            ],
+            capture_output=True,
+            check=True,
+            text=True,
+        )
+    except (OSError, subprocess.CalledProcessError):
+        return []
+
+    rows = []
+    for line in result.stdout.splitlines():
+        parts = [part.strip() for part in line.split(",")]
+        if len(parts) == 3:
+            rows.append({"name": parts[0], "driver_version": parts[1], "memory_total": parts[2]})
+    return rows
+
+
 def collect_package_versions() -> dict[str, str]:
     packages = ("paper-exp", "PyYAML", "matplotlib", "numpy", "datasets", "transformers", "torch")
     versions: dict[str, str] = {}
@@ -75,6 +112,7 @@ def build_manifest(
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "command": command,
         "git_commit": collect_git_commit(Path.cwd()),
+        "git_dirty": collect_git_dirty(Path.cwd()),
         "config_path": str(config_path),
         "result_path": str(result_path) if result_path is not None else None,
         "mode": mode,
@@ -89,6 +127,7 @@ def build_manifest(
         "python_version": sys.version,
         "python_executable": sys.executable,
         "platform": platform.platform(),
+        "gpu_info": collect_gpu_info(),
         "package_versions": collect_package_versions(),
     }
 

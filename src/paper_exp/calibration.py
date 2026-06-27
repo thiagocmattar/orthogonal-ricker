@@ -14,7 +14,7 @@ from paper_exp.activation_pressure import grad_metrics
 from paper_exp.activation_pressure import pressure_loss
 from paper_exp.activations import ActivationCapture
 from paper_exp.config import validate_config
-from paper_exp.data import tokenized_cache_dir, validation_metadata_path
+from paper_exp.data import metadata_matches_config, tokenized_cache_dir, validation_metadata_path
 from paper_exp.run import create_run_dir, write_run_artifacts
 from paper_exp.utils import build_manifest, read_json, write_jsonl
 
@@ -38,6 +38,13 @@ def run_calibration(
         raise FileNotFoundError(f"Token cache not found. Run prepare-data first: {metadata_path}")
 
     train_metadata = read_json(metadata_path)
+    if not metadata_matches_config(
+        train_metadata,
+        config,
+        split=config["data"]["split"],
+        max_documents=config["data"].get("max_documents"),
+    ):
+        raise ValueError(f"Token cache metadata does not match config: {metadata_path}")
     train_tokens = np.memmap(train_metadata["tokens_path"], dtype=np.int32, mode="r")
     block_size = int(train_metadata["block_size"])
     if len(train_tokens) <= block_size + 1:
@@ -51,6 +58,13 @@ def run_calibration(
         if not val_metadata_path.exists():
             raise FileNotFoundError(f"Validation token cache not found. Run prepare-data first: {val_metadata_path}")
         validation_metadata = read_json(val_metadata_path)
+        if not metadata_matches_config(
+            validation_metadata,
+            config,
+            split=validation_config["split"],
+            max_documents=validation_config.get("max_documents"),
+        ):
+            raise ValueError(f"Validation token cache metadata does not match config: {val_metadata_path}")
         validation_tokens = np.memmap(validation_metadata["tokens_path"], dtype=np.int32, mode="r")
         if len(validation_tokens) <= block_size + 1:
             raise ValueError("Validation token cache is too small for the configured block_size.")
@@ -321,6 +335,8 @@ def run_calibration(
     }
     manifest["validation"] = validation_config
     manifest["checkpoint"] = checkpoint_metadata
+    if "sweep" in config:
+        manifest["sweep"] = config["sweep"]
 
     write_run_artifacts(run_dir, config=config, metrics=metrics, manifest=manifest, predictions=events)
     write_jsonl(run_dir / "events.jsonl", events)

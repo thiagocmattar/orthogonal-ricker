@@ -10,6 +10,9 @@ from paper_exp.config import ConfigError, load_config
 from paper_exp.data import prepare_tokenized_data
 from paper_exp.plots import generate_clipping_frontier, generate_plots, generate_run_diagnostics
 from paper_exp.run import run_baseline, run_smoke
+from paper_exp.sweeps import run_pressure_fixed_step_clipping_sweeps
+from paper_exp.sweeps import run_pressure_fixed_step_sweep
+from paper_exp.sweeps import write_pressure_fixed_step_configs
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -54,6 +57,33 @@ def build_parser() -> argparse.ArgumentParser:
     clip_sweep.add_argument("--thresholds", default="0,0.001,0.003,0.01,0.03,0.05")
     clip_sweep.add_argument("--quantiles", default="")
     clip_sweep.add_argument("--eval-batches", type=int, default=None)
+    clip_sweep.add_argument("--seed", type=int, default=0)
+
+    write_sweep = subparsers.add_parser(
+        "write-pressure-sweep-configs",
+        help="Write the fixed-step pressure screening configs.",
+    )
+    write_sweep.add_argument("--configs-dir", default="configs")
+
+    run_sweep = subparsers.add_parser(
+        "run-pressure-sweep",
+        help="Run the fixed-step pressure screening matrix.",
+    )
+    run_sweep.add_argument("--configs-dir", default="configs")
+    run_sweep.add_argument("--start-at", default="")
+    run_sweep.add_argument("--stop-after", type=int, default=None)
+
+    run_sweep_clipping = subparsers.add_parser(
+        "run-pressure-sweep-clipping",
+        help="Run post-hoc clipping sweeps for completed fixed-step pressure screening runs.",
+    )
+    run_sweep_clipping.add_argument("--configs-dir", default="configs")
+    run_sweep_clipping.add_argument("--thresholds", default="0,0.001,0.003,0.01,0.03,0.05")
+    run_sweep_clipping.add_argument("--quantiles", default="")
+    run_sweep_clipping.add_argument("--eval-batches", type=int, default=8)
+    run_sweep_clipping.add_argument("--seed", type=int, default=0)
+    run_sweep_clipping.add_argument("--start-at", default="")
+    run_sweep_clipping.add_argument("--stop-after", type=int, default=None)
 
     return parser
 
@@ -119,8 +149,41 @@ def main(argv: list[str] | None = None) -> int:
                 thresholds=_parse_float_list(args.thresholds),
                 quantiles=_parse_float_list(args.quantiles),
                 eval_batches=args.eval_batches,
+                seed=args.seed,
             )
             print(f"Clipping sweep written to {run_dir}")
+            return 0
+
+        if args.command == "write-pressure-sweep-configs":
+            outputs = write_pressure_fixed_step_configs(args.configs_dir)
+            for output in outputs:
+                print(f"Wrote {output}")
+            return 0
+
+        if args.command == "run-pressure-sweep":
+            outputs = run_pressure_fixed_step_sweep(
+                configs_dir=args.configs_dir,
+                command=command,
+                start_at=args.start_at or None,
+                stop_after=args.stop_after,
+            )
+            for output in outputs:
+                print(f"Completed {output}")
+            return 0
+
+        if args.command == "run-pressure-sweep-clipping":
+            outputs = run_pressure_fixed_step_clipping_sweeps(
+                configs_dir=args.configs_dir,
+                command=command,
+                thresholds=_parse_float_list(args.thresholds),
+                quantiles=_parse_float_list(args.quantiles),
+                eval_batches=args.eval_batches,
+                seed=args.seed,
+                start_at=args.start_at or None,
+                stop_after=args.stop_after,
+            )
+            for output in outputs:
+                print(f"Completed {output}")
             return 0
     except ConfigError as exc:
         print(f"Config error: {exc}", file=sys.stderr)

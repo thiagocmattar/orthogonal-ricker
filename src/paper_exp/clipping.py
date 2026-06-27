@@ -19,6 +19,7 @@ def run_clipping_sweep(
     thresholds: list[float],
     quantiles: list[float],
     eval_batches: int | None,
+    seed: int = 0,
     run_id: str | None = None,
 ) -> Path:
     run_path = Path(checkpoint_run_dir)
@@ -32,6 +33,7 @@ def run_clipping_sweep(
     config["experiment_name"] = f"{config['experiment_name']}_clipping_sweep"
 
     torch, np, auto_model = _load_clipping_dependencies()
+    np.random.seed(seed)
     training = config["training"]
     device = _select_device(torch, training.get("device", "auto"))
     dtype = _select_dtype(torch, device, training.get("precision", "auto"))
@@ -88,6 +90,9 @@ def run_clipping_sweep(
     manifest["thresholds"] = thresholds
     manifest["quantiles"] = quantiles
     manifest["eval_batches"] = eval_batches
+    manifest["seed"] = seed
+    if "sweep" in source_manifest:
+        manifest["source_sweep"] = source_manifest["sweep"]
 
     write_run_artifacts(output_dir, config=config, metrics=metrics, manifest=manifest, predictions=rows)
     write_jsonl(output_dir / "clipping_frontier.jsonl", rows)

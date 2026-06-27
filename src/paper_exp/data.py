@@ -101,6 +101,16 @@ def validation_metadata_path(config: dict[str, Any], config_id: str) -> Path:
     return tokenized_cache_dir(config, config_id) / "validation" / "metadata.json"
 
 
+def metadata_matches_config(
+    metadata: dict[str, Any],
+    config: dict[str, Any],
+    *,
+    split: str,
+    max_documents: int | None,
+) -> bool:
+    return _metadata_matches_config(metadata, config, split=split, max_documents=max_documents)
+
+
 def _load_or_write_cache(
     *,
     config: dict[str, Any],
