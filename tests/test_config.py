@@ -6,10 +6,11 @@ from paper_exp.config import ConfigError, load_config, validate_config, validate
 
 
 def test_load_baseline_config_allows_todos() -> None:
-    config = load_config("configs/01-baseline.yaml", allow_todos=True)
+    config = load_config("configs/01-pythia-14m-minipile-smoke.yaml", allow_todos=True)
 
-    assert config["experiment_name"] == "baseline"
+    assert config["experiment_name"] == "pythia_14m_minipile_smoke"
     assert config["model"]["provider"] == "huggingface"
+    assert config["model"]["name"] == "EleutherAI/pythia-14m-deduped"
 
 
 def test_required_config_fields_are_checked() -> None:
@@ -22,8 +23,21 @@ def test_required_config_fields_are_checked() -> None:
         validate_config(config, allow_todos=True)
 
 
+def test_pythia_smoke_config_has_no_todos() -> None:
+    config = load_config("configs/01-pythia-14m-minipile-smoke.yaml", allow_todos=True)
+
+    validate_config(config, allow_todos=False)
+
+
 def test_todo_placeholders_can_be_rejected() -> None:
-    config = load_config("configs/01-baseline.yaml", allow_todos=True)
+    config = {
+        "experiment_name": "todo_config",
+        "model": {"provider": "huggingface", "name": "TODO_MODEL"},
+        "data": {"name": "JeanKaddour/minipile", "split": "train"},
+        "evaluation": {"metric": "training_loss"},
+        "run": {"seed": 0, "max_examples": 1},
+        "output": {"dir": "results"},
+    }
 
     with pytest.raises(ConfigError, match="TODO placeholders"):
         validate_config(config, allow_todos=False)

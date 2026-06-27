@@ -15,6 +15,8 @@ Core commands:
 
 - `make test`
 - `make smoke`
+- `make prepare-minipile`
+- `make calibrate-pythia-14m`
 - `make baseline`
 - `make plots`
 

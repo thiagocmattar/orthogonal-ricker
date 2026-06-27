@@ -47,7 +47,7 @@ def collect_git_commit(root: str | Path | None = None) -> str | None:
 
 
 def collect_package_versions() -> dict[str, str]:
-    packages = ("paper-exp", "PyYAML", "matplotlib")
+    packages = ("paper-exp", "PyYAML", "matplotlib", "numpy", "datasets", "transformers", "torch")
     versions: dict[str, str] = {}
     for package in packages:
         try:

@@ -4,7 +4,9 @@ import argparse
 import sys
 from pathlib import Path
 
+from paper_exp.calibration import run_calibration
 from paper_exp.config import ConfigError, load_config
+from paper_exp.data import prepare_tokenized_data
 from paper_exp.plots import generate_plots
 from paper_exp.run import run_baseline, run_smoke
 
@@ -14,10 +16,16 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     smoke = subparsers.add_parser("smoke", help="Run a tiny local sanity check.")
-    smoke.add_argument("--config", default="configs/01-baseline.yaml")
+    smoke.add_argument("--config", default="configs/01-pythia-14m-minipile-smoke.yaml")
 
     baseline = subparsers.add_parser("baseline", help="Run the configured baseline.")
-    baseline.add_argument("--config", default="configs/01-baseline.yaml")
+    baseline.add_argument("--config", default="configs/02-pythia-14m-minipile-baseline.yaml")
+
+    prepare_data = subparsers.add_parser("prepare-data", help="Download and tokenize the configured dataset.")
+    prepare_data.add_argument("--config", default="configs/01-pythia-14m-minipile-smoke.yaml")
+
+    calibrate = subparsers.add_parser("calibrate", help="Run a short model throughput calibration.")
+    calibrate.add_argument("--config", default="configs/01-pythia-14m-minipile-smoke.yaml")
 
     plots = subparsers.add_parser("plots", help="Regenerate paper-style plots from saved results.")
     plots.add_argument("--results", default="results")
@@ -45,6 +53,18 @@ def main(argv: list[str] | None = None) -> int:
             print(f"Baseline run written to {run_dir}")
             return 0
 
+        if args.command == "prepare-data":
+            config = load_config(args.config, allow_todos=False)
+            run_dir = prepare_tokenized_data(config, config_path=args.config, command=command)
+            print(f"Prepared tokenized data; run written to {run_dir}")
+            return 0
+
+        if args.command == "calibrate":
+            config = load_config(args.config, allow_todos=False)
+            run_dir = run_calibration(config, config_path=args.config, command=command)
+            print(f"Calibration run written to {run_dir}")
+            return 0
+
         if args.command == "plots":
             outputs = generate_plots(results_dir=args.results, figures_dir=args.figures, save_png=args.png)
             for output in outputs:
@@ -54,6 +74,12 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Config error: {exc}", file=sys.stderr)
         return 2
     except NotImplementedError as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
+    except RuntimeError as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
+    except FileNotFoundError as exc:
         print(str(exc), file=sys.stderr)
         return 2
 

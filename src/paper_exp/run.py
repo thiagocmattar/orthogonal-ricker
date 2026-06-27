@@ -24,11 +24,7 @@ def run_smoke(
 ) -> Path:
     validate_config(config, allow_todos=True)
 
-    experiment_id = make_experiment_id(config_path)
-    experiment_dir = make_experiment_dir(config, experiment_id)
-    run_id = make_run_id(experiment_dir, suffix=run_id)
-    run_dir = experiment_dir / run_id
-    run_dir.mkdir(parents=True, exist_ok=False)
+    experiment_id, run_id, run_dir = create_run_dir(config, config_path, run_id=run_id)
 
     num_examples = min(config["run"]["max_examples"], 3)
     predictions = [
@@ -66,6 +62,20 @@ def run_baseline(
     raise NotImplementedError(
         "TODO: implement the Hugging Face baseline after the model, dataset, task, and metric are provided."
     )
+
+
+def create_run_dir(
+    config: dict[str, Any],
+    config_path: str | Path,
+    *,
+    run_id: str | None = None,
+) -> tuple[str, str, Path]:
+    experiment_id = make_experiment_id(config_path)
+    experiment_dir = make_experiment_dir(config, experiment_id)
+    numbered_run_id = make_run_id(experiment_dir, suffix=run_id)
+    run_dir = experiment_dir / numbered_run_id
+    run_dir.mkdir(parents=True, exist_ok=False)
+    return experiment_id, numbered_run_id, run_dir
 
 
 def make_experiment_id(config_path: str | Path) -> str:

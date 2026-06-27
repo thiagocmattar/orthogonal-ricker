@@ -1,16 +1,16 @@
 # Configs
 
-Each experiment should have a numbered YAML config. Start from `01-baseline.yaml`, copy it, and change only the fields needed for the experiment.
+Each experiment should have a numbered YAML config. Start from the closest existing config, copy it, and change only the fields needed for the experiment.
 
 Use sequential names:
 
 ```text
-01-baseline.yaml
-02-ablation-name.yaml
-03-scale-ladder-small.yaml
+01-pythia-14m-minipile-smoke.yaml
+02-pythia-14m-minipile-baseline.yaml
+03-ablation-name.yaml
 ```
 
-The run harness uses the config stem as the result experiment id, for example `configs/01-baseline.yaml` writes under `results/01-baseline/`.
+The run harness uses the config stem as the result experiment id, for example `configs/01-pythia-14m-minipile-smoke.yaml` writes under `results/01-pythia-14m-minipile-smoke/`.
 
 Required fields:
 
