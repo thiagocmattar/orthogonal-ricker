@@ -8,6 +8,7 @@ This repository is a lean, auditable harness for reproducible paper experiments.
 - Model weights are randomly initialized. We do not load Pythia checkpoint weights for baseline pretraining runs.
 - Earlier local runs that loaded pretrained Pythia weights were removed from the experiment log, result folders, and paper map.
 - Data preparation tokenizes MiniPile into a local cache before calibration or paper runs.
+- Repository files, documentation, result records, plot labels, and generated outputs are kept in English.
 
 ## Install
 
@@ -33,9 +34,18 @@ make pressure-smoke-ricker-naive
 make pressure-smoke-l1-naive
 make pressure-smoke-orthogonal-ricker
 make pressure-smoke-orthogonal-l1
+make pressure-short-all  # four short full-MiniPile pressure checks
 make baseline  # blocked until the pretraining budget is chosen
 make plots     # regenerate figures from saved results
 ```
+
+## Human-facing Notes
+
+Documents written for human reading live under `docs/humans/`.
+
+Current notes:
+
+- `docs/humans/01-pythia-14m-architecture.md`: Pythia-14M architecture, block equations, pseudocode, and activation-pressure hook sites.
 
 ## Model Initialization
 

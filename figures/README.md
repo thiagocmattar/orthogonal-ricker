@@ -5,9 +5,10 @@ Paper-ready figures generated from saved random-initialized pretraining results 
 Use sequential figure names:
 
 ```text
-01-results-summary.pdf
-02-random-init-calibration.pdf
-03-scale-ladder.pdf
+01-pythia-14m-minipile-random-full-10min-diagnostics.pdf
+02-pythia-14m-minipile-clipping-frontier-smoke.pdf
+03-pythia-14m-pressure-short-learning-curves.pdf
+04-pythia-14m-pressure-short-clipping-frontiers.pdf
 ```
 
 Regenerate figures with:

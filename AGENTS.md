@@ -24,6 +24,7 @@ Rules:
 
 - Do not invent scientific claims, datasets, models, metrics, or results.
 - Use `TODO:` placeholders when information is missing.
+- Keep all repository files, documentation, result records, plot labels, and generated outputs in English.
 - Pythia experiments are pretraining runs: use the Pythia architecture with `model.initialization: random`; do not load released checkpoint weights unless the user explicitly requests a continuation/fine-tuning run.
 - Activation pressure methods currently target `mlp_hiddens` first. Keep naive pressure and Adam-step orthogonal pressure separate in configs, metrics, and docs.
 - Every experiment should have a config.

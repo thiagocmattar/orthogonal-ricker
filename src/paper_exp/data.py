@@ -93,7 +93,8 @@ def prepare_tokenized_data(
 
 
 def tokenized_cache_dir(config: dict[str, Any], config_id: str) -> Path:
-    return Path(config["preprocessing"]["output_dir"]) / config_id
+    cache_id = config["preprocessing"].get("cache_id", config_id)
+    return Path(config["preprocessing"]["output_dir"]) / cache_id
 
 
 def validation_metadata_path(config: dict[str, Any], config_id: str) -> Path:

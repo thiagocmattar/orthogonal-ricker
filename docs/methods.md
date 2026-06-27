@@ -84,6 +84,25 @@ Early method smoke evidence:
 
 These smoke runs verify plumbing and metric emission. They are not paper-quality evidence because they use very short runs and tiny validation samples.
 
+Short full-MiniPile pressure pretraining check:
+
+- Configs: `configs/08-pythia-14m-minipile-ricker-naive-short.yaml` through `configs/11-pythia-14m-minipile-orthogonal-l1-short.yaml`.
+- Purpose: quick method behavior check with random initialization, full local MiniPile token cache reuse, 180-second wall-clock caps, periodic validation, and final checkpoints.
+- Figure: `figures/03-pythia-14m-pressure-short-learning-curves.pdf`.
+- Ricker naive: 176 optimizer steps, 11,534,336 tokens, final train loss 10.0723, final validation loss 10.0623, final `abs(a) <= 0.01` MLP hidden mass 10.254%.
+- L1 naive: 188 optimizer steps, 12,320,768 tokens, final train loss 10.0048, final validation loss 10.0075, final `abs(a) <= 0.01` MLP hidden mass 6.626%.
+- Orthogonal Ricker: 259 optimizer steps, 16,973,824 tokens, final train loss 9.7525, final validation loss 9.6941, final `abs(a) <= 0.01` MLP hidden mass 12.167%, final pressure/task update ratio capped at 0.5.
+- Orthogonal L1: 294 optimizer steps, 19,267,584 tokens, final train loss 9.6588, final validation loss 9.5532, final `abs(a) <= 0.01` MLP hidden mass 6.847%, final pressure/task update ratio 0.0486.
+
+Matched post-hoc clipping check:
+
+- Thresholds: `[0, 0.001, 0.003, 0.01, 0.03]`.
+- Evaluation: 4 validation batches per threshold.
+- Figure: `figures/04-pythia-14m-pressure-short-clipping-frontiers.pdf`.
+- Max achieved exact sparsity at threshold `0.03`: Ricker naive 28.54%, L1 naive 19.83%, orthogonal Ricker 33.20%, orthogonal L1 20.45%.
+
+Interpretation boundary: these 180-second checks validate implementation behavior and metric emission. They are not paper-quality evidence about final pretraining quality.
+
 ## Expected Ablations
 
 TODO

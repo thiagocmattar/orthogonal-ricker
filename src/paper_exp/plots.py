@@ -26,6 +26,14 @@ COLORBLIND_SAFE_COLORS = [
     "#17becf",
 ]
 
+PRESSURE_SHORT_RUNS = [
+    ("AdamW baseline", "03-pythia-14m-minipile-random-full-10min"),
+    ("Ricker naive", "08-pythia-14m-minipile-ricker-naive-short"),
+    ("L1 naive", "09-pythia-14m-minipile-l1-naive-short"),
+    ("Orthogonal Ricker", "10-pythia-14m-minipile-orthogonal-ricker-short"),
+    ("Orthogonal L1", "11-pythia-14m-minipile-orthogonal-l1-short"),
+]
+
 PLOT_STYLE = {
     "figure.figsize": (6.5, 4.0),
     "figure.dpi": 150,
@@ -98,6 +106,20 @@ def _generate_known_paper_figures(results_path: Path, figures_path: Path, *, sav
         output_pdf = figures_path / "02-pythia-14m-minipile-clipping-frontier-smoke.pdf"
         outputs.extend(generate_clipping_frontier(run_dir=clipping_run, output=output_pdf, save_png=save_png))
 
+    pressure_runs = _latest_labeled_runs(results_path, PRESSURE_SHORT_RUNS, "events.jsonl")
+    if len(pressure_runs) >= 2:
+        output_pdf = figures_path / "03-pythia-14m-pressure-short-learning-curves.pdf"
+        outputs.extend(generate_pressure_comparison(runs=pressure_runs, output=output_pdf, save_png=save_png))
+
+    clipping_runs = _latest_labeled_runs(
+        results_path,
+        [(label, f"{experiment_id}-clipping-sweep") for label, experiment_id in PRESSURE_SHORT_RUNS[1:]],
+        "clipping_frontier.jsonl",
+    )
+    if len(clipping_runs) >= 2:
+        output_pdf = figures_path / "04-pythia-14m-pressure-short-clipping-frontiers.pdf"
+        outputs.extend(generate_clipping_comparison(runs=clipping_runs, output=output_pdf, save_png=save_png))
+
     return outputs
 
 
@@ -162,6 +184,52 @@ def generate_clipping_frontier(
     return outputs
 
 
+def generate_pressure_comparison(
+    *,
+    runs: list[tuple[str, str | Path]],
+    output: str | Path,
+    save_png: bool = False,
+) -> list[Path]:
+    plt.rcParams.update(PLOT_STYLE)
+
+    output_path = Path(output)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    series = _load_pressure_series(runs)
+    if not series:
+        raise ValueError("No pressure comparison runs with train events were found.")
+
+    _plot_pressure_comparison(series, output_path)
+    outputs = [output_path]
+    if save_png:
+        png_path = output_path.with_suffix(".png")
+        _plot_pressure_comparison(series, png_path)
+        outputs.append(png_path)
+    return outputs
+
+
+def generate_clipping_comparison(
+    *,
+    runs: list[tuple[str, str | Path]],
+    output: str | Path,
+    save_png: bool = False,
+) -> list[Path]:
+    plt.rcParams.update(PLOT_STYLE)
+
+    output_path = Path(output)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    series = _load_clipping_series(runs)
+    if not series:
+        raise ValueError("No clipping comparison runs were found.")
+
+    _plot_clipping_comparison(series, output_path)
+    outputs = [output_path]
+    if save_png:
+        png_path = output_path.with_suffix(".png")
+        _plot_clipping_comparison(series, png_path)
+        outputs.append(png_path)
+    return outputs
+
+
 def collect_numeric_metrics(results_dir: Path) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     for metrics_path in sorted(results_dir.glob("*/*/metrics.json")):
@@ -185,6 +253,64 @@ def collect_numeric_metrics(results_dir: Path) -> list[dict[str, Any]]:
                 }
             )
     return rows
+
+
+def _latest_labeled_runs(
+    results_path: Path,
+    experiments: list[tuple[str, str]],
+    artifact_name: str,
+) -> list[tuple[str, Path]]:
+    runs: list[tuple[str, Path]] = []
+    for label, experiment_id in experiments:
+        run = _latest_run_with(results_path / experiment_id, artifact_name)
+        if run is not None:
+            runs.append((label, run))
+    return runs
+
+
+def _load_pressure_series(runs: list[tuple[str, str | Path]]) -> list[dict[str, Any]]:
+    series = []
+    for label, run_dir in runs:
+        run_path = Path(run_dir)
+        events_path = run_path / "events.jsonl"
+        metrics_path = run_path / "metrics.json"
+        if not events_path.exists() or not metrics_path.exists():
+            continue
+        events = _read_jsonl(events_path)
+        train_events = [event for event in events if event.get("event") == "train"]
+        validation_events = [event for event in events if event.get("event") == "validation"]
+        if not train_events:
+            continue
+        series.append(
+            {
+                "label": label,
+                "run_dir": run_path,
+                "train_events": train_events,
+                "validation_events": validation_events,
+                "metrics": read_json(metrics_path),
+            }
+        )
+    return series
+
+
+def _load_clipping_series(runs: list[tuple[str, str | Path]]) -> list[dict[str, Any]]:
+    series = []
+    for label, run_dir in runs:
+        run_path = Path(run_dir)
+        frontier_path = run_path / "clipping_frontier.jsonl"
+        if not frontier_path.exists():
+            continue
+        rows = [
+            row
+            for row in _read_jsonl(frontier_path)
+            if row.get("achieved_sparsity") is not None
+            and row.get("validation_loss") is not None
+            and math.isfinite(float(row["achieved_sparsity"]))
+            and math.isfinite(float(row["validation_loss"]))
+        ]
+        if rows:
+            series.append({"label": label, "run_dir": run_path, "rows": rows})
+    return series
 
 
 def _plot_run_diagnostics(
@@ -308,6 +434,174 @@ def _draw_stats_panel(ax: Any, stats: list[tuple[str, Any, str]]) -> None:
             fontsize=12,
             fontweight="bold",
         )
+
+
+def _plot_pressure_comparison(series: list[dict[str, Any]], output_path: Path) -> None:
+    fig = plt.figure(figsize=(7.4, 8.4))
+    grid = fig.add_gridspec(2, 2, hspace=0.42, wspace=0.34)
+    ax_train = fig.add_subplot(grid[0, 0])
+    ax_val = fig.add_subplot(grid[0, 1])
+    ax_near_zero = fig.add_subplot(grid[1, 0])
+    ax_pressure = fig.add_subplot(grid[1, 1])
+    token_limit = _short_run_token_limit(series)
+
+    for item in series:
+        label = item["label"]
+        train_events = _events_up_to(item["train_events"], token_limit)
+        validation_events = _events_up_to(item["validation_events"], token_limit)
+
+        ax_train.plot(
+            [event["tokens_seen"] for event in train_events],
+            [event["train_loss"] for event in train_events],
+            marker="o",
+            markersize=2.2,
+            linewidth=1.2,
+            label=label,
+        )
+
+        if validation_events:
+            ax_val.plot(
+                [event["tokens_seen"] for event in validation_events],
+                [event["validation_loss"] for event in validation_events],
+                marker="s",
+                markersize=2.5,
+                linewidth=1.2,
+                label=label,
+            )
+
+        near_zero_events = [
+            event for event in train_events if event.get("activation/near_zero_mass/k1em02") is not None
+        ]
+        if near_zero_events:
+            ax_near_zero.plot(
+                [event["tokens_seen"] for event in near_zero_events],
+                [100.0 * float(event["activation/near_zero_mass/k1em02"]) for event in near_zero_events],
+                marker="o",
+                markersize=2.2,
+                linewidth=1.2,
+                label=label,
+            )
+
+        pressure_events = [event for event in train_events if event.get("pressure_loss") is not None]
+        if pressure_events:
+            ax_pressure.plot(
+                [event["tokens_seen"] for event in pressure_events],
+                [event["pressure_loss"] for event in pressure_events],
+                marker="o",
+                markersize=2.2,
+                linewidth=1.2,
+                label=label,
+            )
+
+    ax_train.set_title("Train Loss")
+    ax_train.set_xlabel("Tokens seen")
+    ax_train.set_ylabel("Task loss")
+
+    ax_val.set_title("Validation Loss")
+    ax_val.set_xlabel("Tokens seen")
+    ax_val.set_ylabel("Loss")
+
+    ax_near_zero.set_title("MLP Hidden Near-zero Mass")
+    ax_near_zero.set_xlabel("Tokens seen")
+    ax_near_zero.set_ylabel("|activation| <= 0.01 (%)")
+    if not ax_near_zero.lines:
+        ax_near_zero.text(0.5, 0.5, "No activation-pressure metrics found.", ha="center", va="center")
+
+    ax_pressure.set_title("Pressure Loss")
+    ax_pressure.set_xlabel("Tokens seen")
+    ax_pressure.set_ylabel("Unweighted pressure loss")
+    if not ax_pressure.lines:
+        ax_pressure.text(0.5, 0.5, "No pressure loss metrics found.", ha="center", va="center")
+
+    handles, labels = ax_train.get_legend_handles_labels()
+    if handles:
+        fig.legend(
+            handles,
+            labels,
+            loc="lower center",
+            bbox_to_anchor=(0.5, 0.02),
+            ncol=min(len(labels), 3),
+            frameon=False,
+        )
+    fig.suptitle("Pythia-14M Short Pressure Pretraining Checks", y=0.995)
+    fig.text(
+        0.5,
+        0.945,
+        f"n={len(series)} runs; AdamW baseline is shown only through the shared short-run token horizon",
+        ha="center",
+        va="top",
+        fontsize=8,
+    )
+    fig.subplots_adjust(top=0.88, bottom=0.16)
+    fig.savefig(output_path)
+    plt.close(fig)
+
+
+def _plot_clipping_comparison(series: list[dict[str, Any]], output_path: Path) -> None:
+    fig, ax = plt.subplots(figsize=(6.8, 4.4))
+    all_losses: list[float] = []
+    total_points = 0
+
+    for item in series:
+        rows = sorted(item["rows"], key=lambda row: float(row["achieved_sparsity"]))
+        sparsity = [100.0 * float(row["achieved_sparsity"]) for row in rows]
+        loss = [float(row["validation_loss"]) for row in rows]
+        total_points += len(rows)
+        all_losses.extend(loss)
+        ax.plot(
+            sparsity,
+            loss,
+            marker="o",
+            markersize=3.5,
+            linewidth=1.2,
+            label=item["label"],
+        )
+
+    ax.set_title("Post-hoc MLP Activation Clipping Frontiers")
+    ax.set_xlabel("Achieved exact-zero activation sparsity (%)")
+    ax.set_ylabel("Validation loss")
+    ax.legend(frameon=False, fontsize=8)
+
+    if all_losses and min(all_losses) > 0.0:
+        loss_span = max(all_losses) - min(all_losses)
+        margin = max(loss_span * 0.15, 1e-4)
+        ax.set_ylim(min(all_losses) - margin, max(all_losses) + margin)
+        axis_note = "validation-loss axis zoomed"
+    else:
+        axis_note = "validation-loss axis starts at zero"
+
+    ax.text(
+        0.99,
+        0.02,
+        f"n={len(series)} runs, {total_points} sweep points; {axis_note}",
+        transform=ax.transAxes,
+        ha="right",
+        va="bottom",
+        fontsize=8,
+    )
+    fig.tight_layout()
+    fig.savefig(output_path)
+    plt.close(fig)
+
+
+def _short_run_token_limit(series: list[dict[str, Any]]) -> int | None:
+    pressure_maxima = [
+        max((int(event["tokens_seen"]) for event in item["train_events"]), default=0)
+        for item in series
+        if item["label"] != "AdamW baseline"
+    ]
+    pressure_maxima = [value for value in pressure_maxima if value > 0]
+    if pressure_maxima:
+        return max(pressure_maxima)
+    all_maxima = [max((int(event["tokens_seen"]) for event in item["train_events"]), default=0) for item in series]
+    all_maxima = [value for value in all_maxima if value > 0]
+    return max(all_maxima) if all_maxima else None
+
+
+def _events_up_to(events: list[dict[str, Any]], token_limit: int | None) -> list[dict[str, Any]]:
+    if token_limit is None:
+        return events
+    return [event for event in events if int(event.get("tokens_seen", 0)) <= token_limit]
 
 
 def _plot_clipping_frontier(rows: list[dict[str, Any]], output_path: Path) -> None:
