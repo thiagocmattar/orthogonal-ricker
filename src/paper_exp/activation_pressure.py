@@ -35,6 +35,10 @@ class ActivationPressureConfig:
         return "none"
 
     @property
+    def applies_pressure(self) -> bool:
+        return self.enabled and self.method != "none"
+
+    @property
     def orthogonal(self) -> bool:
         return self.method in {"orthogonal_ricker", "orthogonal_l1"}
 

@@ -2,6 +2,7 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 .pytest_tmp/
+.pytest_tmp_run/
 *.egg-info/
 
 data/tokenized/

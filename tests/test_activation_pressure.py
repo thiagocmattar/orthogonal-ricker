@@ -6,7 +6,9 @@ import torch
 
 from paper_exp.activation_pressure import activation_l1_pressure
 from paper_exp.activation_pressure import activation_near_zero_metrics
+from paper_exp.activation_pressure import activation_pressure_config
 from paper_exp.activation_pressure import apply_adam_step_orthogonal_pressure
+from paper_exp.activation_pressure import pressure_loss
 from paper_exp.activation_pressure import ricker_pressure
 from paper_exp.activations import ActivationCapture
 from paper_exp.activations import clip_activation_tensor
@@ -21,6 +23,22 @@ def test_pressure_functions_are_finite() -> None:
     assert torch.isfinite(ricker)
     assert torch.isfinite(l1)
     assert float(l1) > 0.0
+
+
+def test_monitor_only_activation_pressure_has_no_pressure_loss() -> None:
+    cfg = activation_pressure_config(
+        {
+            "activation_pressure": {
+                "enabled": True,
+                "method": "none",
+                "sites": ["mlp_hiddens"],
+                "weight": 0.0,
+            }
+        }
+    )
+
+    assert cfg.applies_pressure is False
+    assert pressure_loss(torch, {"mlp_hiddens.layer_0": torch.ones(2)}, cfg) is None
 
 
 def test_activation_capture_hooks_pythia_like_mlp_hidden() -> None:

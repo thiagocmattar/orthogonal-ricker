@@ -46,6 +46,7 @@ Documents written for human reading live under `docs/humans/`.
 Current notes:
 
 - `docs/humans/01-pythia-14m-architecture.md`: Pythia-14M architecture, block equations, pseudocode, and activation-pressure hook sites.
+- `docs/humans/02-fixed-step-pressure-screen.md`: fixed-step Pythia-14M MiniPile pressure screen, metrics table, figures, and interpretation boundary.
 
 ## Model Initialization
 
@@ -135,8 +136,17 @@ result: results/03-pythia-14m-minipile-random-full-10min-clipping-sweep/002-2026
 figure: figures/02-pythia-14m-minipile-clipping-frontier-smoke.pdf
 ```
 
+Fixed-step activation-pressure screen:
+
+```text
+configs: configs/12-pythia-14m-minipile-adamw-fixed-2048.yaml through configs/34-pythia-14m-minipile-orthogonal-l1-fixed-2048-w1.yaml
+tokens/run: 134,217,728
+summary: docs/humans/02-fixed-step-pressure-screen.md
+figures: figures/05-pythia-14m-pressure-fixed-2048-summary.pdf through figures/07-pythia-14m-pressure-fixed-2048-clipping-frontiers.pdf
+```
+
 ## Known TODOs
 
-- `TODO:` choose the MiniPile pretraining budget.
-- `TODO:` add ablation configs when the method is defined.
+- `TODO:` choose the longer MiniPile pretraining budget for the full ablation.
+- `TODO:` repeat key candidates over multiple seeds.
 - `TODO:` consider scaling within the Pythia family up to 160M only after the 14M random-init path is reproducible.

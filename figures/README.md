@@ -9,6 +9,9 @@ Use sequential figure names:
 02-pythia-14m-minipile-clipping-frontier-smoke.pdf
 03-pythia-14m-pressure-short-learning-curves.pdf
 04-pythia-14m-pressure-short-clipping-frontiers.pdf
+05-pythia-14m-pressure-fixed-2048-summary.pdf
+06-pythia-14m-pressure-fixed-2048-learning-curves.pdf
+07-pythia-14m-pressure-fixed-2048-clipping-frontiers.pdf
 ```
 
 Regenerate figures with:

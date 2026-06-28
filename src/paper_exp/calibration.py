@@ -387,6 +387,7 @@ def _run_training_step(
     activation_metrics: dict[str, float] = {}
     task_grads_for_metrics: list[Any | None] = []
     pressure_grads_for_metrics: list[Any | None] = []
+    pressure_active = pressure_config.applies_pressure
 
     for _ in range(grad_accum):
         if activation_capture is not None:
@@ -395,7 +396,7 @@ def _run_training_step(
         with _autocast_context(torch, device, dtype):
             output = model(input_ids=batch, labels=batch)
             task_loss = output.loss
-            current_pressure_loss = pressure_loss(torch, activation_capture.activations, pressure_config) if pressure_config.enabled else None
+            current_pressure_loss = pressure_loss(torch, activation_capture.activations, pressure_config) if pressure_active else None
             augmented_loss = (
                 task_loss + pressure_config.weight * current_pressure_loss
                 if current_pressure_loss is not None
@@ -403,7 +404,7 @@ def _run_training_step(
             )
         _require_finite_loss(torch, task_loss, f"task loss at step {step}")
         _require_finite_loss(torch, augmented_loss, f"training loss at step {step}")
-        if pressure_config.enabled and current_pressure_loss is not None:
+        if pressure_active and current_pressure_loss is not None:
             task_grads_for_metrics = accumulate_grads(
                 task_grads_for_metrics,
                 torch.autograd.grad(task_loss / grad_accum, params, retain_graph=True, allow_unused=True),
@@ -417,20 +418,21 @@ def _run_training_step(
         if current_pressure_loss is not None:
             _require_finite_loss(torch, current_pressure_loss, f"pressure loss at step {step}")
             pressure_loss_total += float(current_pressure_loss.detach().cpu())
+        if activation_capture is not None:
             activation_metrics = activation_near_zero_metrics(activation_capture.activations, pressure_config.log_thresholds)
 
-    task_grads = task_grads_for_metrics if pressure_config.enabled else clone_grads(params)
-    pressure_grads = pressure_grads_for_metrics if pressure_config.enabled else [None for _ in params]
+    task_grads = task_grads_for_metrics if pressure_active else clone_grads(params)
+    pressure_grads = pressure_grads_for_metrics if pressure_active else [None for _ in params]
     step_metrics = grad_metrics(torch, task_grads, pressure_grads)
     optimizer.step()
 
     task_loss_mean = task_loss_total / grad_accum
-    pressure_loss_mean = pressure_loss_total / grad_accum if pressure_config.enabled else None
+    pressure_loss_mean = pressure_loss_total / grad_accum if pressure_active else None
     result = {
         "task_loss": task_loss_mean,
         "pressure/task_gradient_norm": step_metrics["pressure/task_gradient_norm"],
     }
-    if pressure_config.enabled:
+    if pressure_active:
         result.update(step_metrics)
         result.update(
             {
@@ -440,6 +442,7 @@ def _run_training_step(
                 "augmented_loss": task_loss_mean + pressure_config.weight * pressure_loss_mean,
             }
         )
+    if pressure_config.enabled:
         result.update(activation_metrics)
     return result
 

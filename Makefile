@@ -6,7 +6,7 @@ install:
 	$(PYTHON) -m pip install -e .
 
 test:
-	$(PYTHON) -m pytest --basetemp=.pytest_tmp
+	$(PYTHON) -m pytest --basetemp=.pytest_tmp_run
 
 smoke:
 	$(PYTHON) -m paper_exp.cli smoke --config configs/01-pythia-14m-minipile-smoke.yaml

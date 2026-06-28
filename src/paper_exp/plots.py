@@ -34,6 +34,22 @@ PRESSURE_SHORT_RUNS = [
     ("Orthogonal L1", "11-pythia-14m-minipile-orthogonal-l1-short"),
 ]
 
+FIXED_STEP_SWEEP_NAME = "pressure_fixed_step_v1"
+FIXED_STEP_ROLE_LABELS = {
+    "adamw": "AdamW",
+    "ricker_naive": "Ricker naive",
+    "orthogonal_ricker": "Orthogonal Ricker",
+    "l1_naive": "L1 naive",
+    "orthogonal_l1": "Orthogonal L1",
+}
+FIXED_STEP_ROLE_MARKERS = {
+    "adamw": "D",
+    "ricker_naive": "o",
+    "orthogonal_ricker": "s",
+    "l1_naive": "^",
+    "orthogonal_l1": "P",
+}
+
 PLOT_STYLE = {
     "figure.figsize": (6.5, 4.0),
     "figure.dpi": 150,
@@ -119,6 +135,29 @@ def _generate_known_paper_figures(results_path: Path, figures_path: Path, *, sav
     if len(clipping_runs) >= 2:
         output_pdf = figures_path / "04-pythia-14m-pressure-short-clipping-frontiers.pdf"
         outputs.extend(generate_clipping_comparison(runs=clipping_runs, output=output_pdf, save_png=save_png))
+
+    fixed_step_rows = _load_fixed_step_sweep_rows(results_path)
+    if len(fixed_step_rows) >= 2:
+        output_pdf = figures_path / "05-pythia-14m-pressure-fixed-2048-summary.pdf"
+        outputs.extend(
+            generate_fixed_step_sweep_summary(rows=fixed_step_rows, output=output_pdf, save_png=save_png)
+        )
+
+        output_pdf = figures_path / "06-pythia-14m-pressure-fixed-2048-learning-curves.pdf"
+        outputs.extend(
+            generate_fixed_step_learning_curves(rows=fixed_step_rows, output=output_pdf, save_png=save_png)
+        )
+
+    fixed_step_clipping = _load_fixed_step_clipping_series(results_path, fixed_step_rows)
+    if len(fixed_step_clipping) >= 2:
+        output_pdf = figures_path / "07-pythia-14m-pressure-fixed-2048-clipping-frontiers.pdf"
+        outputs.extend(
+            generate_fixed_step_clipping_frontiers(
+                series=fixed_step_clipping,
+                output=output_pdf,
+                save_png=save_png,
+            )
+        )
 
     return outputs
 
@@ -230,6 +269,65 @@ def generate_clipping_comparison(
     return outputs
 
 
+def generate_fixed_step_sweep_summary(
+    *,
+    rows: list[dict[str, Any]],
+    output: str | Path,
+    save_png: bool = False,
+) -> list[Path]:
+    plt.rcParams.update(PLOT_STYLE)
+
+    output_path = Path(output)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    _plot_fixed_step_sweep_summary(rows, output_path)
+    outputs = [output_path]
+    if save_png:
+        png_path = output_path.with_suffix(".png")
+        _plot_fixed_step_sweep_summary(rows, png_path)
+        outputs.append(png_path)
+    return outputs
+
+
+def generate_fixed_step_learning_curves(
+    *,
+    rows: list[dict[str, Any]],
+    output: str | Path,
+    save_png: bool = False,
+) -> list[Path]:
+    plt.rcParams.update(PLOT_STYLE)
+
+    output_path = Path(output)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    selected_rows = _select_representative_fixed_step_rows(rows)
+    _plot_fixed_step_learning_curves(selected_rows, output_path)
+    outputs = [output_path]
+    if save_png:
+        png_path = output_path.with_suffix(".png")
+        _plot_fixed_step_learning_curves(selected_rows, png_path)
+        outputs.append(png_path)
+    return outputs
+
+
+def generate_fixed_step_clipping_frontiers(
+    *,
+    series: list[dict[str, Any]],
+    output: str | Path,
+    save_png: bool = False,
+) -> list[Path]:
+    plt.rcParams.update(PLOT_STYLE)
+
+    output_path = Path(output)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    selected_series = _select_representative_clipping_series(series)
+    _plot_fixed_step_clipping_frontiers(selected_series, output_path)
+    outputs = [output_path]
+    if save_png:
+        png_path = output_path.with_suffix(".png")
+        _plot_fixed_step_clipping_frontiers(selected_series, png_path)
+        outputs.append(png_path)
+    return outputs
+
+
 def collect_numeric_metrics(results_dir: Path) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     for metrics_path in sorted(results_dir.glob("*/*/metrics.json")):
@@ -311,6 +409,97 @@ def _load_clipping_series(runs: list[tuple[str, str | Path]]) -> list[dict[str, 
         if rows:
             series.append({"label": label, "run_dir": run_path, "rows": rows})
     return series
+
+
+def _load_fixed_step_sweep_rows(results_path: Path) -> list[dict[str, Any]]:
+    latest_by_config: dict[str, dict[str, Any]] = {}
+    for metrics_path in sorted(results_path.glob("*/*/metrics.json")):
+        run_path = metrics_path.parent
+        manifest_path = run_path / "manifest.json"
+        if not manifest_path.exists():
+            continue
+        manifest = read_json(manifest_path)
+        sweep = manifest.get("sweep") or {}
+        if sweep.get("name") != FIXED_STEP_SWEEP_NAME:
+            continue
+        metrics = read_json(metrics_path)
+        if int(metrics.get("calibration/optimizer_steps", -1)) != int(sweep.get("fixed_steps", -1)):
+            continue
+
+        config_id = str(manifest.get("config_id", run_path.parent.name))
+        pressure = manifest.get("activation_pressure") or {}
+        row = {
+            "config_index": _config_index(config_id),
+            "config_id": config_id,
+            "run_id": manifest.get("run_id", run_path.name),
+            "run_sequence": int(manifest.get("run_sequence", 0)),
+            "run_dir": run_path,
+            "role": sweep.get("role", "unknown"),
+            "label": _fixed_step_label(sweep.get("role", "unknown"), pressure),
+            "short_label": _fixed_step_short_label(sweep.get("role", "unknown"), pressure),
+            "pressure": pressure,
+            "train_loss": metrics.get("calibration/train_loss_final"),
+            "train_loss_mean": metrics.get("calibration/train_loss_mean"),
+            "validation_loss": metrics.get("calibration/validation_loss_final"),
+            "validation_loss_best": metrics.get("calibration/validation_loss_best"),
+            "tokens_seen": metrics.get("calibration/tokens_seen"),
+            "tokens_per_second": metrics.get("calibration/tokens_per_second"),
+            "wall_seconds": metrics.get("calibration/wall_seconds_total"),
+            "peak_gpu_memory_mb": metrics.get("calibration/peak_gpu_memory_mb"),
+            "final_model_size_mb": metrics.get("checkpoint/final_size_mb"),
+            "near_zero_k01": metrics.get("final/activation/near_zero_mass/k1em02"),
+            "near_zero_k03": metrics.get("final/activation/near_zero_mass/k3em02"),
+            "pressure_loss": metrics.get("final/pressure_loss"),
+        }
+        previous = latest_by_config.get(config_id)
+        if previous is None or row["run_sequence"] >= previous["run_sequence"]:
+            latest_by_config[config_id] = row
+    return sorted(latest_by_config.values(), key=lambda row: row["config_index"])
+
+
+def _load_fixed_step_clipping_series(results_path: Path, training_rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    training_by_config = {row["config_id"]: row for row in training_rows}
+    latest_by_config: dict[str, dict[str, Any]] = {}
+    for frontier_path in sorted(results_path.glob("*-clipping-sweep/*/clipping_frontier.jsonl")):
+        run_path = frontier_path.parent
+        manifest_path = run_path / "manifest.json"
+        if not manifest_path.exists():
+            continue
+        manifest = read_json(manifest_path)
+        source_sweep = manifest.get("source_sweep") or {}
+        if source_sweep.get("name") != FIXED_STEP_SWEEP_NAME:
+            continue
+        source_run = manifest.get("source_run")
+        if not source_run:
+            continue
+        source_config_id = Path(source_run).parent.name
+        training_row = training_by_config.get(source_config_id)
+        if training_row is None:
+            continue
+        rows = [
+            row
+            for row in _read_jsonl(frontier_path)
+            if row.get("achieved_sparsity") is not None
+            and row.get("validation_loss") is not None
+            and math.isfinite(float(row["achieved_sparsity"]))
+            and math.isfinite(float(row["validation_loss"]))
+        ]
+        if not rows:
+            continue
+        series = {
+            "config_id": source_config_id,
+            "run_sequence": int(manifest.get("run_sequence", 0)),
+            "run_dir": run_path,
+            "training": training_row,
+            "label": training_row["label"],
+            "short_label": training_row["short_label"],
+            "role": training_row["role"],
+            "rows": rows,
+        }
+        previous = latest_by_config.get(source_config_id)
+        if previous is None or series["run_sequence"] >= previous["run_sequence"]:
+            latest_by_config[source_config_id] = series
+    return sorted(latest_by_config.values(), key=lambda item: item["training"]["config_index"])
 
 
 def _plot_run_diagnostics(
@@ -591,6 +780,246 @@ def _plot_clipping_comparison(series: list[dict[str, Any]], output_path: Path) -
     plt.close(fig)
 
 
+def _plot_fixed_step_sweep_summary(rows: list[dict[str, Any]], output_path: Path) -> None:
+    plottable = [
+        row
+        for row in rows
+        if _finite(row.get("validation_loss"))
+        and _finite(row.get("near_zero_k01"))
+        and _finite(row.get("near_zero_k03"))
+    ]
+    if not plottable:
+        raise ValueError("No fixed-step sweep rows with validation loss and activation metrics were found.")
+
+    fig = plt.figure(figsize=(7.4, 7.2))
+    grid = fig.add_gridspec(2, 1, height_ratios=[1.25, 1.0], hspace=0.42)
+    ax_k01 = fig.add_subplot(grid[0, 0])
+    ax_k03 = fig.add_subplot(grid[1, 0])
+
+    roles = _ordered_roles(plottable)
+    colors = _series_colors([FIXED_STEP_ROLE_LABELS.get(role, role) for role in roles])
+    baseline = next((row for row in plottable if row["role"] == "adamw"), None)
+
+    for role in roles:
+        role_rows = [row for row in plottable if row["role"] == role]
+        label = FIXED_STEP_ROLE_LABELS.get(role, role)
+        color = colors[label]
+        marker = FIXED_STEP_ROLE_MARKERS.get(role, "o")
+        ax_k01.scatter(
+            [100.0 * float(row["near_zero_k01"]) for row in role_rows],
+            [float(row["validation_loss"]) for row in role_rows],
+            marker=marker,
+            s=42,
+            color=color,
+            label=label,
+            alpha=0.9,
+        )
+        ax_k03.scatter(
+            [100.0 * float(row["near_zero_k03"]) for row in role_rows],
+            [float(row["validation_loss"]) for row in role_rows],
+            marker=marker,
+            s=42,
+            color=color,
+            label=label,
+            alpha=0.9,
+        )
+
+    for row in _fixed_step_annotation_rows(plottable):
+        ax_k01.annotate(
+            row["short_label"],
+            (100.0 * float(row["near_zero_k01"]), float(row["validation_loss"])),
+            textcoords="offset points",
+            xytext=(5, 5),
+            fontsize=7,
+        )
+        ax_k03.annotate(
+            row["short_label"],
+            (100.0 * float(row["near_zero_k03"]), float(row["validation_loss"])),
+            textcoords="offset points",
+            xytext=(5, 5),
+            fontsize=7,
+        )
+
+    for ax, threshold in [(ax_k01, 0.01), (ax_k03, 0.03)]:
+        ax.set_xlabel(f"MLP hidden mass with |activation| <= {threshold:g} (%)")
+        ax.set_ylabel("Final validation loss")
+        if baseline is not None:
+            ax.axhline(
+                float(baseline["validation_loss"]),
+                color="#444444",
+                linestyle="--",
+                linewidth=1.0,
+                alpha=0.6,
+            )
+        _zoom_loss_axis(ax, [float(row["validation_loss"]) for row in plottable])
+
+    ax_k01.set_title("Fixed-step Tradeoff at Threshold 0.01")
+    ax_k03.set_title("Fixed-step Tradeoff at Threshold 0.03")
+    handles, labels = ax_k01.get_legend_handles_labels()
+    if handles:
+        fig.legend(handles, labels, loc="lower center", bbox_to_anchor=(0.5, 0.01), ncol=3, frameon=False)
+    tokens = sorted({int(row["tokens_seen"]) for row in plottable if row.get("tokens_seen")})
+    token_note = f"{tokens[0]:,} tokens/run" if len(tokens) == 1 else "fixed token budget"
+    fig.suptitle("Pythia-14M MiniPile Fixed-step Pressure Screen", y=0.99)
+    fig.text(
+        0.5,
+        0.935,
+        f"n={len(plottable)} runs; {token_note}; validation-loss axes zoomed",
+        ha="center",
+        va="top",
+        fontsize=8,
+    )
+    fig.subplots_adjust(top=0.88, bottom=0.17)
+    fig.savefig(output_path)
+    plt.close(fig)
+
+
+def _plot_fixed_step_learning_curves(rows: list[dict[str, Any]], output_path: Path) -> None:
+    series = []
+    for row in rows:
+        events_path = Path(row["run_dir"]) / "events.jsonl"
+        if not events_path.exists():
+            continue
+        events = _read_jsonl(events_path)
+        train_events = [event for event in events if event.get("event") == "train"]
+        validation_events = [event for event in events if event.get("event") == "validation"]
+        if train_events:
+            series.append({**row, "train_events": train_events, "validation_events": validation_events})
+    if not series:
+        raise ValueError("No fixed-step sweep learning curves were found.")
+
+    fig = plt.figure(figsize=(7.6, 7.6))
+    grid = fig.add_gridspec(2, 2, hspace=0.42, wspace=0.34)
+    ax_train = fig.add_subplot(grid[0, 0])
+    ax_val = fig.add_subplot(grid[0, 1])
+    ax_near_zero = fig.add_subplot(grid[1, 0])
+    ax_pressure = fig.add_subplot(grid[1, 1])
+    colors = _series_colors([item["label"] for item in series])
+
+    for item in series:
+        label = item["label"]
+        color = colors[label]
+        train_events = item["train_events"]
+        validation_events = item["validation_events"]
+        ax_train.plot(
+            _tokens_millions(train_events),
+            [event["train_loss"] for event in train_events],
+            marker="o",
+            markersize=2.0,
+            linewidth=1.2,
+            color=color,
+            label=label,
+        )
+        if validation_events:
+            ax_val.plot(
+                _tokens_millions(validation_events),
+                [event["validation_loss"] for event in validation_events],
+                marker="s",
+                markersize=2.4,
+                linewidth=1.2,
+                color=color,
+                label=label,
+            )
+        near_zero_events = [
+            event for event in train_events if event.get("activation/near_zero_mass/k1em02") is not None
+        ]
+        if near_zero_events:
+            ax_near_zero.plot(
+                _tokens_millions(near_zero_events),
+                [100.0 * float(event["activation/near_zero_mass/k1em02"]) for event in near_zero_events],
+                marker="o",
+                markersize=2.0,
+                linewidth=1.2,
+                color=color,
+                label=label,
+            )
+        pressure_events = [event for event in train_events if event.get("pressure_loss") is not None]
+        if pressure_events:
+            ax_pressure.plot(
+                _tokens_millions(pressure_events),
+                [event["pressure_loss"] for event in pressure_events],
+                marker="o",
+                markersize=2.0,
+                linewidth=1.2,
+                color=color,
+                label=label,
+            )
+
+    ax_train.set_title("Train Loss")
+    ax_train.set_xlabel("Tokens seen (millions)")
+    ax_train.set_ylabel("Task loss")
+    ax_val.set_title("Validation Loss")
+    ax_val.set_xlabel("Tokens seen (millions)")
+    ax_val.set_ylabel("Loss")
+    ax_near_zero.set_title("Near-zero Activation Mass")
+    ax_near_zero.set_xlabel("Tokens seen (millions)")
+    ax_near_zero.set_ylabel("|activation| <= 0.01 (%)")
+    ax_pressure.set_title("Auxiliary Pressure Loss")
+    ax_pressure.set_xlabel("Tokens seen (millions)")
+    ax_pressure.set_ylabel("Unweighted pressure loss")
+    if not ax_pressure.lines:
+        ax_pressure.text(0.5, 0.5, "No pressure-loss series selected.", ha="center", va="center")
+
+    handles, labels = ax_train.get_legend_handles_labels()
+    if handles:
+        fig.legend(handles, labels, loc="lower center", bbox_to_anchor=(0.5, 0.01), ncol=2, frameon=False)
+    fig.suptitle("Representative Fixed-step Learning Curves", y=0.99)
+    fig.text(
+        0.5,
+        0.935,
+        f"n={len(series)} selected runs: AdamW plus best validation-loss run per pressure family",
+        ha="center",
+        va="top",
+        fontsize=8,
+    )
+    fig.subplots_adjust(top=0.88, bottom=0.2)
+    fig.savefig(output_path)
+    plt.close(fig)
+
+
+def _plot_fixed_step_clipping_frontiers(series: list[dict[str, Any]], output_path: Path) -> None:
+    if not series:
+        raise ValueError("No fixed-step clipping frontier series were found.")
+
+    fig, ax = plt.subplots(figsize=(7.0, 4.5))
+    colors = _series_colors([item["label"] for item in series])
+    all_losses: list[float] = []
+    total_points = 0
+    for item in series:
+        rows = sorted(item["rows"], key=lambda row: float(row["achieved_sparsity"]))
+        sparsity = [100.0 * float(row["achieved_sparsity"]) for row in rows]
+        losses = [float(row["validation_loss"]) for row in rows]
+        all_losses.extend(losses)
+        total_points += len(rows)
+        ax.plot(
+            sparsity,
+            losses,
+            marker="o",
+            markersize=3.2,
+            linewidth=1.2,
+            color=colors[item["label"]],
+            label=item["label"],
+        )
+
+    ax.set_title("Post-hoc Clipping Frontiers After Fixed-step Pretraining")
+    ax.set_xlabel("Achieved exact-zero activation sparsity (%)")
+    ax.set_ylabel("Validation loss")
+    ax.legend(frameon=False, fontsize=8)
+    _zoom_loss_axis(ax, all_losses)
+    ax.text(
+        0.99,
+        0.02,
+        f"n={len(series)} selected runs, {total_points} sweep points; validation-loss axis zoomed",
+        transform=ax.transAxes,
+        ha="right",
+        va="bottom",
+        fontsize=8,
+    )
+    fig.tight_layout()
+    fig.savefig(output_path)
+    plt.close(fig)
+
+
 def _short_run_token_limit(series: list[dict[str, Any]]) -> int | None:
     pressure_maxima = [
         max((int(event["tokens_seen"]) for event in item["train_events"]), default=0)
@@ -617,6 +1046,112 @@ def _series_colors(labels: list[str]) -> dict[str, str]:
         label: COLORBLIND_SAFE_COLORS[index % len(COLORBLIND_SAFE_COLORS)]
         for index, label in enumerate(unique_labels)
     }
+
+
+def _ordered_roles(rows: list[dict[str, Any]]) -> list[str]:
+    preferred = ["adamw", "ricker_naive", "orthogonal_ricker", "l1_naive", "orthogonal_l1"]
+    present = {str(row["role"]) for row in rows}
+    ordered = [role for role in preferred if role in present]
+    ordered.extend(sorted(present.difference(ordered)))
+    return ordered
+
+
+def _fixed_step_label(role: str, pressure: dict[str, Any]) -> str:
+    role_label = FIXED_STEP_ROLE_LABELS.get(role, role)
+    if role == "adamw":
+        return role_label
+    weight = pressure.get("weight")
+    if "ricker" in role:
+        return (
+            f"{role_label} "
+            f"w={_compact_number(weight)}, c={_compact_number(pressure.get('ricker_c'))}, "
+            f"s={_compact_number(pressure.get('ricker_sigma'))}"
+        )
+    if "l1" in role:
+        return f"{role_label} w={_compact_number(weight)}"
+    return role_label
+
+
+def _fixed_step_short_label(role: str, pressure: dict[str, Any]) -> str:
+    if role == "adamw":
+        return "AdamW"
+    prefix = {
+        "ricker_naive": "RN",
+        "orthogonal_ricker": "OR",
+        "l1_naive": "L1N",
+        "orthogonal_l1": "OL1",
+    }.get(role, role)
+    weight = _compact_number(pressure.get("weight"))
+    if "ricker" in role:
+        return f"{prefix} w{weight} c{_compact_number(pressure.get('ricker_c'))} s{_compact_number(pressure.get('ricker_sigma'))}"
+    return f"{prefix} w{weight}"
+
+
+def _compact_number(value: Any) -> str:
+    if value is None:
+        return "NA"
+    return f"{float(value):g}"
+
+
+def _config_index(config_id: str) -> int:
+    first = config_id.split("-", 1)[0]
+    try:
+        return int(first)
+    except ValueError:
+        return 9999
+
+
+def _finite(value: Any) -> bool:
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        return False
+    return math.isfinite(float(value))
+
+
+def _fixed_step_annotation_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    selected: dict[str, dict[str, Any]] = {}
+    baseline = next((row for row in rows if row["role"] == "adamw"), None)
+    if baseline is not None:
+        selected[baseline["config_id"]] = baseline
+    for role in _ordered_roles(rows):
+        role_rows = [row for row in rows if row["role"] == role and _finite(row.get("validation_loss"))]
+        if role == "adamw" or not role_rows:
+            continue
+        sparse = max(role_rows, key=lambda row: float(row.get("near_zero_k03") or 0.0))
+        selected[sparse["config_id"]] = sparse
+    return sorted(selected.values(), key=lambda row: row["config_index"])
+
+
+def _select_representative_fixed_step_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    selected: list[dict[str, Any]] = []
+    baseline = next((row for row in rows if row["role"] == "adamw"), None)
+    if baseline is not None:
+        selected.append(baseline)
+    for role in ("ricker_naive", "orthogonal_ricker", "l1_naive", "orthogonal_l1"):
+        role_rows = [row for row in rows if row["role"] == role and _finite(row.get("validation_loss"))]
+        if role_rows:
+            selected.append(min(role_rows, key=lambda row: float(row["validation_loss"])))
+    return selected
+
+
+def _select_representative_clipping_series(series: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    training_rows = [item["training"] for item in series]
+    selected_configs = {row["config_id"] for row in _select_representative_fixed_step_rows(training_rows)}
+    return [item for item in series if item["config_id"] in selected_configs]
+
+
+def _tokens_millions(events: list[dict[str, Any]]) -> list[float]:
+    return [float(event["tokens_seen"]) / 1_000_000.0 for event in events]
+
+
+def _zoom_loss_axis(ax: Any, values: list[float]) -> None:
+    finite_values = [value for value in values if math.isfinite(value)]
+    if not finite_values:
+        return
+    low = min(finite_values)
+    high = max(finite_values)
+    span = high - low
+    margin = max(span * 0.15, 1e-4)
+    ax.set_ylim(low - margin, high + margin)
 
 
 def _plot_clipping_frontier(rows: list[dict[str, Any]], output_path: Path) -> None:

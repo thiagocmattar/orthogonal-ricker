@@ -103,9 +103,22 @@ Matched post-hoc clipping check:
 
 Interpretation boundary: these 180-second checks validate implementation behavior and metric emission. They are not paper-quality evidence about final pretraining quality.
 
+Fixed-step activation-pressure screen:
+
+- Configs: `configs/12-pythia-14m-minipile-adamw-fixed-2048.yaml` through `configs/34-pythia-14m-minipile-orthogonal-l1-fixed-2048-w1.yaml`.
+- Detailed readout: `docs/humans/02-fixed-step-pressure-screen.md`.
+- Figures: `figures/05-pythia-14m-pressure-fixed-2048-summary.pdf`, `figures/06-pythia-14m-pressure-fixed-2048-learning-curves.pdf`, and `figures/07-pythia-14m-pressure-fixed-2048-clipping-frontiers.pdf`.
+- Budget: 2,048 optimizer steps, 134,217,728 tokens per run, 0.08998 estimated MiniPile token-cache epochs.
+- AdamW baseline was rerun as monitor-only with `activation_pressure.method: none`, so activation near-zero mass is measured without adding an auxiliary loss.
+- AdamW monitor-only final validation loss was 7.0200; final `abs(a) <= 0.01` MLP hidden mass was 6.47%.
+- Naive Ricker increases near-zero activation mass but can impose a large validation-loss cost as pressure increases.
+- Orthogonal Ricker reduces that cost at matched nominal settings. Example: at `w=0.1, c=0.05, s=0.05`, naive Ricker final validation loss was 7.0848, while orthogonal Ricker final validation loss was 7.0480.
+- L1 pressure is the strongest early candidate in this screen. `l1_naive w=0.15` reached final validation loss 7.0104; `orthogonal_l1 w=0.15` reached final validation loss 7.0100.
+- Interpretation boundary: this is a one-seed planning screen. The full ablation should repeat key candidates over multiple seeds, use longer token budgets, and use a larger or full deterministic validation pass.
+
 ## Expected Ablations
 
-TODO
+TODO: design the full ablation around the fixed-step screen. Initial candidates to carry forward are AdamW monitor-only, L1 weights near `0.15`, orthogonal L1 weights near `0.15`, mild Ricker `w=0.03, c=0.05, s=0.05`, and orthogonal Ricker at moderate pressure for the sparsity/loss tradeoff.
 
 ## Expected Scale Ladders
 

@@ -50,7 +50,13 @@ def pressure_fixed_step_specs() -> list[SweepConfigSpec]:
             filename_slug="pythia-14m-minipile-adamw-fixed-2048",
             experiment_name="pythia_14m_minipile_adamw_fixed_2048",
             method="adamw",
-            pressure=None,
+            pressure={
+                "enabled": True,
+                "method": "none",
+                "sites": ["mlp_hiddens"],
+                "weight": 0.0,
+                "log_thresholds": [0.0, 0.001, 0.003, 0.01, 0.03],
+            },
         )
     ]
 
