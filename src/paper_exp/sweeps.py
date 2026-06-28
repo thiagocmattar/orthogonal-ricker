@@ -177,7 +177,13 @@ def run_pressure_fixed_step_clipping_sweeps(
         source_run = _latest_completed_training_run(config_path)
         if source_run is None:
             continue
-        completed = _latest_completed_clipping_run(config_path)
+        completed = _latest_completed_clipping_run(
+            config_path,
+            thresholds=thresholds,
+            quantiles=quantiles,
+            eval_batches=eval_batches,
+            seed=seed,
+        )
         if completed is not None:
             outputs.append(completed)
             continue
@@ -285,14 +291,41 @@ def _latest_completed_training_run(config_path: Path) -> Path | None:
     return None
 
 
-def _latest_completed_clipping_run(config_path: Path) -> Path | None:
+def _latest_completed_clipping_run(
+    config_path: Path,
+    *,
+    thresholds: list[float],
+    quantiles: list[float],
+    eval_batches: int | None,
+    seed: int,
+) -> Path | None:
     config = load_config(config_path, allow_todos=False)
     experiment_id = f"{make_experiment_id(config_path)}-clipping-sweep"
     experiment_dir = Path(config["output"]["dir"]) / experiment_id
     if not experiment_dir.exists():
         return None
     runs = [path for path in sorted(experiment_dir.iterdir()) if (path / "clipping_frontier.jsonl").exists()]
-    return runs[-1] if runs else None
+    for run_dir in reversed(runs):
+        manifest_path = run_dir / "manifest.json"
+        if not manifest_path.exists():
+            continue
+        manifest = read_json(manifest_path)
+        if not _same_float_list(manifest.get("thresholds", []), thresholds):
+            continue
+        if not _same_float_list(manifest.get("quantiles", []), quantiles):
+            continue
+        if manifest.get("eval_batches") != eval_batches:
+            continue
+        if int(manifest.get("seed", -1)) != seed:
+            continue
+        rows = [
+            line
+            for line in (run_dir / "clipping_frontier.jsonl").read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        ]
+        if len(rows) == len(thresholds) + len(quantiles):
+            return run_dir
+    return None
 
 
 def _assert_completed_fixed_steps(run_dir: Path) -> None:
@@ -307,3 +340,9 @@ def _assert_completed_fixed_steps(run_dir: Path) -> None:
 
 def _compact_float(value: float) -> str:
     return f"{value:g}".replace(".", "p")
+
+
+def _same_float_list(left: list[Any], right: list[float], *, tolerance: float = 1e-12) -> bool:
+    if len(left) != len(right):
+        return False
+    return all(abs(float(left_value) - float(right_value)) <= tolerance for left_value, right_value in zip(left, right))

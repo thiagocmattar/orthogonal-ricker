@@ -114,6 +114,7 @@ Fixed-step activation-pressure screen:
 - Naive Ricker increases near-zero activation mass but can impose a large validation-loss cost as pressure increases.
 - Orthogonal Ricker reduces that cost at matched nominal settings. Example: at `w=0.1, c=0.05, s=0.05`, naive Ricker final validation loss was 7.0848, while orthogonal Ricker final validation loss was 7.0480.
 - L1 pressure is the strongest early candidate in this screen. `l1_naive w=0.15` reached final validation loss 7.0104; `orthogonal_l1 w=0.15` reached final validation loss 7.0100.
+- Fixed-step post-hoc clipping frontiers now use thresholds `[0, 0.001, 0.003, 0.01, 0.03, 0.05, 0.075, 0.1, 0.15, 0.2, 0.3]`, which maps representative runs through the 80-90% exact-zero activation sparsity region.
 - Interpretation boundary: this is a one-seed planning screen. The full ablation should repeat key candidates over multiple seeds, use longer token budgets, and use a larger or full deterministic validation pass.
 
 ## Expected Ablations

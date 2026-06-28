@@ -32,7 +32,7 @@ This is not a full paper ablation. It is a planning screen: one seed, one model 
 - Gradient metrics: task gradient norm, pressure gradient norm, pressure/task ratio, task-pressure cosine, and conflict flag for pressure methods.
 - Orthogonal metrics: post-Adam pressure update projection and trust-budget metrics for orthogonal methods.
 - Runtime metrics: tokens/sec, wall seconds, peak GPU memory, weight norm, gradient norm, and final checkpoint size.
-- Post-hoc clipping frontier: validation loss versus achieved exact-zero activation sparsity after clipping activations at thresholds `[0, 0.001, 0.003, 0.01, 0.03, 0.05]`.
+- Post-hoc clipping frontier: validation loss versus achieved exact-zero activation sparsity after clipping activations at thresholds `[0, 0.001, 0.003, 0.01, 0.03, 0.05, 0.075, 0.1, 0.15, 0.2, 0.3]`.
 
 ## Result Table
 
@@ -76,7 +76,7 @@ This is not a full paper ablation. It is a planning screen: one seed, one model 
 
 - `figures/05-pythia-14m-pressure-fixed-2048-summary.pdf`: all-run loss versus near-zero activation mass tradeoff.
 - `figures/06-pythia-14m-pressure-fixed-2048-learning-curves.pdf`: representative learning curves for AdamW plus the best validation-loss run per pressure family.
-- `figures/07-pythia-14m-pressure-fixed-2048-clipping-frontiers.pdf`: post-hoc clipping frontiers for the representative runs.
+- `figures/07-pythia-14m-pressure-fixed-2048-clipping-frontiers.pdf`: post-hoc clipping frontiers for the representative runs, including the 80-90% exact-zero sparsity region.
 
 ## Interpretation Boundary
 

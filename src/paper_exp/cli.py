@@ -14,6 +14,8 @@ from paper_exp.sweeps import run_pressure_fixed_step_clipping_sweeps
 from paper_exp.sweeps import run_pressure_fixed_step_sweep
 from paper_exp.sweeps import write_pressure_fixed_step_configs
 
+DEFAULT_CLIPPING_THRESHOLDS = "0,0.001,0.003,0.01,0.03,0.05,0.075,0.1,0.15,0.2,0.3"
+
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Lean paper experiment harness.")
@@ -54,7 +56,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     clip_sweep = subparsers.add_parser("clip-sweep", help="Run a post-hoc activation clipping frontier.")
     clip_sweep.add_argument("--run-dir", required=True)
-    clip_sweep.add_argument("--thresholds", default="0,0.001,0.003,0.01,0.03,0.05")
+    clip_sweep.add_argument("--thresholds", default=DEFAULT_CLIPPING_THRESHOLDS)
     clip_sweep.add_argument("--quantiles", default="")
     clip_sweep.add_argument("--eval-batches", type=int, default=None)
     clip_sweep.add_argument("--seed", type=int, default=0)
@@ -78,7 +80,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="Run post-hoc clipping sweeps for completed fixed-step pressure screening runs.",
     )
     run_sweep_clipping.add_argument("--configs-dir", default="configs")
-    run_sweep_clipping.add_argument("--thresholds", default="0,0.001,0.003,0.01,0.03,0.05")
+    run_sweep_clipping.add_argument("--thresholds", default=DEFAULT_CLIPPING_THRESHOLDS)
     run_sweep_clipping.add_argument("--quantiles", default="")
     run_sweep_clipping.add_argument("--eval-batches", type=int, default=8)
     run_sweep_clipping.add_argument("--seed", type=int, default=0)
