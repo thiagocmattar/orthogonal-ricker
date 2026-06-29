@@ -12,6 +12,19 @@ Use sequential figure names:
 05-pythia-14m-pressure-fixed-2048-summary.pdf
 06-pythia-14m-pressure-fixed-2048-learning-curves.pdf
 07-pythia-14m-pressure-fixed-2048-clipping-frontiers.pdf
+08-pythia-14m-pressure-fixed-2048-naive-ricker-learning-curves.pdf
+09-pythia-14m-pressure-fixed-2048-naive-l1-learning-curves.pdf
+10-pythia-14m-pressure-fixed-2048-orthogonal-ricker-learning-curves.pdf
+11-pythia-14m-pressure-fixed-2048-orthogonal-l1-learning-curves.pdf
+12-pythia-14m-pressure-fixed-2048-naive-ricker-clipping-frontiers.pdf
+13-pythia-14m-pressure-fixed-2048-naive-l1-clipping-frontiers.pdf
+14-pythia-14m-pressure-fixed-2048-orthogonal-ricker-clipping-frontiers.pdf
+15-pythia-14m-pressure-fixed-2048-orthogonal-l1-clipping-frontiers.pdf
+16-pythia-14m-pressure-fixed-2048-selected-clipping-frontiers.pdf
+17-pythia-14m-pressure-fixed-2048-high-pressure-rn-learning-curves.pdf
+18-pythia-14m-pressure-fixed-2048-high-pressure-or-learning-curves.pdf
+19-pythia-14m-pressure-fixed-2048-high-pressure-l1-learning-curves.pdf
+20-pythia-14m-pressure-fixed-2048-high-pressure-clipping-frontiers.pdf
 ```
 
 Regenerate figures with:

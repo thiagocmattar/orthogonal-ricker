@@ -139,10 +139,10 @@ figure: figures/02-pythia-14m-minipile-clipping-frontier-smoke.pdf
 Fixed-step activation-pressure screen:
 
 ```text
-configs: configs/12-pythia-14m-minipile-adamw-fixed-2048.yaml through configs/34-pythia-14m-minipile-orthogonal-l1-fixed-2048-w1.yaml
+configs: configs/12-pythia-14m-minipile-adamw-fixed-2048.yaml through configs/48-pythia-14m-minipile-orthogonal-l1-fixed-2048-w5.yaml
 tokens/run: 134,217,728
 summary: docs/humans/02-fixed-step-pressure-screen.md
-figures: figures/05-pythia-14m-pressure-fixed-2048-summary.pdf through figures/07-pythia-14m-pressure-fixed-2048-clipping-frontiers.pdf
+figures: figures/05-pythia-14m-pressure-fixed-2048-summary.pdf through figures/20-pythia-14m-pressure-fixed-2048-high-pressure-clipping-frontiers.pdf
 ```
 
 ## Known TODOs

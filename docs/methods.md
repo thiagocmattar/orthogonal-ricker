@@ -105,7 +105,7 @@ Interpretation boundary: these 180-second checks validate implementation behavio
 
 Fixed-step activation-pressure screen:
 
-- Configs: `configs/12-pythia-14m-minipile-adamw-fixed-2048.yaml` through `configs/34-pythia-14m-minipile-orthogonal-l1-fixed-2048-w1.yaml`.
+- Configs: `configs/12-pythia-14m-minipile-adamw-fixed-2048.yaml` through `configs/48-pythia-14m-minipile-orthogonal-l1-fixed-2048-w5.yaml`.
 - Detailed readout: `docs/humans/02-fixed-step-pressure-screen.md`.
 - Figures: `figures/05-pythia-14m-pressure-fixed-2048-summary.pdf`, `figures/06-pythia-14m-pressure-fixed-2048-learning-curves.pdf`, and `figures/07-pythia-14m-pressure-fixed-2048-clipping-frontiers.pdf`.
 - Budget: 2,048 optimizer steps, 134,217,728 tokens per run, 0.08998 estimated MiniPile token-cache epochs.
@@ -114,6 +114,8 @@ Fixed-step activation-pressure screen:
 - Naive Ricker increases near-zero activation mass but can impose a large validation-loss cost as pressure increases.
 - Orthogonal Ricker reduces that cost at matched nominal settings. Example: at `w=0.1, c=0.05, s=0.05`, naive Ricker final validation loss was 7.0848, while orthogonal Ricker final validation loss was 7.0480.
 - L1 pressure is the strongest early candidate in this screen. `l1_naive w=0.15` reached final validation loss 7.0104; `orthogonal_l1 w=0.15` reached final validation loss 7.0100.
+- High-pressure/wide-Ricker expansion configs `35` through `48` keep the same fixed budget. Requested Ricker point `w=0.3, c=s=0.05` was already present as configs `15` and `22`; the expansion adds the remaining `w in {0.3, 1.0}`, `c=s in {0.05, 0.1, 0.5}` settings plus L1/OL1 `w in {2.0, 5.0}`.
+- Expansion figures: `figures/17-pythia-14m-pressure-fixed-2048-high-pressure-rn-learning-curves.pdf`, `figures/18-pythia-14m-pressure-fixed-2048-high-pressure-or-learning-curves.pdf`, `figures/19-pythia-14m-pressure-fixed-2048-high-pressure-l1-learning-curves.pdf`, and `figures/20-pythia-14m-pressure-fixed-2048-high-pressure-clipping-frontiers.pdf`.
 - Fixed-step post-hoc clipping frontiers now use thresholds `[0, 0.001, 0.003, 0.01, 0.03, 0.05, 0.075, 0.1, 0.15, 0.2, 0.3]`, which maps representative runs through the 80-90% exact-zero activation sparsity region.
 - Interpretation boundary: this is a one-seed planning screen. The full ablation should repeat key candidates over multiple seeds, use longer token budgets, and use a larger or full deterministic validation pass.
 

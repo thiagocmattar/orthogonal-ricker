@@ -29,6 +29,16 @@ RICKER_SCREEN_POINTS = (
 
 L1_SCREEN_WEIGHTS = (0.05, 0.15, 0.50, 1.00)
 
+RICKER_HIGH_PRESSURE_POINTS = (
+    (0.30, 0.10, 0.10),
+    (0.30, 0.50, 0.50),
+    (1.00, 0.05, 0.05),
+    (1.00, 0.10, 0.10),
+    (1.00, 0.50, 0.50),
+)
+
+L1_HIGH_PRESSURE_WEIGHTS = (2.00, 5.00)
+
 
 @dataclass(frozen=True)
 class SweepConfigSpec:
@@ -91,6 +101,54 @@ def pressure_fixed_step_specs() -> list[SweepConfigSpec]:
 
     for method in ("l1_naive", "orthogonal_l1"):
         for weight in L1_SCREEN_WEIGHTS:
+            slug_method = method.replace("_", "-")
+            specs.append(
+                SweepConfigSpec(
+                    index=index,
+                    filename_slug=f"pythia-14m-minipile-{slug_method}-fixed-2048-w{_compact_float(weight)}",
+                    experiment_name=f"pythia_14m_minipile_{method}_fixed_2048_w{_compact_float(weight)}",
+                    method=method,
+                    pressure={
+                        "enabled": True,
+                        "method": method,
+                        "sites": ["mlp_hiddens"],
+                        "weight": weight,
+                        "log_thresholds": [0.0, 0.001, 0.003, 0.01, 0.03],
+                    },
+                )
+            )
+            index += 1
+
+    for method in ("ricker_naive", "orthogonal_ricker"):
+        for weight, c_value, sigma in RICKER_HIGH_PRESSURE_POINTS:
+            slug_method = method.replace("_", "-")
+            specs.append(
+                SweepConfigSpec(
+                    index=index,
+                    filename_slug=(
+                        f"pythia-14m-minipile-{slug_method}-fixed-2048"
+                        f"-w{_compact_float(weight)}-c{_compact_float(c_value)}-s{_compact_float(sigma)}"
+                    ),
+                    experiment_name=(
+                        f"pythia_14m_minipile_{method}_fixed_2048"
+                        f"_w{_compact_float(weight)}_c{_compact_float(c_value)}_s{_compact_float(sigma)}"
+                    ),
+                    method=method,
+                    pressure={
+                        "enabled": True,
+                        "method": method,
+                        "sites": ["mlp_hiddens"],
+                        "weight": weight,
+                        "ricker_c": c_value,
+                        "ricker_sigma": sigma,
+                        "log_thresholds": [0.0, 0.001, 0.003, 0.01, 0.03],
+                    },
+                )
+            )
+            index += 1
+
+    for method in ("l1_naive", "orthogonal_l1"):
+        for weight in L1_HIGH_PRESSURE_WEIGHTS:
             slug_method = method.replace("_", "-")
             specs.append(
                 SweepConfigSpec(

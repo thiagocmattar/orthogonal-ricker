@@ -25,6 +25,10 @@ COLORBLIND_SAFE_COLORS = [
     "#bcbd22",
     "#17becf",
 ]
+ADAMW_COLOR = "#000000"
+ADAMW_LINEWIDTH = 2.6
+ADAMW_MARKER_SCALE = 1.35
+DEFAULT_SERIES_LINEWIDTH = 1.2
 
 PRESSURE_SHORT_RUNS = [
     ("AdamW baseline", "03-pythia-14m-minipile-random-full-10min"),
@@ -49,6 +53,19 @@ FIXED_STEP_ROLE_MARKERS = {
     "l1_naive": "^",
     "orthogonal_l1": "P",
 }
+FIXED_STEP_METHOD_FIGURES = (
+    (8, "ricker_naive", "naive-ricker", "Naive Ricker"),
+    (9, "l1_naive", "naive-l1", "Naive L1"),
+    (10, "orthogonal_ricker", "orthogonal-ricker", "Orthogonal Ricker"),
+    (11, "orthogonal_l1", "orthogonal-l1", "Orthogonal L1"),
+)
+SELECTED_CLIPPING_FRONTIER_CONFIGS = (12, 29, 33, 18, 25)
+HIGH_PRESSURE_EXPANSION_CONFIGS = tuple([12, *range(35, 49)])
+HIGH_PRESSURE_LEARNING_FIGURES = (
+    (17, (12, *range(35, 40)), "rn", "High-pressure RN Learning Curves", "AdamW plus RN configs 35-39"),
+    (18, (12, *range(40, 45)), "or", "High-pressure OR Learning Curves", "AdamW plus OR configs 40-44"),
+    (19, (12, 45, 46, 47, 48), "l1", "High-pressure L1N/OL1 Learning Curves", "AdamW plus L1N/OL1 configs 45-48"),
+)
 
 PLOT_STYLE = {
     "figure.figsize": (6.5, 4.0),
@@ -154,6 +171,80 @@ def _generate_known_paper_figures(results_path: Path, figures_path: Path, *, sav
         outputs.extend(
             generate_fixed_step_clipping_frontiers(
                 series=fixed_step_clipping,
+                output=output_pdf,
+                save_png=save_png,
+            )
+        )
+
+    for index, role, slug, role_label in FIXED_STEP_METHOD_FIGURES:
+        role_rows = _select_fixed_step_rows_for_role(fixed_step_rows, role)
+        if len(role_rows) < 2:
+            continue
+        output_pdf = figures_path / f"{index:02d}-pythia-14m-pressure-fixed-2048-{slug}-learning-curves.pdf"
+        outputs.extend(
+            generate_fixed_step_role_learning_curves(
+                rows=role_rows,
+                role_label=role_label,
+                output=output_pdf,
+                save_png=save_png,
+            )
+        )
+
+    for offset, role, slug, role_label in FIXED_STEP_METHOD_FIGURES:
+        role_series = _select_fixed_step_clipping_for_role(fixed_step_clipping, role)
+        if len(role_series) < 2:
+            continue
+        output_pdf = figures_path / f"{offset + 4:02d}-pythia-14m-pressure-fixed-2048-{slug}-clipping-frontiers.pdf"
+        outputs.extend(
+            generate_fixed_step_role_clipping_frontiers(
+                series=role_series,
+                role_label=role_label,
+                output=output_pdf,
+                save_png=save_png,
+            )
+        )
+
+    selected_clipping = _select_fixed_step_clipping_by_config_indices(
+        fixed_step_clipping,
+        SELECTED_CLIPPING_FRONTIER_CONFIGS,
+    )
+    if len(selected_clipping) == len(SELECTED_CLIPPING_FRONTIER_CONFIGS):
+        output_pdf = figures_path / "16-pythia-14m-pressure-fixed-2048-selected-clipping-frontiers.pdf"
+        outputs.extend(
+            generate_fixed_step_selected_clipping_frontiers(
+                series=selected_clipping,
+                output=output_pdf,
+                save_png=save_png,
+            )
+        )
+
+    for index, config_indices, slug, title, scope_note in HIGH_PRESSURE_LEARNING_FIGURES:
+        high_pressure_rows = _select_fixed_step_rows_by_config_indices(
+            fixed_step_rows,
+            config_indices,
+        )
+        if len(high_pressure_rows) < 2:
+            continue
+        output_pdf = figures_path / f"{index:02d}-pythia-14m-pressure-fixed-2048-high-pressure-{slug}-learning-curves.pdf"
+        outputs.extend(
+            generate_fixed_step_high_pressure_learning_curves(
+                rows=high_pressure_rows,
+                output=output_pdf,
+                title=title,
+                scope_note=scope_note,
+                save_png=save_png,
+            )
+        )
+
+    high_pressure_clipping = _select_fixed_step_clipping_by_config_indices(
+        fixed_step_clipping,
+        HIGH_PRESSURE_EXPANSION_CONFIGS,
+    )
+    if len(high_pressure_clipping) >= 2:
+        output_pdf = figures_path / "20-pythia-14m-pressure-fixed-2048-high-pressure-clipping-frontiers.pdf"
+        outputs.extend(
+            generate_fixed_step_high_pressure_clipping_frontiers(
+                series=high_pressure_clipping,
                 output=output_pdf,
                 save_png=save_png,
             )
@@ -324,6 +415,186 @@ def generate_fixed_step_clipping_frontiers(
     if save_png:
         png_path = output_path.with_suffix(".png")
         _plot_fixed_step_clipping_frontiers(selected_series, png_path)
+        outputs.append(png_path)
+    return outputs
+
+
+def generate_fixed_step_role_learning_curves(
+    *,
+    rows: list[dict[str, Any]],
+    role_label: str,
+    output: str | Path,
+    save_png: bool = False,
+) -> list[Path]:
+    plt.rcParams.update(PLOT_STYLE)
+
+    output_path = Path(output)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    title = f"{role_label} Fixed-step Learning Curves"
+    subtitle = f"n={len(rows)} runs: AdamW plus all {role_label} settings"
+    _plot_fixed_step_learning_curves(
+        rows,
+        output_path,
+        title=title,
+        subtitle=subtitle,
+        use_short_labels=True,
+    )
+    outputs = [output_path]
+    if save_png:
+        png_path = output_path.with_suffix(".png")
+        _plot_fixed_step_learning_curves(
+            rows,
+            png_path,
+            title=title,
+            subtitle=subtitle,
+            use_short_labels=True,
+        )
+        outputs.append(png_path)
+    return outputs
+
+
+def generate_fixed_step_role_clipping_frontiers(
+    *,
+    series: list[dict[str, Any]],
+    role_label: str,
+    output: str | Path,
+    save_png: bool = False,
+) -> list[Path]:
+    plt.rcParams.update(PLOT_STYLE)
+
+    output_path = Path(output)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    title = f"{role_label} Post-hoc Clipping Frontiers"
+    total_points = sum(len(item.get("rows", [])) for item in series)
+    subtitle = (
+        f"n={len(series)} runs, {total_points} sweep points: "
+        f"AdamW plus all {role_label} settings; validation-loss axis zoomed"
+    )
+    _plot_fixed_step_clipping_frontiers(
+        series,
+        output_path,
+        title=title,
+        subtitle=subtitle,
+        use_short_labels=True,
+    )
+    outputs = [output_path]
+    if save_png:
+        png_path = output_path.with_suffix(".png")
+        _plot_fixed_step_clipping_frontiers(
+            series,
+            png_path,
+            title=title,
+            subtitle=subtitle,
+            use_short_labels=True,
+        )
+        outputs.append(png_path)
+    return outputs
+
+
+def generate_fixed_step_selected_clipping_frontiers(
+    *,
+    series: list[dict[str, Any]],
+    output: str | Path,
+    save_png: bool = False,
+) -> list[Path]:
+    plt.rcParams.update(PLOT_STYLE)
+
+    output_path = Path(output)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    total_points = sum(len(item.get("rows", [])) for item in series)
+    title = "Selected Post-hoc Clipping Frontiers"
+    subtitle = f"n={len(series)} runs, {total_points} sweep points; validation-loss axis zoomed"
+    _plot_fixed_step_clipping_frontiers(
+        series,
+        output_path,
+        title=title,
+        subtitle=subtitle,
+        use_short_labels=True,
+    )
+    outputs = [output_path]
+    if save_png:
+        png_path = output_path.with_suffix(".png")
+        _plot_fixed_step_clipping_frontiers(
+            series,
+            png_path,
+            title=title,
+            subtitle=subtitle,
+            use_short_labels=True,
+        )
+        outputs.append(png_path)
+    return outputs
+
+
+def generate_fixed_step_high_pressure_learning_curves(
+    *,
+    rows: list[dict[str, Any]],
+    output: str | Path,
+    title: str,
+    scope_note: str,
+    save_png: bool = False,
+) -> list[Path]:
+    plt.rcParams.update(PLOT_STYLE)
+
+    output_path = Path(output)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    tokens = sorted({int(row["tokens_seen"]) for row in rows if row.get("tokens_seen")})
+    token_note = f"{tokens[0]:,} tokens/run" if len(tokens) == 1 else "fixed token budget"
+    subtitle = f"n={len(rows)} runs: {scope_note}; {token_note}"
+    _plot_fixed_step_learning_curves(
+        rows,
+        output_path,
+        title=title,
+        subtitle=subtitle,
+        use_short_labels=True,
+        legend_ncol=2,
+    )
+    outputs = [output_path]
+    if save_png:
+        png_path = output_path.with_suffix(".png")
+        _plot_fixed_step_learning_curves(
+            rows,
+            png_path,
+            title=title,
+            subtitle=subtitle,
+            use_short_labels=True,
+            legend_ncol=2,
+        )
+        outputs.append(png_path)
+    return outputs
+
+
+def generate_fixed_step_high_pressure_clipping_frontiers(
+    *,
+    series: list[dict[str, Any]],
+    output: str | Path,
+    save_png: bool = False,
+) -> list[Path]:
+    plt.rcParams.update(PLOT_STYLE)
+
+    output_path = Path(output)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    total_points = sum(len(item.get("rows", [])) for item in series)
+    title = "High-pressure Post-hoc Clipping Frontiers"
+    subtitle = f"n={len(series)} runs, {total_points} sweep points: AdamW plus configs 35-48"
+    _plot_fixed_step_clipping_frontiers(
+        series,
+        output_path,
+        title=title,
+        subtitle=subtitle,
+        use_short_labels=True,
+        legend_ncol=3,
+    )
+    outputs = [output_path]
+    if save_png:
+        png_path = output_path.with_suffix(".png")
+        _plot_fixed_step_clipping_frontiers(
+            series,
+            png_path,
+            title=title,
+            subtitle=subtitle,
+            use_short_labels=True,
+            legend_ncol=3,
+        )
         outputs.append(png_path)
     return outputs
 
@@ -644,8 +915,8 @@ def _plot_pressure_comparison(series: list[dict[str, Any]], output_path: Path) -
             [event["tokens_seen"] for event in train_events],
             [event["train_loss"] for event in train_events],
             marker="o",
-            markersize=2.2,
-            linewidth=1.2,
+            markersize=_marker_size(label, 2.2),
+            linewidth=_line_width(label),
             color=colors[label],
             label=label,
         )
@@ -655,8 +926,8 @@ def _plot_pressure_comparison(series: list[dict[str, Any]], output_path: Path) -
                 [event["tokens_seen"] for event in validation_events],
                 [event["validation_loss"] for event in validation_events],
                 marker="s",
-                markersize=2.5,
-                linewidth=1.2,
+                markersize=_marker_size(label, 2.5),
+                linewidth=_line_width(label),
                 color=colors[label],
                 label=label,
             )
@@ -669,8 +940,8 @@ def _plot_pressure_comparison(series: list[dict[str, Any]], output_path: Path) -
                 [event["tokens_seen"] for event in near_zero_events],
                 [100.0 * float(event["activation/near_zero_mass/k1em02"]) for event in near_zero_events],
                 marker="o",
-                markersize=2.2,
-                linewidth=1.2,
+                markersize=_marker_size(label, 2.2),
+                linewidth=_line_width(label),
                 color=colors[label],
                 label=label,
             )
@@ -681,8 +952,8 @@ def _plot_pressure_comparison(series: list[dict[str, Any]], output_path: Path) -
                 [event["tokens_seen"] for event in pressure_events],
                 [event["pressure_loss"] for event in pressure_events],
                 marker="o",
-                markersize=2.2,
-                linewidth=1.2,
+                markersize=_marker_size(label, 2.2),
+                linewidth=_line_width(label),
                 color=colors[label],
                 label=label,
             )
@@ -747,8 +1018,8 @@ def _plot_clipping_comparison(series: list[dict[str, Any]], output_path: Path) -
             sparsity,
             loss,
             marker="o",
-            markersize=3.5,
-            linewidth=1.2,
+            markersize=_marker_size(item["label"], 3.5),
+            linewidth=_line_width(item["label"]),
             color=colors[item["label"]],
             label=item["label"],
         )
@@ -809,7 +1080,7 @@ def _plot_fixed_step_sweep_summary(rows: list[dict[str, Any]], output_path: Path
             [100.0 * float(row["near_zero_k01"]) for row in role_rows],
             [float(row["validation_loss"]) for row in role_rows],
             marker=marker,
-            s=42,
+            s=_scatter_size(label, 42),
             color=color,
             label=label,
             alpha=0.9,
@@ -818,7 +1089,7 @@ def _plot_fixed_step_sweep_summary(rows: list[dict[str, Any]], output_path: Path
             [100.0 * float(row["near_zero_k03"]) for row in role_rows],
             [float(row["validation_loss"]) for row in role_rows],
             marker=marker,
-            s=42,
+            s=_scatter_size(label, 42),
             color=color,
             label=label,
             alpha=0.9,
@@ -846,10 +1117,10 @@ def _plot_fixed_step_sweep_summary(rows: list[dict[str, Any]], output_path: Path
         if baseline is not None:
             ax.axhline(
                 float(baseline["validation_loss"]),
-                color="#444444",
+                color=ADAMW_COLOR,
                 linestyle="--",
-                linewidth=1.0,
-                alpha=0.6,
+                linewidth=1.4,
+                alpha=0.75,
             )
         _zoom_loss_axis(ax, [float(row["validation_loss"]) for row in plottable])
 
@@ -874,7 +1145,15 @@ def _plot_fixed_step_sweep_summary(rows: list[dict[str, Any]], output_path: Path
     plt.close(fig)
 
 
-def _plot_fixed_step_learning_curves(rows: list[dict[str, Any]], output_path: Path) -> None:
+def _plot_fixed_step_learning_curves(
+    rows: list[dict[str, Any]],
+    output_path: Path,
+    *,
+    title: str = "Representative Fixed-step Learning Curves",
+    subtitle: str | None = None,
+    use_short_labels: bool = False,
+    legend_ncol: int = 2,
+) -> None:
     series = []
     for row in rows:
         events_path = Path(row["run_dir"]) / "events.jsonl"
@@ -894,10 +1173,11 @@ def _plot_fixed_step_learning_curves(rows: list[dict[str, Any]], output_path: Pa
     ax_val = fig.add_subplot(grid[0, 1])
     ax_near_zero = fig.add_subplot(grid[1, 0])
     ax_pressure = fig.add_subplot(grid[1, 1])
-    colors = _series_colors([item["label"] for item in series])
+    labels_for_colors = [_plot_label(item, use_short_labels=use_short_labels) for item in series]
+    colors = _series_colors(labels_for_colors)
 
     for item in series:
-        label = item["label"]
+        label = _plot_label(item, use_short_labels=use_short_labels)
         color = colors[label]
         train_events = item["train_events"]
         validation_events = item["validation_events"]
@@ -905,8 +1185,8 @@ def _plot_fixed_step_learning_curves(rows: list[dict[str, Any]], output_path: Pa
             _tokens_millions(train_events),
             [event["train_loss"] for event in train_events],
             marker="o",
-            markersize=2.0,
-            linewidth=1.2,
+            markersize=_marker_size(label, 2.0),
+            linewidth=_line_width(label),
             color=color,
             label=label,
         )
@@ -915,8 +1195,8 @@ def _plot_fixed_step_learning_curves(rows: list[dict[str, Any]], output_path: Pa
                 _tokens_millions(validation_events),
                 [event["validation_loss"] for event in validation_events],
                 marker="s",
-                markersize=2.4,
-                linewidth=1.2,
+                markersize=_marker_size(label, 2.4),
+                linewidth=_line_width(label),
                 color=color,
                 label=label,
             )
@@ -928,8 +1208,8 @@ def _plot_fixed_step_learning_curves(rows: list[dict[str, Any]], output_path: Pa
                 _tokens_millions(near_zero_events),
                 [100.0 * float(event["activation/near_zero_mass/k1em02"]) for event in near_zero_events],
                 marker="o",
-                markersize=2.0,
-                linewidth=1.2,
+                markersize=_marker_size(label, 2.0),
+                linewidth=_line_width(label),
                 color=color,
                 label=label,
             )
@@ -939,8 +1219,8 @@ def _plot_fixed_step_learning_curves(rows: list[dict[str, Any]], output_path: Pa
                 _tokens_millions(pressure_events),
                 [event["pressure_loss"] for event in pressure_events],
                 marker="o",
-                markersize=2.0,
-                linewidth=1.2,
+                markersize=_marker_size(label, 2.0),
+                linewidth=_line_width(label),
                 color=color,
                 label=label,
             )
@@ -962,12 +1242,21 @@ def _plot_fixed_step_learning_curves(rows: list[dict[str, Any]], output_path: Pa
 
     handles, labels = ax_train.get_legend_handles_labels()
     if handles:
-        fig.legend(handles, labels, loc="lower center", bbox_to_anchor=(0.5, 0.01), ncol=2, frameon=False)
-    fig.suptitle("Representative Fixed-step Learning Curves", y=0.99)
+        fig.legend(
+            handles,
+            labels,
+            loc="lower center",
+            bbox_to_anchor=(0.5, 0.01),
+            ncol=legend_ncol,
+            frameon=False,
+            fontsize=8,
+        )
+    fig.suptitle(title, y=0.99)
+    subtitle = subtitle or f"n={len(series)} selected runs: AdamW plus best validation-loss run per pressure family"
     fig.text(
         0.5,
         0.935,
-        f"n={len(series)} selected runs: AdamW plus best validation-loss run per pressure family",
+        subtitle,
         ha="center",
         va="top",
         fontsize=8,
@@ -977,12 +1266,22 @@ def _plot_fixed_step_learning_curves(rows: list[dict[str, Any]], output_path: Pa
     plt.close(fig)
 
 
-def _plot_fixed_step_clipping_frontiers(series: list[dict[str, Any]], output_path: Path) -> None:
+def _plot_fixed_step_clipping_frontiers(
+    series: list[dict[str, Any]],
+    output_path: Path,
+    *,
+    title: str = "Post-hoc Clipping Frontiers After Fixed-step Pretraining",
+    subtitle: str | None = None,
+    use_short_labels: bool = False,
+    legend_ncol: int | None = None,
+) -> None:
     if not series:
         raise ValueError("No fixed-step clipping frontier series were found.")
 
-    fig, ax = plt.subplots(figsize=(7.0, 4.5))
-    colors = _series_colors([item["label"] for item in series])
+    figsize = (7.0, 5.4) if legend_ncol is not None else (7.0, 4.5)
+    fig, ax = plt.subplots(figsize=figsize)
+    labels_for_colors = [_plot_label(item, use_short_labels=use_short_labels) for item in series]
+    colors = _series_colors(labels_for_colors)
     all_losses: list[float] = []
     total_points = 0
     for item in series:
@@ -995,27 +1294,43 @@ def _plot_fixed_step_clipping_frontiers(series: list[dict[str, Any]], output_pat
             sparsity,
             losses,
             marker="o",
-            markersize=3.2,
-            linewidth=1.2,
-            color=colors[item["label"]],
-            label=item["label"],
+            markersize=_marker_size(_plot_label(item, use_short_labels=use_short_labels), 3.2),
+            linewidth=_line_width(_plot_label(item, use_short_labels=use_short_labels)),
+            color=colors[_plot_label(item, use_short_labels=use_short_labels)],
+            label=_plot_label(item, use_short_labels=use_short_labels),
         )
 
-    ax.set_title("Post-hoc Clipping Frontiers After Fixed-step Pretraining")
+    ax.set_title(title)
     ax.set_xlabel("Achieved exact-zero activation sparsity (%)")
     ax.set_ylabel("Validation loss")
-    ax.legend(frameon=False, fontsize=8)
+    if legend_ncol is None:
+        ax.legend(frameon=False, fontsize=8)
+    else:
+        handles, labels = ax.get_legend_handles_labels()
+        if handles:
+            fig.legend(
+                handles,
+                labels,
+                loc="lower center",
+                bbox_to_anchor=(0.5, 0.02),
+                ncol=legend_ncol,
+                frameon=False,
+                fontsize=7,
+            )
     _zoom_loss_axis(ax, all_losses)
     ax.text(
         0.99,
         0.02,
-        f"n={len(series)} selected runs, {total_points} sweep points; validation-loss axis zoomed",
+        subtitle or f"n={len(series)} selected runs, {total_points} sweep points; validation-loss axis zoomed",
         transform=ax.transAxes,
         ha="right",
         va="bottom",
         fontsize=8,
     )
-    fig.tight_layout()
+    if legend_ncol is None:
+        fig.tight_layout()
+    else:
+        fig.subplots_adjust(bottom=0.34)
     fig.savefig(output_path)
     plt.close(fig)
 
@@ -1042,10 +1357,31 @@ def _events_up_to(events: list[dict[str, Any]], token_limit: int | None) -> list
 
 def _series_colors(labels: list[str]) -> dict[str, str]:
     unique_labels = list(dict.fromkeys(labels))
-    return {
-        label: COLORBLIND_SAFE_COLORS[index % len(COLORBLIND_SAFE_COLORS)]
-        for index, label in enumerate(unique_labels)
-    }
+    colors: dict[str, str] = {}
+    color_index = 0
+    for label in unique_labels:
+        if _is_adamw_label(label):
+            colors[label] = ADAMW_COLOR
+            continue
+        colors[label] = COLORBLIND_SAFE_COLORS[color_index % len(COLORBLIND_SAFE_COLORS)]
+        color_index += 1
+    return colors
+
+
+def _is_adamw_label(label: str) -> bool:
+    return label.lower().startswith("adamw")
+
+
+def _line_width(label: str) -> float:
+    return ADAMW_LINEWIDTH if _is_adamw_label(label) else DEFAULT_SERIES_LINEWIDTH
+
+
+def _marker_size(label: str, default: float) -> float:
+    return default * ADAMW_MARKER_SCALE if _is_adamw_label(label) else default
+
+
+def _scatter_size(label: str, default: float) -> float:
+    return default * ADAMW_MARKER_SCALE if _is_adamw_label(label) else default
 
 
 def _ordered_roles(rows: list[dict[str, Any]]) -> list[str]:
@@ -1133,14 +1469,52 @@ def _select_representative_fixed_step_rows(rows: list[dict[str, Any]]) -> list[d
     return selected
 
 
+def _select_fixed_step_rows_for_role(rows: list[dict[str, Any]], role: str) -> list[dict[str, Any]]:
+    selected: list[dict[str, Any]] = []
+    baseline = next((row for row in rows if row["role"] == "adamw"), None)
+    if baseline is not None:
+        selected.append(baseline)
+    selected.extend(sorted((row for row in rows if row["role"] == role), key=lambda row: row["config_index"]))
+    return selected
+
+
+def _select_fixed_step_rows_by_config_indices(
+    rows: list[dict[str, Any]],
+    config_indices: tuple[int, ...],
+) -> list[dict[str, Any]]:
+    by_index = {int(row["config_index"]): row for row in rows}
+    return [by_index[index] for index in config_indices if index in by_index]
+
+
 def _select_representative_clipping_series(series: list[dict[str, Any]]) -> list[dict[str, Any]]:
     training_rows = [item["training"] for item in series]
     selected_configs = {row["config_id"] for row in _select_representative_fixed_step_rows(training_rows)}
     return [item for item in series if item["config_id"] in selected_configs]
 
 
+def _select_fixed_step_clipping_for_role(series: list[dict[str, Any]], role: str) -> list[dict[str, Any]]:
+    selected: list[dict[str, Any]] = []
+    baseline = next((item for item in series if item["role"] == "adamw"), None)
+    if baseline is not None:
+        selected.append(baseline)
+    selected.extend(sorted((item for item in series if item["role"] == role), key=lambda item: item["training"]["config_index"]))
+    return selected
+
+
+def _select_fixed_step_clipping_by_config_indices(
+    series: list[dict[str, Any]],
+    config_indices: tuple[int, ...],
+) -> list[dict[str, Any]]:
+    by_index = {int(item["training"]["config_index"]): item for item in series}
+    return [by_index[index] for index in config_indices if index in by_index]
+
+
 def _tokens_millions(events: list[dict[str, Any]]) -> list[float]:
     return [float(event["tokens_seen"]) / 1_000_000.0 for event in events]
+
+
+def _plot_label(item: dict[str, Any], *, use_short_labels: bool) -> str:
+    return str(item.get("short_label") if use_short_labels else item.get("label"))
 
 
 def _zoom_loss_axis(ax: Any, values: list[float]) -> None:
