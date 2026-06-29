@@ -32,9 +32,10 @@ This is not a full paper ablation. It is a planning screen: one seed, one model 
 - Pressure semantics: L1 and Ricker pressures are applied to scalar activation elements `A_l[b,t,j]` and then averaged into one loss. They are not structured channel pressures and do not directly force the same MLP hidden dimensions to be inactive for every token.
 - Gradient metrics: task gradient norm, pressure gradient norm, pressure/task ratio, task-pressure cosine, and conflict flag for pressure methods.
 - Orthogonal metrics: post-Adam pressure update projection and trust-budget metrics for orthogonal methods.
-- Runtime metrics: tokens/sec, wall seconds, peak GPU memory, weight norm, gradient norm, and final checkpoint size.
+- Runtime metrics: tokens/sec, wall seconds, peak GPU memory, global weight norm, gradient norm, and final checkpoint size. New runs also log MLP-only weight norm over `.mlp.*.weight` tensors; the already completed fixed-step runs did not log historical MLP-only norms, so MLP-only diagnostics for those runs are final-checkpoint-only.
 - Post-hoc clipping frontier: validation loss versus achieved exact-zero activation sparsity after clipping activations at thresholds `[0, 0.001, 0.003, 0.01, 0.03, 0.05, 0.075, 0.1, 0.15, 0.2, 0.3]`.
 - Exact-zero sparsity semantics: reported clipping sparsity is also elementwise over captured activation entries. For example, `80%` exact-zero activation sparsity does not imply that a fixed `80%` of the 512 MLP hidden channels are zero for all batch items and token positions.
+- Activation histograms: a deterministic full-validation inference pass over selected checkpoints streams post-GELU MLP hidden activations into per-layer histograms. Raw activations are not stored; saved artifacts contain bin edges, counts, underflow/overflow counts, validation-token coverage, and source checkpoint paths.
 
 ## Covered Parameter Grid
 
@@ -142,6 +143,8 @@ The `Val@0.4`, `Val@0.6`, and `Val@0.8` columns come from the latest matched pos
 - `figures/18-pythia-14m-pressure-fixed-2048-high-pressure-or-learning-curves.pdf`: learning curves for AdamW plus OR configs `40`-`44`.
 - `figures/19-pythia-14m-pressure-fixed-2048-high-pressure-l1-learning-curves.pdf`: learning curves for AdamW plus L1N/OL1 configs `45`-`48`.
 - `figures/20-pythia-14m-pressure-fixed-2048-high-pressure-clipping-frontiers.pdf`: post-hoc clipping frontiers for AdamW plus configs `35`-`48`.
+- `figures/21-pythia-14m-pressure-fixed-2048-or-l1-weight-norms.pdf`: near-zero activation mass, global weight norm trajectories, and lower-panel final-checkpoint scatter/regression diagnostics relating near-zero activation mass to global network weight norm and MLP-only weight norm for AdamW, OR configs `40`-`44`, and L1N/OL1 configs `45`-`48`.
+- `figures/22-pythia-14m-pressure-fixed-2048-selected-activation-histograms.pdf`: validation-set MLP activation histograms for selected AdamW, L1, Ricker, and orthogonal checkpoints. Rows are methods, columns are MLP layers, x-axis is shared, and y-axis is log probability per bin.
 
 ## Interpretation Boundary
 

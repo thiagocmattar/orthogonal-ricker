@@ -4,6 +4,7 @@ import argparse
 import sys
 from pathlib import Path
 
+from paper_exp.activation_histograms import run_activation_histograms
 from paper_exp.calibration import run_calibration
 from paper_exp.clipping import run_clipping_sweep
 from paper_exp.config import ConfigError, load_config
@@ -86,6 +87,15 @@ def build_parser() -> argparse.ArgumentParser:
     run_sweep_clipping.add_argument("--seed", type=int, default=0)
     run_sweep_clipping.add_argument("--start-at", default="")
     run_sweep_clipping.add_argument("--stop-after", type=int, default=None)
+
+    activation_histograms = subparsers.add_parser(
+        "activation-histograms",
+        help="Measure validation activation histograms for selected checkpoints.",
+    )
+    activation_histograms.add_argument(
+        "--config",
+        default="configs/49-pythia-14m-pressure-fixed-2048-selected-activation-histograms.yaml",
+    )
 
     return parser
 
@@ -186,6 +196,12 @@ def main(argv: list[str] | None = None) -> int:
             )
             for output in outputs:
                 print(f"Completed {output}")
+            return 0
+
+        if args.command == "activation-histograms":
+            config = load_config(args.config, allow_todos=False)
+            run_dir = run_activation_histograms(config, config_path=args.config, command=command)
+            print(f"Activation histograms written to {run_dir}")
             return 0
     except ConfigError as exc:
         print(f"Config error: {exc}", file=sys.stderr)

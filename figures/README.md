@@ -25,6 +25,8 @@ Use sequential figure names:
 18-pythia-14m-pressure-fixed-2048-high-pressure-or-learning-curves.pdf
 19-pythia-14m-pressure-fixed-2048-high-pressure-l1-learning-curves.pdf
 20-pythia-14m-pressure-fixed-2048-high-pressure-clipping-frontiers.pdf
+21-pythia-14m-pressure-fixed-2048-or-l1-weight-norms.pdf
+22-pythia-14m-pressure-fixed-2048-selected-activation-histograms.pdf
 ```
 
 Regenerate figures with:

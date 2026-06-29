@@ -109,6 +109,7 @@ def run_calibration(
     final_validation_tokens = None
     final_grad_norm = None
     final_weight_norm = None
+    final_mlp_weight_norm = None
     final_learning_rate = None
     final_pressure_metrics: dict[str, Any] = {}
     completed_steps = 0
@@ -150,6 +151,7 @@ def run_calibration(
             )
             grad_norm = step_result["pressure/task_gradient_norm"] if should_log or should_eval else None
             weight_norm = _global_weight_norm(model) if should_log or should_eval else None
+            mlp_weight_norm = _mlp_weight_norm(model) if should_log or should_eval else None
 
             tokens_seen = step * tokens_per_step
             estimated_epoch = tokens_seen / train_metadata["tokens"]
@@ -159,6 +161,7 @@ def run_calibration(
             if should_log:
                 final_grad_norm = grad_norm
                 final_weight_norm = weight_norm
+                final_mlp_weight_norm = mlp_weight_norm
                 final_learning_rate = learning_rate
                 final_pressure_metrics = {
                     key: value
@@ -180,6 +183,7 @@ def run_calibration(
                     "learning_rate": learning_rate,
                     "grad_norm": grad_norm,
                     "weight_norm": weight_norm,
+                    "mlp_weight_norm": mlp_weight_norm,
                     "step_wall_seconds": time.perf_counter() - step_start,
                 }
                 event.update(final_pressure_metrics)
@@ -289,6 +293,7 @@ def run_calibration(
         "calibration/learning_rate_final": final_learning_rate,
         "calibration/grad_norm_final": final_grad_norm,
         "calibration/weight_norm_final": final_weight_norm,
+        "calibration/mlp_weight_norm_final": final_mlp_weight_norm,
         "checkpoint/final_path": checkpoint_metadata["path"],
         "checkpoint/final_size_mb": checkpoint_metadata["size_mb"],
         "checkpoint/final_saved": checkpoint_metadata["saved"],
@@ -640,6 +645,16 @@ def _global_grad_norm(model: Any) -> float:
 def _global_weight_norm(model: Any) -> float:
     total = 0.0
     for parameter in model.parameters():
+        param_norm = parameter.detach().float().norm(2).item()
+        total += param_norm * param_norm
+    return total**0.5
+
+
+def _mlp_weight_norm(model: Any) -> float:
+    total = 0.0
+    for name, parameter in model.named_parameters():
+        if ".mlp." not in name or not name.endswith(".weight"):
+            continue
         param_norm = parameter.detach().float().norm(2).item()
         total += param_norm * param_norm
     return total**0.5

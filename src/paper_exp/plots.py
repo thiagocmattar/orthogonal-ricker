@@ -10,6 +10,7 @@ import matplotlib
 matplotlib.use("Agg")
 
 import matplotlib.pyplot as plt
+from matplotlib.ticker import FuncFormatter
 
 from paper_exp.utils import read_json
 
@@ -66,6 +67,8 @@ HIGH_PRESSURE_LEARNING_FIGURES = (
     (18, (12, *range(40, 45)), "or", "High-pressure OR Learning Curves", "AdamW plus OR configs 40-44"),
     (19, (12, 45, 46, 47, 48), "l1", "High-pressure L1N/OL1 Learning Curves", "AdamW plus L1N/OL1 configs 45-48"),
 )
+HIGH_PRESSURE_OR_L1_NORM_CONFIGS = tuple([12, *range(40, 49)])
+SELECTED_ACTIVATION_HISTOGRAM_EXPERIMENT = "49-pythia-14m-pressure-fixed-2048-selected-activation-histograms"
 
 PLOT_STYLE = {
     "figure.figsize": (6.5, 4.0),
@@ -245,6 +248,34 @@ def _generate_known_paper_figures(results_path: Path, figures_path: Path, *, sav
         outputs.extend(
             generate_fixed_step_high_pressure_clipping_frontiers(
                 series=high_pressure_clipping,
+                output=output_pdf,
+                save_png=save_png,
+            )
+        )
+
+    high_pressure_or_l1_rows = _select_fixed_step_rows_by_config_indices(
+        fixed_step_rows,
+        HIGH_PRESSURE_OR_L1_NORM_CONFIGS,
+    )
+    if len(high_pressure_or_l1_rows) >= 2:
+        output_pdf = figures_path / "21-pythia-14m-pressure-fixed-2048-or-l1-weight-norms.pdf"
+        outputs.extend(
+            generate_fixed_step_high_pressure_weight_norms(
+                rows=high_pressure_or_l1_rows,
+                output=output_pdf,
+                save_png=save_png,
+            )
+        )
+
+    activation_histogram_run = _latest_run_with(
+        results_path / SELECTED_ACTIVATION_HISTOGRAM_EXPERIMENT,
+        "activation_histograms.json",
+    )
+    if activation_histogram_run is not None:
+        output_pdf = figures_path / "22-pythia-14m-pressure-fixed-2048-selected-activation-histograms.pdf"
+        outputs.extend(
+            generate_activation_histogram_grid(
+                run_dir=activation_histogram_run,
                 output=output_pdf,
                 save_png=save_png,
             )
@@ -599,6 +630,46 @@ def generate_fixed_step_high_pressure_clipping_frontiers(
     return outputs
 
 
+def generate_fixed_step_high_pressure_weight_norms(
+    *,
+    rows: list[dict[str, Any]],
+    output: str | Path,
+    save_png: bool = False,
+) -> list[Path]:
+    plt.rcParams.update(PLOT_STYLE)
+
+    output_path = Path(output)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    _plot_fixed_step_high_pressure_weight_norms(rows, output_path)
+    outputs = [output_path]
+    if save_png:
+        png_path = output_path.with_suffix(".png")
+        _plot_fixed_step_high_pressure_weight_norms(rows, png_path)
+        outputs.append(png_path)
+    return outputs
+
+
+def generate_activation_histogram_grid(
+    *,
+    run_dir: str | Path,
+    output: str | Path,
+    save_png: bool = False,
+) -> list[Path]:
+    plt.rcParams.update(PLOT_STYLE)
+
+    run_path = Path(run_dir)
+    output_path = Path(output)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    payload = read_json(run_path / "activation_histograms.json")
+    _plot_activation_histogram_grid(payload, output_path)
+    outputs = [output_path]
+    if save_png:
+        png_path = output_path.with_suffix(".png")
+        _plot_activation_histogram_grid(payload, png_path)
+        outputs.append(png_path)
+    return outputs
+
+
 def collect_numeric_metrics(results_dir: Path) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     for metrics_path in sorted(results_dir.glob("*/*/metrics.json")):
@@ -718,6 +789,7 @@ def _load_fixed_step_sweep_rows(results_path: Path) -> list[dict[str, Any]]:
             "wall_seconds": metrics.get("calibration/wall_seconds_total"),
             "peak_gpu_memory_mb": metrics.get("calibration/peak_gpu_memory_mb"),
             "final_model_size_mb": metrics.get("checkpoint/final_size_mb"),
+            "mlp_weight_norm_final": metrics.get("calibration/mlp_weight_norm_final"),
             "near_zero_k01": metrics.get("final/activation/near_zero_mass/k1em02"),
             "near_zero_k03": metrics.get("final/activation/near_zero_mass/k3em02"),
             "pressure_loss": metrics.get("final/pressure_loss"),
@@ -862,6 +934,30 @@ def _read_jsonl(path: Path) -> list[dict[str, Any]]:
             if line.strip():
                 rows.append(json.loads(line))
     return rows
+
+
+def _final_mlp_weight_norm_from_checkpoint(run_path: Path) -> float | None:
+    checkpoint_path = run_path / "checkpoints" / "final" / "model.safetensors"
+    if not checkpoint_path.exists():
+        return None
+    try:
+        from safetensors import safe_open
+    except ImportError:
+        return None
+
+    total = 0.0
+    tensor_count = 0
+    with safe_open(str(checkpoint_path), framework="pt", device="cpu") as handle:
+        for key in handle.keys():
+            if ".mlp." not in key or not key.endswith(".weight"):
+                continue
+            tensor = handle.get_tensor(key).float()
+            param_norm = tensor.norm(2).item()
+            total += param_norm * param_norm
+            tensor_count += 1
+    if tensor_count == 0:
+        return None
+    return total**0.5
 
 
 def _format_stat_value(value: float) -> str:
@@ -1266,6 +1362,332 @@ def _plot_fixed_step_learning_curves(
     plt.close(fig)
 
 
+def _plot_fixed_step_high_pressure_weight_norms(rows: list[dict[str, Any]], output_path: Path) -> None:
+    series = []
+    for row in rows:
+        events_path = Path(row["run_dir"]) / "events.jsonl"
+        if not events_path.exists():
+            continue
+        events = _read_jsonl(events_path)
+        train_events = [event for event in events if event.get("event") == "train"]
+        if not train_events:
+            continue
+        final_mlp_weight_norm = row.get("mlp_weight_norm_final")
+        if final_mlp_weight_norm is None:
+            final_mlp_weight_norm = _final_mlp_weight_norm_from_checkpoint(Path(row["run_dir"]))
+        series.append({**row, "train_events": train_events, "final_mlp_weight_norm": final_mlp_weight_norm})
+    if not series:
+        raise ValueError("No high-pressure OR/L1 weight-norm series were found.")
+
+    fig = plt.figure(figsize=(8.2, 7.6))
+    grid = fig.add_gridspec(2, 2, hspace=0.42, wspace=0.34)
+    ax_near_zero = fig.add_subplot(grid[0, 0])
+    ax_global_tokens = fig.add_subplot(grid[0, 1])
+    ax_global_near_zero = fig.add_subplot(grid[1, 0])
+    ax_mlp_near_zero = fig.add_subplot(grid[1, 1])
+
+    labels_for_colors = [_plot_label(item, use_short_labels=True) for item in series]
+    colors = _series_colors(labels_for_colors)
+    mlp_time_series_count = 0
+    mlp_final_count = 0
+    global_fit_x: list[float] = []
+    global_fit_y: list[float] = []
+    mlp_fit_x: list[float] = []
+    mlp_fit_y: list[float] = []
+
+    for item in series:
+        label = _plot_label(item, use_short_labels=True)
+        color = colors[label]
+        marker = FIXED_STEP_ROLE_MARKERS.get(str(item.get("role")), "o")
+        train_events = item["train_events"]
+        near_zero_events = [
+            event for event in train_events if event.get("activation/near_zero_mass/k1em02") is not None
+        ]
+        weight_events = [event for event in train_events if event.get("weight_norm") is not None]
+        paired_global = [
+            event
+            for event in train_events
+            if event.get("activation/near_zero_mass/k1em02") is not None and event.get("weight_norm") is not None
+        ]
+        paired_mlp = [
+            event
+            for event in train_events
+            if event.get("activation/near_zero_mass/k1em02") is not None and event.get("mlp_weight_norm") is not None
+        ]
+
+        if near_zero_events:
+            ax_near_zero.plot(
+                _tokens_millions(near_zero_events),
+                [100.0 * float(event["activation/near_zero_mass/k1em02"]) for event in near_zero_events],
+                marker="o",
+                markersize=_marker_size(label, 2.0),
+                linewidth=_line_width(label),
+                color=color,
+                label=label,
+            )
+        if weight_events:
+            ax_global_tokens.plot(
+                _tokens_millions(weight_events),
+                [float(event["weight_norm"]) for event in weight_events],
+                marker="o",
+                markersize=_marker_size(label, 2.0),
+                linewidth=_line_width(label),
+                color=color,
+                label=label,
+            )
+        if paired_global:
+            final_event = paired_global[-1]
+            final_x = 100.0 * float(final_event["activation/near_zero_mass/k1em02"])
+            final_y = float(final_event["weight_norm"])
+            global_fit_x.append(final_x)
+            global_fit_y.append(final_y)
+            ax_global_near_zero.scatter(
+                [final_x],
+                [final_y],
+                marker=marker,
+                s=_scatter_size(label, 28.0),
+                color=color,
+                alpha=0.9,
+                linewidths=0.0,
+                zorder=2,
+            )
+        if paired_mlp:
+            mlp_time_series_count += 1
+            xs = [100.0 * float(event["activation/near_zero_mass/k1em02"]) for event in paired_mlp]
+            ys = [float(event["mlp_weight_norm"]) for event in paired_mlp]
+            mlp_fit_x.extend(xs)
+            mlp_fit_y.extend(ys)
+            ax_mlp_near_zero.scatter(
+                xs,
+                ys,
+                marker=marker,
+                s=_scatter_size(label, 12.0),
+                color=color,
+                alpha=0.72,
+                linewidths=0.0,
+                zorder=2,
+            )
+        elif item.get("final_mlp_weight_norm") is not None:
+            final_event = paired_global[-1] if paired_global else None
+            if final_event is not None:
+                final_x = 100.0 * float(final_event["activation/near_zero_mass/k1em02"])
+                final_y = float(item["final_mlp_weight_norm"])
+                mlp_fit_x.append(final_x)
+                mlp_fit_y.append(final_y)
+                mlp_final_count += 1
+                ax_mlp_near_zero.scatter(
+                    [final_x],
+                    [final_y],
+                    marker=marker,
+                    s=_scatter_size(label, 28.0),
+                    color=color,
+                    alpha=0.9,
+                    linewidths=0.0,
+                    zorder=2,
+                )
+
+    ax_near_zero.set_title("Near-zero Activation Mass")
+    ax_near_zero.set_xlabel("Tokens seen (millions)")
+    ax_near_zero.set_ylabel("|activation| <= 0.01 (%)")
+
+    ax_global_tokens.set_title("Global Weight Norm")
+    ax_global_tokens.set_xlabel("Tokens seen (millions)")
+    ax_global_tokens.set_ylabel("L2 norm")
+    ax_global_tokens.ticklabel_format(axis="y", style="plain", useOffset=False)
+
+    ax_global_near_zero.set_title("Final Global Norm vs Near-zero Mass")
+    ax_global_near_zero.set_xlabel("|activation| <= 0.01 (%)")
+    ax_global_near_zero.set_ylabel("Global L2 norm")
+    ax_global_near_zero.ticklabel_format(axis="y", style="plain", useOffset=False)
+    if ax_global_near_zero.collections:
+        ax_global_near_zero.text(
+            0.02,
+            0.02,
+            "Final checkpoint only.",
+            transform=ax_global_near_zero.transAxes,
+            ha="left",
+            va="bottom",
+            fontsize=7,
+            bbox={"facecolor": "white", "edgecolor": "none", "alpha": 0.75, "pad": 1.5},
+        )
+    _add_linear_fit_annotation(ax_global_near_zero, global_fit_x, global_fit_y, loc="lower right")
+
+    mlp_title_prefix = "MLP Weight Norm"
+    if mlp_time_series_count == 0 and mlp_final_count > 0:
+        mlp_title_prefix = "Final MLP Weight Norm"
+    if mlp_title_prefix == "Final MLP Weight Norm":
+        ax_mlp_near_zero.set_title("Final MLP Norm vs Near-zero Mass")
+    else:
+        ax_mlp_near_zero.set_title(f"{mlp_title_prefix} vs Near-zero Mass")
+    ax_mlp_near_zero.set_xlabel("|activation| <= 0.01 (%)")
+    ax_mlp_near_zero.set_ylabel("MLP weight L2 norm")
+    ax_mlp_near_zero.ticklabel_format(axis="y", style="plain", useOffset=False)
+    if not ax_mlp_near_zero.lines and not ax_mlp_near_zero.collections:
+        ax_mlp_near_zero.text(0.5, 0.5, "No MLP weight norms found.", ha="center", va="center")
+    elif mlp_time_series_count == 0 and mlp_final_count > 0:
+        ax_mlp_near_zero.text(
+            0.02,
+            0.02,
+            "Final checkpoint only.\nFuture runs log MLP norm per step.",
+            transform=ax_mlp_near_zero.transAxes,
+            ha="left",
+            va="bottom",
+            fontsize=7,
+            bbox={"facecolor": "white", "edgecolor": "none", "alpha": 0.75, "pad": 1.5},
+        )
+    _add_linear_fit_annotation(ax_mlp_near_zero, mlp_fit_x, mlp_fit_y, loc="upper right")
+
+    handles, labels = ax_near_zero.get_legend_handles_labels()
+    if handles:
+        fig.legend(
+            handles,
+            labels,
+            loc="lower center",
+            bbox_to_anchor=(0.5, 0.01),
+            ncol=3,
+            frameon=False,
+            fontsize=7,
+        )
+
+    tokens = sorted(
+        {
+            int(event["tokens_seen"])
+            for item in series
+            for event in item["train_events"]
+            if event.get("tokens_seen")
+        }
+    )
+    token_note = f"up to {tokens[-1]:,} tokens/run" if tokens else "fixed token budget"
+    fig.suptitle("High-pressure OR and L1 Weight Norm Diagnostics", y=0.99)
+    fig.text(
+        0.5,
+        0.935,
+        f"n={len(series)} runs: AdamW, OR configs 40-44, and L1N/OL1 configs 45-48; {token_note}",
+        ha="center",
+        va="top",
+        fontsize=8,
+    )
+    fig.subplots_adjust(top=0.88, bottom=0.2)
+    fig.savefig(output_path)
+    plt.close(fig)
+
+
+def _plot_activation_histogram_grid(payload: dict[str, Any], output_path: Path) -> None:
+    methods = payload.get("methods", [])
+    edges = [float(value) for value in payload.get("bin_edges", [])]
+    if not methods or len(edges) < 2:
+        raise ValueError("Activation histogram payload has no plottable methods or bin edges.")
+
+    layer_names = [layer["name"] for layer in methods[0].get("layers", [])]
+    if not layer_names:
+        raise ValueError("Activation histogram payload has no layer histograms.")
+    centers = [(left + right) / 2.0 for left, right in zip(edges[:-1], edges[1:], strict=True)]
+    labels = [str(method["label"]) for method in methods]
+    colors = _series_colors(labels)
+
+    positive_values: list[float] = []
+    probability_by_method_layer: list[list[list[float]]] = []
+    overflow_notes: list[str] = []
+    for method in methods:
+        method_layers: list[list[float]] = []
+        method_overflow = 0.0
+        method_total = 0.0
+        layers_by_name = {layer["name"]: layer for layer in method.get("layers", [])}
+        for layer_name in layer_names:
+            layer = layers_by_name[layer_name]
+            total = float(layer.get("total") or sum(layer.get("counts", [])) or 1.0)
+            counts = [float(value) for value in layer["counts"]]
+            probabilities = [count / total for count in counts]
+            positive_values.extend(value for value in probabilities if value > 0.0)
+            method_layers.append(probabilities)
+            method_overflow += float(layer.get("underflow", 0)) + float(layer.get("overflow", 0))
+            method_total += total
+        probability_by_method_layer.append(method_layers)
+        overflow_fraction = method_overflow / method_total if method_total else 0.0
+        if overflow_fraction > 0.001:
+            overflow_notes.append(f"{method['label']}: {100.0 * overflow_fraction:.2f}% outside range")
+
+    rows = len(methods)
+    cols = len(layer_names)
+    fig_width = max(12.0, 2.05 * cols)
+    fig_height = max(14.0, 1.34 * rows + 2.6)
+    fig, axes = plt.subplots(rows, cols, figsize=(fig_width, fig_height), sharex=True, sharey=True)
+    if rows == 1:
+        axes = [axes]
+
+    y_min = max(min(positive_values) * 0.6, 1e-9) if positive_values else 1e-9
+    y_max = max(positive_values) * 2.0 if positive_values else 1.0
+    for row_index, method in enumerate(methods):
+        label = str(method["label"])
+        color = colors[label]
+        for col_index, layer_name in enumerate(layer_names):
+            ax = axes[row_index][col_index]
+            probabilities = probability_by_method_layer[row_index][col_index]
+            y_values = [max(value, y_min) if value > 0.0 else y_min for value in probabilities]
+            ax.fill_between(
+                centers,
+                y_min,
+                y_values,
+                step="mid",
+                color=color,
+                alpha=0.26,
+                linewidth=0,
+            )
+            ax.step(centers, y_values, where="mid", color=color, linewidth=0.75, alpha=0.95)
+            ax.set_yscale("log")
+            ax.set_ylim(y_min, y_max)
+            ax.set_xlim(min(edges), 1.0)
+            ax.xaxis.set_major_formatter(FuncFormatter(_trimmed_decimal_tick))
+            ax.axvspan(-0.01, 0.01, color="#000000", alpha=0.07, linewidth=0)
+            ax.axvline(0.0, color="#4d4d4d", linewidth=0.45, alpha=0.5)
+            if row_index == 0:
+                ax.set_title(layer_name.replace("mlp_hiddens.layer_", "MLP "), fontsize=9)
+            if col_index == 0:
+                ax.set_ylabel(f"{label}\nprobability", fontsize=8)
+            ax.tick_params(axis="both", labelsize=7)
+
+    eval_tokens = int(payload.get("validation_tokens") or 0)
+    eval_sequences = int(payload.get("validation_sequences") or 0)
+    overflow_note = ""
+    if overflow_notes:
+        overflow_note = "; outside plotted range: " + ", ".join(overflow_notes[:3])
+        if len(overflow_notes) > 3:
+            overflow_note += ", ..."
+    fig.suptitle("Selected Method MLP Activation Distributions", y=0.997, fontsize=14)
+    fig.text(
+        0.5,
+        0.982,
+        (
+            f"n={len(methods)} checkpoints; {eval_sequences:,} validation blocks; "
+            f"{eval_tokens:,} validation tokens; y-axis is log probability per bin"
+            f"{overflow_note}"
+        ),
+        ha="center",
+        va="top",
+        fontsize=8,
+    )
+    fig.supxlabel("Activation value", y=0.035, fontsize=10)
+    fig.supylabel("Probability per bin (log scale)", x=0.006, fontsize=10)
+    fig.text(
+        0.5,
+        0.02,
+        "Shaded band marks |activation| <= 0.01.",
+        ha="center",
+        va="bottom",
+        fontsize=8,
+    )
+    fig.subplots_adjust(left=0.105, right=0.995, top=0.955, bottom=0.065, hspace=0.18, wspace=0.08)
+    fig.savefig(output_path)
+    plt.close(fig)
+
+
+def _trimmed_decimal_tick(value: float, _position: int) -> str:
+    label = f"{value:.2f}".rstrip("0")
+    if label.endswith("."):
+        label += "0"
+    return label
+
+
 def _plot_fixed_step_clipping_frontiers(
     series: list[dict[str, Any]],
     output_path: Path,
@@ -1515,6 +1937,61 @@ def _tokens_millions(events: list[dict[str, Any]]) -> list[float]:
 
 def _plot_label(item: dict[str, Any], *, use_short_labels: bool) -> str:
     return str(item.get("short_label") if use_short_labels else item.get("label"))
+
+
+def _add_linear_fit_annotation(ax: Any, x_values: list[float], y_values: list[float], *, loc: str) -> None:
+    points = [
+        (float(x), float(y))
+        for x, y in zip(x_values, y_values, strict=False)
+        if math.isfinite(float(x)) and math.isfinite(float(y))
+    ]
+    if len(points) < 2:
+        return
+
+    xs = [point[0] for point in points]
+    ys = [point[1] for point in points]
+    x_mean = sum(xs) / len(xs)
+    y_mean = sum(ys) / len(ys)
+    x_var = sum((x - x_mean) ** 2 for x in xs)
+    if x_var <= 0.0:
+        return
+    slope = sum((x - x_mean) * (y - y_mean) for x, y in points) / x_var
+    intercept = y_mean - slope * x_mean
+    residual_sum = sum((y - (slope * x + intercept)) ** 2 for x, y in points)
+    total_sum = sum((y - y_mean) ** 2 for y in ys)
+    r2 = 1.0 - residual_sum / total_sum if total_sum > 0.0 else 0.0
+
+    x_line = [min(xs), max(xs)]
+    y_line = [slope * x + intercept for x in x_line]
+    ax.plot(
+        x_line,
+        y_line,
+        color="#4d4d4d",
+        linestyle="--",
+        linewidth=1.0,
+        alpha=0.65,
+        label="_nolegend_",
+        zorder=1,
+    )
+
+    positions = {
+        "upper right": (0.98, 0.97, "right", "top"),
+        "lower right": (0.98, 0.03, "right", "bottom"),
+        "upper left": (0.02, 0.97, "left", "top"),
+        "lower left": (0.02, 0.03, "left", "bottom"),
+    }
+    x_pos, y_pos, ha, va = positions.get(loc, positions["upper right"])
+    ax.text(
+        x_pos,
+        y_pos,
+        f"slope={slope:.3g}/pp\nR2={r2:.2f}",
+        transform=ax.transAxes,
+        ha=ha,
+        va=va,
+        fontsize=7,
+        color="#333333",
+        bbox={"facecolor": "white", "edgecolor": "none", "alpha": 0.72, "pad": 1.5},
+    )
 
 
 def _zoom_loss_axis(ax: Any, values: list[float]) -> None:
