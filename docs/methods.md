@@ -69,6 +69,7 @@ First valid full-MiniPile random-init checkpoint:
 Activation pressure implementation:
 
 - Site support: `mlp_hiddens` for Pythia/GPT-NeoX, hooked at `gpt_neox.layers.N.mlp.act`.
+- Pressure semantics: L1 and Ricker score scalar activation elements `A_l[b,t,j]` and average those scores into one pressure loss. Current pressure and sparsity metrics are elementwise activation quantities, not structured channel sparsity over fixed MLP hidden dimensions.
 - Naive methods: `ricker_naive` and `l1_naive` optimize `task_loss + weight * pressure_loss`.
 - Orthogonal methods: `orthogonal_ricker` and `orthogonal_l1` compute task gradients and pressure gradients separately; AdamW steps on task gradients only; then a memoryless pressure correction is applied in AdamW step space.
 - Orthogonal projection fires only when the pressure update direction conflicts with the AdamW task update direction. The trust budget caps the final pressure/task update ratio.

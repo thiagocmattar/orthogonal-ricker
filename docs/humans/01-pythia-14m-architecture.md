@@ -193,6 +193,8 @@ A_l = GELU(Z_l) in R^{B x T x 512}
 
 for every transformer block `l`.
 
+The current sparsity notion is elementwise. A value such as `80%` exact-zero sparsity means that `80%` of scalar entries `A_l[b,t,j]` are zero across the measured layers, batches, token positions, and MLP hidden channels. It does not mean that the same `80%` of the 512 MLP hidden channels are zero for every batch item and every token position. Structured channel sparsity would require a separate channel-level metric or pressure.
+
 ## Why `mlp_hiddens` Is the First Pressure Site
 
 The MLP hidden activation is a natural first target because:
@@ -209,7 +211,7 @@ The pressure is applied to activations, not weights. A typical pressure over all
 P(A) = (1 / L) * sum_{l=0}^{L-1} P_l(A_l)
 ```
 
-where `P_l` may be an L1 pressure, a Ricker pressure, or another scalar pressure over the entries of `A_l`.
+where `P_l` may be an L1 pressure, a Ricker pressure, or another scalar pressure over the entries of `A_l`. In the current implementation, both L1 and Ricker are applied to each scalar activation element and then averaged. The shared model weights receive gradients from this aggregate scalar pressure; the harness is not independently selecting or disabling whole activation channels.
 
 ## Current Pressure Objectives
 
@@ -360,6 +362,7 @@ The important distinction is:
 
 - Near-zero mass measures how much activation mass is close to zero.
 - Exact-zero sparsity after clipping measures how much can be made exactly zero by a specified rule.
+- Both are currently elementwise activation statistics over entries `A_l[b,t,j]`, not guarantees that fixed hidden dimensions are always inactive.
 - Neither quantity alone proves speedup. Speedup requires sparse operators, routing, or explicit latency/FLOP instrumentation.
 
 ## References

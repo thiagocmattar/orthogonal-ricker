@@ -2,6 +2,8 @@
 
 This repository is a lean, auditable harness for reproducible paper experiments. It is intentionally small: configs define runs, commands create saved artifacts, and plots are regenerated from saved results.
 
+Author: Thiago Mattar <thiagocmattar@gmail.com>
+
 ## Current Status
 
 - The current target is Pythia-14M architecture pretraining on MiniPile.

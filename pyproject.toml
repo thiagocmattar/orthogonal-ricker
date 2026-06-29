@@ -7,6 +7,9 @@ name = "paper-exp"
 version = "0.1.0"
 description = "Lean reproducible experiment harness for a research paper."
 readme = "README.md"
+authors = [
+    { name = "Thiago Mattar", email = "thiagocmattar@gmail.com" },
+]
 requires-python = ">=3.10"
 dependencies = [
     "pyyaml>=6.0",

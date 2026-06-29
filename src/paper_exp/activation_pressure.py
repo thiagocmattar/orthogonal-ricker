@@ -84,12 +84,14 @@ def ricker_score(torch: Any, value: Any, *, c: float, sigma: float) -> Any:
 
 
 def ricker_pressure(torch: Any, activations: dict[str, Any], *, c: float, sigma: float) -> Any:
+    """Elementwise Ricker score over activation scalars, averaged to one loss."""
     _require_activations(activations)
     scores = [ricker_score(torch, value, c=c, sigma=sigma) for value in activations.values()]
     return 1.0 - torch.stack(scores).mean()
 
 
 def activation_l1_pressure(torch: Any, activations: dict[str, Any]) -> Any:
+    """Elementwise absolute activation value, averaged to one loss."""
     _require_activations(activations)
     return torch.stack([value.float().abs().mean() for value in activations.values()]).mean()
 

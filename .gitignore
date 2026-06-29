@@ -16,3 +16,5 @@ figures/*.pdf
 figures/*.png
 !figures/README.md
 !figures/.gitkeep
+
+report/

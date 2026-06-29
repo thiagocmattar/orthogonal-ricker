@@ -29,10 +29,12 @@ This is not a full paper ablation. It is a planning screen: one seed, one model 
 - Validation loss: causal language-modeling loss on validation token blocks, logged every 250 steps plus step 1 and final step.
 - Near-zero mass: fraction of captured MLP hidden activations with absolute value below thresholds, especially `0.01` and `0.03`.
 - Pressure loss: unweighted auxiliary activation-pressure objective for Ricker and L1 methods.
+- Pressure semantics: L1 and Ricker pressures are applied to scalar activation elements `A_l[b,t,j]` and then averaged into one loss. They are not structured channel pressures and do not directly force the same MLP hidden dimensions to be inactive for every token.
 - Gradient metrics: task gradient norm, pressure gradient norm, pressure/task ratio, task-pressure cosine, and conflict flag for pressure methods.
 - Orthogonal metrics: post-Adam pressure update projection and trust-budget metrics for orthogonal methods.
 - Runtime metrics: tokens/sec, wall seconds, peak GPU memory, weight norm, gradient norm, and final checkpoint size.
 - Post-hoc clipping frontier: validation loss versus achieved exact-zero activation sparsity after clipping activations at thresholds `[0, 0.001, 0.003, 0.01, 0.03, 0.05, 0.075, 0.1, 0.15, 0.2, 0.3]`.
+- Exact-zero sparsity semantics: reported clipping sparsity is also elementwise over captured activation entries. For example, `80%` exact-zero activation sparsity does not imply that a fixed `80%` of the 512 MLP hidden channels are zero for all batch items and token positions.
 
 ## Covered Parameter Grid
 
