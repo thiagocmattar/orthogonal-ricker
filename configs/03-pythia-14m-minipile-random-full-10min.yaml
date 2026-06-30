@@ -31,6 +31,12 @@ training:
   micro_batch_size: 4
   gradient_accumulation_steps: 8
   learning_rate: 0.00003
+  optimizer: adamw
+  adamw_betas:
+    - 0.9
+    - 0.999
+  adamw_eps: 1.0e-08
+  weight_decay: 0.01
   precision: auto
   device: auto
   log_every: 10

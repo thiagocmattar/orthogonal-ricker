@@ -69,6 +69,13 @@ HIGH_PRESSURE_LEARNING_FIGURES = (
 )
 HIGH_PRESSURE_OR_L1_NORM_CONFIGS = tuple([12, *range(40, 49)])
 SELECTED_ACTIVATION_HISTOGRAM_EXPERIMENT = "49-pythia-14m-pressure-fixed-2048-selected-activation-histograms"
+FULL_PASS_SELECTED_RUNS = [
+    ("AdamW", "50-pythia-14m-minipile-adamw-full-pass"),
+    ("L1N w0.5", "51-pythia-14m-minipile-l1-naive-full-pass-w0p5"),
+    ("OL1 w0.5", "52-pythia-14m-minipile-orthogonal-l1-full-pass-w0p5"),
+    ("RN w0.1 c0.05 s0.025", "53-pythia-14m-minipile-ricker-naive-full-pass-w0p1-c0p05-s0p025"),
+    ("OR w0.1 c0.05 s0.025", "54-pythia-14m-minipile-orthogonal-ricker-full-pass-w0p1-c0p05-s0p025"),
+]
 
 PLOT_STYLE = {
     "figure.figsize": (6.5, 4.0),
@@ -281,6 +288,45 @@ def _generate_known_paper_figures(results_path: Path, figures_path: Path, *, sav
             )
         )
 
+    full_pass_runs = _latest_labeled_runs(results_path, FULL_PASS_SELECTED_RUNS, "events.jsonl")
+    if len(full_pass_runs) >= 2:
+        output_pdf = figures_path / "28-pythia-14m-minipile-full-pass-selected-gradient-diagnostics.pdf"
+        outputs.extend(
+            generate_full_pass_gradient_diagnostics(
+                runs=full_pass_runs,
+                output=output_pdf,
+                save_png=save_png,
+            )
+        )
+        output_pdf = figures_path / "30-pythia-14m-minipile-full-pass-pressure-dominance.pdf"
+        outputs.extend(
+            generate_full_pass_pressure_dominance(
+                runs=full_pass_runs,
+                output=output_pdf,
+                save_png=save_png,
+            )
+        )
+
+    full_pass_rms_clipping = _latest_labeled_runs(
+        results_path,
+        [(label, f"{experiment_id}-clipping-sweep") for label, experiment_id in FULL_PASS_SELECTED_RUNS],
+        "clipping_frontier.jsonl",
+    )
+    full_pass_rms_clipping = [
+        (label, run)
+        for label, run in full_pass_rms_clipping
+        if _is_rms_clipping_run(run)
+    ]
+    if len(full_pass_rms_clipping) >= 2:
+        output_pdf = figures_path / "29-pythia-14m-minipile-full-pass-selected-rms-clipping-frontiers.pdf"
+        outputs.extend(
+            generate_full_pass_rms_clipping_frontiers(
+                runs=full_pass_rms_clipping,
+                output=output_pdf,
+                save_png=save_png,
+            )
+        )
+
     return outputs
 
 
@@ -387,6 +433,75 @@ def generate_clipping_comparison(
     if save_png:
         png_path = output_path.with_suffix(".png")
         _plot_clipping_comparison(series, png_path)
+        outputs.append(png_path)
+    return outputs
+
+
+def generate_full_pass_gradient_diagnostics(
+    *,
+    runs: list[tuple[str, str | Path]],
+    output: str | Path,
+    save_png: bool = False,
+) -> list[Path]:
+    plt.rcParams.update(PLOT_STYLE)
+
+    output_path = Path(output)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    series = _load_event_series(runs)
+    if not series:
+        raise ValueError("No full-pass train events were found.")
+
+    _plot_full_pass_gradient_diagnostics(series, output_path)
+    outputs = [output_path]
+    if save_png:
+        png_path = output_path.with_suffix(".png")
+        _plot_full_pass_gradient_diagnostics(series, png_path)
+        outputs.append(png_path)
+    return outputs
+
+
+def generate_full_pass_rms_clipping_frontiers(
+    *,
+    runs: list[tuple[str, str | Path]],
+    output: str | Path,
+    save_png: bool = False,
+) -> list[Path]:
+    plt.rcParams.update(PLOT_STYLE)
+
+    output_path = Path(output)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    series = _load_clipping_series(runs)
+    if not series:
+        raise ValueError("No RMS clipping comparison runs were found.")
+
+    _plot_full_pass_rms_clipping_frontiers(series, output_path)
+    outputs = [output_path]
+    if save_png:
+        png_path = output_path.with_suffix(".png")
+        _plot_full_pass_rms_clipping_frontiers(series, png_path)
+        outputs.append(png_path)
+    return outputs
+
+
+def generate_full_pass_pressure_dominance(
+    *,
+    runs: list[tuple[str, str | Path]],
+    output: str | Path,
+    save_png: bool = False,
+) -> list[Path]:
+    plt.rcParams.update(PLOT_STYLE)
+
+    output_path = Path(output)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    series = _load_event_series(runs)
+    if not series:
+        raise ValueError("No full-pass train events were found.")
+
+    _plot_full_pass_pressure_dominance(series, output_path)
+    outputs = [output_path]
+    if save_png:
+        png_path = output_path.with_suffix(".png")
+        _plot_full_pass_pressure_dominance(series, png_path)
         outputs.append(png_path)
     return outputs
 
@@ -751,6 +866,36 @@ def _load_clipping_series(runs: list[tuple[str, str | Path]]) -> list[dict[str, 
         if rows:
             series.append({"label": label, "run_dir": run_path, "rows": rows})
     return series
+
+
+def _load_event_series(runs: list[tuple[str, str | Path]]) -> list[dict[str, Any]]:
+    series = []
+    for label, run_dir in runs:
+        run_path = Path(run_dir)
+        events_path = run_path / "events.jsonl"
+        if not events_path.exists():
+            continue
+        events = _read_jsonl(events_path)
+        train_events = [event for event in events if event.get("event") == "train"]
+        validation_events = [event for event in events if event.get("event") == "validation"]
+        if train_events:
+            series.append(
+                {
+                    "label": label,
+                    "run_dir": run_path,
+                    "train_events": train_events,
+                    "validation_events": validation_events,
+                }
+            )
+    return series
+
+
+def _is_rms_clipping_run(run_dir: str | Path) -> bool:
+    manifest_path = Path(run_dir) / "manifest.json"
+    if not manifest_path.exists():
+        return False
+    manifest = read_json(manifest_path)
+    return bool(manifest.get("rms_multipliers"))
 
 
 def _load_fixed_step_sweep_rows(results_path: Path) -> list[dict[str, Any]]:
@@ -1143,6 +1288,377 @@ def _plot_clipping_comparison(series: list[dict[str, Any]], output_path: Path) -
         fontsize=8,
     )
     fig.tight_layout()
+    fig.savefig(output_path)
+    plt.close(fig)
+
+
+def _plot_full_pass_gradient_diagnostics(series: list[dict[str, Any]], output_path: Path) -> None:
+    fig = plt.figure(figsize=(8.4, 7.5))
+    grid = fig.add_gridspec(2, 2, hspace=0.38, wspace=0.32)
+    ax_task = fig.add_subplot(grid[0, 0])
+    ax_pressure = fig.add_subplot(grid[0, 1])
+    ax_weighted = fig.add_subplot(grid[1, 0])
+    ax_ratio = fig.add_subplot(grid[1, 1])
+    colors = _series_colors([item["label"] for item in series])
+    total_events = 0
+
+    for item in series:
+        label = item["label"]
+        train_events = item["train_events"]
+        total_events += len(train_events)
+        tokens = _tokens_millions(train_events)
+        task_norms = [
+            float(event.get("pressure/task_gradient_norm", event.get("grad_norm")))
+            for event in train_events
+            if event.get("pressure/task_gradient_norm", event.get("grad_norm")) is not None
+        ]
+        task_tokens = [
+            float(event["tokens_seen"]) / 1_000_000.0
+            for event in train_events
+            if event.get("pressure/task_gradient_norm", event.get("grad_norm")) is not None
+        ]
+        if task_norms:
+            ax_task.plot(
+                task_tokens,
+                task_norms,
+                marker="o",
+                markersize=_marker_size(label, 1.8),
+                linewidth=_line_width(label),
+                color=colors[label],
+                label=label,
+            )
+
+        pressure_events = [
+            event
+            for event in train_events
+            if event.get("pressure/pressure_gradient_norm") is not None
+            and event.get("pressure/task_gradient_norm") is not None
+        ]
+        if not pressure_events:
+            continue
+        pressure_tokens = [float(event["tokens_seen"]) / 1_000_000.0 for event in pressure_events]
+        pressure_norms = [float(event["pressure/pressure_gradient_norm"]) for event in pressure_events]
+        weighted_pressure_norms = [
+            float(event.get("pressure_weight", 1.0)) * float(event["pressure/pressure_gradient_norm"])
+            for event in pressure_events
+        ]
+        weighted_ratios = [
+            (
+                float(event.get("pressure_weight", 1.0))
+                * float(event["pressure/pressure_gradient_norm"])
+                / (float(event["pressure/task_gradient_norm"]) + 1e-12)
+            )
+            for event in pressure_events
+        ]
+
+        ax_pressure.plot(
+            pressure_tokens,
+            pressure_norms,
+            marker="o",
+            markersize=_marker_size(label, 1.8),
+            linewidth=_line_width(label),
+            color=colors[label],
+            label=label,
+        )
+        ax_weighted.plot(
+            pressure_tokens,
+            weighted_pressure_norms,
+            marker="o",
+            markersize=_marker_size(label, 1.8),
+            linewidth=_line_width(label),
+            color=colors[label],
+            label=label,
+        )
+        ax_ratio.plot(
+            pressure_tokens,
+            weighted_ratios,
+            marker="o",
+            markersize=_marker_size(label, 1.8),
+            linewidth=_line_width(label),
+            color=colors[label],
+            label=label,
+        )
+
+    ax_task.set_title("Task Gradient Norm")
+    ax_task.set_xlabel("Tokens seen (millions)")
+    ax_task.set_ylabel("L2 norm")
+    ax_task.set_ylim(bottom=0.0)
+
+    ax_pressure.set_title("Pressure Gradient Norm")
+    ax_pressure.set_xlabel("Tokens seen (millions)")
+    ax_pressure.set_ylabel("Raw pressure L2 norm")
+    ax_pressure.set_ylim(bottom=0.0)
+    if not ax_pressure.lines:
+        ax_pressure.text(0.5, 0.5, "No pressure-gradient metrics found.", ha="center", va="center")
+
+    ax_weighted.set_title("Weighted Pressure Gradient Norm")
+    ax_weighted.set_xlabel("Tokens seen (millions)")
+    ax_weighted.set_ylabel("weight * pressure grad norm")
+    ax_weighted.set_ylim(bottom=0.0)
+    if not ax_weighted.lines:
+        ax_weighted.text(0.5, 0.5, "No pressure-gradient metrics found.", ha="center", va="center")
+
+    ax_ratio.set_title("Weighted Pressure / Task Gradient")
+    ax_ratio.set_xlabel("Tokens seen (millions)")
+    ax_ratio.set_ylabel("ratio")
+    ax_ratio.set_ylim(bottom=0.0)
+    if not ax_ratio.lines:
+        ax_ratio.text(0.5, 0.5, "No pressure-gradient metrics found.", ha="center", va="center")
+
+    handles, labels = ax_task.get_legend_handles_labels()
+    if handles:
+        fig.legend(
+            handles,
+            labels,
+            loc="lower center",
+            bbox_to_anchor=(0.5, 0.015),
+            ncol=min(len(labels), 3),
+            frameon=False,
+            fontsize=8,
+        )
+    fig.suptitle("Full-pass Selected Methods Gradient Diagnostics", y=0.992)
+    fig.text(
+        0.5,
+        0.948,
+        f"n={len(series)} runs; {total_events} train log events; pressure panels omit AdamW where no pressure is applied",
+        ha="center",
+        va="top",
+        fontsize=8,
+    )
+    fig.subplots_adjust(top=0.89, bottom=0.16)
+    fig.savefig(output_path)
+    plt.close(fig)
+
+
+def _plot_full_pass_rms_clipping_frontiers(series: list[dict[str, Any]], output_path: Path) -> None:
+    fig, ax = plt.subplots(figsize=(8.2, 5.6))
+    total_points = sum(len(item.get("rows", [])) for item in series)
+    all_losses: list[float] = []
+    colors = _series_colors([item["label"] for item in series])
+
+    for item in series:
+        rows = sorted(item["rows"], key=lambda row: float(row["achieved_sparsity"]))
+        sparsity = [100.0 * float(row["achieved_sparsity"]) for row in rows]
+        losses = [float(row["validation_loss"]) for row in rows]
+        all_losses.extend(losses)
+        label = str(item["label"])
+        ax.plot(
+            sparsity,
+            losses,
+            marker="o",
+            markersize=_marker_size(label, 3.4),
+            linewidth=_line_width(label),
+            color=colors[label],
+            label=label,
+        )
+
+    ax.set_xlabel("Achieved exact-zero activation sparsity (%)")
+    ax.set_ylabel("Validation loss")
+    _zoom_loss_axis(ax, all_losses)
+
+    handles, labels = ax.get_legend_handles_labels()
+    if handles:
+        fig.legend(
+            handles,
+            labels,
+            loc="lower center",
+            bbox_to_anchor=(0.5, 0.02),
+            ncol=3,
+            frameon=False,
+            fontsize=8,
+        )
+    fig.suptitle("Full-pass RMS-normalized Post-hoc Clipping Frontiers", y=0.975)
+    fig.text(
+        0.5,
+        0.935,
+        (
+            f"n={len(series)} runs, {total_points} sweep points; "
+            "threshold = multiplier * RMS(A) per captured tensor/pass; validation-loss axis zoomed"
+        ),
+        ha="center",
+        va="top",
+        fontsize=8,
+    )
+    fig.subplots_adjust(top=0.83, bottom=0.25, left=0.11, right=0.99)
+    fig.savefig(output_path)
+    plt.close(fig)
+
+
+def _plot_full_pass_pressure_dominance(series: list[dict[str, Any]], output_path: Path) -> None:
+    fig = plt.figure(figsize=(8.4, 7.6))
+    grid = fig.add_gridspec(2, 2, hspace=0.38, wspace=0.32)
+    ax_near_zero = fig.add_subplot(grid[0, 0])
+    ax_task = fig.add_subplot(grid[0, 1])
+    ax_ratio = fig.add_subplot(grid[1, 0])
+    ax_phase = fig.add_subplot(grid[1, 1])
+    colors = _series_colors([item["label"] for item in series])
+    pressure_method_count = 0
+
+    for item in series:
+        label = str(item["label"])
+        color = colors[label]
+        train_events = item["train_events"]
+        near_zero_events = [
+            event for event in train_events if event.get("activation/near_zero_mass/k1em02") is not None
+        ]
+        task_events = [
+            event
+            for event in train_events
+            if event.get("pressure/task_gradient_norm", event.get("grad_norm")) is not None
+        ]
+        pressure_events = [
+            event
+            for event in train_events
+            if event.get("activation/near_zero_mass/k1em02") is not None
+            and event.get("pressure/task_gradient_norm") is not None
+            and event.get("pressure/pressure_gradient_norm") is not None
+            and event.get("pressure_weight") is not None
+        ]
+
+        if near_zero_events:
+            near_zero_tokens = _tokens_millions(near_zero_events)
+            near_zero_values = [
+                100.0 * float(event["activation/near_zero_mass/k1em02"]) for event in near_zero_events
+            ]
+            ax_near_zero.plot(
+                near_zero_tokens,
+                near_zero_values,
+                marker="o",
+                markersize=_marker_size(label, 1.8),
+                linewidth=_line_width(label),
+                color=color,
+                label=label,
+            )
+            peak_index = max(range(len(near_zero_events)), key=lambda index: near_zero_values[index])
+            ax_near_zero.scatter(
+                [near_zero_tokens[peak_index]],
+                [near_zero_values[peak_index]],
+                marker="*",
+                s=_scatter_size(label, 70.0),
+                color=color,
+                edgecolors="white",
+                linewidths=0.6,
+                zorder=5,
+            )
+
+        if task_events:
+            ax_task.plot(
+                _tokens_millions(task_events),
+                [
+                    float(event.get("pressure/task_gradient_norm", event.get("grad_norm")))
+                    for event in task_events
+                ],
+                marker="o",
+                markersize=_marker_size(label, 1.8),
+                linewidth=_line_width(label),
+                color=color,
+                label=label,
+            )
+
+        if not pressure_events:
+            continue
+        pressure_method_count += 1
+        ratio_tokens = _tokens_millions(pressure_events)
+        ratio_values = [
+            100.0
+            * float(event["pressure_weight"])
+            * float(event["pressure/pressure_gradient_norm"])
+            / (float(event["pressure/task_gradient_norm"]) + 1e-12)
+            for event in pressure_events
+        ]
+        near_zero_values = [
+            100.0 * float(event["activation/near_zero_mass/k1em02"]) for event in pressure_events
+        ]
+        ax_ratio.plot(
+            ratio_tokens,
+            ratio_values,
+            marker="o",
+            markersize=_marker_size(label, 1.8),
+            linewidth=_line_width(label),
+            color=color,
+            label=label,
+        )
+        ax_phase.plot(
+            ratio_values,
+            near_zero_values,
+            marker="o",
+            markersize=_marker_size(label, 1.7),
+            linewidth=_line_width(label),
+            color=color,
+            alpha=0.92,
+            label=label,
+        )
+        peak_index = max(range(len(near_zero_values)), key=lambda index: near_zero_values[index])
+        ax_phase.scatter(
+            [ratio_values[peak_index]],
+            [near_zero_values[peak_index]],
+            marker="*",
+            s=_scatter_size(label, 78.0),
+            color=color,
+            edgecolors="white",
+            linewidths=0.6,
+            zorder=5,
+        )
+        ax_phase.scatter(
+            [ratio_values[-1]],
+            [near_zero_values[-1]],
+            marker="X",
+            s=_scatter_size(label, 48.0),
+            color=color,
+            edgecolors="black",
+            linewidths=0.45,
+            zorder=5,
+        )
+
+    ax_near_zero.set_title("Near-zero Activation Mass")
+    ax_near_zero.set_xlabel("Tokens seen (millions)")
+    ax_near_zero.set_ylabel("|activation| <= 0.01 (%)")
+    ax_near_zero.set_ylim(bottom=0.0)
+
+    ax_task.set_title("Task Gradient Norm")
+    ax_task.set_xlabel("Tokens seen (millions)")
+    ax_task.set_ylabel("L2 norm")
+    ax_task.set_ylim(bottom=0.0)
+
+    ax_ratio.set_title("Weighted Pressure / Task Gradient")
+    ax_ratio.set_xlabel("Tokens seen (millions)")
+    ax_ratio.set_ylabel("ratio (%)")
+    ax_ratio.set_ylim(bottom=0.0)
+    if not ax_ratio.lines:
+        ax_ratio.text(0.5, 0.5, "No pressure-gradient metrics found.", ha="center", va="center")
+
+    ax_phase.set_title("Near-zero Mass vs Pressure Ratio")
+    ax_phase.set_xlabel("weighted pressure/task gradient (%)")
+    ax_phase.set_ylabel("|activation| <= 0.01 (%)")
+    ax_phase.set_ylim(bottom=0.0)
+    ax_phase.set_xlim(left=0.0)
+    if not ax_phase.lines:
+        ax_phase.text(0.5, 0.5, "No pressure-gradient metrics found.", ha="center", va="center")
+
+    handles, labels = ax_near_zero.get_legend_handles_labels()
+    if handles:
+        fig.legend(
+            handles,
+            labels,
+            loc="lower center",
+            bbox_to_anchor=(0.5, 0.02),
+            ncol=min(len(labels), 3),
+            frameon=False,
+            fontsize=8,
+        )
+    fig.suptitle("Full-pass Pressure Dominance Timing Diagnostic", y=0.992)
+    fig.text(
+        0.5,
+        0.948,
+        (
+            f"n={len(series)} runs; {pressure_method_count} pressure methods; "
+            "stars mark peak near-zero mass, X marks final pressure log event"
+        ),
+        ha="center",
+        va="top",
+        fontsize=8,
+    )
+    fig.subplots_adjust(top=0.89, bottom=0.16)
     fig.savefig(output_path)
     plt.close(fig)
 
@@ -2066,6 +2582,8 @@ def _clipping_label(row: dict[str, Any]) -> str:
         return f"t={float(row['threshold']):g}"
     if row.get("quantile") is not None:
         return f"q={float(row['quantile']):g}"
+    if row.get("rms_multiplier") is not None:
+        return f"r={float(row['rms_multiplier']):g}"
     return str(row.get("mode", "clip"))
 
 

@@ -74,6 +74,7 @@ Activation pressure implementation:
 - Orthogonal methods: `orthogonal_ricker` and `orthogonal_l1` compute task gradients and pressure gradients separately; AdamW steps on task gradients only; then a memoryless pressure correction is applied in AdamW step space.
 - Orthogonal projection fires only when the pressure update direction conflicts with the AdamW task update direction. The trust budget caps the final pressure/task update ratio.
 - Post-hoc clipping sweeps load a saved checkpoint and evaluate validation loss versus achieved exact-zero fraction for configured thresholds or quantiles.
+- RMS-normalized post-hoc clipping uses `threshold = multiplier * RMS(A)` per captured activation tensor and forward pass. For the current `mlp_hiddens` site, `A` is one layer's MLP hidden activation tensor for the current validation batch.
 
 Early method smoke evidence:
 
@@ -123,6 +124,15 @@ Fixed-step activation-pressure screen:
 ## Expected Ablations
 
 TODO: design the full ablation around the fixed-step screen. Initial candidates to carry forward are AdamW monitor-only, L1 weights near `0.15`, orthogonal L1 weights near `0.15`, mild Ricker `w=0.03, c=0.05, s=0.05`, and orthogonal Ricker at moderate pressure for the sparsity/loss tradeoff.
+
+TODO: run a short `weight_decay=0` ablation to test whether weight decay materially shapes activation distributions or only acts as a small background regularizer. AdamW `weight_decay`, `betas`, and `eps` are now explicit in configs and new-run manifests.
+
+Staged full-pass high-pressure configs, not yet launched:
+
+- `configs/56-pythia-14m-minipile-orthogonal-ricker-full-pass-w1-c0p05-s0p05.yaml`
+- `configs/57-pythia-14m-minipile-ricker-naive-full-pass-w1-c0p05-s0p05.yaml`
+- `configs/58-pythia-14m-minipile-l1-naive-full-pass-w5.yaml`
+- `configs/59-pythia-14m-minipile-orthogonal-l1-full-pass-w5.yaml`
 
 ## Expected Scale Ladders
 

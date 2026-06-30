@@ -220,6 +220,7 @@ def run_pressure_fixed_step_clipping_sweeps(
     command: str,
     thresholds: list[float],
     quantiles: list[float],
+    rms_multipliers: list[float] | None = None,
     eval_batches: int | None,
     seed: int,
     start_at: str | None = None,
@@ -231,6 +232,7 @@ def run_pressure_fixed_step_clipping_sweeps(
         stop_after=stop_after,
     )
     outputs = []
+    rms_multipliers = rms_multipliers or []
     for config_path in config_paths:
         source_run = _latest_completed_training_run(config_path)
         if source_run is None:
@@ -239,6 +241,7 @@ def run_pressure_fixed_step_clipping_sweeps(
             config_path,
             thresholds=thresholds,
             quantiles=quantiles,
+            rms_multipliers=rms_multipliers,
             eval_batches=eval_batches,
             seed=seed,
         )
@@ -251,6 +254,7 @@ def run_pressure_fixed_step_clipping_sweeps(
                 command=f"{command} :: {source_run}",
                 thresholds=thresholds,
                 quantiles=quantiles,
+                rms_multipliers=rms_multipliers,
                 eval_batches=eval_batches,
                 seed=seed,
             )
@@ -299,6 +303,10 @@ def pressure_fixed_step_config(spec: SweepConfigSpec) -> dict[str, Any]:
             "micro_batch_size": 4,
             "gradient_accumulation_steps": 8,
             "learning_rate": 0.00003,
+            "optimizer": "adamw",
+            "adamw_betas": [0.9, 0.999],
+            "adamw_eps": 1.0e-8,
+            "weight_decay": 0.01,
             "precision": "auto",
             "device": "auto",
             "log_every": 50,
@@ -354,6 +362,7 @@ def _latest_completed_clipping_run(
     *,
     thresholds: list[float],
     quantiles: list[float],
+    rms_multipliers: list[float],
     eval_batches: int | None,
     seed: int,
 ) -> Path | None:
@@ -372,6 +381,8 @@ def _latest_completed_clipping_run(
             continue
         if not _same_float_list(manifest.get("quantiles", []), quantiles):
             continue
+        if not _same_float_list(manifest.get("rms_multipliers", []), rms_multipliers):
+            continue
         if manifest.get("eval_batches") != eval_batches:
             continue
         if int(manifest.get("seed", -1)) != seed:
@@ -381,7 +392,7 @@ def _latest_completed_clipping_run(
             for line in (run_dir / "clipping_frontier.jsonl").read_text(encoding="utf-8").splitlines()
             if line.strip()
         ]
-        if len(rows) == len(thresholds) + len(quantiles):
+        if len(rows) == len(thresholds) + len(quantiles) + len(rms_multipliers):
             return run_dir
     return None
 

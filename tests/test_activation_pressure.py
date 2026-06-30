@@ -67,6 +67,20 @@ def test_clipping_produces_exact_zeros_and_near_zero_metrics() -> None:
     assert metrics["activation/near_zero_mass/k1em02"] == 0.6
 
 
+def test_rms_threshold_clipping_uses_current_activation_scale() -> None:
+    value = torch.tensor([0.1, 1.0, 2.0])
+    clipped = clip_activation_tensor(
+        value,
+        {"enabled": True, "mode": "rms_threshold", "rms_multiplier": 1.0},
+        torch=torch,
+    )
+
+    rms = value.float().square().mean().sqrt()
+
+    assert torch.equal(clipped, value.masked_fill(value.abs() <= rms, 0.0))
+    assert torch.equal(clipped, torch.tensor([0.0, 0.0, 2.0]))
+
+
 def test_adam_step_orthogonal_pressure_projects_conflict_and_caps_ratio() -> None:
     parameter = torch.nn.Parameter(torch.tensor([1.0, -2.0]))
     optimizer = torch.optim.AdamW([parameter], lr=0.01)

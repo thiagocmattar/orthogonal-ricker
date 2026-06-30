@@ -83,7 +83,14 @@ def run_calibration(
     model.train()
 
     base_learning_rate = float(training["learning_rate"])
-    optimizer = torch.optim.AdamW(model.parameters(), lr=base_learning_rate)
+    optimizer_config = _optimizer_config(training)
+    optimizer = torch.optim.AdamW(
+        model.parameters(),
+        lr=base_learning_rate,
+        betas=optimizer_config["betas"],
+        eps=optimizer_config["eps"],
+        weight_decay=optimizer_config["weight_decay"],
+    )
     trainable_params = [parameter for parameter in model.parameters() if parameter.requires_grad]
     pressure_config = activation_pressure_config(config)
     max_steps = int(training["max_steps"])
@@ -319,6 +326,14 @@ def run_calibration(
         "tokens_per_step": tokens_per_step,
         "loss_logged_as": "mean_micro_batch_loss_over_gradient_accumulation",
         "sampling": "random_contiguous_blocks_with_replacement",
+        "learning_rate": base_learning_rate,
+        "warmup_steps": warmup_steps,
+        "learning_rate_schedule": "linear_warmup_then_constant",
+        "optimizer": optimizer_config["name"],
+        "adamw_betas": list(optimizer_config["betas"]),
+        "adamw_eps": optimizer_config["eps"],
+        "weight_decay": optimizer_config["weight_decay"],
+        "gradient_clipping": None,
     }
     manifest["activation_pressure"] = {
         "enabled": pressure_config.enabled,
@@ -625,6 +640,31 @@ def _learning_rate_for_step(step: int, base_learning_rate: float, warmup_steps: 
     if warmup_steps <= 0:
         return base_learning_rate
     return base_learning_rate * min(1.0, step / warmup_steps)
+
+
+def _optimizer_config(training: dict[str, Any]) -> dict[str, Any]:
+    name = str(training.get("optimizer", "adamw"))
+    if name != "adamw":
+        raise ValueError(f"Unsupported optimizer: {name}")
+    betas = training.get("adamw_betas", [0.9, 0.999])
+    if not isinstance(betas, list | tuple) or len(betas) != 2:
+        raise ValueError("training.adamw_betas must contain exactly two values.")
+    beta1 = float(betas[0])
+    beta2 = float(betas[1])
+    if not 0.0 <= beta1 < 1.0 or not 0.0 <= beta2 < 1.0:
+        raise ValueError("training.adamw_betas values must be in [0, 1).")
+    eps = float(training.get("adamw_eps", 1e-8))
+    if eps <= 0.0:
+        raise ValueError("training.adamw_eps must be positive.")
+    weight_decay = float(training.get("weight_decay", 0.01))
+    if weight_decay < 0.0:
+        raise ValueError("training.weight_decay must be non-negative.")
+    return {
+        "name": name,
+        "betas": (beta1, beta2),
+        "eps": eps,
+        "weight_decay": weight_decay,
+    }
 
 
 def _set_optimizer_lr(optimizer: Any, learning_rate: float) -> None:

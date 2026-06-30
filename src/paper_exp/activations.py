@@ -107,6 +107,14 @@ def clip_activation_tensor(value: Any, cfg: dict[str, Any], *, torch: Any) -> An
     if mode == "threshold":
         threshold = float(cfg.get("threshold", 0.0))
         return value.masked_fill(value.detach().abs() <= threshold, 0.0)
+    if mode == "rms_threshold":
+        multiplier = float(cfg["rms_multiplier"])
+        if multiplier < 0.0:
+            raise ValueError("activation_clipping.rms_multiplier must be non-negative.")
+        detached = value.detach().float()
+        rms = detached.square().mean().sqrt()
+        threshold = multiplier * rms
+        return value.masked_fill(detached.abs() <= threshold, 0.0)
     if mode == "quantile":
         quantile = float(cfg["quantile"])
         if not 0.0 <= quantile <= 1.0:

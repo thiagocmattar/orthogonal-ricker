@@ -18,6 +18,7 @@ def run_clipping_sweep(
     command: str,
     thresholds: list[float],
     quantiles: list[float],
+    rms_multipliers: list[float] | None = None,
     eval_batches: int | None,
     seed: int = 0,
     run_id: str | None = None,
@@ -54,7 +55,13 @@ def run_clipping_sweep(
     sweep_config_path = f"{source_manifest['config_id']}-clipping-sweep.yaml"
     experiment_id, numbered_run_id, output_dir = create_run_dir(config, sweep_config_path, run_id=run_id)
     rows: list[dict[str, Any]] = []
-    for clipping_cfg in _clipping_configs(config, thresholds=thresholds, quantiles=quantiles):
+    rms_multipliers = rms_multipliers or []
+    for clipping_cfg in _clipping_configs(
+        config,
+        thresholds=thresholds,
+        quantiles=quantiles,
+        rms_multipliers=rms_multipliers,
+    ):
         result = _evaluate_clipped_loss(
             model=model,
             torch=torch,
@@ -89,6 +96,12 @@ def run_clipping_sweep(
     manifest["source_checkpoint"] = str(checkpoint_path)
     manifest["thresholds"] = thresholds
     manifest["quantiles"] = quantiles
+    manifest["rms_multipliers"] = rms_multipliers
+    if rms_multipliers:
+        manifest["rms_threshold_semantics"] = (
+            "For each captured activation tensor and forward pass, clip entries with "
+            "|a| <= rms_multiplier * RMS(A), where RMS(A) is computed over that tensor."
+        )
     manifest["eval_batches"] = eval_batches
     manifest["seed"] = seed
     if "sweep" in source_manifest:
@@ -99,7 +112,13 @@ def run_clipping_sweep(
     return output_dir
 
 
-def _clipping_configs(config: dict[str, Any], *, thresholds: list[float], quantiles: list[float]) -> list[dict[str, Any]]:
+def _clipping_configs(
+    config: dict[str, Any],
+    *,
+    thresholds: list[float],
+    quantiles: list[float],
+    rms_multipliers: list[float],
+) -> list[dict[str, Any]]:
     base = config.get("activation_clipping", {})
     sites = base.get("sites", ["mlp_hiddens"])
     configs = []
@@ -107,6 +126,15 @@ def _clipping_configs(config: dict[str, Any], *, thresholds: list[float], quanti
         configs.append({"enabled": True, "mode": "threshold", "sites": sites, "threshold": threshold})
     for quantile in quantiles:
         configs.append({"enabled": True, "mode": "quantile", "sites": sites, "quantile": quantile})
+    for multiplier in rms_multipliers:
+        configs.append(
+            {
+                "enabled": True,
+                "mode": "rms_threshold",
+                "sites": sites,
+                "rms_multiplier": multiplier,
+            }
+        )
     return configs
 
 
@@ -157,6 +185,12 @@ def _evaluate_clipped_loss(
         "mode": clipping_cfg["mode"],
         "threshold": clipping_cfg.get("threshold"),
         "quantile": clipping_cfg.get("quantile"),
+        "rms_multiplier": clipping_cfg.get("rms_multiplier"),
+        "rms_scope": (
+            "per captured activation tensor per forward pass"
+            if clipping_cfg["mode"] == "rms_threshold"
+            else None
+        ),
         "sites": clipping_cfg.get("sites", ["mlp_hiddens"]),
         "validation_loss": sum(losses) / total_sequences,
         "achieved_sparsity": zero_hits / zero_count if zero_count else None,

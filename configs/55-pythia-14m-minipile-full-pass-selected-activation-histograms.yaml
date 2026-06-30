@@ -1,0 +1,52 @@
+experiment_name: pythia_14m_minipile_full_pass_selected_activation_histograms
+model:
+  provider: huggingface
+  name: pythia-14m-random
+  architecture: EleutherAI/pythia-14m-deduped
+  revision: main
+  initialization: random
+data:
+  name: JeanKaddour/minipile
+  revision: main
+  split: validation
+  text_column: text
+  max_documents: 500
+evaluation:
+  metric: activation_histogram
+run:
+  seed: 0
+  max_examples: 500
+tokenizer:
+  name: EleutherAI/pythia-14m-deduped
+  revision: main
+preprocessing:
+  output_dir: data/tokenized
+  cache_id: 03-pythia-14m-minipile-random-full-10min
+  block_size: 2048
+  append_eos: true
+  overwrite: false
+validation:
+  enabled: true
+  split: validation
+  max_documents: 500
+  eval_batches: null
+  batch_size: 4
+activation_histograms:
+  sites:
+    - mlp_hiddens
+  bins: 180
+  range_min: -0.25
+  range_max: 4.0
+  selected_runs:
+    - label: AdamW
+      config_id: 50-pythia-14m-minipile-adamw-full-pass
+    - label: L1N w0.5
+      config_id: 51-pythia-14m-minipile-l1-naive-full-pass-w0p5
+    - label: OL1 w0.5
+      config_id: 52-pythia-14m-minipile-orthogonal-l1-full-pass-w0p5
+    - label: RN w0.1 c0.05 s0.025
+      config_id: 53-pythia-14m-minipile-ricker-naive-full-pass-w0p1-c0p05-s0p025
+    - label: OR w0.1 c0.05 s0.025
+      config_id: 54-pythia-14m-minipile-orthogonal-ricker-full-pass-w0p1-c0p05-s0p025
+output:
+  dir: results

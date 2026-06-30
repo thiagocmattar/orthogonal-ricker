@@ -1,4 +1,10 @@
-experiment_name: pythia_14m_minipile_orthogonal_ricker_short
+experiment_name: pythia_14m_minipile_orthogonal_ricker_full_pass_w1_c0p05_s0p05
+sweep:
+  name: pressure_full_pass_high_pressure_v1
+  role: orthogonal_ricker
+  planned_steps: 22762
+  planned_tokens: 1491730432
+  notes: Staged high-pressure full MiniPile pass; do not run until launch guidelines are provided.
 model:
   provider: huggingface
   name: pythia-14m-random
@@ -26,12 +32,12 @@ preprocessing:
   append_eos: true
   overwrite: false
 training:
-  max_steps: 100000
-  max_wall_seconds: 180
+  max_steps: 22762
+  max_wall_seconds: null
   warmup_steps: 100
   micro_batch_size: 4
   gradient_accumulation_steps: 8
-  learning_rate: 0.00003
+  learning_rate: 3.0e-05
   optimizer: adamw
   adamw_betas:
     - 0.9
@@ -40,22 +46,12 @@ training:
   weight_decay: 0.01
   precision: auto
   device: auto
-  log_every: 25
-activation_pressure:
-  enabled: true
-  method: orthogonal_ricker
-  sites: [mlp_hiddens]
-  weight: 0.1
-  ricker_c: 0.05
-  ricker_sigma: 0.05
-  step_budget: 0.5
-  eps: 1.0e-12
-  log_thresholds: [0.0, 0.001, 0.01]
+  log_every: 100
 validation:
   enabled: true
   split: validation
   max_documents: 500
-  eval_every_steps: 100
+  eval_every_steps: 1000
   eval_batches: null
   batch_size: 4
 checkpoint:
@@ -63,3 +59,19 @@ checkpoint:
   save_optimizer: false
 output:
   dir: results
+activation_pressure:
+  enabled: true
+  method: orthogonal_ricker
+  sites:
+    - mlp_hiddens
+  weight: 1.0
+  ricker_c: 0.05
+  ricker_sigma: 0.05
+  log_thresholds:
+    - 0.0
+    - 0.001
+    - 0.003
+    - 0.01
+    - 0.03
+  step_budget: 0.5
+  eps: 1.0e-12

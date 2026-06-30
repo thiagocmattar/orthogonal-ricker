@@ -16,6 +16,7 @@ from paper_exp.sweeps import run_pressure_fixed_step_sweep
 from paper_exp.sweeps import write_pressure_fixed_step_configs
 
 DEFAULT_CLIPPING_THRESHOLDS = "0,0.001,0.003,0.01,0.03,0.05,0.075,0.1,0.15,0.2,0.3"
+DEFAULT_RMS_CLIPPING_MULTIPLIERS = "0,0.001,0.003,0.01,0.03,0.05,0.075,0.1,0.15,0.2,0.3,0.5,0.75,1.0"
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -59,6 +60,7 @@ def build_parser() -> argparse.ArgumentParser:
     clip_sweep.add_argument("--run-dir", required=True)
     clip_sweep.add_argument("--thresholds", default=DEFAULT_CLIPPING_THRESHOLDS)
     clip_sweep.add_argument("--quantiles", default="")
+    clip_sweep.add_argument("--rms-multipliers", default="")
     clip_sweep.add_argument("--eval-batches", type=int, default=None)
     clip_sweep.add_argument("--seed", type=int, default=0)
 
@@ -83,6 +85,7 @@ def build_parser() -> argparse.ArgumentParser:
     run_sweep_clipping.add_argument("--configs-dir", default="configs")
     run_sweep_clipping.add_argument("--thresholds", default=DEFAULT_CLIPPING_THRESHOLDS)
     run_sweep_clipping.add_argument("--quantiles", default="")
+    run_sweep_clipping.add_argument("--rms-multipliers", default="")
     run_sweep_clipping.add_argument("--eval-batches", type=int, default=8)
     run_sweep_clipping.add_argument("--seed", type=int, default=0)
     run_sweep_clipping.add_argument("--start-at", default="")
@@ -160,6 +163,7 @@ def main(argv: list[str] | None = None) -> int:
                 command=command,
                 thresholds=_parse_float_list(args.thresholds),
                 quantiles=_parse_float_list(args.quantiles),
+                rms_multipliers=_parse_float_list(args.rms_multipliers),
                 eval_batches=args.eval_batches,
                 seed=args.seed,
             )
@@ -189,6 +193,7 @@ def main(argv: list[str] | None = None) -> int:
                 command=command,
                 thresholds=_parse_float_list(args.thresholds),
                 quantiles=_parse_float_list(args.quantiles),
+                rms_multipliers=_parse_float_list(args.rms_multipliers),
                 eval_batches=args.eval_batches,
                 seed=args.seed,
                 start_at=args.start_at or None,
