@@ -19,6 +19,8 @@ def run_clipping_sweep(
     thresholds: list[float],
     quantiles: list[float],
     rms_multipliers: list[float] | None = None,
+    sites: list[str] | None = None,
+    experiment_suffix: str | None = None,
     eval_batches: int | None,
     seed: int = 0,
     run_id: str | None = None,
@@ -32,6 +34,8 @@ def run_clipping_sweep(
     config = yaml.safe_load(source_config_path.read_text(encoding="utf-8")) or {}
     source_manifest = read_json(source_manifest_path)
     config["experiment_name"] = f"{config['experiment_name']}_clipping_sweep"
+    if sites:
+        config.setdefault("activation_clipping", {})["sites"] = sites
 
     torch, np, auto_model = _load_clipping_dependencies()
     np.random.seed(seed)
@@ -52,7 +56,9 @@ def run_clipping_sweep(
     batch_size = int(config["validation"]["batch_size"])
     starts = _eval_starts(validation_tokens, block_size, eval_batches=eval_batches, batch_size=batch_size, np=np)
 
-    sweep_config_path = f"{source_manifest['config_id']}-clipping-sweep.yaml"
+    suffix = experiment_suffix or (_site_suffix(sites) if sites else None)
+    suffix_part = f"-{suffix}" if suffix else ""
+    sweep_config_path = f"{source_manifest['config_id']}-clipping-sweep{suffix_part}.yaml"
     experiment_id, numbered_run_id, output_dir = create_run_dir(config, sweep_config_path, run_id=run_id)
     rows: list[dict[str, Any]] = []
     rms_multipliers = rms_multipliers or []
@@ -97,6 +103,9 @@ def run_clipping_sweep(
     manifest["thresholds"] = thresholds
     manifest["quantiles"] = quantiles
     manifest["rms_multipliers"] = rms_multipliers
+    manifest["clipping_sites"] = _clipping_sites(config)
+    if suffix:
+        manifest["clipping_sweep_suffix"] = suffix
     if rms_multipliers:
         manifest["rms_threshold_semantics"] = (
             "For each captured activation tensor and forward pass, clip entries with "
@@ -136,6 +145,18 @@ def _clipping_configs(
             }
         )
     return configs
+
+
+def _clipping_sites(config: dict[str, Any]) -> list[str]:
+    return list(config.get("activation_clipping", {}).get("sites", ["mlp_hiddens"]))
+
+
+def _site_suffix(sites: list[str] | None) -> str | None:
+    if not sites:
+        return None
+    if set(sites) == {"mlp_hiddens", "attention_outputs", "residual_streams"}:
+        return "all-sites"
+    return "sites-" + "-".join(site.replace("_", "-") for site in sites)
 
 
 def _evaluate_clipped_loss(

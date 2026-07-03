@@ -68,7 +68,12 @@ First valid full-MiniPile random-init checkpoint:
 
 Activation pressure implementation:
 
-- Site support: `mlp_hiddens` for Pythia/GPT-NeoX, hooked at `gpt_neox.layers.N.mlp.act`.
+- Pressure site support includes `mlp_hiddens`, `attention_outputs`, and `residual_streams`; configs must list pressure sites explicitly.
+- `mlp_hiddens` captures post-activation MLP hidden tensors at `gpt_neox.layers.N.mlp.act`.
+- `attention_outputs` captures the first tensor output from `gpt_neox.layers.N.attention` before residual addition.
+- `residual_streams` captures block inputs `H_l` with a pre-hook on `gpt_neox.layers.N`.
+- Earlier pressure configs target only `mlp_hiddens`. Configs `65` and `66` are the first full-pass training runs that apply pressure to all three configured activation sites.
+- All-site post-hoc clipping frontiers are evaluation sweeps over `mlp_hiddens`, `attention_outputs`, and `residual_streams`.
 - Pressure semantics: L1 and Ricker score scalar activation elements `A_l[b,t,j]` and average those scores into one pressure loss. Current pressure and sparsity metrics are elementwise activation quantities, not structured channel sparsity over fixed MLP hidden dimensions.
 - Naive methods: `ricker_naive` and `l1_naive` optimize `task_loss + weight * pressure_loss`.
 - Orthogonal methods: `orthogonal_ricker` and `orthogonal_l1` compute task gradients and pressure gradients separately; AdamW steps on task gradients only; then a memoryless pressure correction is applied in AdamW step space.
@@ -129,12 +134,50 @@ TODO: run a short `weight_decay=0` ablation to test whether weight decay materia
 
 TODO: test an architecture ablation that replaces Pythia/GPT-NeoX GELU MLP activations with ReLU, keeping the rest of the pretraining recipe fixed. This should be treated as an architecture-change ablation, not as a default setting.
 
-Staged full-pass high-pressure configs, not yet launched:
+Completed full-pass high-pressure configs:
 
 - `configs/56-pythia-14m-minipile-orthogonal-ricker-full-pass-w1-c0p05-s0p05.yaml`
 - `configs/57-pythia-14m-minipile-ricker-naive-full-pass-w1-c0p05-s0p05.yaml`
 - `configs/58-pythia-14m-minipile-l1-naive-full-pass-w5.yaml`
 - `configs/59-pythia-14m-minipile-orthogonal-l1-full-pass-w5.yaml`
+
+These runs use the same one-MiniPile-token-cache-pass budget as the AdamW full-pass baseline: 22,762 optimizer steps and 1,491,730,432 tokens. They are high-pressure stress tests, not final selected paper settings. Final validation losses were AdamW 4.8317, OR w1 c0.05 s0.05 5.2281, RN w1 c0.05 s0.05 5.2403, L1N w5 5.2144, and OL1 w5 5.2342. Final `abs(a) <= 0.01` activation mass was AdamW 6.03%, OR 63.81%, RN 72.73%, L1N 81.05%, and OL1 73.39%.
+
+High-pressure full-pass figures:
+
+- `figures/31-pythia-14m-minipile-full-pass-high-pressure-learning-curves.pdf`
+- `figures/32-pythia-14m-minipile-full-pass-high-pressure-weight-norms.pdf`
+- `figures/33-pythia-14m-minipile-full-pass-high-pressure-clipping-frontiers.pdf`
+- `figures/34-pythia-14m-minipile-full-pass-high-pressure-gradient-diagnostics.pdf`
+- `figures/35-pythia-14m-minipile-full-pass-high-pressure-activation-histograms.pdf`
+- `figures/36-pythia-14m-minipile-full-pass-high-pressure-weight-histograms.pdf`
+- `figures/37-pythia-14m-minipile-full-pass-high-pressure-attention-weight-histograms.pdf`
+- `figures/38-pythia-14m-minipile-full-pass-high-pressure-residual-stream-histograms.pdf`
+- `figures/39-pythia-14m-minipile-full-pass-high-pressure-attention-output-histograms.pdf`
+- `figures/40-pythia-14m-minipile-full-pass-high-pressure-all-site-clipping-frontiers.pdf`
+- `figures/49-pythia-14m-minipile-full-pass-high-pressure-mlp-hiddens-clipping-frontiers.pdf`
+- `figures/50-pythia-14m-minipile-full-pass-high-pressure-residual-streams-clipping-frontiers.pdf`
+- `figures/51-pythia-14m-minipile-full-pass-high-pressure-attention-outputs-clipping-frontiers.pdf`
+
+All-site full-pass pressure extension:
+
+- Configs: `configs/65-pythia-14m-minipile-orthogonal-ricker-all-site-full-pass-w1-c0p05-s0p05.yaml` and `configs/66-pythia-14m-minipile-orthogonal-l1-all-site-full-pass-w5.yaml`.
+- Pressure sites: `mlp_hiddens`, `attention_outputs`, and `residual_streams`.
+- Budget: one MiniPile token-cache pass per run, 22,762 optimizer steps and 1,491,730,432 tokens.
+- OR all-site w1 c0.05 s0.05 final validation loss was 5.1033; final aggregate `abs(a) <= 0.01` activation mass was 44.05%; peak allocated GPU memory was 6,931.4 MB.
+- OL1 all-site w5 final validation loss was 4.9192; final aggregate `abs(a) <= 0.01` activation mass was 31.80%; peak allocated GPU memory was 6,931.7 MB.
+- AdamW full-pass reference final validation loss was 4.8317; final aggregate `abs(a) <= 0.01` activation mass was 6.03%.
+
+All-site pressure figures:
+
+- `figures/41-pythia-14m-minipile-full-pass-all-site-pressure-learning-curves.pdf`
+- `figures/42-pythia-14m-minipile-full-pass-all-site-pressure-clipping-frontiers.pdf`
+- `figures/43-pythia-14m-minipile-full-pass-all-site-pressure-mlp-activation-histograms.pdf`
+- `figures/44-pythia-14m-minipile-full-pass-all-site-pressure-residual-stream-histograms.pdf`
+- `figures/45-pythia-14m-minipile-full-pass-all-site-pressure-attention-output-histograms.pdf`
+- `figures/46-pythia-14m-minipile-full-pass-all-site-pressure-mlp-hiddens-clipping-frontiers.pdf`
+- `figures/47-pythia-14m-minipile-full-pass-all-site-pressure-residual-streams-clipping-frontiers.pdf`
+- `figures/48-pythia-14m-minipile-full-pass-all-site-pressure-attention-outputs-clipping-frontiers.pdf`
 
 ## Expected Scale Ladders
 

@@ -69,12 +69,48 @@ HIGH_PRESSURE_LEARNING_FIGURES = (
 )
 HIGH_PRESSURE_OR_L1_NORM_CONFIGS = tuple([12, *range(40, 49)])
 SELECTED_ACTIVATION_HISTOGRAM_EXPERIMENT = "49-pythia-14m-pressure-fixed-2048-selected-activation-histograms"
+FULL_PASS_HIGH_PRESSURE_ACTIVATION_HISTOGRAM_EXPERIMENT = (
+    "60-pythia-14m-minipile-full-pass-high-pressure-activation-histograms"
+)
+FULL_PASS_HIGH_PRESSURE_RESIDUAL_HISTOGRAM_EXPERIMENT = (
+    "63-pythia-14m-minipile-full-pass-high-pressure-residual-stream-histograms"
+)
+FULL_PASS_HIGH_PRESSURE_ATTENTION_OUTPUT_HISTOGRAM_EXPERIMENT = (
+    "64-pythia-14m-minipile-full-pass-high-pressure-attention-output-histograms"
+)
+FULL_PASS_HIGH_PRESSURE_WEIGHT_HISTOGRAM_EXPERIMENT = (
+    "61-pythia-14m-minipile-full-pass-high-pressure-weight-histograms"
+)
+FULL_PASS_HIGH_PRESSURE_ATTENTION_WEIGHT_HISTOGRAM_EXPERIMENT = (
+    "62-pythia-14m-minipile-full-pass-high-pressure-attention-weight-histograms"
+)
+FULL_PASS_ALL_SITE_MLP_HISTOGRAM_EXPERIMENT = (
+    "67-pythia-14m-minipile-full-pass-all-site-pressure-mlp-activation-histograms"
+)
+FULL_PASS_ALL_SITE_RESIDUAL_HISTOGRAM_EXPERIMENT = (
+    "68-pythia-14m-minipile-full-pass-all-site-pressure-residual-stream-histograms"
+)
+FULL_PASS_ALL_SITE_ATTENTION_OUTPUT_HISTOGRAM_EXPERIMENT = (
+    "69-pythia-14m-minipile-full-pass-all-site-pressure-attention-output-histograms"
+)
 FULL_PASS_SELECTED_RUNS = [
     ("AdamW", "50-pythia-14m-minipile-adamw-full-pass"),
     ("L1N w0.5", "51-pythia-14m-minipile-l1-naive-full-pass-w0p5"),
     ("OL1 w0.5", "52-pythia-14m-minipile-orthogonal-l1-full-pass-w0p5"),
     ("RN w0.1 c0.05 s0.025", "53-pythia-14m-minipile-ricker-naive-full-pass-w0p1-c0p05-s0p025"),
     ("OR w0.1 c0.05 s0.025", "54-pythia-14m-minipile-orthogonal-ricker-full-pass-w0p1-c0p05-s0p025"),
+]
+FULL_PASS_HIGH_PRESSURE_RUNS = [
+    ("AdamW", "50-pythia-14m-minipile-adamw-full-pass"),
+    ("RN w1 c0.05 s0.05", "57-pythia-14m-minipile-ricker-naive-full-pass-w1-c0p05-s0p05"),
+    ("OR w1 c0.05 s0.05", "56-pythia-14m-minipile-orthogonal-ricker-full-pass-w1-c0p05-s0p05"),
+    ("L1N w5", "58-pythia-14m-minipile-l1-naive-full-pass-w5"),
+    ("OL1 w5", "59-pythia-14m-minipile-orthogonal-l1-full-pass-w5"),
+]
+FULL_PASS_ALL_SITE_PRESSURE_RUNS = [
+    ("AdamW", "50-pythia-14m-minipile-adamw-full-pass"),
+    ("OR all-site w1 c0.05 s0.05", "65-pythia-14m-minipile-orthogonal-ricker-all-site-full-pass-w1-c0p05-s0p05"),
+    ("OL1 all-site w5", "66-pythia-14m-minipile-orthogonal-l1-all-site-full-pass-w5"),
 ]
 
 PLOT_STYLE = {
@@ -327,6 +363,329 @@ def _generate_known_paper_figures(results_path: Path, figures_path: Path, *, sav
             )
         )
 
+    full_pass_high_pressure_runs = _latest_labeled_runs(results_path, FULL_PASS_HIGH_PRESSURE_RUNS, "events.jsonl")
+    if len(full_pass_high_pressure_runs) >= 2:
+        output_pdf = figures_path / "31-pythia-14m-minipile-full-pass-high-pressure-learning-curves.pdf"
+        outputs.extend(
+            generate_full_pass_high_pressure_learning_curves(
+                runs=full_pass_high_pressure_runs,
+                output=output_pdf,
+                save_png=save_png,
+            )
+        )
+
+        output_pdf = figures_path / "32-pythia-14m-minipile-full-pass-high-pressure-weight-norms.pdf"
+        outputs.extend(
+            generate_full_pass_high_pressure_weight_norms(
+                runs=full_pass_high_pressure_runs,
+                output=output_pdf,
+                save_png=save_png,
+            )
+        )
+
+        output_pdf = figures_path / "34-pythia-14m-minipile-full-pass-high-pressure-gradient-diagnostics.pdf"
+        outputs.extend(
+            generate_full_pass_gradient_diagnostics(
+                runs=full_pass_high_pressure_runs,
+                output=output_pdf,
+                save_png=save_png,
+                title="Full-pass High-pressure Gradient Diagnostics",
+                subtitle=(
+                    "n={n} runs; {events} train log events; "
+                    "pressure panels omit AdamW where no pressure is applied"
+                ),
+            )
+        )
+
+    full_pass_high_pressure_clipping = _latest_labeled_runs_filtered(
+        results_path,
+        [(label, f"{experiment_id}-clipping-sweep") for label, experiment_id in FULL_PASS_HIGH_PRESSURE_RUNS],
+        "clipping_frontier.jsonl",
+        predicate=lambda run: not _is_rms_clipping_run(run),
+    )
+    if len(full_pass_high_pressure_clipping) >= 2:
+        output_pdf = figures_path / "33-pythia-14m-minipile-full-pass-high-pressure-clipping-frontiers.pdf"
+        outputs.extend(
+            generate_full_pass_high_pressure_clipping_frontiers(
+                runs=full_pass_high_pressure_clipping,
+                output=output_pdf,
+                save_png=save_png,
+            )
+        )
+
+    full_pass_high_pressure_all_site_clipping = _latest_labeled_runs_filtered(
+        results_path,
+        [(label, f"{experiment_id}-clipping-sweep-all-sites") for label, experiment_id in FULL_PASS_HIGH_PRESSURE_RUNS],
+        "clipping_frontier.jsonl",
+        predicate=_is_all_site_clipping_run,
+    )
+    if len(full_pass_high_pressure_all_site_clipping) >= 2:
+        output_pdf = figures_path / "40-pythia-14m-minipile-full-pass-high-pressure-all-site-clipping-frontiers.pdf"
+        outputs.extend(
+            generate_full_pass_high_pressure_clipping_frontiers(
+                runs=full_pass_high_pressure_all_site_clipping,
+                output=output_pdf,
+                save_png=save_png,
+                title="Full-pass High-pressure All-site Post-hoc Clipping Frontiers",
+                subtitle=(
+                    "absolute thresholds applied to MLP hiddens, attention outputs, and residual streams; "
+                    "validation-loss axis zoomed"
+                ),
+            )
+        )
+
+    full_pass_high_pressure_site_frontiers = (
+        (
+            49,
+            "mlp_hiddens",
+            "MLP Hiddens",
+            "Full-pass MLP-pressure High-pressure MLP-only Post-hoc Clipping Frontiers",
+            "pressure trained only on MLP hiddens; clipping thresholds applied only to MLP hiddens",
+        ),
+        (
+            50,
+            "residual_streams",
+            "Residual Streams",
+            "Full-pass MLP-pressure High-pressure Residual-only Post-hoc Clipping Frontiers",
+            "pressure trained only on MLP hiddens; clipping thresholds applied only to residual streams",
+        ),
+        (
+            51,
+            "attention_outputs",
+            "Attention Outputs",
+            "Full-pass MLP-pressure High-pressure Attention-only Post-hoc Clipping Frontiers",
+            "pressure trained only on MLP hiddens; clipping thresholds applied only to attention outputs",
+        ),
+    )
+    for figure_index, site, slug_label, title, subtitle in full_pass_high_pressure_site_frontiers:
+        site_suffix = site.replace("_", "-")
+        site_clipping = _latest_labeled_runs_filtered(
+            results_path,
+            [
+                (label, f"{experiment_id}-clipping-sweep-sites-{site_suffix}")
+                for label, experiment_id in FULL_PASS_HIGH_PRESSURE_RUNS
+            ],
+            "clipping_frontier.jsonl",
+            predicate=lambda path, selected_site=site: _is_single_site_clipping_run(path, selected_site),
+        )
+        if len(site_clipping) < 2:
+            continue
+        slug = slug_label.lower().replace(" ", "-")
+        output_pdf = (
+            figures_path
+            / f"{figure_index:02d}-pythia-14m-minipile-full-pass-high-pressure-{slug}-clipping-frontiers.pdf"
+        )
+        outputs.extend(
+            generate_full_pass_high_pressure_clipping_frontiers(
+                runs=site_clipping,
+                output=output_pdf,
+                save_png=save_png,
+                title=title,
+                subtitle=f"{subtitle}; validation-loss axis zoomed",
+            )
+        )
+
+    full_pass_all_site_pressure_runs = _latest_labeled_runs(
+        results_path,
+        FULL_PASS_ALL_SITE_PRESSURE_RUNS,
+        "events.jsonl",
+    )
+    if len(full_pass_all_site_pressure_runs) >= 2:
+        output_pdf = figures_path / "41-pythia-14m-minipile-full-pass-all-site-pressure-learning-curves.pdf"
+        outputs.extend(
+            generate_full_pass_high_pressure_learning_curves(
+                runs=full_pass_all_site_pressure_runs,
+                output=output_pdf,
+                save_png=save_png,
+                title="Full-pass All-site Pressure Learning Curves",
+                subtitle="AdamW baseline plus all-site OR and OL1; one MiniPile token-cache pass per pressure run",
+            )
+        )
+
+    full_pass_all_site_pressure_clipping = _latest_labeled_runs_filtered(
+        results_path,
+        [(label, f"{experiment_id}-clipping-sweep-all-sites") for label, experiment_id in FULL_PASS_ALL_SITE_PRESSURE_RUNS],
+        "clipping_frontier.jsonl",
+        predicate=_is_all_site_clipping_run,
+    )
+    if len(full_pass_all_site_pressure_clipping) >= 2:
+        output_pdf = figures_path / "42-pythia-14m-minipile-full-pass-all-site-pressure-clipping-frontiers.pdf"
+        outputs.extend(
+            generate_full_pass_high_pressure_clipping_frontiers(
+                runs=full_pass_all_site_pressure_clipping,
+                output=output_pdf,
+                save_png=save_png,
+                title="Full-pass All-site Pressure Post-hoc Clipping Frontiers",
+                subtitle=(
+                    "absolute thresholds applied to MLP hiddens, attention outputs, and residual streams; "
+                    "validation-loss axis zoomed"
+                ),
+            )
+        )
+
+    full_pass_all_site_pressure_site_frontiers = (
+        (
+            46,
+            "mlp_hiddens",
+            "MLP Hiddens",
+            "Full-pass All-site Pressure MLP-only Post-hoc Clipping Frontiers",
+            "absolute thresholds applied only to MLP hiddens; validation-loss axis zoomed",
+        ),
+        (
+            47,
+            "residual_streams",
+            "Residual Streams",
+            "Full-pass All-site Pressure Residual-only Post-hoc Clipping Frontiers",
+            "absolute thresholds applied only to residual streams; validation-loss axis zoomed",
+        ),
+        (
+            48,
+            "attention_outputs",
+            "Attention Outputs",
+            "Full-pass All-site Pressure Attention-only Post-hoc Clipping Frontiers",
+            "absolute thresholds applied only to attention outputs; validation-loss axis zoomed",
+        ),
+    )
+    for figure_index, site, slug_label, title, subtitle in full_pass_all_site_pressure_site_frontiers:
+        site_suffix = site.replace("_", "-")
+        site_clipping = _latest_labeled_runs_filtered(
+            results_path,
+            [
+                (label, f"{experiment_id}-clipping-sweep-sites-{site_suffix}")
+                for label, experiment_id in FULL_PASS_ALL_SITE_PRESSURE_RUNS
+            ],
+            "clipping_frontier.jsonl",
+            predicate=lambda path, selected_site=site: _is_single_site_clipping_run(path, selected_site),
+        )
+        if len(site_clipping) < 2:
+            continue
+        slug = slug_label.lower().replace(" ", "-")
+        output_pdf = (
+            figures_path
+            / f"{figure_index:02d}-pythia-14m-minipile-full-pass-all-site-pressure-{slug}-clipping-frontiers.pdf"
+        )
+        outputs.extend(
+            generate_full_pass_high_pressure_clipping_frontiers(
+                runs=site_clipping,
+                output=output_pdf,
+                save_png=save_png,
+                title=title,
+                subtitle=subtitle,
+            )
+        )
+
+    full_pass_high_pressure_histogram_run = _latest_run_with(
+        results_path / FULL_PASS_HIGH_PRESSURE_ACTIVATION_HISTOGRAM_EXPERIMENT,
+        "activation_histograms.json",
+    )
+    if full_pass_high_pressure_histogram_run is not None:
+        output_pdf = figures_path / "35-pythia-14m-minipile-full-pass-high-pressure-activation-histograms.pdf"
+        outputs.extend(
+            generate_activation_histogram_grid(
+                run_dir=full_pass_high_pressure_histogram_run,
+                output=output_pdf,
+                save_png=save_png,
+            )
+        )
+
+    full_pass_high_pressure_weight_histogram_run = _latest_run_with(
+        results_path / FULL_PASS_HIGH_PRESSURE_WEIGHT_HISTOGRAM_EXPERIMENT,
+        "weight_histograms.json",
+    )
+    if full_pass_high_pressure_weight_histogram_run is not None:
+        output_pdf = figures_path / "36-pythia-14m-minipile-full-pass-high-pressure-weight-histograms.pdf"
+        outputs.extend(
+            generate_weight_histogram_grid(
+                run_dir=full_pass_high_pressure_weight_histogram_run,
+                output=output_pdf,
+                save_png=save_png,
+            )
+        )
+
+    full_pass_high_pressure_attention_weight_histogram_run = _latest_run_with(
+        results_path / FULL_PASS_HIGH_PRESSURE_ATTENTION_WEIGHT_HISTOGRAM_EXPERIMENT,
+        "weight_histograms.json",
+    )
+    if full_pass_high_pressure_attention_weight_histogram_run is not None:
+        output_pdf = figures_path / "37-pythia-14m-minipile-full-pass-high-pressure-attention-weight-histograms.pdf"
+        outputs.extend(
+            generate_weight_histogram_grid(
+                run_dir=full_pass_high_pressure_attention_weight_histogram_run,
+                output=output_pdf,
+                save_png=save_png,
+            )
+        )
+
+    full_pass_high_pressure_residual_histogram_run = _latest_run_with(
+        results_path / FULL_PASS_HIGH_PRESSURE_RESIDUAL_HISTOGRAM_EXPERIMENT,
+        "activation_histograms.json",
+    )
+    if full_pass_high_pressure_residual_histogram_run is not None:
+        output_pdf = figures_path / "38-pythia-14m-minipile-full-pass-high-pressure-residual-stream-histograms.pdf"
+        outputs.extend(
+            generate_activation_histogram_grid(
+                run_dir=full_pass_high_pressure_residual_histogram_run,
+                output=output_pdf,
+                save_png=save_png,
+            )
+        )
+
+    full_pass_high_pressure_attention_output_histogram_run = _latest_run_with(
+        results_path / FULL_PASS_HIGH_PRESSURE_ATTENTION_OUTPUT_HISTOGRAM_EXPERIMENT,
+        "activation_histograms.json",
+    )
+    if full_pass_high_pressure_attention_output_histogram_run is not None:
+        output_pdf = figures_path / "39-pythia-14m-minipile-full-pass-high-pressure-attention-output-histograms.pdf"
+        outputs.extend(
+            generate_activation_histogram_grid(
+                run_dir=full_pass_high_pressure_attention_output_histogram_run,
+                output=output_pdf,
+                save_png=save_png,
+            )
+        )
+
+    full_pass_all_site_mlp_histogram_run = _latest_run_with(
+        results_path / FULL_PASS_ALL_SITE_MLP_HISTOGRAM_EXPERIMENT,
+        "activation_histograms.json",
+    )
+    if full_pass_all_site_mlp_histogram_run is not None:
+        output_pdf = figures_path / "43-pythia-14m-minipile-full-pass-all-site-pressure-mlp-activation-histograms.pdf"
+        outputs.extend(
+            generate_activation_histogram_grid(
+                run_dir=full_pass_all_site_mlp_histogram_run,
+                output=output_pdf,
+                save_png=save_png,
+            )
+        )
+
+    full_pass_all_site_residual_histogram_run = _latest_run_with(
+        results_path / FULL_PASS_ALL_SITE_RESIDUAL_HISTOGRAM_EXPERIMENT,
+        "activation_histograms.json",
+    )
+    if full_pass_all_site_residual_histogram_run is not None:
+        output_pdf = figures_path / "44-pythia-14m-minipile-full-pass-all-site-pressure-residual-stream-histograms.pdf"
+        outputs.extend(
+            generate_activation_histogram_grid(
+                run_dir=full_pass_all_site_residual_histogram_run,
+                output=output_pdf,
+                save_png=save_png,
+            )
+        )
+
+    full_pass_all_site_attention_output_histogram_run = _latest_run_with(
+        results_path / FULL_PASS_ALL_SITE_ATTENTION_OUTPUT_HISTOGRAM_EXPERIMENT,
+        "activation_histograms.json",
+    )
+    if full_pass_all_site_attention_output_histogram_run is not None:
+        output_pdf = figures_path / "45-pythia-14m-minipile-full-pass-all-site-pressure-attention-output-histograms.pdf"
+        outputs.extend(
+            generate_activation_histogram_grid(
+                run_dir=full_pass_all_site_attention_output_histogram_run,
+                output=output_pdf,
+                save_png=save_png,
+            )
+        )
+
     return outputs
 
 
@@ -442,6 +801,8 @@ def generate_full_pass_gradient_diagnostics(
     runs: list[tuple[str, str | Path]],
     output: str | Path,
     save_png: bool = False,
+    title: str = "Full-pass Selected Methods Gradient Diagnostics",
+    subtitle: str | None = None,
 ) -> list[Path]:
     plt.rcParams.update(PLOT_STYLE)
 
@@ -451,11 +812,11 @@ def generate_full_pass_gradient_diagnostics(
     if not series:
         raise ValueError("No full-pass train events were found.")
 
-    _plot_full_pass_gradient_diagnostics(series, output_path)
+    _plot_full_pass_gradient_diagnostics(series, output_path, title=title, subtitle=subtitle)
     outputs = [output_path]
     if save_png:
         png_path = output_path.with_suffix(".png")
-        _plot_full_pass_gradient_diagnostics(series, png_path)
+        _plot_full_pass_gradient_diagnostics(series, png_path, title=title, subtitle=subtitle)
         outputs.append(png_path)
     return outputs
 
@@ -502,6 +863,79 @@ def generate_full_pass_pressure_dominance(
     if save_png:
         png_path = output_path.with_suffix(".png")
         _plot_full_pass_pressure_dominance(series, png_path)
+        outputs.append(png_path)
+    return outputs
+
+
+def generate_full_pass_high_pressure_learning_curves(
+    *,
+    runs: list[tuple[str, str | Path]],
+    output: str | Path,
+    save_png: bool = False,
+    title: str = "Full-pass High-pressure Learning Curves",
+    subtitle: str = "one MiniPile token-cache pass per run",
+) -> list[Path]:
+    plt.rcParams.update(PLOT_STYLE)
+
+    output_path = Path(output)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    series = _load_event_series(runs)
+    if not series:
+        raise ValueError("No high-pressure full-pass train events were found.")
+
+    _plot_full_pass_high_pressure_learning_curves(series, output_path, title=title, subtitle=subtitle)
+    outputs = [output_path]
+    if save_png:
+        png_path = output_path.with_suffix(".png")
+        _plot_full_pass_high_pressure_learning_curves(series, png_path, title=title, subtitle=subtitle)
+        outputs.append(png_path)
+    return outputs
+
+
+def generate_full_pass_high_pressure_weight_norms(
+    *,
+    runs: list[tuple[str, str | Path]],
+    output: str | Path,
+    save_png: bool = False,
+) -> list[Path]:
+    plt.rcParams.update(PLOT_STYLE)
+
+    output_path = Path(output)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    series = _load_event_series(runs)
+    if not series:
+        raise ValueError("No high-pressure full-pass weight-norm events were found.")
+
+    _plot_full_pass_high_pressure_weight_norms(series, output_path)
+    outputs = [output_path]
+    if save_png:
+        png_path = output_path.with_suffix(".png")
+        _plot_full_pass_high_pressure_weight_norms(series, png_path)
+        outputs.append(png_path)
+    return outputs
+
+
+def generate_full_pass_high_pressure_clipping_frontiers(
+    *,
+    runs: list[tuple[str, str | Path]],
+    output: str | Path,
+    save_png: bool = False,
+    title: str = "Full-pass High-pressure Post-hoc Clipping Frontiers",
+    subtitle: str = "absolute thresholds, no RMS normalization; validation-loss axis zoomed",
+) -> list[Path]:
+    plt.rcParams.update(PLOT_STYLE)
+
+    output_path = Path(output)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    series = _load_clipping_series(runs)
+    if not series:
+        raise ValueError("No high-pressure full-pass clipping frontier runs were found.")
+
+    _plot_full_pass_high_pressure_clipping_frontiers(series, output_path, title=title, subtitle=subtitle)
+    outputs = [output_path]
+    if save_png:
+        png_path = output_path.with_suffix(".png")
+        _plot_full_pass_high_pressure_clipping_frontiers(series, png_path, title=title, subtitle=subtitle)
         outputs.append(png_path)
     return outputs
 
@@ -785,6 +1219,27 @@ def generate_activation_histogram_grid(
     return outputs
 
 
+def generate_weight_histogram_grid(
+    *,
+    run_dir: str | Path,
+    output: str | Path,
+    save_png: bool = False,
+) -> list[Path]:
+    plt.rcParams.update(PLOT_STYLE)
+
+    run_path = Path(run_dir)
+    output_path = Path(output)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    payload = read_json(run_path / "weight_histograms.json")
+    _plot_weight_histogram_grid(payload, output_path)
+    outputs = [output_path]
+    if save_png:
+        png_path = output_path.with_suffix(".png")
+        _plot_weight_histogram_grid(payload, png_path)
+        outputs.append(png_path)
+    return outputs
+
+
 def collect_numeric_metrics(results_dir: Path) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     for metrics_path in sorted(results_dir.glob("*/*/metrics.json")):
@@ -820,6 +1275,28 @@ def _latest_labeled_runs(
         run = _latest_run_with(results_path / experiment_id, artifact_name)
         if run is not None:
             runs.append((label, run))
+    return runs
+
+
+def _latest_labeled_runs_filtered(
+    results_path: Path,
+    experiments: list[tuple[str, str]],
+    artifact_name: str,
+    *,
+    predicate: Any,
+) -> list[tuple[str, Path]]:
+    runs: list[tuple[str, Path]] = []
+    for label, experiment_id in experiments:
+        experiment_dir = results_path / experiment_id
+        if not experiment_dir.exists():
+            continue
+        candidates = [
+            path
+            for path in sorted(experiment_dir.iterdir())
+            if (path / artifact_name).exists() and predicate(path)
+        ]
+        if candidates:
+            runs.append((label, candidates[-1]))
     return runs
 
 
@@ -896,6 +1373,24 @@ def _is_rms_clipping_run(run_dir: str | Path) -> bool:
         return False
     manifest = read_json(manifest_path)
     return bool(manifest.get("rms_multipliers"))
+
+
+def _is_all_site_clipping_run(run_dir: str | Path) -> bool:
+    manifest_path = Path(run_dir) / "manifest.json"
+    if not manifest_path.exists():
+        return False
+    manifest = read_json(manifest_path)
+    expected_sites = {"mlp_hiddens", "attention_outputs", "residual_streams"}
+    return manifest.get("clipping_sweep_suffix") == "all-sites" and set(manifest.get("clipping_sites", [])) == expected_sites
+
+
+def _is_single_site_clipping_run(run_dir: str | Path, site: str) -> bool:
+    manifest_path = Path(run_dir) / "manifest.json"
+    if not manifest_path.exists():
+        return False
+    manifest = read_json(manifest_path)
+    expected_suffix = "sites-" + site.replace("_", "-")
+    return manifest.get("clipping_sweep_suffix") == expected_suffix and manifest.get("clipping_sites") == [site]
 
 
 def _load_fixed_step_sweep_rows(results_path: Path) -> list[dict[str, Any]]:
@@ -1292,7 +1787,13 @@ def _plot_clipping_comparison(series: list[dict[str, Any]], output_path: Path) -
     plt.close(fig)
 
 
-def _plot_full_pass_gradient_diagnostics(series: list[dict[str, Any]], output_path: Path) -> None:
+def _plot_full_pass_gradient_diagnostics(
+    series: list[dict[str, Any]],
+    output_path: Path,
+    *,
+    title: str = "Full-pass Selected Methods Gradient Diagnostics",
+    subtitle: str | None = None,
+) -> None:
     fig = plt.figure(figsize=(8.4, 7.5))
     grid = fig.add_gridspec(2, 2, hspace=0.38, wspace=0.32)
     ax_task = fig.add_subplot(grid[0, 0])
@@ -1306,7 +1807,6 @@ def _plot_full_pass_gradient_diagnostics(series: list[dict[str, Any]], output_pa
         label = item["label"]
         train_events = item["train_events"]
         total_events += len(train_events)
-        tokens = _tokens_millions(train_events)
         task_norms = [
             float(event.get("pressure/task_gradient_norm", event.get("grad_norm")))
             for event in train_events
@@ -1416,11 +1916,16 @@ def _plot_full_pass_gradient_diagnostics(series: list[dict[str, Any]], output_pa
             frameon=False,
             fontsize=8,
         )
-    fig.suptitle("Full-pass Selected Methods Gradient Diagnostics", y=0.992)
+    fig.suptitle(title, y=0.992)
+    if subtitle is None:
+        subtitle = (
+            "n={n} runs; {events} train log events; "
+            "pressure panels omit AdamW where no pressure is applied"
+        )
     fig.text(
         0.5,
         0.948,
-        f"n={len(series)} runs; {total_events} train log events; pressure panels omit AdamW where no pressure is applied",
+        subtitle.format(n=len(series), events=total_events),
         ha="center",
         va="top",
         fontsize=8,
@@ -1659,6 +2164,351 @@ def _plot_full_pass_pressure_dominance(series: list[dict[str, Any]], output_path
         fontsize=8,
     )
     fig.subplots_adjust(top=0.89, bottom=0.16)
+    fig.savefig(output_path)
+    plt.close(fig)
+
+
+def _plot_full_pass_high_pressure_learning_curves(
+    series: list[dict[str, Any]],
+    output_path: Path,
+    *,
+    title: str,
+    subtitle: str,
+) -> None:
+    fig = plt.figure(figsize=(8.4, 7.6))
+    grid = fig.add_gridspec(2, 2, hspace=0.42, wspace=0.34)
+    ax_train = fig.add_subplot(grid[0, 0])
+    ax_val = fig.add_subplot(grid[0, 1])
+    ax_near_zero = fig.add_subplot(grid[1, 0])
+    ax_pressure = fig.add_subplot(grid[1, 1])
+    colors = _series_colors([item["label"] for item in series])
+    total_events = 0
+
+    for item in series:
+        label = str(item["label"])
+        color = colors[label]
+        train_events = sorted(item["train_events"], key=lambda event: int(event.get("tokens_seen", 0)))
+        validation_events = sorted(item["validation_events"], key=lambda event: int(event.get("tokens_seen", 0)))
+        total_events += len(train_events)
+
+        ax_train.plot(
+            _tokens_millions(train_events),
+            [float(event["train_loss"]) for event in train_events],
+            marker="o",
+            markersize=_marker_size(label, 1.8),
+            linewidth=_line_width(label),
+            color=color,
+            label=label,
+        )
+        if validation_events:
+            ax_val.plot(
+                _tokens_millions(validation_events),
+                [float(event["validation_loss"]) for event in validation_events],
+                marker="s",
+                markersize=_marker_size(label, 2.2),
+                linewidth=_line_width(label),
+                color=color,
+                label=label,
+            )
+
+        near_zero_events = [
+            event for event in train_events if event.get("activation/near_zero_mass/k1em02") is not None
+        ]
+        if near_zero_events:
+            ax_near_zero.plot(
+                _tokens_millions(near_zero_events),
+                [100.0 * float(event["activation/near_zero_mass/k1em02"]) for event in near_zero_events],
+                marker="o",
+                markersize=_marker_size(label, 1.8),
+                linewidth=_line_width(label),
+                color=color,
+                label=label,
+            )
+
+        pressure_events = [event for event in train_events if event.get("pressure_loss") is not None]
+        if pressure_events:
+            ax_pressure.plot(
+                _tokens_millions(pressure_events),
+                [float(event["pressure_loss"]) for event in pressure_events],
+                marker="o",
+                markersize=_marker_size(label, 1.8),
+                linewidth=_line_width(label),
+                color=color,
+                label=label,
+            )
+
+    ax_train.set_title("Train Loss")
+    ax_train.set_xlabel("Tokens seen (millions)")
+    ax_train.set_ylabel("Task loss")
+
+    ax_val.set_title("Validation Loss")
+    ax_val.set_xlabel("Tokens seen (millions)")
+    ax_val.set_ylabel("Loss")
+
+    ax_near_zero.set_title("Near-zero Activation Mass")
+    ax_near_zero.set_xlabel("Tokens seen (millions)")
+    ax_near_zero.set_ylabel("|activation| <= 0.01 (%)")
+    ax_near_zero.set_ylim(bottom=0.0)
+
+    ax_pressure.set_title("Auxiliary Pressure Loss")
+    ax_pressure.set_xlabel("Tokens seen (millions)")
+    ax_pressure.set_ylabel("Unweighted pressure loss")
+    if not ax_pressure.lines:
+        ax_pressure.text(0.5, 0.5, "No pressure-loss series found.", ha="center", va="center")
+
+    handles, labels = ax_train.get_legend_handles_labels()
+    if handles:
+        fig.legend(
+            handles,
+            labels,
+            loc="lower center",
+            bbox_to_anchor=(0.5, 0.01),
+            ncol=3,
+            frameon=False,
+            fontsize=8,
+        )
+    fig.suptitle(title, y=0.99)
+    fig.text(
+        0.5,
+        0.935,
+        (
+            f"n={len(series)} completed runs; {total_events} train log events; "
+            f"{subtitle}"
+        ),
+        ha="center",
+        va="top",
+        fontsize=8,
+    )
+    fig.subplots_adjust(top=0.88, bottom=0.2)
+    fig.savefig(output_path)
+    plt.close(fig)
+
+
+def _plot_full_pass_high_pressure_weight_norms(series: list[dict[str, Any]], output_path: Path) -> None:
+    fig = plt.figure(figsize=(8.4, 7.6))
+    grid = fig.add_gridspec(2, 2, hspace=0.42, wspace=0.34)
+    ax_near_zero = fig.add_subplot(grid[0, 0])
+    ax_global_tokens = fig.add_subplot(grid[0, 1])
+    ax_global_near_zero = fig.add_subplot(grid[1, 0])
+    ax_mlp_near_zero = fig.add_subplot(grid[1, 1])
+    colors = _series_colors([item["label"] for item in series])
+    global_fit_x: list[float] = []
+    global_fit_y: list[float] = []
+    mlp_fit_x: list[float] = []
+    mlp_fit_y: list[float] = []
+
+    for item in series:
+        label = str(item["label"])
+        color = colors[label]
+        marker = _method_marker(label)
+        train_events = sorted(item["train_events"], key=lambda event: int(event.get("tokens_seen", 0)))
+        near_zero_events = [
+            event for event in train_events if event.get("activation/near_zero_mass/k1em02") is not None
+        ]
+        weight_events = [event for event in train_events if event.get("weight_norm") is not None]
+        paired_global = [
+            event
+            for event in train_events
+            if event.get("activation/near_zero_mass/k1em02") is not None and event.get("weight_norm") is not None
+        ]
+        paired_mlp = [
+            event
+            for event in train_events
+            if event.get("activation/near_zero_mass/k1em02") is not None and event.get("mlp_weight_norm") is not None
+        ]
+
+        if near_zero_events:
+            ax_near_zero.plot(
+                _tokens_millions(near_zero_events),
+                [100.0 * float(event["activation/near_zero_mass/k1em02"]) for event in near_zero_events],
+                marker="o",
+                markersize=_marker_size(label, 1.8),
+                linewidth=_line_width(label),
+                color=color,
+                label=label,
+            )
+        if weight_events:
+            ax_global_tokens.plot(
+                _tokens_millions(weight_events),
+                [float(event["weight_norm"]) for event in weight_events],
+                marker="o",
+                markersize=_marker_size(label, 1.8),
+                linewidth=_line_width(label),
+                color=color,
+                label=label,
+            )
+        if paired_global:
+            final_event = paired_global[-1]
+            final_x = 100.0 * float(final_event["activation/near_zero_mass/k1em02"])
+            final_y = float(final_event["weight_norm"])
+            global_fit_x.append(final_x)
+            global_fit_y.append(final_y)
+            ax_global_near_zero.scatter(
+                [final_x],
+                [final_y],
+                marker=marker,
+                s=_scatter_size(label, 38.0),
+                color=color,
+                alpha=0.92,
+                linewidths=0.0,
+                label=label,
+                zorder=2,
+            )
+        if paired_mlp:
+            final_event = paired_mlp[-1]
+            final_x = 100.0 * float(final_event["activation/near_zero_mass/k1em02"])
+            final_y = float(final_event["mlp_weight_norm"])
+            mlp_fit_x.append(final_x)
+            mlp_fit_y.append(final_y)
+            ax_mlp_near_zero.scatter(
+                [final_x],
+                [final_y],
+                marker=marker,
+                s=_scatter_size(label, 38.0),
+                color=color,
+                alpha=0.92,
+                linewidths=0.0,
+                label=label,
+                zorder=2,
+            )
+
+    ax_near_zero.set_title("Near-zero Activation Mass")
+    ax_near_zero.set_xlabel("Tokens seen (millions)")
+    ax_near_zero.set_ylabel("|activation| <= 0.01 (%)")
+    ax_near_zero.set_ylim(bottom=0.0)
+
+    ax_global_tokens.set_title("Global Weight Norm")
+    ax_global_tokens.set_xlabel("Tokens seen (millions)")
+    ax_global_tokens.set_ylabel("L2 norm")
+    ax_global_tokens.ticklabel_format(axis="y", style="plain", useOffset=False)
+
+    ax_global_near_zero.set_title("Final Global Norm vs Near-zero Mass")
+    ax_global_near_zero.set_xlabel("|activation| <= 0.01 (%)")
+    ax_global_near_zero.set_ylabel("Global L2 norm")
+    ax_global_near_zero.ticklabel_format(axis="y", style="plain", useOffset=False)
+    if ax_global_near_zero.collections:
+        ax_global_near_zero.text(
+            0.02,
+            0.02,
+            "Final checkpoint only.",
+            transform=ax_global_near_zero.transAxes,
+            ha="left",
+            va="bottom",
+            fontsize=7,
+            bbox={"facecolor": "white", "edgecolor": "none", "alpha": 0.75, "pad": 1.5},
+        )
+    _add_linear_fit_annotation(ax_global_near_zero, global_fit_x, global_fit_y, loc="lower right")
+
+    ax_mlp_near_zero.set_title("Final MLP Norm vs Near-zero Mass")
+    ax_mlp_near_zero.set_xlabel("|activation| <= 0.01 (%)")
+    ax_mlp_near_zero.set_ylabel("MLP weight L2 norm")
+    ax_mlp_near_zero.ticklabel_format(axis="y", style="plain", useOffset=False)
+    if ax_mlp_near_zero.collections:
+        ax_mlp_near_zero.text(
+            0.02,
+            0.02,
+            "Final checkpoint only.",
+            transform=ax_mlp_near_zero.transAxes,
+            ha="left",
+            va="bottom",
+            fontsize=7,
+            bbox={"facecolor": "white", "edgecolor": "none", "alpha": 0.75, "pad": 1.5},
+        )
+    else:
+        ax_mlp_near_zero.text(0.5, 0.5, "No MLP weight norms found.", ha="center", va="center")
+    _add_linear_fit_annotation(ax_mlp_near_zero, mlp_fit_x, mlp_fit_y, loc="upper right")
+
+    handles, labels = ax_near_zero.get_legend_handles_labels()
+    if handles:
+        fig.legend(
+            handles,
+            labels,
+            loc="lower center",
+            bbox_to_anchor=(0.5, 0.01),
+            ncol=3,
+            frameon=False,
+            fontsize=8,
+        )
+
+    tokens = sorted(
+        {
+            int(event["tokens_seen"])
+            for item in series
+            for event in item["train_events"]
+            if event.get("tokens_seen")
+        }
+    )
+    token_note = f"up to {tokens[-1]:,} tokens/run" if tokens else "one MiniPile token-cache pass per run"
+    fig.suptitle("Full-pass High-pressure Weight Norm Diagnostics", y=0.99)
+    fig.text(
+        0.5,
+        0.935,
+        f"n={len(series)} completed runs; {token_note}; lower panels use final train log event",
+        ha="center",
+        va="top",
+        fontsize=8,
+    )
+    fig.subplots_adjust(top=0.88, bottom=0.2)
+    fig.savefig(output_path)
+    plt.close(fig)
+
+
+def _plot_full_pass_high_pressure_clipping_frontiers(
+    series: list[dict[str, Any]],
+    output_path: Path,
+    *,
+    title: str,
+    subtitle: str,
+) -> None:
+    fig, ax = plt.subplots(figsize=(8.4, 5.8))
+    total_points = sum(len(item.get("rows", [])) for item in series)
+    all_losses: list[float] = []
+    colors = _series_colors([str(item["label"]) for item in series])
+
+    for item in series:
+        rows = sorted(item["rows"], key=lambda row: float(row["achieved_sparsity"]))
+        sparsity = [100.0 * float(row["achieved_sparsity"]) for row in rows]
+        losses = [float(row["validation_loss"]) for row in rows]
+        all_losses.extend(losses)
+        label = str(item["label"])
+        ax.plot(
+            sparsity,
+            losses,
+            marker="o",
+            markersize=_marker_size(label, 3.2),
+            linewidth=_line_width(label),
+            color=colors[label],
+            label=label,
+        )
+
+    ax.set_xlabel("Achieved exact-zero activation sparsity (%)")
+    ax.set_ylabel("Validation loss")
+    _zoom_loss_axis(ax, all_losses)
+
+    handles, labels = ax.get_legend_handles_labels()
+    if handles:
+        fig.legend(
+            handles,
+            labels,
+            loc="lower center",
+            bbox_to_anchor=(0.5, 0.02),
+            ncol=3,
+            frameon=False,
+            fontsize=8,
+        )
+    fig.suptitle(title, y=0.975)
+    fig.text(
+        0.5,
+        0.93,
+        (
+            f"n={len(series)} runs, {total_points} sweep points; "
+            f"{subtitle}"
+        ),
+        ha="center",
+        va="top",
+        fontsize=8,
+    )
+    fig.subplots_adjust(top=0.83, bottom=0.27, left=0.11, right=0.99)
     fig.savefig(output_path)
     plt.close(fig)
 
@@ -2126,13 +2976,33 @@ def _plot_activation_histogram_grid(payload: dict[str, Any], output_path: Path) 
     rows = len(methods)
     cols = len(layer_names)
     fig_width = max(12.0, 2.05 * cols)
-    fig_height = max(14.0, 1.34 * rows + 2.6)
+    if rows <= 3:
+        fig_height = max(9.0, 2.05 * rows + 2.6)
+        title_y = 0.99
+        subtitle_y = 0.958
+        top_margin = 0.895
+        bottom_margin = 0.13
+        xlabel_y = 0.055
+        footnote_y = 0.018
+        hspace = 0.22
+    else:
+        fig_height = max(14.0, 1.34 * rows + 2.6)
+        title_y = 0.997
+        subtitle_y = 0.982
+        top_margin = 0.955
+        bottom_margin = 0.065
+        xlabel_y = 0.035
+        footnote_y = 0.02
+        hspace = 0.18
     fig, axes = plt.subplots(rows, cols, figsize=(fig_width, fig_height), sharex=True, sharey=True)
     if rows == 1:
         axes = [axes]
 
     y_min = max(min(positive_values) * 0.6, 1e-9) if positive_values else 1e-9
     y_max = max(positive_values) * 2.0 if positive_values else 1.0
+    site_scope = _activation_histogram_scope(payload, layer_names)
+    x_min = min(edges)
+    x_max = _activation_histogram_x_max(site_scope, edges)
     for row_index, method in enumerate(methods):
         label = str(method["label"])
         color = colors[label]
@@ -2152,12 +3022,12 @@ def _plot_activation_histogram_grid(payload: dict[str, Any], output_path: Path) 
             ax.step(centers, y_values, where="mid", color=color, linewidth=0.75, alpha=0.95)
             ax.set_yscale("log")
             ax.set_ylim(y_min, y_max)
-            ax.set_xlim(min(edges), 1.0)
+            ax.set_xlim(x_min, x_max)
             ax.xaxis.set_major_formatter(FuncFormatter(_trimmed_decimal_tick))
             ax.axvspan(-0.01, 0.01, color="#000000", alpha=0.07, linewidth=0)
             ax.axvline(0.0, color="#4d4d4d", linewidth=0.45, alpha=0.5)
             if row_index == 0:
-                ax.set_title(layer_name.replace("mlp_hiddens.layer_", "MLP "), fontsize=9)
+                ax.set_title(_activation_histogram_layer_title(layer_name), fontsize=9)
             if col_index == 0:
                 ax.set_ylabel(f"{label}\nprobability", fontsize=8)
             ax.tick_params(axis="both", labelsize=7)
@@ -2169,25 +3039,186 @@ def _plot_activation_histogram_grid(payload: dict[str, Any], output_path: Path) 
         overflow_note = "; outside plotted range: " + ", ".join(overflow_notes[:3])
         if len(overflow_notes) > 3:
             overflow_note += ", ..."
-    fig.suptitle("Selected Method MLP Activation Distributions", y=0.997, fontsize=14)
+    x_note = ""
+    if x_max < max(edges):
+        x_note = f"; x-axis shown to {x_max:g}"
+    title = str(payload.get("plot_title") or _activation_histogram_default_title(site_scope))
+    fig.suptitle(title, y=title_y, fontsize=14)
     fig.text(
         0.5,
-        0.982,
+        subtitle_y,
         (
             f"n={len(methods)} checkpoints; {eval_sequences:,} validation blocks; "
             f"{eval_tokens:,} validation tokens; y-axis is log probability per bin"
-            f"{overflow_note}"
+            f"{x_note}{overflow_note}"
         ),
         ha="center",
         va="top",
         fontsize=8,
     )
-    fig.supxlabel("Activation value", y=0.035, fontsize=10)
+    fig.supxlabel("Activation value", y=xlabel_y, fontsize=10)
+    fig.supylabel("Probability per bin (log scale)", x=0.006, fontsize=10)
+    fig.text(
+        0.5,
+        footnote_y,
+        "Shaded band marks |activation| <= 0.01.",
+        ha="center",
+        va="bottom",
+        fontsize=8,
+    )
+    fig.subplots_adjust(
+        left=0.105,
+        right=0.995,
+        top=top_margin,
+        bottom=bottom_margin,
+        hspace=hspace,
+        wspace=0.08,
+    )
+    fig.savefig(output_path)
+    plt.close(fig)
+
+
+def _activation_histogram_scope(payload: dict[str, Any], layer_names: list[str]) -> str:
+    sites = payload.get("sites") or []
+    if sites:
+        return str(sites[0])
+    first_layer = layer_names[0] if layer_names else ""
+    if first_layer.startswith("residual_streams."):
+        return "residual_streams"
+    if first_layer.startswith("attention_outputs."):
+        return "attention_outputs"
+    return "mlp_hiddens"
+
+
+def _activation_histogram_x_max(site_scope: str, edges: list[float]) -> float:
+    if site_scope == "mlp_hiddens":
+        return min(max(edges), 1.0)
+    return max(edges)
+
+
+def _activation_histogram_layer_title(layer_name: str) -> str:
+    return (
+        layer_name.replace("mlp_hiddens.layer_", "MLP ")
+        .replace("residual_streams.layer_", "H ")
+        .replace("attention_outputs.layer_", "Attn out ")
+    )
+
+
+def _activation_histogram_default_title(site_scope: str) -> str:
+    if site_scope == "residual_streams":
+        return "Selected Method Residual Stream Distributions"
+    if site_scope == "attention_outputs":
+        return "Selected Method Attention Output Distributions"
+    return "Selected Method MLP Activation Distributions"
+
+
+def _plot_weight_histogram_grid(payload: dict[str, Any], output_path: Path) -> None:
+    methods = payload.get("methods", [])
+    edges = [float(value) for value in payload.get("bin_edges", [])]
+    if not methods or len(edges) < 2:
+        raise ValueError("Weight histogram payload has no plottable methods or bin edges.")
+
+    layer_names = [layer["name"] for layer in methods[0].get("layers", [])]
+    if not layer_names:
+        raise ValueError("Weight histogram payload has no layer histograms.")
+    centers = [(left + right) / 2.0 for left, right in zip(edges[:-1], edges[1:], strict=True)]
+    labels = [str(method["label"]) for method in methods]
+    colors = _series_colors(labels)
+
+    positive_values: list[float] = []
+    probability_by_method_layer: list[list[list[float]]] = []
+    overflow_notes: list[str] = []
+    for method in methods:
+        method_layers: list[list[float]] = []
+        method_overflow = 0.0
+        method_total = 0.0
+        layers_by_name = {layer["name"]: layer for layer in method.get("layers", [])}
+        for layer_name in layer_names:
+            layer = layers_by_name[layer_name]
+            total = float(layer.get("total") or sum(layer.get("counts", [])) or 1.0)
+            counts = [float(value) for value in layer["counts"]]
+            probabilities = [count / total for count in counts]
+            positive_values.extend(value for value in probabilities if value > 0.0)
+            method_layers.append(probabilities)
+            method_overflow += float(layer.get("underflow", 0)) + float(layer.get("overflow", 0))
+            method_total += total
+        probability_by_method_layer.append(method_layers)
+        overflow_fraction = method_overflow / method_total if method_total else 0.0
+        if overflow_fraction > 0.001:
+            overflow_notes.append(f"{method['label']}: {100.0 * overflow_fraction:.2f}% outside range")
+
+    rows = len(methods)
+    cols = len(layer_names)
+    fig_width = max(12.0, 2.05 * cols)
+    fig_height = max(14.0, 1.34 * rows + 2.6)
+    fig, axes = plt.subplots(rows, cols, figsize=(fig_width, fig_height), sharex=True, sharey=True)
+    if rows == 1:
+        axes = [axes]
+
+    y_min = max(min(positive_values) * 0.6, 1e-9) if positive_values else 1e-9
+    y_max = max(positive_values) * 2.0 if positive_values else 1.0
+    x_min = min(edges)
+    x_max = max(edges)
+    for row_index, method in enumerate(methods):
+        label = str(method["label"])
+        color = colors[label]
+        for col_index, layer_name in enumerate(layer_names):
+            ax = axes[row_index][col_index]
+            probabilities = probability_by_method_layer[row_index][col_index]
+            y_values = [max(value, y_min) if value > 0.0 else y_min for value in probabilities]
+            ax.fill_between(
+                centers,
+                y_min,
+                y_values,
+                step="mid",
+                color=color,
+                alpha=0.26,
+                linewidth=0,
+            )
+            ax.step(centers, y_values, where="mid", color=color, linewidth=0.75, alpha=0.95)
+            ax.set_yscale("log")
+            ax.set_ylim(y_min, y_max)
+            ax.set_xlim(x_min, x_max)
+            ax.xaxis.set_major_formatter(FuncFormatter(_trimmed_decimal_tick))
+            ax.axvspan(-0.01, 0.01, color="#000000", alpha=0.07, linewidth=0)
+            ax.axvline(0.0, color="#4d4d4d", linewidth=0.45, alpha=0.5)
+            if row_index == 0:
+                ax.set_title(_weight_histogram_layer_title(layer_name), fontsize=9)
+            if col_index == 0:
+                ax.set_ylabel(f"{label}\nprobability", fontsize=8)
+            ax.tick_params(axis="both", labelsize=7)
+
+    overflow_note = ""
+    if overflow_notes:
+        overflow_note = "; outside plotted range: " + ", ".join(overflow_notes[:3])
+        if len(overflow_notes) > 3:
+            overflow_note += ", ..."
+    scope = str(payload.get("scope") or "mlp_weights")
+    if scope == "attention_weights":
+        scope_note = "attention QKV and output dense weights only"
+        default_title = "Selected Method Attention Weight Distributions"
+    else:
+        scope_note = "MLP dense weights only"
+        default_title = "Selected Method MLP Weight Distributions"
+    title = str(payload.get("plot_title") or default_title)
+    fig.suptitle(title, y=0.997, fontsize=14)
+    fig.text(
+        0.5,
+        0.982,
+        (
+            f"n={len(methods)} checkpoints; {scope_note}; "
+            f"biases excluded; y-axis is log probability per bin{overflow_note}"
+        ),
+        ha="center",
+        va="top",
+        fontsize=8,
+    )
+    fig.supxlabel("Weight value", y=0.035, fontsize=10)
     fig.supylabel("Probability per bin (log scale)", x=0.006, fontsize=10)
     fig.text(
         0.5,
         0.02,
-        "Shaded band marks |activation| <= 0.01.",
+        "Shaded band marks |weight| <= 0.01.",
         ha="center",
         va="bottom",
         fontsize=8,
@@ -2195,6 +3226,10 @@ def _plot_activation_histogram_grid(payload: dict[str, Any], output_path: Path) 
     fig.subplots_adjust(left=0.105, right=0.995, top=0.955, bottom=0.065, hspace=0.18, wspace=0.08)
     fig.savefig(output_path)
     plt.close(fig)
+
+
+def _weight_histogram_layer_title(layer_name: str) -> str:
+    return layer_name.replace("mlp_weights.layer_", "MLP ").replace("attention_weights.layer_", "Attn ")
 
 
 def _trimmed_decimal_tick(value: float, _position: int) -> str:
@@ -2320,6 +3355,21 @@ def _marker_size(label: str, default: float) -> float:
 
 def _scatter_size(label: str, default: float) -> float:
     return default * ADAMW_MARKER_SCALE if _is_adamw_label(label) else default
+
+
+def _method_marker(label: str) -> str:
+    normalized = label.lower()
+    if normalized.startswith("adamw"):
+        return "D"
+    if normalized.startswith("rn"):
+        return "o"
+    if normalized.startswith("or"):
+        return "s"
+    if normalized.startswith("l1n"):
+        return "^"
+    if normalized.startswith("ol1"):
+        return "P"
+    return "o"
 
 
 def _ordered_roles(rows: list[dict[str, Any]]) -> list[str]:

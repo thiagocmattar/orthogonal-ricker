@@ -119,10 +119,12 @@ def run_activation_histograms(
 
     payload = {
         "schema_version": 1,
+        "plot_title": histogram_config.get("plot_title"),
         "bin_edges": bin_edges,
         "range_min": range_min,
         "range_max": range_max,
         "bins": bins,
+        "sites": histogram_config.get("sites", ["mlp_hiddens"]),
         "validation_sequences": total_sequences,
         "validation_tokens": total_tokens,
         "methods": results,

@@ -12,6 +12,7 @@ from paper_exp.activation_pressure import pressure_loss
 from paper_exp.activation_pressure import ricker_pressure
 from paper_exp.activations import ActivationCapture
 from paper_exp.activations import clip_activation_tensor
+from paper_exp.activations import resolve_site_aliases
 
 
 def test_pressure_functions_are_finite() -> None:
@@ -50,6 +51,38 @@ def test_activation_capture_hooks_pythia_like_mlp_hidden() -> None:
     assert "mlp_hiddens.layer_0" in capture.activations
     assert capture.site_metadata[0].downstream_operator.endswith("dense_4h_to_h")
     assert torch.equal(output, capture.activations["mlp_hiddens.layer_0"])
+
+
+def test_activation_capture_hooks_residual_stream_and_attention_output() -> None:
+    model = _TinyPythiaLikeBlockModel()
+    value = torch.tensor([[[-1.0, 2.0]]])
+
+    with ActivationCapture(model, ["residual_streams", "attention_outputs"], torch=torch) as capture:
+        model(value)
+
+    assert torch.equal(capture.activations["residual_streams.layer_0"], value)
+    assert torch.equal(capture.activations["attention_outputs.layer_0"], value * 2.0)
+    assert {site.role for site in capture.site_metadata} == {"residual_stream", "attention_output"}
+
+
+def test_activation_capture_clips_attention_output_tuple() -> None:
+    model = _TinyPythiaLikeBlockModel()
+    value = torch.tensor([[[0.001, 2.0]]])
+
+    with ActivationCapture(
+        model,
+        ["attention_outputs"],
+        torch=torch,
+        clipping={"enabled": True, "mode": "threshold", "threshold": 0.01, "sites": ["attention_outputs"]},
+    ) as capture:
+        output = model(value)
+
+    assert torch.equal(capture.activations["attention_outputs.layer_0"], torch.tensor([[[0.0, 4.0]]]))
+    assert torch.equal(output, torch.tensor([[[0.001, 6.0]]]))
+
+
+def test_all_sites_alias_preserves_mlp_only_pressure_scope() -> None:
+    assert resolve_site_aliases(["all_sites"]) == {"mlp_hiddens"}
 
 
 def test_clipping_produces_exact_zeros_and_near_zero_metrics() -> None:
@@ -114,3 +147,30 @@ class _TinyPythiaLikeModel(torch.nn.Module):
 
     def forward(self, value: torch.Tensor) -> torch.Tensor:
         return self.gpt_neox.layers[0].mlp.act(value)
+
+
+class _TinyPythiaLikeBlockModel(torch.nn.Module):
+    def __init__(self) -> None:
+        super().__init__()
+        self.gpt_neox = SimpleNamespace(layers=torch.nn.ModuleList([_TinyPythiaLikeBlock()]))
+
+    def forward(self, value: torch.Tensor) -> torch.Tensor:
+        for layer in self.gpt_neox.layers:
+            value = layer(value)
+        return value
+
+
+class _TinyPythiaLikeBlock(torch.nn.Module):
+    def __init__(self) -> None:
+        super().__init__()
+        self.attention = _TupleAttention()
+        self.mlp = SimpleNamespace(act=torch.nn.Identity())
+
+    def forward(self, value: torch.Tensor) -> torch.Tensor:
+        attention_output, _ = self.attention(value)
+        return self.mlp.act(value + attention_output)
+
+
+class _TupleAttention(torch.nn.Module):
+    def forward(self, value: torch.Tensor) -> tuple[torch.Tensor, None]:
+        return value * 2.0, None

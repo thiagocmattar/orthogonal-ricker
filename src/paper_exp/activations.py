@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Any
 
 
-SUPPORTED_SITE_ALIASES = {"mlp_hiddens"}
+SUPPORTED_SITE_ALIASES = {"mlp_hiddens", "residual_streams", "attention_outputs"}
 
 
 @dataclass(frozen=True)
@@ -49,6 +49,10 @@ class ActivationCapture:
         resolved = resolve_site_aliases(self.requested_sites)
         if "mlp_hiddens" in resolved:
             self._register_pythia_mlp_hiddens()
+        if "residual_streams" in resolved:
+            self._register_pythia_residual_streams()
+        if "attention_outputs" in resolved:
+            self._register_pythia_attention_outputs()
 
     def remove(self) -> None:
         for handle in self._handles:
@@ -75,15 +79,71 @@ class ActivationCapture:
                     downstream_operator=f"gpt_neox.layers.{index}.mlp.dense_4h_to_h",
                 )
             )
-            self._handles.append(activation_module.register_forward_hook(self._make_hook(name)))
+            self._handles.append(activation_module.register_forward_hook(self._make_hook(name, "mlp_hiddens")))
 
-    def _make_hook(self, name: str) -> Any:
+    def _register_pythia_residual_streams(self) -> None:
+        layers = getattr(getattr(self.model, "gpt_neox", None), "layers", None)
+        if layers is None:
+            raise ValueError("residual_streams capture currently supports GPTNeoX/Pythia models only.")
+
+        for index, layer in enumerate(layers):
+            name = f"residual_streams.layer_{index}"
+            self.site_metadata.append(
+                ActivationSite(
+                    name=name,
+                    module_path=f"gpt_neox.layers.{index}",
+                    role="residual_stream",
+                    shape="[batch, seq, hidden]",
+                    downstream_operator=f"gpt_neox.layers.{index}",
+                )
+            )
+            self._handles.append(layer.register_forward_pre_hook(self._make_pre_hook(name, "residual_streams")))
+
+    def _register_pythia_attention_outputs(self) -> None:
+        layers = getattr(getattr(self.model, "gpt_neox", None), "layers", None)
+        if layers is None:
+            raise ValueError("attention_outputs capture currently supports GPTNeoX/Pythia models only.")
+
+        for index, layer in enumerate(layers):
+            attention_module = getattr(layer, "attention", None)
+            if attention_module is None:
+                raise ValueError(f"Could not resolve attention module for layer {index}.")
+
+            name = f"attention_outputs.layer_{index}"
+            self.site_metadata.append(
+                ActivationSite(
+                    name=name,
+                    module_path=f"gpt_neox.layers.{index}.attention",
+                    role="attention_output",
+                    shape="[batch, seq, hidden]",
+                    downstream_operator=f"gpt_neox.layers.{index} residual add",
+                )
+            )
+            self._handles.append(attention_module.register_forward_hook(self._make_hook(name, "attention_outputs")))
+
+    def _make_hook(self, name: str, alias: str) -> Any:
         def hook(_module: Any, _inputs: tuple[Any, ...], output: Any) -> Any:
-            value = output
-            if _site_clipping_enabled(self.clipping, "mlp_hiddens", name):
+            value = _first_tensor(output)
+            if _site_clipping_enabled(self.clipping, alias, name):
                 value = clip_activation_tensor(value, self.clipping, torch=self.torch)
+                self.activations[name] = value
+                return _replace_first_tensor(output, value)
             self.activations[name] = value
-            return value
+            return output
+
+        return hook
+
+    def _make_pre_hook(self, name: str, alias: str) -> Any:
+        def hook(_module: Any, inputs: tuple[Any, ...]) -> Any:
+            if not inputs:
+                raise ValueError(f"Could not capture {name}: module received no positional inputs.")
+            value = _first_tensor(inputs[0])
+            if _site_clipping_enabled(self.clipping, alias, name):
+                value = clip_activation_tensor(value, self.clipping, torch=self.torch)
+                self.activations[name] = value
+                return (value, *inputs[1:])
+            self.activations[name] = value
+            return None
 
         return hook
 
@@ -100,6 +160,55 @@ def resolve_site_aliases(sites: list[str]) -> set[str]:
         else:
             raise ValueError(f"Unsupported activation site for this harness: {site}")
     return resolved
+
+
+def _first_tensor(value: Any) -> Any:
+    if isinstance(value, (tuple, list)):
+        for item in value:
+            try:
+                return _first_tensor(item)
+            except TypeError:
+                continue
+        raise TypeError("Could not find tensor in activation hook output.")
+    if hasattr(value, "detach"):
+        return value
+    raise TypeError(f"Unsupported activation hook value type: {type(value)!r}")
+
+
+def _replace_first_tensor(value: Any, replacement: Any) -> Any:
+    if hasattr(value, "detach"):
+        return replacement
+    if isinstance(value, tuple):
+        replaced = False
+        items = []
+        for item in value:
+            if replaced:
+                items.append(item)
+                continue
+            try:
+                items.append(_replace_first_tensor(item, replacement))
+                replaced = True
+            except TypeError:
+                items.append(item)
+        if not replaced:
+            raise TypeError("Could not find tensor in activation hook output.")
+        return tuple(items)
+    if isinstance(value, list):
+        replaced = False
+        items = []
+        for item in value:
+            if replaced:
+                items.append(item)
+                continue
+            try:
+                items.append(_replace_first_tensor(item, replacement))
+                replaced = True
+            except TypeError:
+                items.append(item)
+        if not replaced:
+            raise TypeError("Could not find tensor in activation hook output.")
+        return items
+    raise TypeError(f"Unsupported activation hook value type: {type(value)!r}")
 
 
 def clip_activation_tensor(value: Any, cfg: dict[str, Any], *, torch: Any) -> Any:

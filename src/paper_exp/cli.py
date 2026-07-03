@@ -14,6 +14,7 @@ from paper_exp.run import run_baseline, run_smoke
 from paper_exp.sweeps import run_pressure_fixed_step_clipping_sweeps
 from paper_exp.sweeps import run_pressure_fixed_step_sweep
 from paper_exp.sweeps import write_pressure_fixed_step_configs
+from paper_exp.weight_histograms import run_weight_histograms
 
 DEFAULT_CLIPPING_THRESHOLDS = "0,0.001,0.003,0.01,0.03,0.05,0.075,0.1,0.15,0.2,0.3"
 DEFAULT_RMS_CLIPPING_MULTIPLIERS = "0,0.001,0.003,0.01,0.03,0.05,0.075,0.1,0.15,0.2,0.3,0.5,0.75,1.0"
@@ -61,6 +62,8 @@ def build_parser() -> argparse.ArgumentParser:
     clip_sweep.add_argument("--thresholds", default=DEFAULT_CLIPPING_THRESHOLDS)
     clip_sweep.add_argument("--quantiles", default="")
     clip_sweep.add_argument("--rms-multipliers", default="")
+    clip_sweep.add_argument("--sites", default="", help="Comma-separated activation sites to clip for this sweep.")
+    clip_sweep.add_argument("--experiment-suffix", default="", help="Optional suffix for the clipping sweep result folder.")
     clip_sweep.add_argument("--eval-batches", type=int, default=None)
     clip_sweep.add_argument("--seed", type=int, default=0)
 
@@ -98,6 +101,15 @@ def build_parser() -> argparse.ArgumentParser:
     activation_histograms.add_argument(
         "--config",
         default="configs/49-pythia-14m-pressure-fixed-2048-selected-activation-histograms.yaml",
+    )
+
+    weight_histograms = subparsers.add_parser(
+        "weight-histograms",
+        help="Measure checkpoint weight histograms for selected runs.",
+    )
+    weight_histograms.add_argument(
+        "--config",
+        default="configs/61-pythia-14m-minipile-full-pass-high-pressure-weight-histograms.yaml",
     )
 
     return parser
@@ -164,6 +176,8 @@ def main(argv: list[str] | None = None) -> int:
                 thresholds=_parse_float_list(args.thresholds),
                 quantiles=_parse_float_list(args.quantiles),
                 rms_multipliers=_parse_float_list(args.rms_multipliers),
+                sites=_parse_str_list(args.sites) or None,
+                experiment_suffix=args.experiment_suffix or None,
                 eval_batches=args.eval_batches,
                 seed=args.seed,
             )
@@ -208,6 +222,12 @@ def main(argv: list[str] | None = None) -> int:
             run_dir = run_activation_histograms(config, config_path=args.config, command=command)
             print(f"Activation histograms written to {run_dir}")
             return 0
+
+        if args.command == "weight-histograms":
+            config = load_config(args.config, allow_todos=False)
+            run_dir = run_weight_histograms(config, config_path=args.config, command=command)
+            print(f"Weight histograms written to {run_dir}")
+            return 0
     except ConfigError as exc:
         print(f"Config error: {exc}", file=sys.stderr)
         return 2
@@ -235,6 +255,12 @@ def _parse_float_list(value: str) -> list[float]:
     if not value.strip():
         return []
     return [float(part.strip()) for part in value.split(",") if part.strip()]
+
+
+def _parse_str_list(value: str) -> list[str]:
+    if not value.strip():
+        return []
+    return [part.strip() for part in value.split(",") if part.strip()]
 
 
 if __name__ == "__main__":

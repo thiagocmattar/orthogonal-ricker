@@ -195,6 +195,7 @@ def run_calibration(
                 }
                 event.update(final_pressure_metrics)
                 events.append(event)
+                _write_live_events(run_dir, events)
 
             if should_eval and validation_tokens is not None:
                 validation_start = time.perf_counter()
@@ -226,6 +227,7 @@ def run_calibration(
                         "validation_wall_seconds": validation_elapsed,
                     }
                 )
+                _write_live_events(run_dir, events)
             completed_steps = step
             if max_wall_seconds is not None and time.perf_counter() - train_start >= max_wall_seconds:
                 break
@@ -265,6 +267,7 @@ def run_calibration(
                 "validation_wall_seconds": validation_elapsed,
             }
         )
+        _write_live_events(run_dir, events)
 
     checkpoint_metadata = _save_final_checkpoint(config, run_dir, model, optimizer, torch)
     total_elapsed = time.perf_counter() - total_start
@@ -361,6 +364,10 @@ def run_calibration(
     write_run_artifacts(run_dir, config=config, metrics=metrics, manifest=manifest, predictions=events)
     write_jsonl(run_dir / "events.jsonl", events)
     return run_dir
+
+
+def _write_live_events(run_dir: Path, events: list[dict[str, Any]]) -> None:
+    write_jsonl(run_dir / "events.jsonl", events)
 
 
 def _run_training_step(

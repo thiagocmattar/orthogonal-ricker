@@ -84,7 +84,7 @@ def collect_gpu_info() -> list[dict[str, str]]:
 
 
 def collect_package_versions() -> dict[str, str]:
-    packages = ("paper-exp", "PyYAML", "matplotlib", "numpy", "datasets", "transformers", "torch")
+    packages = ("paper-exp", "PyYAML", "matplotlib", "numpy", "datasets", "transformers", "torch", "safetensors")
     versions: dict[str, str] = {}
     for package in packages:
         try:
