@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import math
+import re
 from pathlib import Path
 from typing import Any
 
@@ -102,6 +103,45 @@ FULL_PASS_MLP_RESIDUAL_MLP_HISTOGRAM_EXPERIMENT = (
 FULL_PASS_MLP_RESIDUAL_RESIDUAL_HISTOGRAM_EXPERIMENT = (
     "76-pythia-14m-minipile-full-pass-mlp-residual-pressure-residual-stream-histograms"
 )
+FULL_PASS_RELU_ATTENTION_OUTPUT_HISTOGRAM_EXPERIMENT = (
+    "82-pythia-14m-minipile-relu-completed-attention-output-histograms"
+)
+FULL_PASS_RELU_MLP_HISTOGRAM_EXPERIMENT = (
+    "83-pythia-14m-minipile-relu-completed-mlp-activation-histograms"
+)
+FULL_PASS_RELU_RESIDUAL_HISTOGRAM_EXPERIMENT = (
+    "84-pythia-14m-minipile-relu-completed-residual-stream-histograms"
+)
+STATUS_UPDATE_COUPLING_METHODS = (
+    ("AdamW", "AdamW"),
+    ("L1N w5", "L1N w5"),
+    ("RN w1 c0.05 s0.05", "RN w1 c0.05 s0.05"),
+)
+STATUS_UPDATE_COUPLING_WEIGHT_RUNS = (
+    ("AdamW", "50-pythia-14m-minipile-adamw-full-pass"),
+    ("L1N w5", "58-pythia-14m-minipile-l1-naive-full-pass-w5"),
+    ("RN w1 c0.05 s0.05", "57-pythia-14m-minipile-ricker-naive-full-pass-w1-c0p05-s0p05"),
+)
+STATUS_UPDATE_PRESSURE_WEIGHT_GROUPS = (
+    (
+        "mlp_hidden_input",
+        "MLP hiddens",
+        re.compile(r"^gpt_neox\.layers\.\d+\.mlp\.dense_h_to_4h\.weight$"),
+        (-0.25, 0.25),
+    ),
+    (
+        "residual_write",
+        "Residual streams",
+        re.compile(r"^gpt_neox\.layers\.\d+\.(?:mlp\.dense_4h_to_h|attention\.dense)\.weight$"),
+        (-0.75, 0.75),
+    ),
+    (
+        "attention_qkv",
+        "Attention",
+        re.compile(r"^gpt_neox\.layers\.\d+\.attention\.query_key_value\.weight$"),
+        (-0.75, 0.75),
+    ),
+)
 FULL_PASS_SELECTED_RUNS = [
     ("AdamW", "50-pythia-14m-minipile-adamw-full-pass"),
     ("L1N w0.5", "51-pythia-14m-minipile-l1-naive-full-pass-w0p5"),
@@ -126,6 +166,33 @@ FULL_PASS_MLP_RESIDUAL_PRESSURE_RUNS = [
     ("OR MLP+res w1 c0.05 s0.05", "71-pythia-14m-minipile-orthogonal-ricker-mlp-residual-full-pass-w1-c0p05-s0p05"),
     ("L1N MLP+res w5", "72-pythia-14m-minipile-l1-naive-mlp-residual-full-pass-w5"),
     ("OL1 MLP+res w5", "73-pythia-14m-minipile-orthogonal-l1-mlp-residual-full-pass-w5"),
+]
+FULL_PASS_RELU_COMPLETED_RUNS = [
+    ("AdamW ReLU", "77-pythia-14m-minipile-relu-adamw-full-pass"),
+    ("RN ReLU w1 c0.05 s0.05", "78-pythia-14m-minipile-relu-ricker-naive-full-pass-w1-c0p05-s0p05"),
+    ("OR ReLU w1 c0.05 s0.05", "79-pythia-14m-minipile-relu-orthogonal-ricker-full-pass-w1-c0p05-s0p05"),
+]
+STATUS_UPDATE_CLIPPING_SITES = (
+    ("mlp_hiddens", "MLP hiddens"),
+    ("residual_streams", "Residual streams"),
+    ("attention_outputs", "Attention outputs"),
+)
+STATUS_UPDATE_ALL_SITE_FRONTIER_RUNS = [
+    ("AdamW", "50-pythia-14m-minipile-adamw-full-pass"),
+    ("OR all-site", "65-pythia-14m-minipile-orthogonal-ricker-all-site-full-pass-w1-c0p05-s0p05"),
+    ("OL1 all-site", "66-pythia-14m-minipile-orthogonal-l1-all-site-full-pass-w5"),
+]
+STATUS_UPDATE_MLP_RESIDUAL_FRONTIER_RUNS = [
+    ("AdamW", "50-pythia-14m-minipile-adamw-full-pass"),
+    ("RN MLP+res", "70-pythia-14m-minipile-ricker-naive-mlp-residual-full-pass-w1-c0p05-s0p05"),
+    ("OR MLP+res", "71-pythia-14m-minipile-orthogonal-ricker-mlp-residual-full-pass-w1-c0p05-s0p05"),
+    ("L1N MLP+res", "72-pythia-14m-minipile-l1-naive-mlp-residual-full-pass-w5"),
+    ("OL1 MLP+res", "73-pythia-14m-minipile-orthogonal-l1-mlp-residual-full-pass-w5"),
+]
+STATUS_UPDATE_RELU_FRONTIER_RUNS = [
+    ("AdamW ReLU", "77-pythia-14m-minipile-relu-adamw-full-pass"),
+    ("RN ReLU", "78-pythia-14m-minipile-relu-ricker-naive-full-pass-w1-c0p05-s0p05"),
+    ("OR ReLU", "79-pythia-14m-minipile-relu-orthogonal-ricker-full-pass-w1-c0p05-s0p05"),
 ]
 
 PLOT_STYLE = {
@@ -832,6 +899,212 @@ def _generate_known_paper_figures(results_path: Path, figures_path: Path, *, sav
             )
         )
 
+    full_pass_relu_completed_runs = _latest_labeled_runs(
+        results_path,
+        FULL_PASS_RELU_COMPLETED_RUNS,
+        "events.jsonl",
+    )
+    if len(full_pass_relu_completed_runs) >= 2:
+        output_pdf = figures_path / "59-pythia-14m-minipile-relu-completed-learning-curves.pdf"
+        outputs.extend(
+            generate_full_pass_high_pressure_learning_curves(
+                runs=full_pass_relu_completed_runs,
+                output=output_pdf,
+                save_png=save_png,
+                title="ReLU Completed Method Learning Curves",
+                subtitle=(
+                    "completed ReLU runs only: AdamW, RN, and OR; "
+                    "one MiniPile token-cache pass per run"
+                ),
+            )
+        )
+
+    full_pass_relu_site_frontiers = (
+        (
+            60,
+            "attention_outputs",
+            "Attention Outputs",
+            "ReLU Completed Methods Attention-only Post-hoc Clipping Frontiers",
+            (
+                "completed ReLU runs only; clipping thresholds applied only to attention outputs; "
+                "validation-loss axis zoomed"
+            ),
+        ),
+        (
+            61,
+            "residual_streams",
+            "Residual Streams",
+            "ReLU Completed Methods Residual-only Post-hoc Clipping Frontiers",
+            (
+                "completed ReLU runs only; clipping thresholds applied only to residual streams; "
+                "validation-loss axis zoomed"
+            ),
+        ),
+        (
+            62,
+            "mlp_hiddens",
+            "MLP Hiddens",
+            "ReLU Completed Methods MLP-only Post-hoc Clipping Frontiers",
+            (
+                "completed ReLU runs only; clipping thresholds applied only to MLP hiddens; "
+                "validation-loss axis zoomed"
+            ),
+        ),
+    )
+    for figure_index, site, slug_label, title, subtitle in full_pass_relu_site_frontiers:
+        site_suffix = site.replace("_", "-")
+        site_clipping = _latest_labeled_runs_filtered(
+            results_path,
+            [
+                (label, f"{experiment_id}-clipping-sweep-sites-{site_suffix}")
+                for label, experiment_id in FULL_PASS_RELU_COMPLETED_RUNS
+            ],
+            "clipping_frontier.jsonl",
+            predicate=lambda path, selected_site=site: _is_single_site_clipping_run(path, selected_site),
+        )
+        if len(site_clipping) < 2:
+            continue
+        slug = slug_label.lower().replace(" ", "-")
+        output_pdf = figures_path / f"{figure_index:02d}-pythia-14m-minipile-relu-completed-{slug}-clipping-frontiers.pdf"
+        outputs.extend(
+            generate_full_pass_high_pressure_clipping_frontiers(
+                runs=site_clipping,
+                output=output_pdf,
+                save_png=save_png,
+                title=title,
+                subtitle=subtitle,
+            )
+        )
+
+    full_pass_relu_attention_output_histogram_run = _latest_run_with(
+        results_path / FULL_PASS_RELU_ATTENTION_OUTPUT_HISTOGRAM_EXPERIMENT,
+        "activation_histograms.json",
+    )
+    if full_pass_relu_attention_output_histogram_run is not None:
+        output_pdf = figures_path / "63-pythia-14m-minipile-relu-completed-attention-output-densities.pdf"
+        outputs.extend(
+            generate_activation_histogram_grid(
+                run_dir=full_pass_relu_attention_output_histogram_run,
+                output=output_pdf,
+                save_png=save_png,
+            )
+        )
+
+    full_pass_relu_mlp_histogram_run = _latest_run_with(
+        results_path / FULL_PASS_RELU_MLP_HISTOGRAM_EXPERIMENT,
+        "activation_histograms.json",
+    )
+    if full_pass_relu_mlp_histogram_run is not None:
+        output_pdf = figures_path / "64-pythia-14m-minipile-relu-completed-mlp-activation-densities.pdf"
+        outputs.extend(
+            generate_activation_histogram_grid(
+                run_dir=full_pass_relu_mlp_histogram_run,
+                output=output_pdf,
+                save_png=save_png,
+            )
+        )
+
+    full_pass_relu_residual_histogram_run = _latest_run_with(
+        results_path / FULL_PASS_RELU_RESIDUAL_HISTOGRAM_EXPERIMENT,
+        "activation_histograms.json",
+    )
+    if full_pass_relu_residual_histogram_run is not None:
+        output_pdf = figures_path / "65-pythia-14m-minipile-relu-completed-residual-stream-densities.pdf"
+        outputs.extend(
+            generate_activation_histogram_grid(
+                run_dir=full_pass_relu_residual_histogram_run,
+                output=output_pdf,
+                save_png=save_png,
+            )
+        )
+
+    report_coupling_histogram_runs = {
+        "mlp_hiddens": _latest_run_with(
+            results_path / FULL_PASS_HIGH_PRESSURE_ACTIVATION_HISTOGRAM_EXPERIMENT,
+            "activation_histograms.json",
+        ),
+        "residual_streams": _latest_run_with(
+            results_path / FULL_PASS_HIGH_PRESSURE_RESIDUAL_HISTOGRAM_EXPERIMENT,
+            "activation_histograms.json",
+        ),
+        "attention_outputs": _latest_run_with(
+            results_path / FULL_PASS_HIGH_PRESSURE_ATTENTION_OUTPUT_HISTOGRAM_EXPERIMENT,
+            "activation_histograms.json",
+        ),
+    }
+    if all(report_coupling_histogram_runs.values()):
+        output_pdf = figures_path / "66-status-update-gelu-mlp-only-coupling-density-comparison.pdf"
+        outputs.extend(
+            generate_status_update_coupling_density_comparison(
+                histogram_runs=report_coupling_histogram_runs,
+                output=output_pdf,
+                save_png=save_png,
+            )
+        )
+
+    report_pressure_weight_runs = _latest_labeled_runs(
+        results_path,
+        list(STATUS_UPDATE_COUPLING_WEIGHT_RUNS),
+        "checkpoints/final/model.safetensors",
+    )
+    if report_pressure_weight_runs:
+        output_pdf = figures_path / "70-status-update-gelu-mlp-only-pressure-weight-diagnostic.pdf"
+        outputs.extend(
+            generate_status_update_pressure_weight_diagnostic(
+                runs=report_pressure_weight_runs,
+                output=output_pdf,
+                save_png=save_png,
+            )
+        )
+
+    report_all_site_clipping = _latest_status_update_site_clipping_runs(
+        results_path,
+        STATUS_UPDATE_ALL_SITE_FRONTIER_RUNS,
+    )
+    if _has_status_update_site_clipping_runs(report_all_site_clipping):
+        output_pdf = figures_path / "67-status-update-all-site-pressure-site-clipping-frontiers.pdf"
+        outputs.extend(
+            generate_status_update_site_clipping_frontiers(
+                site_runs=report_all_site_clipping,
+                output=output_pdf,
+                save_png=save_png,
+                title="All-site Pressure: Site-specific Post-hoc Clipping",
+                subtitle="one panel per clipped activation family; AdamW baseline included",
+            )
+        )
+
+    report_mlp_residual_clipping = _latest_status_update_site_clipping_runs(
+        results_path,
+        STATUS_UPDATE_MLP_RESIDUAL_FRONTIER_RUNS,
+    )
+    if _has_status_update_site_clipping_runs(report_mlp_residual_clipping):
+        output_pdf = figures_path / "68-status-update-mlp-residual-pressure-site-clipping-frontiers.pdf"
+        outputs.extend(
+            generate_status_update_site_clipping_frontiers(
+                site_runs=report_mlp_residual_clipping,
+                output=output_pdf,
+                save_png=save_png,
+                title="MLP+Residual Pressure: Site-specific Post-hoc Clipping",
+                subtitle="pressure trained on MLP hiddens and residual streams; AdamW baseline included",
+            )
+        )
+
+    report_relu_clipping = _latest_status_update_site_clipping_runs(
+        results_path,
+        STATUS_UPDATE_RELU_FRONTIER_RUNS,
+    )
+    if _has_status_update_site_clipping_runs(report_relu_clipping):
+        output_pdf = figures_path / "69-status-update-relu-site-clipping-frontiers.pdf"
+        outputs.extend(
+            generate_status_update_site_clipping_frontiers(
+                site_runs=report_relu_clipping,
+                output=output_pdf,
+                save_png=save_png,
+                title="ReLU Completed Runs: Site-specific Post-hoc Clipping",
+                subtitle="completed AdamW/RN/OR ReLU runs only; L1N/OL1 excluded",
+            )
+        )
+
     return outputs
 
 
@@ -1082,6 +1355,72 @@ def generate_full_pass_high_pressure_clipping_frontiers(
     if save_png:
         png_path = output_path.with_suffix(".png")
         _plot_full_pass_high_pressure_clipping_frontiers(series, png_path, title=title, subtitle=subtitle)
+        outputs.append(png_path)
+    return outputs
+
+
+def generate_status_update_coupling_density_comparison(
+    *,
+    histogram_runs: dict[str, str | Path | None],
+    output: str | Path,
+    save_png: bool = False,
+) -> list[Path]:
+    plt.rcParams.update(PLOT_STYLE)
+
+    output_path = Path(output)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    payloads = {
+        site: read_json(Path(run_dir) / "activation_histograms.json")
+        for site, run_dir in histogram_runs.items()
+        if run_dir is not None
+    }
+    _plot_status_update_coupling_density_comparison(payloads, output_path)
+    outputs = [output_path]
+    if save_png:
+        png_path = output_path.with_suffix(".png")
+        _plot_status_update_coupling_density_comparison(payloads, png_path)
+        outputs.append(png_path)
+    return outputs
+
+
+def generate_status_update_pressure_weight_diagnostic(
+    *,
+    runs: list[tuple[str, str | Path]],
+    output: str | Path,
+    save_png: bool = False,
+) -> list[Path]:
+    plt.rcParams.update(PLOT_STYLE)
+
+    output_path = Path(output)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    series = _load_status_update_pressure_weight_groups(runs)
+    _plot_status_update_pressure_weight_diagnostic(series, output_path)
+    outputs = [output_path]
+    if save_png:
+        png_path = output_path.with_suffix(".png")
+        _plot_status_update_pressure_weight_diagnostic(series, png_path)
+        outputs.append(png_path)
+    return outputs
+
+
+def generate_status_update_site_clipping_frontiers(
+    *,
+    site_runs: dict[str, list[tuple[str, str | Path]]],
+    output: str | Path,
+    title: str,
+    subtitle: str,
+    save_png: bool = False,
+) -> list[Path]:
+    plt.rcParams.update(PLOT_STYLE)
+
+    output_path = Path(output)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    site_series = {site: _load_clipping_series(runs) for site, runs in site_runs.items()}
+    _plot_status_update_site_clipping_frontiers(site_series, output_path, title=title, subtitle=subtitle)
+    outputs = [output_path]
+    if save_png:
+        png_path = output_path.with_suffix(".png")
+        _plot_status_update_site_clipping_frontiers(site_series, png_path, title=title, subtitle=subtitle)
         outputs.append(png_path)
     return outputs
 
@@ -1446,6 +1785,26 @@ def _latest_labeled_runs_filtered(
     return runs
 
 
+def _latest_status_update_site_clipping_runs(
+    results_path: Path,
+    experiments: list[tuple[str, str]],
+) -> dict[str, list[tuple[str, Path]]]:
+    site_runs: dict[str, list[tuple[str, Path]]] = {}
+    for site, _site_label in STATUS_UPDATE_CLIPPING_SITES:
+        site_suffix = site.replace("_", "-")
+        site_runs[site] = _latest_labeled_runs_filtered(
+            results_path,
+            [(label, f"{experiment_id}-clipping-sweep-sites-{site_suffix}") for label, experiment_id in experiments],
+            "clipping_frontier.jsonl",
+            predicate=lambda path, selected_site=site: _is_single_site_clipping_run(path, selected_site),
+        )
+    return site_runs
+
+
+def _has_status_update_site_clipping_runs(site_runs: dict[str, list[tuple[str, Path]]]) -> bool:
+    return all(len(site_runs.get(site, [])) >= 2 for site, _site_label in STATUS_UPDATE_CLIPPING_SITES)
+
+
 def _load_pressure_series(runs: list[tuple[str, str | Path]]) -> list[dict[str, Any]]:
     series = []
     for label, run_dir in runs:
@@ -1744,6 +2103,65 @@ def _final_mlp_weight_norm_from_checkpoint(run_path: Path) -> float | None:
     if tensor_count == 0:
         return None
     return total**0.5
+
+
+def _load_status_update_pressure_weight_groups(runs: list[tuple[str, str | Path]]) -> list[dict[str, Any]]:
+    try:
+        import torch
+        from safetensors import safe_open
+    except ImportError as exc:
+        raise RuntimeError("Pressure weight diagnostics require torch and safetensors.") from exc
+
+    bins = 180
+    series: list[dict[str, Any]] = []
+    for label, run_dir in runs:
+        run_path = Path(run_dir)
+        checkpoint_path = run_path / "checkpoints" / "final" / "model.safetensors"
+        if not checkpoint_path.exists():
+            raise FileNotFoundError(f"Missing final checkpoint for {label}: {checkpoint_path}")
+
+        groups: list[dict[str, Any]] = []
+        with safe_open(str(checkpoint_path), framework="pt", device="cpu") as handle:
+            keys = list(handle.keys())
+            for group_id, group_label, pattern, (range_min, range_max) in STATUS_UPDATE_PRESSURE_WEIGHT_GROUPS:
+                values = []
+                tensor_names = []
+                for key in keys:
+                    if pattern.match(key) is None:
+                        continue
+                    values.append(handle.get_tensor(key).detach().float().reshape(-1))
+                    tensor_names.append(key)
+                if not values:
+                    raise ValueError(f"No tensors matched pressure weight group {group_id!r} for {label}.")
+
+                flat = torch.cat(values)
+                finite_values = flat[torch.isfinite(flat)]
+                counts = torch.histc(finite_values, bins=bins, min=float(range_min), max=float(range_max)).cpu().double()
+                total = int(flat.numel())
+                width = (float(range_max) - float(range_min)) / bins
+                densities = [float(count) / total / width if total and width > 0.0 else 0.0 for count in counts.tolist()]
+                centers = [
+                    float(range_min) + (index + 0.5) * width
+                    for index in range(bins)
+                ]
+                underflow = int((finite_values < float(range_min)).sum().detach().cpu())
+                overflow = int((finite_values > float(range_max)).sum().detach().cpu())
+                groups.append(
+                    {
+                        "id": group_id,
+                        "label": group_label,
+                        "centers": centers,
+                        "densities": densities,
+                        "range": (float(range_min), float(range_max)),
+                        "total": total,
+                        "tensor_count": len(tensor_names),
+                        "underflow": underflow,
+                        "overflow": overflow,
+                    }
+                )
+        series.append({"label": label, "run_dir": str(run_path), "groups": groups})
+
+    return series
 
 
 def _format_stat_value(value: float) -> str:
@@ -2659,6 +3077,259 @@ def _plot_full_pass_high_pressure_clipping_frontiers(
     plt.close(fig)
 
 
+def _plot_status_update_coupling_density_comparison(payloads: dict[str, dict[str, Any]], output_path: Path) -> None:
+    site_specs = (
+        ("mlp_hiddens", "MLP hiddens", "mlp_hiddens.layer_3", (-0.08, 0.75)),
+        ("residual_streams", "Residual streams", "residual_streams.layer_3", (-0.35, 0.35)),
+        ("attention_outputs", "Attention outputs", "attention_outputs.layer_3", (-0.35, 0.35)),
+    )
+    missing = [site for site, _title, _layer, _xlim in site_specs if site not in payloads]
+    if missing:
+        raise ValueError(f"Missing histogram payloads for report density comparison: {missing}")
+
+    labels = [label for _prefix, label in STATUS_UPDATE_COUPLING_METHODS]
+    colors = _series_colors(labels)
+    site_density: dict[str, dict[str, tuple[list[float], list[float]]]] = {}
+    site_y_limits: dict[str, tuple[float, float]] = {}
+
+    for site, _site_title, layer_name, _xlim in site_specs:
+        payload = payloads[site]
+        edges = [float(value) for value in payload.get("bin_edges", [])]
+        if len(edges) < 2:
+            raise ValueError(f"Histogram payload for {site} has no bin edges.")
+        centers = [(left + right) / 2.0 for left, right in zip(edges[:-1], edges[1:], strict=True)]
+        per_method: dict[str, tuple[list[float], list[float]]] = {}
+        positive_densities: list[float] = []
+        max_density = 0.0
+        for method_prefix, method_label in STATUS_UPDATE_COUPLING_METHODS:
+            method = _histogram_method(payload, method_prefix)
+            if method is None:
+                raise ValueError(f"Missing method {method_prefix!r} in histogram payload for {site}.")
+            layer = _histogram_layer(method, layer_name)
+            densities = _histogram_density(layer, edges)
+            per_method[method_label] = (centers, densities)
+            positive_densities.extend(value for value in densities if value > 0.0)
+            max_density = max(max_density, max(densities, default=0.0))
+        site_density[site] = per_method
+        y_min = max(min(positive_densities) * 0.7, max_density * 1e-4, 1e-6) if positive_densities else 1e-6
+        y_max = max_density * 1.7 if max_density > 0.0 else 1.0
+        site_y_limits[site] = (y_min, y_max)
+
+    fig, axes = plt.subplots(
+        len(STATUS_UPDATE_COUPLING_METHODS),
+        len(site_specs),
+        figsize=(10.8, 7.2),
+        sharex=False,
+        sharey=False,
+    )
+
+    for row_index, (_method_prefix, method_label) in enumerate(STATUS_UPDATE_COUPLING_METHODS):
+        for col_index, (site, site_title, _layer_name, xlim) in enumerate(site_specs):
+            ax = axes[row_index][col_index]
+            centers, densities = site_density[site][method_label]
+            color = colors[method_label]
+            y_min, y_max = site_y_limits[site]
+            y_values = [max(value, y_min) if value > 0.0 else y_min for value in densities]
+            ax.fill_between(centers, y_min, y_values, step="mid", color=color, alpha=0.24, linewidth=0)
+            ax.step(centers, y_values, where="mid", color=color, linewidth=_line_width(method_label))
+            ax.axvspan(-0.01, 0.01, color="#000000", alpha=0.08, linewidth=0)
+            ax.axvline(0.0, color="#4d4d4d", linewidth=0.7, alpha=0.7)
+            ax.set_xlim(*xlim)
+            ax.set_yscale("log")
+            ax.set_ylim(y_min, y_max)
+            if row_index == 0:
+                ax.set_title(site_title, fontsize=10)
+            if col_index == 0:
+                ax.set_ylabel(method_label, rotation=0, ha="right", va="center", labelpad=18, fontsize=8)
+            else:
+                ax.set_yticklabels([])
+            ax.xaxis.set_major_formatter(FuncFormatter(_trimmed_decimal_tick))
+            ax.tick_params(axis="both", labelsize=8)
+
+    eval_tokens = int(next(iter(payloads.values())).get("validation_tokens") or 0)
+    fig.suptitle("GELU MLP-only Pressure Coupling Diagnostic", y=0.985)
+    fig.text(
+        0.5,
+        0.947,
+        (
+            "rows are AdamW, L1N w5, and RN w1 c0.05 s0.05; "
+            f"layer 3 shown for each activation family; {eval_tokens:,} validation tokens"
+        ),
+        ha="center",
+        va="top",
+        fontsize=8,
+    )
+    fig.supxlabel("Activation value", y=0.052, fontsize=9)
+    fig.supylabel("Probability density (log scale)", x=0.008, fontsize=9)
+    fig.text(
+        0.5,
+        0.018,
+        "Shaded band marks |activation| <= 0.01.",
+        ha="center",
+        va="bottom",
+        fontsize=8,
+    )
+    fig.subplots_adjust(left=0.13, right=0.995, top=0.905, bottom=0.095, hspace=0.32, wspace=0.12)
+    fig.savefig(output_path)
+    plt.close(fig)
+
+
+def _plot_status_update_pressure_weight_diagnostic(series: list[dict[str, Any]], output_path: Path) -> None:
+    if not series:
+        raise ValueError("No pressure weight diagnostic series were found.")
+
+    labels = [str(item["label"]) for item in series]
+    colors = _series_colors(labels)
+    group_labels = [group["label"] for group in series[0]["groups"]]
+    group_y_limits: dict[str, tuple[float, float]] = {}
+    for group_label in group_labels:
+        positive_values = [
+            float(value)
+            for item in series
+            for group in item["groups"]
+            if group["label"] == group_label
+            for value in group["densities"]
+            if value > 0.0
+        ]
+        max_density = max(positive_values, default=1.0)
+        y_min = max(min(positive_values) * 0.7, max_density * 1e-5, 1e-8) if positive_values else 1e-8
+        y_max = max_density * 1.7 if max_density > 0.0 else 1.0
+        group_y_limits[group_label] = (y_min, y_max)
+
+    fig, axes = plt.subplots(
+        len(series),
+        len(group_labels),
+        figsize=(10.8, 7.0),
+        sharex=False,
+        sharey=False,
+    )
+
+    for row_index, item in enumerate(series):
+        method_label = str(item["label"])
+        groups_by_label = {group["label"]: group for group in item["groups"]}
+        for col_index, group_label in enumerate(group_labels):
+            ax = axes[row_index][col_index]
+            group = groups_by_label[group_label]
+            centers = [float(value) for value in group["centers"]]
+            densities = [float(value) for value in group["densities"]]
+            y_min, y_max = group_y_limits[group_label]
+            y_values = [max(value, y_min) if value > 0.0 else y_min for value in densities]
+            color = colors[method_label]
+            ax.fill_between(centers, y_min, y_values, step="mid", color=color, alpha=0.24, linewidth=0)
+            ax.step(centers, y_values, where="mid", color=color, linewidth=_line_width(method_label))
+            ax.set_yscale("log")
+            ax.set_ylim(y_min, y_max)
+            ax.set_xlim(*group["range"])
+            ax.axvspan(-0.01, 0.01, color="#000000", alpha=0.08, linewidth=0)
+            ax.axvline(0.0, color="#4d4d4d", linewidth=0.7, alpha=0.7)
+            if row_index == 0:
+                ax.set_title(group_label, fontsize=10)
+            if col_index == 0:
+                ax.set_ylabel(method_label, rotation=0, ha="right", va="center", labelpad=18, fontsize=8)
+            else:
+                ax.set_yticklabels([])
+            ax.xaxis.set_major_formatter(FuncFormatter(_trimmed_decimal_tick))
+            ax.tick_params(axis="both", labelsize=8)
+
+    fig.suptitle("GELU MLP-only Pressure Weight Diagnostic", y=0.985)
+    fig.text(
+        0.5,
+        0.947,
+        (
+            "rows are AdamW, L1N w5, and RN w1 c0.05 s0.05; "
+            "columns aggregate final-checkpoint weights across all six layers"
+        ),
+        ha="center",
+        va="top",
+        fontsize=8,
+    )
+    fig.supxlabel("Weight value", y=0.052, fontsize=9)
+    fig.supylabel("Probability density (log scale)", x=0.008, fontsize=9)
+    fig.text(
+        0.5,
+        0.018,
+        "Shaded band marks |weight| <= 0.01. Residual-stream column uses MLP and attention output-projection weights.",
+        ha="center",
+        va="bottom",
+        fontsize=8,
+    )
+    fig.subplots_adjust(left=0.13, right=0.995, top=0.905, bottom=0.095, hspace=0.32, wspace=0.12)
+    fig.savefig(output_path)
+    plt.close(fig)
+
+
+def _plot_status_update_site_clipping_frontiers(
+    site_series: dict[str, list[dict[str, Any]]],
+    output_path: Path,
+    *,
+    title: str,
+    subtitle: str,
+) -> None:
+    fig, axes = plt.subplots(1, 3, figsize=(11.2, 3.7), sharey=False)
+    labels = [
+        str(item["label"])
+        for site, _site_label in STATUS_UPDATE_CLIPPING_SITES
+        for item in site_series.get(site, [])
+    ]
+    if not labels:
+        raise ValueError("No site-specific clipping series were found for the status update figure.")
+    colors = _series_colors(labels)
+    legend_handles: dict[str, Any] = {}
+    total_points = 0
+
+    for ax, (site, site_label) in zip(axes, STATUS_UPDATE_CLIPPING_SITES, strict=True):
+        series = site_series.get(site, [])
+        all_losses: list[float] = []
+        for item in series:
+            rows = sorted(item["rows"], key=lambda row: float(row["achieved_sparsity"]))
+            sparsity = [100.0 * float(row["achieved_sparsity"]) for row in rows]
+            losses = [float(row["validation_loss"]) for row in rows]
+            all_losses.extend(losses)
+            total_points += len(rows)
+            label = str(item["label"])
+            (line,) = ax.plot(
+                sparsity,
+                losses,
+                marker=_method_marker(label),
+                markersize=_marker_size(label, 3.0),
+                linewidth=_line_width(label),
+                color=colors[label],
+                label=label,
+            )
+            legend_handles.setdefault(label, line)
+
+        ax.set_title(site_label, fontsize=10)
+        ax.set_xlabel("Exact zeros after clipping (%)")
+        ax.grid(True, alpha=0.25)
+        if all_losses:
+            _zoom_loss_axis(ax, all_losses)
+        ax.tick_params(axis="both", labelsize=8)
+    axes[0].set_ylabel("Validation loss")
+
+    fig.suptitle(title, y=0.985)
+    fig.text(
+        0.5,
+        0.925,
+        f"{subtitle}; {total_points} sweep points across the plotted panels; validation-loss axes zoomed",
+        ha="center",
+        va="top",
+        fontsize=8,
+    )
+    if legend_handles:
+        fig.legend(
+            list(legend_handles.values()),
+            list(legend_handles.keys()),
+            loc="lower center",
+            bbox_to_anchor=(0.5, 0.012),
+            ncol=min(5, len(legend_handles)),
+            frameon=False,
+            fontsize=8,
+        )
+    fig.subplots_adjust(left=0.07, right=0.995, top=0.81, bottom=0.28, wspace=0.26)
+    fig.savefig(output_path)
+    plt.close(fig)
+
+
 def _plot_fixed_step_sweep_summary(rows: list[dict[str, Any]], output_path: Path) -> None:
     plottable = [
         row
@@ -3256,6 +3927,27 @@ def _activation_histogram_default_title(site_scope: str) -> str:
     if site_scope == "attention_outputs":
         return "Selected Method Attention Output Distributions"
     return "Selected Method MLP Activation Distributions"
+
+
+def _histogram_method(payload: dict[str, Any], label_prefix: str) -> dict[str, Any] | None:
+    for method in payload.get("methods", []):
+        if str(method.get("label", "")).startswith(label_prefix):
+            return method
+    return None
+
+
+def _histogram_layer(method: dict[str, Any], layer_name: str) -> dict[str, Any]:
+    for layer in method.get("layers", []):
+        if layer.get("name") == layer_name:
+            return layer
+    raise ValueError(f"Missing histogram layer {layer_name!r} for {method.get('label')!r}.")
+
+
+def _histogram_density(layer: dict[str, Any], edges: list[float]) -> list[float]:
+    counts = [float(value) for value in layer.get("counts", [])]
+    total = float(layer.get("total") or sum(counts) or 1.0)
+    widths = [right - left for left, right in zip(edges[:-1], edges[1:], strict=True)]
+    return [count / total / width if width > 0.0 else 0.0 for count, width in zip(counts, widths, strict=True)]
 
 
 def _plot_weight_histogram_grid(payload: dict[str, Any], output_path: Path) -> None:

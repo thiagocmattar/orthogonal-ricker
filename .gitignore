@@ -17,4 +17,4 @@ figures/*.png
 !figures/README.md
 !figures/.gitkeep
 
-report/
+report/run-logs/

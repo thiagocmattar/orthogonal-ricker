@@ -1,0 +1,50 @@
+experiment_name: pythia_14m_minipile_relu_completed_residual_stream_histograms
+model:
+  provider: huggingface
+  name: pythia-14m-random-relu
+  architecture: EleutherAI/pythia-14m-deduped
+  revision: main
+  initialization: random
+  hidden_act: relu
+data:
+  name: JeanKaddour/minipile
+  revision: main
+  split: validation
+  text_column: text
+  max_documents: 500
+evaluation:
+  metric: activation_histogram
+run:
+  seed: 0
+  max_examples: 500
+tokenizer:
+  name: EleutherAI/pythia-14m-deduped
+  revision: main
+preprocessing:
+  output_dir: data/tokenized
+  cache_id: 03-pythia-14m-minipile-random-full-10min
+  block_size: 2048
+  append_eos: true
+  overwrite: false
+validation:
+  enabled: true
+  split: validation
+  max_documents: 500
+  eval_batches: null
+  batch_size: 4
+activation_histograms:
+  sites:
+    - residual_streams
+  bins: 180
+  range_min: -2.0
+  range_max: 2.0
+  plot_title: ReLU Completed Methods Residual Stream Densities (H_l)
+  selected_runs:
+    - label: AdamW ReLU
+      config_id: 77-pythia-14m-minipile-relu-adamw-full-pass
+    - label: RN ReLU w1 c0.05 s0.05
+      config_id: 78-pythia-14m-minipile-relu-ricker-naive-full-pass-w1-c0p05-s0p05
+    - label: OR ReLU w1 c0.05 s0.05
+      config_id: 79-pythia-14m-minipile-relu-orthogonal-ricker-full-pass-w1-c0p05-s0p05
+output:
+  dir: results

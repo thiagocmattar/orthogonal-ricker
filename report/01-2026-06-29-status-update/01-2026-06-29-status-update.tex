@@ -1,0 +1,358 @@
+\documentclass[10pt]{article}
+
+\usepackage[margin=0.72in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{pdfpages}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{longtable}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{enumitem}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue!55!black,
+  urlcolor=blue!55!black
+}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.45em}
+\setlist[itemize]{leftmargin=1.3em, itemsep=0.15em, topsep=0.15em}
+\captionsetup{font=small, labelfont=bf}
+
+\newcommand{\code}[1]{\texttt{#1}}
+\newcommand{\pct}{\%}
+\newcommand{\tightsection}[1]{\section{#1}\vspace{-0.35em}}
+
+\title{Orthogonal Sparsity Pressure: Status Update}
+\author{Thiago Mattar\\\href{mailto:thiagocmattar@gmail.com}{thiagocmattar@gmail.com}}
+\date{2026-06-29}
+
+\begin{document}
+\maketitle
+
+\tightsection{Overview: Model Architecture and Dataset}
+
+\subsection*{Current Model}
+
+The current experimental target is the Pythia-14M architecture from \code{EleutherAI/pythia-14m-deduped}. In this repository, ``Pythia-14M'' means the architecture/configuration only: runs initialize weights randomly and do not load released Pythia checkpoint weights. The implementation constructs the model from the Hugging Face config and trains it as a pretraining run.
+
+\begin{table}[H]
+\centering
+\caption{Current Pythia-14M architecture used by the harness.}
+\begin{tabular}{ll}
+\toprule
+Item & Value \\
+\midrule
+Transformer blocks & 6 \\
+Residual hidden width & 128 \\
+Attention heads & 4 \\
+Per-head width & 32 \\
+MLP hidden width & 512 \\
+Context length & 2048 \\
+Vocabulary size & 50,304 \\
+MLP activation & GELU \\
+Positional encoding & RoPE \\
+Attention / hidden dropout & 0.0 / 0.0 \\
+Trainable parameters & 14,067,712 \\
+Final checkpoint size & $\sim$53.67 MB \\
+Parameter dtype & FP32 parameters; bf16 autocast compute on CUDA \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Pythia is an EleutherAI family of GPT-NeoX causal language models designed for controlled research on language-model training dynamics. The original Pythia paper introduces a suite of models trained on public data in the same order, with dense checkpoint coverage and tools for reconstructing training dataloaders, specifically to make analyses across training and scaling more auditable \href{https://arxiv.org/abs/2304.01373}{(Biderman et al., 2023)}. That makes the family a strong substrate for activation-pressure experiments: the research question depends on model-internal quantities and early pretraining behavior, not only on final downstream task scores.
+
+Pythia-14M is the smallest local starting point in this design. The \href{https://huggingface.co/EleutherAI/pythia-14m-deduped}{Pythia-14M-deduped model card} notes that 14M was added after the original 70M--12B suite for interpretability researchers who wanted a smaller model with the same training setup conventions. In this report, 14M is used as an architecture-level testbed with random initialization: it is small enough to run repeated pretraining ablations locally, but remains tied to the Pythia/GPT-NeoX architecture family and therefore preserves a clear path to later 31M, 70M, and 160M scale-ladder checks.
+
+\subsection*{Current Pressure Site}
+
+The current activation pressure site is \code{mlp\_hiddens}. For each Pythia block, the harness hooks:
+
+\begin{center}
+\code{gpt\_neox.layers.\{l\}.mlp.act}
+\end{center}
+
+This captures the post-GELU MLP hidden activation:
+
+\[
+A_l = \mathrm{GELU}(Z_l) \in \mathbb{R}^{B \times T \times 512},
+\]
+
+for each layer $l=0,\ldots,5$. Pressures and near-zero activation measurements are applied to these activation tensors, not to model weights.
+
+\textbf{Elementwise interpretation.} Current L1 and Ricker pressures score scalar activation entries $A_l[b,t,j]$ and then average those scores into one pressure loss. Likewise, reported near-zero mass and post-hoc exact-zero sparsity are elementwise activation statistics across layers, batch items, token positions, and MLP hidden channels. For example, $80\%$ exact-zero activation sparsity does not mean that a fixed $\sim 410$ of the 512 hidden channels are zero for every batch item and every token position. That stronger claim would require a separate structured channel-sparsity metric or pressure.
+
+\subsection*{Pythia Scaling Ladder View}
+
+The current runs are intentionally anchored at 14M. A later scale ladder should only be added after the 14M path is stable enough to justify the added runtime and comparison burden. The table below is a planning view of open-source Pythia-family architecture sizes, not a commitment that all scales will be run locally.
+
+\begin{table}[H]
+\centering
+\caption{Candidate Pythia architecture scale ladder. Approximate weight storage assumes FP32 weights at 4 bytes/parameter and ignores optimizer state.}
+\begin{tabularx}{\textwidth}{lrrX}
+\toprule
+Scale & Nominal params & Approx. FP32 weights & Status / role \\
+\midrule
+Pythia-14M & 14M & $\sim$54 MB & Current measured local baseline and pressure screen. \\
+Pythia-31M & 31M & $\sim$118 MB & Optional intermediate sanity scale. \\
+Pythia-70M & 70M & $\sim$267 MB & Small scale-up once 14M candidates are selected. \\
+Pythia-160M & 160M & $\sim$610 MB & Near-term upper local target mentioned for this project. \\
+Pythia-410M & 410M & $\sim$1.5 GB & Likely requires separate runtime/memory planning. \\
+Pythia-1B & 1B & $\sim$3.7 GB & Beyond current local screening plan. \\
+Pythia-1.4B & 1.4B & $\sim$5.2 GB & Beyond current local screening plan. \\
+Pythia-2.8B & 2.8B & $\sim$10.4 GB & Probably not suitable for this laptop workflow without major changes. \\
+Pythia-6.9B & 6.9B & $\sim$25.7 GB & Out of scope for current local experiments. \\
+Pythia-12B & 12B & $\sim$44.7 GB & Out of scope for current local experiments. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Source notes for model identities: \href{https://github.com/EleutherAI/pythia}{EleutherAI Pythia repository} and the \href{https://huggingface.co/EleutherAI/pythia-14m-deduped}{Pythia-14M Hugging Face repository}.
+
+\subsection*{Dataset}
+
+The dataset is MiniPile via \code{JeanKaddour/minipile}. The repository uses a local tokenized cache rather than streaming during training, so token counts and ordering are auditable.
+
+\begin{table}[H]
+\centering
+\caption{Local tokenized MiniPile cache currently used by fixed-step experiments.}
+\begin{tabular}{lrrl}
+\toprule
+Split & Documents & Tokens & Notes \\
+\midrule
+Train & 1,000,000 & 1,491,711,416 & Full local train token cache. \\
+Validation & 500 & 693,668 & Local validation subset used for periodic validation. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Tokenizer: \code{EleutherAI/pythia-14m-deduped}. Block size: 2048. EOS is appended during tokenization. Dataset source note: \href{https://huggingface.co/datasets/JeanKaddour/minipile}{JeanKaddour/minipile}.
+
+\subsection*{Method Families Under Test}
+
+All methods train the same random-initialized Pythia-14M architecture on the same tokenized MiniPile cache. The common task loss is the causal language-modeling loss $L_{\mathrm{task}}$. Activation-pressure methods operate on the captured post-GELU MLP hidden activations $A_l[b,t,j]$ at \code{mlp\_hiddens}. The baseline is AdamW with no activation pressure; pressure variants either add an auxiliary activation loss directly to the training objective or apply a separate Adam-step-space orthogonal pressure correction.
+
+\begin{table}[H]
+\centering
+\caption{Method families in the current activation-pressure screen.}
+\small
+\begin{tabularx}{\textwidth}{llX}
+\toprule
+Label & Method & Parameters and current use \\
+\midrule
+AdamW & Baseline optimizer & No activation pressure: \code{method: none}, \code{weight: 0}. AdamW optimizes $L_{\mathrm{task}}$ only; activation metrics are monitor-only. Shared learning rate is $3.0\times10^{-5}$. \\
+RN & Naive Ricker & Direct augmented-loss pressure: $L_{\mathrm{task}} + wP_{\mathrm{Ricker}}(A)$. Tuned parameters are pressure weight $w$ and Ricker shape parameters $c,\sigma$. Current grid varies $w$ over $\{0.03,0.1,0.3,1.0\}$ with selected narrow/wide $(c,\sigma)$ settings. \\
+OR & Orthogonal Ricker & Same Ricker pressure and parameter grid as RN, but applied as a separate Adam-step-space correction after the task AdamW step. Fixed orthogonal controls: \code{step\_budget: 0.5}, \code{eps: 1e-12}. \\
+L1N & Naive L1 & Direct augmented-loss pressure: $L_{\mathrm{task}} + wP_{\mathrm{L1}}(A)$. Tuned parameter is pressure weight $w$. Current grid uses $w \in \{0.05,0.15,0.5,1.0,2.0,5.0\}$. \\
+OL1 & Orthogonal L1 & Same L1 pressure and weight grid as L1N, but applied as the separate projected/capped Adam-step-space correction. Fixed orthogonal controls: \code{step\_budget: 0.5}, \code{eps: 1e-12}. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+The pressure objectives are:
+
+\[
+P_{\mathrm{L1}}(A)=\mathrm{mean}_{l,b,t,j}|A_l[b,t,j]|
+\]
+
+\[
+r(a;c,\sigma)=\left(1-\frac{a^2}{c^2}\right)\exp\left(-\frac{a^2}{2\sigma^2}\right),
+\qquad
+P_{\mathrm{Ricker}}(A)=1-\mathrm{mean}_{l,b,t,j}\,r(A_l[b,t,j];c,\sigma).
+\]
+
+The ``naive'' labels mean direct augmented-loss pressure: the pressure gradient participates in the same backward pass as the task loss. The ``orthogonal'' labels mean the task update and pressure correction are separated; optimizer moments are driven by task gradients, while the pressure correction is applied after the AdamW task step. All pressure objectives are elementwise over activation scalars and then averaged; they do not directly impose structured channel sparsity.
+
+\tightsection{Early Calibration and Tests}
+
+\subsection*{Fixed-step Run Budget}
+
+The fixed-step pressure screen uses one shared budget across AdamW, naive pressure methods, and orthogonal pressure methods.
+
+\begin{table}[H]
+\centering
+\caption{Fixed-step budget used by configs 12--48.}
+\begin{tabular}{lr}
+\toprule
+Item & Value \\
+\midrule
+Optimizer steps & 2,048 \\
+Block size & 2,048 \\
+Micro-batch size & 4 \\
+Gradient accumulation & 8 \\
+Tokens per optimizer step & 65,536 \\
+Tokens per run & 134,217,728 \\
+Fraction of MiniPile train token cache & $\sim$8.998\% \\
+Validation frequency & every 250 steps, plus step 1 and final step \\
+Validation size per evaluation & 8 batches = 65,536 tokens \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection*{Observed Local Runtime}
+
+The table below summarizes observed runtime across completed fixed-step runs on the local RTX 5070 Ti Laptop GPU. Values are measured from saved \code{metrics.json} files, not projected from theoretical FLOPs.
+
+\begin{table}[H]
+\centering
+\caption{Observed runtime and GPU memory by method family.}
+\scriptsize
+\begin{tabular}{lrrrrrr}
+\toprule
+Method & Runs & Median wall & Wall range & Median tok/s & Peak alloc. & Peak reserved \\
+\midrule
+AdamW & 1 & 16.1 min & 16.1--16.1 min & 138,567 & 5,996 MB & 7,430 MB \\
+RN & 12 & 31.1 min & 30.8--31.7 min & 71,904 & 6,367 MB & 7,440 MB \\
+OR & 12 & 21.7 min & 21.4--22.4 min & 103,135 & 6,934 MB & 7,446 MB \\
+L1N & 6 & 28.7 min & 28.7--28.9 min & 77,834 & 6,175 MB & 7,446 MB \\
+OL1 & 6 & 20.5 min & 20.3--20.5 min & 109,329 & 6,934 MB & 7,446 MB \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Approximate measured time for one full pass over the 1.49B-token MiniPile train cache at the observed median throughput:
+
+\begin{table}[H]
+\centering
+\caption{Approximate one-pass wall-clock estimates at measured median throughput.}
+\begin{tabular}{lr}
+\toprule
+Method & Estimated wall-clock for one token-cache pass \\
+\midrule
+AdamW & $\sim$3.0 h \\
+RN & $\sim$5.8 h \\
+OR & $\sim$4.0 h \\
+L1N & $\sim$5.3 h \\
+OL1 & $\sim$3.8 h \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\tightsection{Covered Parameter Grid}
+
+\subsection*{Ricker Methods}
+
+RN denotes naive Ricker pressure in the augmented loss. OR denotes Adam-step orthogonal Ricker pressure. Orthogonal runs use \code{step\_budget: 0.5}.
+
+\begin{longtable}{p{0.32\textwidth}p{0.33\textwidth}cc}
+\caption{Covered Ricker parameter grid.}\\
+\toprule
+Regime & Parameters & RN config & OR config \\
+\midrule
+\endfirsthead
+\toprule
+Regime & Parameters & RN config & OR config \\
+\midrule
+\endhead
+Initial screen & \code{w=0.03, c=0.05, s=0.05} & 13 & 20 \\
+Initial screen & \code{w=0.1, c=0.05, s=0.05} & 14 & 21 \\
+Initial screen and high-pressure overlap & \code{w=0.3, c=0.05, s=0.05} & 15 & 22 \\
+Initial screen & \code{w=0.1, c=0.02, s=0.02} & 16 & 23 \\
+Initial screen & \code{w=0.1, c=0.1, s=0.1} & 17 & 24 \\
+Initial screen & \code{w=0.1, c=0.05, s=0.025} & 18 & 25 \\
+Initial screen & \code{w=0.1, c=0.05, s=0.1} & 19 & 26 \\
+High-pressure/wide-Ricker expansion & \code{w=0.3, c=0.1, s=0.1} & 35 & 40 \\
+High-pressure/wide-Ricker expansion & \code{w=0.3, c=0.5, s=0.5} & 36 & 41 \\
+High-pressure/wide-Ricker expansion & \code{w=1.0, c=0.05, s=0.05} & 37 & 42 \\
+High-pressure/wide-Ricker expansion & \code{w=1.0, c=0.1, s=0.1} & 38 & 43 \\
+High-pressure/wide-Ricker expansion & \code{w=1.0, c=0.5, s=0.5} & 39 & 44 \\
+\bottomrule
+\end{longtable}
+
+\subsection*{L1 Methods}
+
+L1N denotes naive L1 activation pressure in the augmented loss. OL1 denotes Adam-step orthogonal L1 pressure. Orthogonal runs use \code{step\_budget: 0.5}.
+
+\begin{table}[H]
+\centering
+\caption{Covered L1 parameter grid.}
+\begin{tabular}{llcc}
+\toprule
+Regime & Parameters & L1N config & OL1 config \\
+\midrule
+Initial screen & \code{w=0.05} & 27 & 31 \\
+Initial screen & \code{w=0.15} & 28 & 32 \\
+Initial screen & \code{w=0.5} & 29 & 33 \\
+Initial screen & \code{w=1.0} & 30 & 34 \\
+High-pressure L1 expansion & \code{w=2.0} & 45 & 47 \\
+High-pressure L1 expansion & \code{w=5.0} & 46 & 48 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\tightsection{Early Experimental Results}
+
+\subsection*{Selected Methods}
+
+The table below mirrors the selected post-hoc clipping frontier in Figure~\ref{fig:selected-frontier}. \code{Val@x} is the validation loss at the nearest achieved exact-zero activation sparsity to $x$.
+
+\begin{table}[H]
+\centering
+\caption{Selected early fixed-step results.}
+\small
+\begin{tabularx}{\textwidth}{lXrrrrrrr}
+\toprule
+Method & Parameters & Final val & Tokens/s & NZ $\leq$0.01 & NZ $\leq$0.03 & Val@0.4 & Val@0.6 & Val@0.8 \\
+\midrule
+AdamW & monitor only & 7.02 & 138.6k & 6.5\% & 19.4\% & 7.11@0.47 & 7.21@0.60 & 7.50@0.81 \\
+L1N & \code{w=0.5} & 7.03 & 77.9k & 20.9\% & 53.7\% & 7.07@0.23 & 7.12@0.58 & 7.33@0.77 \\
+OL1 & \code{w=0.5} & 7.02 & 109.4k & 21.9\% & 55.2\% & 7.06@0.24 & 7.12@0.59 & 7.35@0.78 \\
+RN & \code{w0.1 c0.05 s0.025} & 7.08 & 71.5k & 44.4\% & 65.9\% & 7.12@0.48 & 7.14@0.67 & 7.24@0.78 \\
+OR & \code{w0.1 c0.05 s0.025} & 7.05 & 103.0k & 39.1\% & 62.3\% & 7.09@0.43 & 7.11@0.64 & 7.37@0.82 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{figure}[p]
+\centering
+\includegraphics[width=0.94\textwidth]{../../figures/16-pythia-14m-pressure-fixed-2048-selected-clipping-frontiers.pdf}
+\caption{Selected post-hoc clipping frontier for AdamW, L1N, OL1, RN, and OR.}
+\label{fig:selected-frontier}
+\end{figure}
+
+\begin{figure}[p]
+\centering
+\includegraphics[width=0.92\textwidth]{../../figures/17-pythia-14m-pressure-fixed-2048-high-pressure-rn-learning-curves.pdf}
+\caption{High-pressure RN learning curves, compared against AdamW.}
+\label{fig:rn-learning}
+\end{figure}
+
+\begin{figure}[p]
+\centering
+\includegraphics[width=0.92\textwidth]{../../figures/18-pythia-14m-pressure-fixed-2048-high-pressure-or-learning-curves.pdf}
+\caption{High-pressure OR learning curves, compared against AdamW.}
+\label{fig:or-learning}
+\end{figure}
+
+\begin{figure}[p]
+\centering
+\includegraphics[width=0.92\textwidth]{../../figures/19-pythia-14m-pressure-fixed-2048-high-pressure-l1-learning-curves.pdf}
+\caption{High-pressure L1N and OL1 learning curves, compared against AdamW.}
+\label{fig:l1-learning}
+\end{figure}
+
+\begin{figure}[p]
+\centering
+\includegraphics[width=0.94\textwidth]{../../figures/21-pythia-14m-pressure-fixed-2048-or-l1-weight-norms.pdf}
+\caption{High-pressure OR and L1 weight-norm diagnostics. Top panels show near-zero activation mass and global weight norm trajectories; lower panels show final-checkpoint near-zero activation mass versus global and MLP-only weight norms with linear fits.}
+\label{fig:or-l1-weight-norms}
+\end{figure}
+
+\clearpage
+\subsection*{Validation Activation Histograms}
+
+The next page embeds the full validation activation histogram grid at its native figure page size. The grid compares selected AdamW, L1, Ricker, and orthogonal-pressure checkpoints on the deterministic validation pass. Each row is one method, each column is one pressure-targeted MLP activation layer, the x-axis is capped at activation value 1.0 for readability, and the y-axis is log-scaled probability per bin.
+
+\includepdf[
+  pages=1,
+  fitpaper=true,
+  pagecommand={\thispagestyle{empty}}
+]{../../figures/22-pythia-14m-pressure-fixed-2048-selected-activation-histograms.pdf}
+
+\end{document}
