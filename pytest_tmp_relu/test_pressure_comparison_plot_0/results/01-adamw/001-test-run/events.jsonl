@@ -1,3 +1,0 @@
-{"event": "train", "step": 1, "tokens_seen": 100, "train_loss": 10.0, "activation/near_zero_mass/k1em02": null, "pressure_loss": null}
-{"event": "validation", "step": 1, "tokens_seen": 100, "validation_loss": 10.2}
-{"event": "train", "step": 2, "tokens_seen": 200, "train_loss": 9.5, "activation/near_zero_mass/k1em02": null, "pressure_loss": null}

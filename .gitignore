@@ -3,6 +3,8 @@ __pycache__/
 .pytest_cache/
 .pytest_tmp/
 .pytest_tmp_run/
+pytest_tmp*/
+tmp/
 *.egg-info/
 
 data/tokenized/
