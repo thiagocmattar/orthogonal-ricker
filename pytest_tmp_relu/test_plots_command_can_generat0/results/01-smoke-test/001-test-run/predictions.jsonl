@@ -1,0 +1,3 @@
+{"id": 0, "input": "smoke input 0", "prediction": "SMOKE_PREDICTION", "target": "SMOKE_TARGET"}
+{"id": 1, "input": "smoke input 1", "prediction": "SMOKE_PREDICTION", "target": "SMOKE_TARGET"}
+{"id": 2, "input": "smoke input 2", "prediction": "SMOKE_PREDICTION", "target": "SMOKE_TARGET"}

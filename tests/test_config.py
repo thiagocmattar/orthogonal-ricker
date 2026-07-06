@@ -72,3 +72,23 @@ def test_pretraining_configs_must_use_random_initialization() -> None:
 
     with pytest.raises(ConfigError, match="initialization"):
         validate_config(config, allow_todos=False)
+
+
+def test_optional_hidden_act_must_be_non_empty_string() -> None:
+    config = {
+        "experiment_name": "bad_hidden_act",
+        "model": {
+            "provider": "huggingface",
+            "name": "pythia-14m-random",
+            "architecture": "EleutherAI/pythia-14m-deduped",
+            "initialization": "random",
+            "hidden_act": "",
+        },
+        "data": {"name": "JeanKaddour/minipile", "split": "train"},
+        "evaluation": {"metric": "training_loss"},
+        "run": {"seed": 0, "max_examples": 1},
+        "output": {"dir": "results"},
+    }
+
+    with pytest.raises(ConfigError, match="hidden_act"):
+        validate_config(config, allow_todos=False)

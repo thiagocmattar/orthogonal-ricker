@@ -349,13 +349,17 @@ def run_calibration(
         "step_budget": pressure_config.step_budget,
         "log_thresholds": list(pressure_config.log_thresholds),
     }
-    manifest["model"] = {
+    model_manifest = {
         "name": config["model"]["name"],
         "architecture": config["model"]["architecture"],
         "initialization": config["model"]["initialization"],
         "loaded_checkpoint_weights": False,
         "parameter_dtype": _parameter_dtype(model),
     }
+    hidden_act = getattr(getattr(model, "config", None), "hidden_act", None)
+    if hidden_act is not None:
+        model_manifest["hidden_act"] = hidden_act
+    manifest["model"] = model_manifest
     manifest["validation"] = validation_config
     manifest["checkpoint"] = checkpoint_metadata
     if "sweep" in config:
@@ -572,9 +576,19 @@ def _build_random_model(
     architecture_kwargs = {"revision": model_config.get("revision")}
     architecture_kwargs = {key: value for key, value in architecture_kwargs.items() if value is not None}
     architecture = auto_config.from_pretrained(model_config["architecture"], **architecture_kwargs)
+    _apply_model_architecture_overrides(architecture, model_config)
     architecture.torch_dtype = torch.float32
     model = auto_model.from_config(architecture)
     return model.to(device=device, dtype=torch.float32)
+
+
+def _apply_model_architecture_overrides(architecture: Any, model_config: dict[str, Any]) -> None:
+    hidden_act = model_config.get("hidden_act")
+    if hidden_act is None:
+        return
+    if not hasattr(architecture, "hidden_act"):
+        raise ValueError("Configured model.hidden_act, but the loaded architecture has no hidden_act field.")
+    architecture.hidden_act = hidden_act
 
 
 def _autocast_context(torch: Any, device: Any, dtype: Any) -> Any:

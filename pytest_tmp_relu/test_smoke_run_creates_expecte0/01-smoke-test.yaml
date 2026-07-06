@@ -1,0 +1,16 @@
+experiment_name: smoke_test
+model:
+  provider: huggingface
+  name: TODO_MODEL_NAME
+  architecture: TODO_MODEL_ARCHITECTURE
+  initialization: random
+data:
+  name: TODO_DATASET_NAME
+  split: TODO_SPLIT
+evaluation:
+  metric: TODO_METRIC
+run:
+  seed: 0
+  max_examples: 100
+output:
+  dir: C:\Users\thima\Documents\Doutorado\exps\orthogonal-sparsity-pressure\pytest_tmp_relu\test_smoke_run_creates_expecte0\results

@@ -72,6 +72,10 @@ def validate_config(config: Mapping[str, Any], *, allow_todos: bool = True) -> N
     if initialization != "random":
         raise ConfigError("Config field model.initialization must be 'random' for pretraining runs.")
 
+    hidden_act = config.get("model", {}).get("hidden_act")
+    if hidden_act is not None and (not isinstance(hidden_act, str) or not hidden_act.strip()):
+        raise ConfigError("Config field model.hidden_act must be a non-empty string when provided.")
+
     if not allow_todos:
         todos = list(find_todo_values(config))
         if todos:

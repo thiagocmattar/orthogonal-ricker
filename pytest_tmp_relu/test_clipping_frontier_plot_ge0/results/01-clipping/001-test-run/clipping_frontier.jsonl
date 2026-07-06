@@ -1,0 +1,2 @@
+{"threshold": 0.0, "achieved_sparsity": 0.0, "validation_loss": 7.6, "validation_tokens": 8192}
+{"threshold": 0.01, "achieved_sparsity": 0.05, "validation_loss": 7.61, "validation_tokens": 8192}

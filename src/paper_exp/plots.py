@@ -93,6 +93,15 @@ FULL_PASS_ALL_SITE_RESIDUAL_HISTOGRAM_EXPERIMENT = (
 FULL_PASS_ALL_SITE_ATTENTION_OUTPUT_HISTOGRAM_EXPERIMENT = (
     "69-pythia-14m-minipile-full-pass-all-site-pressure-attention-output-histograms"
 )
+FULL_PASS_MLP_RESIDUAL_ATTENTION_OUTPUT_HISTOGRAM_EXPERIMENT = (
+    "74-pythia-14m-minipile-full-pass-mlp-residual-pressure-attention-output-histograms"
+)
+FULL_PASS_MLP_RESIDUAL_MLP_HISTOGRAM_EXPERIMENT = (
+    "75-pythia-14m-minipile-full-pass-mlp-residual-pressure-mlp-activation-histograms"
+)
+FULL_PASS_MLP_RESIDUAL_RESIDUAL_HISTOGRAM_EXPERIMENT = (
+    "76-pythia-14m-minipile-full-pass-mlp-residual-pressure-residual-stream-histograms"
+)
 FULL_PASS_SELECTED_RUNS = [
     ("AdamW", "50-pythia-14m-minipile-adamw-full-pass"),
     ("L1N w0.5", "51-pythia-14m-minipile-l1-naive-full-pass-w0p5"),
@@ -111,6 +120,12 @@ FULL_PASS_ALL_SITE_PRESSURE_RUNS = [
     ("AdamW", "50-pythia-14m-minipile-adamw-full-pass"),
     ("OR all-site w1 c0.05 s0.05", "65-pythia-14m-minipile-orthogonal-ricker-all-site-full-pass-w1-c0p05-s0p05"),
     ("OL1 all-site w5", "66-pythia-14m-minipile-orthogonal-l1-all-site-full-pass-w5"),
+]
+FULL_PASS_MLP_RESIDUAL_PRESSURE_RUNS = [
+    ("RN MLP+res w1 c0.05 s0.05", "70-pythia-14m-minipile-ricker-naive-mlp-residual-full-pass-w1-c0p05-s0p05"),
+    ("OR MLP+res w1 c0.05 s0.05", "71-pythia-14m-minipile-orthogonal-ricker-mlp-residual-full-pass-w1-c0p05-s0p05"),
+    ("L1N MLP+res w5", "72-pythia-14m-minipile-l1-naive-mlp-residual-full-pass-w5"),
+    ("OL1 MLP+res w5", "73-pythia-14m-minipile-orthogonal-l1-mlp-residual-full-pass-w5"),
 ]
 
 PLOT_STYLE = {
@@ -574,6 +589,86 @@ def _generate_known_paper_figures(results_path: Path, figures_path: Path, *, sav
             )
         )
 
+    full_pass_mlp_residual_pressure_runs = _latest_labeled_runs(
+        results_path,
+        FULL_PASS_MLP_RESIDUAL_PRESSURE_RUNS,
+        "events.jsonl",
+    )
+    if len(full_pass_mlp_residual_pressure_runs) >= 2:
+        output_pdf = figures_path / "52-pythia-14m-minipile-full-pass-mlp-residual-pressure-learning-curves.pdf"
+        outputs.extend(
+            generate_full_pass_high_pressure_learning_curves(
+                runs=full_pass_mlp_residual_pressure_runs,
+                output=output_pdf,
+                save_png=save_png,
+                title="Full-pass MLP+Residual Pressure Learning Curves",
+                subtitle=(
+                    "pressure applied to MLP hiddens and residual streams; "
+                    "one MiniPile token-cache pass per run"
+                ),
+            )
+        )
+
+    full_pass_mlp_residual_site_frontiers = (
+        (
+            53,
+            "attention_outputs",
+            "Attention Outputs",
+            "Full-pass MLP+Residual Pressure Attention-only Post-hoc Clipping Frontiers",
+            (
+                "pressure trained on MLP hiddens and residual streams; "
+                "clipping thresholds applied only to attention outputs; validation-loss axis zoomed"
+            ),
+        ),
+        (
+            54,
+            "residual_streams",
+            "Residual Streams",
+            "Full-pass MLP+Residual Pressure Residual-only Post-hoc Clipping Frontiers",
+            (
+                "pressure trained on MLP hiddens and residual streams; "
+                "clipping thresholds applied only to residual streams; validation-loss axis zoomed"
+            ),
+        ),
+        (
+            55,
+            "mlp_hiddens",
+            "MLP Hiddens",
+            "Full-pass MLP+Residual Pressure MLP-only Post-hoc Clipping Frontiers",
+            (
+                "pressure trained on MLP hiddens and residual streams; "
+                "clipping thresholds applied only to MLP hiddens; validation-loss axis zoomed"
+            ),
+        ),
+    )
+    for figure_index, site, slug_label, title, subtitle in full_pass_mlp_residual_site_frontiers:
+        site_suffix = site.replace("_", "-")
+        site_clipping = _latest_labeled_runs_filtered(
+            results_path,
+            [
+                (label, f"{experiment_id}-clipping-sweep-sites-{site_suffix}")
+                for label, experiment_id in FULL_PASS_MLP_RESIDUAL_PRESSURE_RUNS
+            ],
+            "clipping_frontier.jsonl",
+            predicate=lambda path, selected_site=site: _is_single_site_clipping_run(path, selected_site),
+        )
+        if len(site_clipping) < 2:
+            continue
+        slug = slug_label.lower().replace(" ", "-")
+        output_pdf = (
+            figures_path
+            / f"{figure_index:02d}-pythia-14m-minipile-full-pass-mlp-residual-pressure-{slug}-clipping-frontiers.pdf"
+        )
+        outputs.extend(
+            generate_full_pass_high_pressure_clipping_frontiers(
+                runs=site_clipping,
+                output=output_pdf,
+                save_png=save_png,
+                title=title,
+                subtitle=subtitle,
+            )
+        )
+
     full_pass_high_pressure_histogram_run = _latest_run_with(
         results_path / FULL_PASS_HIGH_PRESSURE_ACTIVATION_HISTOGRAM_EXPERIMENT,
         "activation_histograms.json",
@@ -681,6 +776,57 @@ def _generate_known_paper_figures(results_path: Path, figures_path: Path, *, sav
         outputs.extend(
             generate_activation_histogram_grid(
                 run_dir=full_pass_all_site_attention_output_histogram_run,
+                output=output_pdf,
+                save_png=save_png,
+            )
+        )
+
+    full_pass_mlp_residual_attention_output_histogram_run = _latest_run_with(
+        results_path / FULL_PASS_MLP_RESIDUAL_ATTENTION_OUTPUT_HISTOGRAM_EXPERIMENT,
+        "activation_histograms.json",
+    )
+    if full_pass_mlp_residual_attention_output_histogram_run is not None:
+        output_pdf = (
+            figures_path
+            / "56-pythia-14m-minipile-full-pass-mlp-residual-pressure-attention-output-histograms.pdf"
+        )
+        outputs.extend(
+            generate_activation_histogram_grid(
+                run_dir=full_pass_mlp_residual_attention_output_histogram_run,
+                output=output_pdf,
+                save_png=save_png,
+            )
+        )
+
+    full_pass_mlp_residual_mlp_histogram_run = _latest_run_with(
+        results_path / FULL_PASS_MLP_RESIDUAL_MLP_HISTOGRAM_EXPERIMENT,
+        "activation_histograms.json",
+    )
+    if full_pass_mlp_residual_mlp_histogram_run is not None:
+        output_pdf = (
+            figures_path
+            / "57-pythia-14m-minipile-full-pass-mlp-residual-pressure-mlp-activation-histograms.pdf"
+        )
+        outputs.extend(
+            generate_activation_histogram_grid(
+                run_dir=full_pass_mlp_residual_mlp_histogram_run,
+                output=output_pdf,
+                save_png=save_png,
+            )
+        )
+
+    full_pass_mlp_residual_residual_histogram_run = _latest_run_with(
+        results_path / FULL_PASS_MLP_RESIDUAL_RESIDUAL_HISTOGRAM_EXPERIMENT,
+        "activation_histograms.json",
+    )
+    if full_pass_mlp_residual_residual_histogram_run is not None:
+        output_pdf = (
+            figures_path
+            / "58-pythia-14m-minipile-full-pass-mlp-residual-pressure-residual-stream-histograms.pdf"
+        )
+        outputs.extend(
+            generate_activation_histogram_grid(
+                run_dir=full_pass_mlp_residual_residual_histogram_run,
                 output=output_pdf,
                 save_png=save_png,
             )
