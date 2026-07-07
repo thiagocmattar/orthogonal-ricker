@@ -46,5 +46,9 @@ activation_histograms:
       config_id: 78-pythia-14m-minipile-relu-ricker-naive-full-pass-w1-c0p05-s0p05
     - label: OR ReLU w1 c0.05 s0.05
       config_id: 79-pythia-14m-minipile-relu-orthogonal-ricker-full-pass-w1-c0p05-s0p05
+    - label: L1N ReLU w5
+      config_id: 80-pythia-14m-minipile-relu-l1-naive-full-pass-w5
+    - label: OL1 ReLU w5
+      config_id: 81-pythia-14m-minipile-relu-orthogonal-l1-full-pass-w5
 output:
   dir: results

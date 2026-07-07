@@ -322,6 +322,7 @@ The table below separates currently implemented sites from plausible future site
 | Site | Status | Tensor | Shape | Why it may matter | Main risk |
 | ---- | ------ | ------ | ----- | ----------------- | --------- |
 | MLP hidden activation | implemented | `A_l = GELU(Z_l)` | `[B, T, 512]` | Direct high-dimensional activation target before MLP compression | May reduce useful nonlinear features |
+| MLP input | future hook | `R_l` | `[B, T, 128]` | Tests whether sparsity before `dense_h_to_4h` can skip MLP up-projection compute | LayerNorm output may resist sparsity or harm branch conditioning |
 | MLP preactivation | future hook | `Z_l` | `[B, T, 512]` | Pressures the signal before GELU | Changes activation gating behavior more directly |
 | MLP output | future hook | `M_l` | `[B, T, 128]` | Pressures the MLP contribution to the residual stream | Lower dimensional and closer to residual semantics |
 | Attention output | future hook | `O_l` | `[B, T, 128]` | Pressures attention contribution to residual stream | May disturb routing and context aggregation |
@@ -335,6 +336,104 @@ Recommended progression:
 2. Add layer-specific MLP hidden ablations before adding new tensor families.
 3. Add `Z_l` or `M_l` only if the MLP hidden results justify a finer question.
 4. Treat attention and residual-stream pressures as separate method variants, not minor implementation changes.
+
+TODO: Add an MLP-input pressure/clipping ablation for the up-projection compute question.
+Use a new explicit site name such as `mlp_inputs` for `R_l`, the output of
+`gpt_neox.layers.l.post_attention_layernorm` and the direct input to
+`gpt_neox.layers.l.mlp.dense_h_to_4h`.
+
+Architecture note for Pythia-14M:
+
+```text
+H_l = residual stream entering block l                  [B, T, 128]
+R_l = post_attention_layernorm_l(H_l)                   [B, T, 128]
+Z_l = dense_h_to_4h_l(R_l)                              [B, T, 512]
+A_l = act(Z_l)                                          [B, T, 512]
+M_l = dense_4h_to_h_l(A_l)                              [B, T, 128]
+
+dense_h_to_4h.weight: [512, 128]
+dense_4h_to_h.weight: [128, 512]
+```
+
+The current `mlp_hiddens` site captures `A_l`, after the up projection.
+Sparsity in `A_l` can only translate directly into skipped `dense_4h_to_h`
+work under a zero-aware implementation. It does not skip `dense_h_to_4h`,
+because that projection has already been computed.
+
+To skip `dense_h_to_4h` dynamically, the sparse tensor must be its input
+`R_l`, and the implementation must use a sparse-input matrix multiply or an
+equivalent routing/gating mechanism. Sparsifying the raw residual stream `H_l`
+is not sufficient by itself, because the following LayerNorm can densify the
+signal before the MLP up projection.
+
+LayerNorm densification is the core risk. For one token vector
+`x = H_l[b,t,:]` with hidden size `d = 128`, GPT-NeoX LayerNorm computes:
+
+```text
+mu = (1 / d) * sum_i x_i
+var = (1 / d) * sum_i (x_i - mu)^2
+LN(x)_i = gamma_i * (x_i - mu) / sqrt(var + eps) + beta_i
+eps = 1e-5
+```
+
+If a residual coordinate is exactly zero before LayerNorm, then:
+
+```text
+x_i = 0
+LN(x)_i = gamma_i * (-mu) / sqrt(var + eps) + beta_i
+```
+
+This is generally nonzero. Therefore a ReLU, clipping rule, or sparsifier
+placed on `H_l` can create residual-stream zeros, but those zeros do not
+necessarily survive into the attention input `U_l` or MLP input `R_l`.
+LayerNorm subtracts the token mean, rescales by the token standard deviation,
+and then applies learned per-dimension affine parameters. It can also amplify
+small coordinates when the token-level variance is small.
+
+TODO: Test branch-input sparsifiers after LayerNorm, before expensive
+projections, instead of first gating the whole residual stream. The first
+diagnostic should be post-hoc clipping/histograms for:
+
+```text
+U_l = input_layernorm_l(H_l)                # attention branch input
+R_l = post_attention_layernorm_l(H_l)       # MLP branch input
+```
+
+Then test trained pressure sites:
+
+```text
+attention_inputs = U_l
+mlp_inputs = R_l
+```
+
+A simple nonparametric first operator is soft-thresholding:
+
+```text
+s_tau(x)_i = sign(x_i) * max(|x_i| - tau, 0)
+```
+
+or hard clipping:
+
+```text
+h_tau(x)_i = 0 if |x_i| <= tau else x_i
+```
+
+Applied after LayerNorm:
+
+```text
+R'_l = s_tau(R_l) or h_tau(R_l)
+Z_l = dense_h_to_4h_l(R'_l)
+
+U'_l = s_tau(U_l) or h_tau(U_l)
+QKV_l = attention.query_key_value_l(U'_l)
+```
+
+This path directly tests compute-relevant sparsity for the MLP up projection
+and attention QKV projection. A later architectural variant can learn gates or
+small "sparsifier" MLPs, but that should come after the simpler post-hoc and
+pressure diagnostics show that branch-input sparsity preserves validation
+loss. Residual-path gating should remain a later, higher-risk experiment,
+because it changes the skip connection and both branch inputs at once.
 
 ## What We Can Measure at `mlp_hiddens`
 

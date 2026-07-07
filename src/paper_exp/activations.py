@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Any
 
 
-SUPPORTED_SITE_ALIASES = {"mlp_hiddens", "residual_streams", "attention_outputs"}
+SUPPORTED_SITE_ALIASES = {"mlp_hiddens", "mlp_inputs", "residual_streams", "attention_outputs"}
 
 
 @dataclass(frozen=True)
@@ -49,6 +49,8 @@ class ActivationCapture:
         resolved = resolve_site_aliases(self.requested_sites)
         if "mlp_hiddens" in resolved:
             self._register_pythia_mlp_hiddens()
+        if "mlp_inputs" in resolved:
+            self._register_pythia_mlp_inputs()
         if "residual_streams" in resolved:
             self._register_pythia_residual_streams()
         if "attention_outputs" in resolved:
@@ -80,6 +82,28 @@ class ActivationCapture:
                 )
             )
             self._handles.append(activation_module.register_forward_hook(self._make_hook(name, "mlp_hiddens")))
+
+    def _register_pythia_mlp_inputs(self) -> None:
+        layers = getattr(getattr(self.model, "gpt_neox", None), "layers", None)
+        if layers is None:
+            raise ValueError("mlp_inputs capture currently supports GPTNeoX/Pythia models only.")
+
+        for index, layer in enumerate(layers):
+            layernorm_module = getattr(layer, "post_attention_layernorm", None)
+            if layernorm_module is None:
+                raise ValueError(f"Could not resolve post-attention LayerNorm module for layer {index}.")
+
+            name = f"mlp_inputs.layer_{index}"
+            self.site_metadata.append(
+                ActivationSite(
+                    name=name,
+                    module_path=f"gpt_neox.layers.{index}.post_attention_layernorm",
+                    role="mlp_input",
+                    shape="[batch, seq, hidden]",
+                    downstream_operator=f"gpt_neox.layers.{index}.mlp.dense_h_to_4h",
+                )
+            )
+            self._handles.append(layernorm_module.register_forward_hook(self._make_hook(name, "mlp_inputs")))
 
     def _register_pythia_residual_streams(self) -> None:
         layers = getattr(getattr(self.model, "gpt_neox", None), "layers", None)

@@ -112,15 +112,43 @@ FULL_PASS_RELU_MLP_HISTOGRAM_EXPERIMENT = (
 FULL_PASS_RELU_RESIDUAL_HISTOGRAM_EXPERIMENT = (
     "84-pythia-14m-minipile-relu-completed-residual-stream-histograms"
 )
+FULL_PASS_RELU_MLP_INPUT_HISTOGRAM_EXPERIMENT = (
+    "85-pythia-14m-minipile-relu-completed-mlp-input-histograms"
+)
 STATUS_UPDATE_COUPLING_METHODS = (
     ("AdamW", "AdamW"),
     ("L1N w5", "L1N w5"),
     ("RN w1 c0.05 s0.05", "RN w1 c0.05 s0.05"),
 )
+STATUS_UPDATE_RELU_COUPLING_METHODS = (
+    ("AdamW ReLU", "AdamW ReLU"),
+    ("RN ReLU", "RN ReLU"),
+    ("OR ReLU", "OR ReLU"),
+    ("L1N ReLU", "L1N ReLU"),
+    ("OL1 ReLU", "OL1 ReLU"),
+)
+STATUS_UPDATE_COUPLING_SITE_SPECS = (
+    ("mlp_hiddens", "MLP hiddens", "mlp_hiddens.layer_3", (-0.08, 0.75)),
+    ("residual_streams", "Residual streams", "residual_streams.layer_3", (-0.35, 0.35)),
+    ("attention_outputs", "Attention outputs", "attention_outputs.layer_3", (-0.35, 0.35)),
+)
+STATUS_UPDATE_RELU_COUPLING_SITE_SPECS = (
+    ("mlp_inputs", "Post-LN MLP inputs", "mlp_inputs.layer_3", (-4.0, 4.0)),
+    ("mlp_hiddens", "MLP hiddens", "mlp_hiddens.layer_3", (-0.08, 0.75)),
+    ("residual_streams", "Residual streams", "residual_streams.layer_3", (-0.35, 0.35)),
+    ("attention_outputs", "Attention outputs", "attention_outputs.layer_3", (-0.35, 0.35)),
+)
 STATUS_UPDATE_COUPLING_WEIGHT_RUNS = (
     ("AdamW", "50-pythia-14m-minipile-adamw-full-pass"),
     ("L1N w5", "58-pythia-14m-minipile-l1-naive-full-pass-w5"),
     ("RN w1 c0.05 s0.05", "57-pythia-14m-minipile-ricker-naive-full-pass-w1-c0p05-s0p05"),
+)
+STATUS_UPDATE_RELU_WEIGHT_RUNS = (
+    ("AdamW ReLU", "77-pythia-14m-minipile-relu-adamw-full-pass"),
+    ("RN ReLU", "78-pythia-14m-minipile-relu-ricker-naive-full-pass-w1-c0p05-s0p05"),
+    ("OR ReLU", "79-pythia-14m-minipile-relu-orthogonal-ricker-full-pass-w1-c0p05-s0p05"),
+    ("L1N ReLU", "80-pythia-14m-minipile-relu-l1-naive-full-pass-w5"),
+    ("OL1 ReLU", "81-pythia-14m-minipile-relu-orthogonal-l1-full-pass-w5"),
 )
 STATUS_UPDATE_PRESSURE_WEIGHT_GROUPS = (
     (
@@ -140,6 +168,26 @@ STATUS_UPDATE_PRESSURE_WEIGHT_GROUPS = (
         "Attention",
         re.compile(r"^gpt_neox\.layers\.\d+\.attention\.query_key_value\.weight$"),
         (-0.75, 0.75),
+    ),
+)
+STATUS_UPDATE_MLP_WEIGHT_LAYER_GROUPS = (
+    (
+        "mlp_layer_0",
+        "MLP layer 0",
+        re.compile(r"^gpt_neox\.layers\.0\.mlp\.(?:dense_h_to_4h|dense_4h_to_h)\.weight$"),
+        (-0.25, 0.25),
+    ),
+    (
+        "mlp_layer_3",
+        "MLP layer 3",
+        re.compile(r"^gpt_neox\.layers\.3\.mlp\.(?:dense_h_to_4h|dense_4h_to_h)\.weight$"),
+        (-0.25, 0.25),
+    ),
+    (
+        "mlp_layer_5",
+        "MLP layer 5",
+        re.compile(r"^gpt_neox\.layers\.5\.mlp\.(?:dense_h_to_4h|dense_4h_to_h)\.weight$"),
+        (-0.25, 0.25),
     ),
 )
 FULL_PASS_SELECTED_RUNS = [
@@ -171,6 +219,8 @@ FULL_PASS_RELU_COMPLETED_RUNS = [
     ("AdamW ReLU", "77-pythia-14m-minipile-relu-adamw-full-pass"),
     ("RN ReLU w1 c0.05 s0.05", "78-pythia-14m-minipile-relu-ricker-naive-full-pass-w1-c0p05-s0p05"),
     ("OR ReLU w1 c0.05 s0.05", "79-pythia-14m-minipile-relu-orthogonal-ricker-full-pass-w1-c0p05-s0p05"),
+    ("L1N ReLU w5", "80-pythia-14m-minipile-relu-l1-naive-full-pass-w5"),
+    ("OL1 ReLU w5", "81-pythia-14m-minipile-relu-orthogonal-l1-full-pass-w5"),
 ]
 STATUS_UPDATE_CLIPPING_SITES = (
     ("mlp_hiddens", "MLP hiddens"),
@@ -193,6 +243,8 @@ STATUS_UPDATE_RELU_FRONTIER_RUNS = [
     ("AdamW ReLU", "77-pythia-14m-minipile-relu-adamw-full-pass"),
     ("RN ReLU", "78-pythia-14m-minipile-relu-ricker-naive-full-pass-w1-c0p05-s0p05"),
     ("OR ReLU", "79-pythia-14m-minipile-relu-orthogonal-ricker-full-pass-w1-c0p05-s0p05"),
+    ("L1N ReLU", "80-pythia-14m-minipile-relu-l1-naive-full-pass-w5"),
+    ("OL1 ReLU", "81-pythia-14m-minipile-relu-orthogonal-l1-full-pass-w5"),
 ]
 
 PLOT_STYLE = {
@@ -913,7 +965,7 @@ def _generate_known_paper_figures(results_path: Path, figures_path: Path, *, sav
                 save_png=save_png,
                 title="ReLU Completed Method Learning Curves",
                 subtitle=(
-                    "completed ReLU runs only: AdamW, RN, and OR; "
+                    "completed ReLU runs: AdamW, RN, OR, L1N, and OL1; "
                     "one MiniPile token-cache pass per run"
                 ),
             )
@@ -926,7 +978,7 @@ def _generate_known_paper_figures(results_path: Path, figures_path: Path, *, sav
             "Attention Outputs",
             "ReLU Completed Methods Attention-only Post-hoc Clipping Frontiers",
             (
-                "completed ReLU runs only; clipping thresholds applied only to attention outputs; "
+                "completed ReLU runs; clipping thresholds applied only to attention outputs; "
                 "validation-loss axis zoomed"
             ),
         ),
@@ -936,7 +988,7 @@ def _generate_known_paper_figures(results_path: Path, figures_path: Path, *, sav
             "Residual Streams",
             "ReLU Completed Methods Residual-only Post-hoc Clipping Frontiers",
             (
-                "completed ReLU runs only; clipping thresholds applied only to residual streams; "
+                "completed ReLU runs; clipping thresholds applied only to residual streams; "
                 "validation-loss axis zoomed"
             ),
         ),
@@ -946,7 +998,7 @@ def _generate_known_paper_figures(results_path: Path, figures_path: Path, *, sav
             "MLP Hiddens",
             "ReLU Completed Methods MLP-only Post-hoc Clipping Frontiers",
             (
-                "completed ReLU runs only; clipping thresholds applied only to MLP hiddens; "
+                "completed ReLU runs; clipping thresholds applied only to MLP hiddens; "
                 "validation-loss axis zoomed"
             ),
         ),
@@ -1042,6 +1094,40 @@ def _generate_known_paper_figures(results_path: Path, figures_path: Path, *, sav
             )
         )
 
+    report_relu_coupling_histogram_runs = {
+        "mlp_inputs": _latest_run_with(
+            results_path / FULL_PASS_RELU_MLP_INPUT_HISTOGRAM_EXPERIMENT,
+            "activation_histograms.json",
+        ),
+        "mlp_hiddens": _latest_run_with(
+            results_path / FULL_PASS_RELU_MLP_HISTOGRAM_EXPERIMENT,
+            "activation_histograms.json",
+        ),
+        "residual_streams": _latest_run_with(
+            results_path / FULL_PASS_RELU_RESIDUAL_HISTOGRAM_EXPERIMENT,
+            "activation_histograms.json",
+        ),
+        "attention_outputs": _latest_run_with(
+            results_path / FULL_PASS_RELU_ATTENTION_OUTPUT_HISTOGRAM_EXPERIMENT,
+            "activation_histograms.json",
+        ),
+    }
+    if all(report_relu_coupling_histogram_runs.values()):
+        output_pdf = figures_path / "73-status-update-relu-coupling-density-comparison.pdf"
+        outputs.extend(
+            generate_status_update_coupling_density_comparison(
+                histogram_runs=report_relu_coupling_histogram_runs,
+                output=output_pdf,
+                save_png=save_png,
+                methods=STATUS_UPDATE_RELU_COUPLING_METHODS,
+                site_specs=STATUS_UPDATE_RELU_COUPLING_SITE_SPECS,
+                title="ReLU MLP-only Pressure Coupling Diagnostic",
+                subtitle=(
+                    "rows are completed ReLU AdamW, RN, OR, L1N, and OL1"
+                ),
+            )
+        )
+
     report_pressure_weight_runs = _latest_labeled_runs(
         results_path,
         list(STATUS_UPDATE_COUPLING_WEIGHT_RUNS),
@@ -1054,6 +1140,46 @@ def _generate_known_paper_figures(results_path: Path, figures_path: Path, *, sav
                 runs=report_pressure_weight_runs,
                 output=output_pdf,
                 save_png=save_png,
+            )
+        )
+
+    report_relu_weight_runs = _latest_labeled_runs(
+        results_path,
+        list(STATUS_UPDATE_RELU_WEIGHT_RUNS),
+        "checkpoints/final/model.safetensors",
+    )
+    if report_relu_weight_runs:
+        output_pdf = figures_path / "71-status-update-relu-pressure-weight-diagnostic.pdf"
+        outputs.extend(
+            generate_status_update_pressure_weight_diagnostic(
+                runs=report_relu_weight_runs,
+                output=output_pdf,
+                save_png=save_png,
+                title="ReLU Completed Pressure Weight Diagnostic",
+                subtitle=(
+                    "rows are completed AdamW, RN, OR, L1N, and OL1 ReLU runs; "
+                    "columns aggregate final-checkpoint weights across all six layers"
+                ),
+                footnote=(
+                    "Shaded band marks |weight| <= 0.01. "
+                    "Residual-stream column uses MLP and attention output-projection weights."
+                ),
+            )
+        )
+
+        output_pdf = figures_path / "72-status-update-relu-mlp-weight-density-comparison.pdf"
+        outputs.extend(
+            generate_status_update_pressure_weight_diagnostic(
+                runs=report_relu_weight_runs,
+                output=output_pdf,
+                save_png=save_png,
+                group_specs=STATUS_UPDATE_MLP_WEIGHT_LAYER_GROUPS,
+                title="ReLU Completed MLP Dense Weight Diagnostic",
+                subtitle=(
+                    "rows are completed AdamW, RN, OR, L1N, and OL1 ReLU runs; "
+                    "columns show representative MLP dense layers"
+                ),
+                footnote="Shaded band marks |weight| <= 0.01. Biases excluded.",
             )
         )
 
@@ -1101,7 +1227,7 @@ def _generate_known_paper_figures(results_path: Path, figures_path: Path, *, sav
                 output=output_pdf,
                 save_png=save_png,
                 title="ReLU Completed Runs: Site-specific Post-hoc Clipping",
-                subtitle="completed AdamW/RN/OR ReLU runs only; L1N/OL1 excluded",
+                subtitle="completed AdamW/RN/OR/L1N/OL1 ReLU runs",
             )
         )
 
@@ -1364,6 +1490,10 @@ def generate_status_update_coupling_density_comparison(
     histogram_runs: dict[str, str | Path | None],
     output: str | Path,
     save_png: bool = False,
+    methods: tuple[tuple[str, str], ...] = STATUS_UPDATE_COUPLING_METHODS,
+    site_specs: tuple[tuple[str, str, str, tuple[float, float]], ...] = STATUS_UPDATE_COUPLING_SITE_SPECS,
+    title: str = "GELU MLP-only Pressure Coupling Diagnostic",
+    subtitle: str = "rows are AdamW, L1N w5, and RN w1 c0.05 s0.05",
 ) -> list[Path]:
     plt.rcParams.update(PLOT_STYLE)
 
@@ -1374,11 +1504,25 @@ def generate_status_update_coupling_density_comparison(
         for site, run_dir in histogram_runs.items()
         if run_dir is not None
     }
-    _plot_status_update_coupling_density_comparison(payloads, output_path)
+    _plot_status_update_coupling_density_comparison(
+        payloads,
+        output_path,
+        methods=methods,
+        site_specs=site_specs,
+        title=title,
+        subtitle=subtitle,
+    )
     outputs = [output_path]
     if save_png:
         png_path = output_path.with_suffix(".png")
-        _plot_status_update_coupling_density_comparison(payloads, png_path)
+        _plot_status_update_coupling_density_comparison(
+            payloads,
+            png_path,
+            methods=methods,
+            site_specs=site_specs,
+            title=title,
+            subtitle=subtitle,
+        )
         outputs.append(png_path)
     return outputs
 
@@ -1388,17 +1532,39 @@ def generate_status_update_pressure_weight_diagnostic(
     runs: list[tuple[str, str | Path]],
     output: str | Path,
     save_png: bool = False,
+    group_specs: tuple[tuple[str, str, Any, tuple[float, float]], ...] = STATUS_UPDATE_PRESSURE_WEIGHT_GROUPS,
+    title: str = "GELU MLP-only Pressure Weight Diagnostic",
+    subtitle: str = (
+        "rows are AdamW, L1N w5, and RN w1 c0.05 s0.05; "
+        "columns aggregate final-checkpoint weights across all six layers"
+    ),
+    footnote: str = (
+        "Shaded band marks |weight| <= 0.01. "
+        "Residual-stream column uses MLP and attention output-projection weights."
+    ),
 ) -> list[Path]:
     plt.rcParams.update(PLOT_STYLE)
 
     output_path = Path(output)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    series = _load_status_update_pressure_weight_groups(runs)
-    _plot_status_update_pressure_weight_diagnostic(series, output_path)
+    series = _load_status_update_pressure_weight_groups(runs, group_specs=group_specs)
+    _plot_status_update_pressure_weight_diagnostic(
+        series,
+        output_path,
+        title=title,
+        subtitle=subtitle,
+        footnote=footnote,
+    )
     outputs = [output_path]
     if save_png:
         png_path = output_path.with_suffix(".png")
-        _plot_status_update_pressure_weight_diagnostic(series, png_path)
+        _plot_status_update_pressure_weight_diagnostic(
+            series,
+            png_path,
+            title=title,
+            subtitle=subtitle,
+            footnote=footnote,
+        )
         outputs.append(png_path)
     return outputs
 
@@ -2105,7 +2271,11 @@ def _final_mlp_weight_norm_from_checkpoint(run_path: Path) -> float | None:
     return total**0.5
 
 
-def _load_status_update_pressure_weight_groups(runs: list[tuple[str, str | Path]]) -> list[dict[str, Any]]:
+def _load_status_update_pressure_weight_groups(
+    runs: list[tuple[str, str | Path]],
+    *,
+    group_specs: tuple[tuple[str, str, Any, tuple[float, float]], ...],
+) -> list[dict[str, Any]]:
     try:
         import torch
         from safetensors import safe_open
@@ -2123,7 +2293,7 @@ def _load_status_update_pressure_weight_groups(runs: list[tuple[str, str | Path]
         groups: list[dict[str, Any]] = []
         with safe_open(str(checkpoint_path), framework="pt", device="cpu") as handle:
             keys = list(handle.keys())
-            for group_id, group_label, pattern, (range_min, range_max) in STATUS_UPDATE_PRESSURE_WEIGHT_GROUPS:
+            for group_id, group_label, pattern, (range_min, range_max) in group_specs:
                 values = []
                 tensor_names = []
                 for key in keys:
@@ -3077,17 +3247,20 @@ def _plot_full_pass_high_pressure_clipping_frontiers(
     plt.close(fig)
 
 
-def _plot_status_update_coupling_density_comparison(payloads: dict[str, dict[str, Any]], output_path: Path) -> None:
-    site_specs = (
-        ("mlp_hiddens", "MLP hiddens", "mlp_hiddens.layer_3", (-0.08, 0.75)),
-        ("residual_streams", "Residual streams", "residual_streams.layer_3", (-0.35, 0.35)),
-        ("attention_outputs", "Attention outputs", "attention_outputs.layer_3", (-0.35, 0.35)),
-    )
+def _plot_status_update_coupling_density_comparison(
+    payloads: dict[str, dict[str, Any]],
+    output_path: Path,
+    *,
+    methods: tuple[tuple[str, str], ...],
+    site_specs: tuple[tuple[str, str, str, tuple[float, float]], ...],
+    title: str,
+    subtitle: str,
+) -> None:
     missing = [site for site, _title, _layer, _xlim in site_specs if site not in payloads]
     if missing:
         raise ValueError(f"Missing histogram payloads for report density comparison: {missing}")
 
-    labels = [label for _prefix, label in STATUS_UPDATE_COUPLING_METHODS]
+    labels = [label for _prefix, label in methods]
     colors = _series_colors(labels)
     site_density: dict[str, dict[str, tuple[list[float], list[float]]]] = {}
     site_y_limits: dict[str, tuple[float, float]] = {}
@@ -3101,7 +3274,7 @@ def _plot_status_update_coupling_density_comparison(payloads: dict[str, dict[str
         per_method: dict[str, tuple[list[float], list[float]]] = {}
         positive_densities: list[float] = []
         max_density = 0.0
-        for method_prefix, method_label in STATUS_UPDATE_COUPLING_METHODS:
+        for method_prefix, method_label in methods:
             method = _histogram_method(payload, method_prefix)
             if method is None:
                 raise ValueError(f"Missing method {method_prefix!r} in histogram payload for {site}.")
@@ -3115,15 +3288,21 @@ def _plot_status_update_coupling_density_comparison(payloads: dict[str, dict[str
         y_max = max_density * 1.7 if max_density > 0.0 else 1.0
         site_y_limits[site] = (y_min, y_max)
 
+    row_count = len(methods)
+    col_count = len(site_specs)
+    fig_width = max(10.8, 3.25 * col_count)
+    fig_height = max(7.2, 1.65 * row_count + 1.5)
     fig, axes = plt.subplots(
-        len(STATUS_UPDATE_COUPLING_METHODS),
-        len(site_specs),
-        figsize=(10.8, 7.2),
+        row_count,
+        col_count,
+        figsize=(fig_width, fig_height),
         sharex=False,
         sharey=False,
     )
+    if row_count == 1:
+        axes = [axes]
 
-    for row_index, (_method_prefix, method_label) in enumerate(STATUS_UPDATE_COUPLING_METHODS):
+    for row_index, (_method_prefix, method_label) in enumerate(methods):
         for col_index, (site, site_title, _layer_name, xlim) in enumerate(site_specs):
             ax = axes[row_index][col_index]
             centers, densities = site_density[site][method_label]
@@ -3147,14 +3326,11 @@ def _plot_status_update_coupling_density_comparison(payloads: dict[str, dict[str
             ax.tick_params(axis="both", labelsize=8)
 
     eval_tokens = int(next(iter(payloads.values())).get("validation_tokens") or 0)
-    fig.suptitle("GELU MLP-only Pressure Coupling Diagnostic", y=0.985)
+    fig.suptitle(title, y=0.985)
     fig.text(
         0.5,
-        0.947,
-        (
-            "rows are AdamW, L1N w5, and RN w1 c0.05 s0.05; "
-            f"layer 3 shown for each activation family; {eval_tokens:,} validation tokens"
-        ),
+        0.95,
+        f"{subtitle}; layer 3 shown for each activation family; {eval_tokens:,} validation tokens",
         ha="center",
         va="top",
         fontsize=8,
@@ -3169,12 +3345,19 @@ def _plot_status_update_coupling_density_comparison(payloads: dict[str, dict[str
         va="bottom",
         fontsize=8,
     )
-    fig.subplots_adjust(left=0.13, right=0.995, top=0.905, bottom=0.095, hspace=0.32, wspace=0.12)
+    fig.subplots_adjust(left=0.13, right=0.995, top=0.91, bottom=0.095, hspace=0.34, wspace=0.14)
     fig.savefig(output_path)
     plt.close(fig)
 
 
-def _plot_status_update_pressure_weight_diagnostic(series: list[dict[str, Any]], output_path: Path) -> None:
+def _plot_status_update_pressure_weight_diagnostic(
+    series: list[dict[str, Any]],
+    output_path: Path,
+    *,
+    title: str,
+    subtitle: str,
+    footnote: str,
+) -> None:
     if not series:
         raise ValueError("No pressure weight diagnostic series were found.")
 
@@ -3196,13 +3379,19 @@ def _plot_status_update_pressure_weight_diagnostic(series: list[dict[str, Any]],
         y_max = max_density * 1.7 if max_density > 0.0 else 1.0
         group_y_limits[group_label] = (y_min, y_max)
 
+    row_count = len(series)
+    col_count = len(group_labels)
+    fig_width = max(10.8, 3.25 * col_count)
+    fig_height = max(7.0, 1.6 * row_count + 1.5)
     fig, axes = plt.subplots(
-        len(series),
-        len(group_labels),
-        figsize=(10.8, 7.0),
+        row_count,
+        col_count,
+        figsize=(fig_width, fig_height),
         sharex=False,
         sharey=False,
     )
+    if row_count == 1:
+        axes = [axes]
 
     for row_index, item in enumerate(series):
         method_label = str(item["label"])
@@ -3231,14 +3420,11 @@ def _plot_status_update_pressure_weight_diagnostic(series: list[dict[str, Any]],
             ax.xaxis.set_major_formatter(FuncFormatter(_trimmed_decimal_tick))
             ax.tick_params(axis="both", labelsize=8)
 
-    fig.suptitle("GELU MLP-only Pressure Weight Diagnostic", y=0.985)
+    fig.suptitle(title, y=0.985)
     fig.text(
         0.5,
         0.947,
-        (
-            "rows are AdamW, L1N w5, and RN w1 c0.05 s0.05; "
-            "columns aggregate final-checkpoint weights across all six layers"
-        ),
+        subtitle,
         ha="center",
         va="top",
         fontsize=8,
@@ -3248,7 +3434,7 @@ def _plot_status_update_pressure_weight_diagnostic(series: list[dict[str, Any]],
     fig.text(
         0.5,
         0.018,
-        "Shaded band marks |weight| <= 0.01. Residual-stream column uses MLP and attention output-projection weights.",
+        footnote,
         ha="center",
         va="bottom",
         fontsize=8,

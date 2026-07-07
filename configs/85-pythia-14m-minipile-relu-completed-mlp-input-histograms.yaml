@@ -1,4 +1,4 @@
-experiment_name: pythia_14m_minipile_relu_completed_mlp_activation_histograms
+experiment_name: pythia_14m_minipile_relu_completed_mlp_input_histograms
 model:
   provider: huggingface
   name: pythia-14m-random-relu
@@ -34,11 +34,11 @@ validation:
   batch_size: 4
 activation_histograms:
   sites:
-    - mlp_hiddens
+    - mlp_inputs
   bins: 180
-  range_min: -0.25
+  range_min: -4.0
   range_max: 4.0
-  plot_title: ReLU Completed Methods MLP Activation Densities
+  plot_title: ReLU Completed Methods Post-LayerNorm MLP Input Densities
   selected_runs:
     - label: AdamW ReLU
       config_id: 77-pythia-14m-minipile-relu-adamw-full-pass

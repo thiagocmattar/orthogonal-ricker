@@ -132,7 +132,7 @@ TODO: design the full ablation around the fixed-step screen. Initial candidates 
 
 TODO: run a short `weight_decay=0` ablation to test whether weight decay materially shapes activation distributions or only acts as a small background regularizer. AdamW `weight_decay`, `betas`, and `eps` are now explicit in configs and new-run manifests.
 
-TODO: test an architecture ablation that replaces Pythia/GPT-NeoX GELU MLP activations with ReLU, keeping the rest of the pretraining recipe fixed. This should be treated as an architecture-change ablation, not as a default setting.
+ReLU architecture ablation: configs `77` through `81` replace the Pythia/GPT-NeoX MLP activation with ReLU while keeping the one-pass MiniPile pretraining recipe fixed. This is an architecture-change ablation, not the default setting.
 
 Completed full-pass high-pressure configs:
 

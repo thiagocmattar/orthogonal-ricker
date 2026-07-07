@@ -5,6 +5,7 @@ __pycache__/
 .pytest_tmp_run/
 pytest_tmp*/
 tmp/
+run-logs/
 *.egg-info/
 
 data/tokenized/

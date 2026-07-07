@@ -32,7 +32,7 @@
 
 \title{Orthogonal Sparsity Pressure: Status Update}
 \author{Thiago Mattar\\\href{mailto:thiagocmattar@gmail.com}{thiagocmattar@gmail.com}}
-\date{2026-07-05, updated 2026-07-06}
+\date{2026-07-05, updated 2026-07-07}
 
 \begin{document}
 \maketitle
@@ -194,13 +194,13 @@ Config & Sites & Method & Setting & Val. loss & MLP agg. & Resid. agg. & Readout
 \caption{MLP+residual pressure post-hoc clipping frontiers in one comparable view, including the AdamW baseline. The site-wise view makes the tradeoff clearer: the best-loss L1N run no longer occupies the high MLP-sparsity regime, while residual and attention robustness differ by method.}
 \end{figure}
 
-\tightsection{Is This a GELU Problem? Early ReLU Result}
+\tightsection{Is This a GELU Problem? Completed ReLU Full-pass Result}
 
-The site-scope experiments raised a sharper hypothesis: perhaps the GELU MLP nonlinearity itself makes high MLP activation sparsity expensive. We therefore changed the Pythia MLP activation to ReLU while keeping the one-pass MiniPile recipe fixed. The completed ReLU runs so far are AdamW, RN \(w=1,c=0.05,\sigma=0.05\), and OR \(w=1,c=0.05,\sigma=0.05\). ReLU L1N and OL1 are still pending and must not be counted yet.
+The site-scope experiments raised a sharper hypothesis: perhaps the GELU MLP nonlinearity itself makes high MLP activation sparsity expensive. We therefore changed the Pythia MLP activation to ReLU while keeping the one-pass MiniPile recipe fixed. The completed ReLU set now contains AdamW, RN \(w=1,c=0.05,\sigma=0.05\), OR \(w=1,c=0.05,\sigma=0.05\), L1N \(w=5\), and OL1 \(w=5\).
 
 \begin{table}[H]
 \centering
-\caption{GELU versus ReLU endpoint comparison for completed AdamW/RN/OR full-pass runs. Validation loss and MLP exact-zero/near-zero endpoint summaries are exact values from each run's training \code{metrics.json}.}
+\caption{GELU versus ReLU endpoint comparison for completed full-pass runs. Validation loss and MLP exact-zero/near-zero endpoint summaries are exact values from each run's training \code{metrics.json}.}
 \small
 \begin{tabularx}{\textwidth}{llrrrrX}
 \toprule
@@ -209,9 +209,13 @@ Activation & Method & Val. loss & \(\Delta\) vs same-act AdamW & Exact zero & NZ
 GELU & AdamW & 4.8317 & 0.0000 & 0.00\pct & 6.03\pct & Baseline full-pass GELU run. \\
 GELU & RN & 5.2403 & +0.4085 & 0.00\pct & 72.73\pct & Sparse-ish near zero, but high loss. \\
 GELU & OR & 5.2281 & +0.3964 & 0.00\pct & 63.81\pct & Similar poor loss tradeoff. \\
+GELU & L1N & 5.2144 & +0.3826 & 0.00\pct & 81.05\pct & Highest GELU near-zero mass, still high loss. \\
+GELU & OL1 & 5.2342 & +0.4024 & 0.00\pct & 73.39\pct & Orthogonal L1 does not rescue GELU loss. \\
 ReLU & AdamW & 4.8404 & 0.0000 & 52.35\pct & 53.88\pct & ReLU baseline already has exact zeros. \\
 ReLU & RN & 4.8134 & -0.0271 & 93.91\pct & 94.20\pct & Very sparse MLP hiddens with AdamW-level validation loss. \\
 ReLU & OR & 4.8087 & -0.0317 & 93.23\pct & 93.58\pct & Same qualitative result as RN. \\
+ReLU & L1N & 4.7967 & -0.0437 & 95.35\pct & 95.75\pct & Sparse ReLU regime persists under L1 pressure. \\
+ReLU & OL1 & 4.7981 & -0.0423 & 93.02\pct & 93.63\pct & Orthogonal L1 stays in the sparse low-loss regime. \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -229,25 +233,41 @@ Method & MLP hiddens & Residual streams & Attention outputs \\
 AdamW & \nzvec{55.2}{58.9}{52.0}{51.7}{52.6}{51.2} & \nzvec{37.0}{13.0}{9.2}{8.9}{8.8}{8.0} & \nzvec{93.0}{37.4}{18.4}{30.2}{26.3}{19.0} \\
 RN & \nzvec{78.1}{97.3}{96.7}{97.6}{97.5}{96.9} & \nzvec{37.6}{14.1}{13.8}{11.9}{12.7}{11.6} & \nzvec{43.6}{21.4}{28.6}{24.1}{25.9}{18.9} \\
 OR & \nzvec{74.7}{96.5}{97.8}{97.7}{97.7}{96.9} & \nzvec{37.5}{15.8}{12.6}{13.5}{13.3}{11.5} & \nzvec{78.6}{27.8}{20.5}{33.2}{27.1}{18.9} \\
+OL1 & \nzvec{83.5}{96.6}{96.8}{96.4}{96.2}{95.5} & \nzvec{39.6}{19.4}{14.6}{15.8}{15.2}{12.7} & \nzvec{49.1}{24.9}{24.7}{33.7}{29.9}{21.0} \\
+L1N & \nzvec{94.1}{97.9}{97.1}{96.5}{96.1}{95.1} & \nzvec{38.6}{15.4}{11.7}{11.6}{12.8}{13.5} & \nzvec{21.7}{21.0}{25.6}{24.5}{29.6}{18.6} \\
 \bottomrule
 \end{longtable}
 
-\textbf{Current interpretation.} This is the most interesting result in the update. For the completed RN/OR settings, ReLU moves the model to roughly 93--94\pct{} exact-zero MLP hidden activation mass with no observed validation-loss penalty, and with point estimates slightly below the ReLU AdamW baseline. That is qualitatively different from GELU RN/OR, where similar pressure settings paid about 0.40 validation-loss points.
+\textbf{Current interpretation.} This is the most interesting result in the update. Across RN, OR, L1N, and OL1, ReLU moves the model to roughly 93--96\pct{} exact-zero MLP hidden activation mass with no observed validation-loss penalty, and with point estimates slightly below the ReLU AdamW baseline. That is qualitatively different from the corresponding GELU pressure runs, where high near-zero MLP mass paid about 0.38--0.41 validation-loss points.
 
-\textbf{TODO / pending experiments.} Config 80 (ReLU L1N \(w=5\)) has partial failed attempts and must be rerun from scratch. Config 81 (ReLU OL1 \(w=5\)) has not completed. The ReLU story should be treated as an early result until those runs finish and the key ReLU candidates are repeated across seeds.
+\textbf{Caveat.} These are still one-seed runs. The ReLU story should be treated as a strong follow-up target, not as a final paper claim, until the key ReLU candidates are repeated across seeds.
 
 \begin{figure}[p]
 \centering
 \includegraphics[width=\textwidth,height=0.88\textheight,keepaspectratio]{../../figures/59-pythia-14m-minipile-relu-completed-learning-curves.pdf}
-\caption{Completed ReLU learning curves for AdamW, RN, and OR. L1N/OL1 are excluded because they did not complete.}
+\caption{Completed ReLU learning curves for AdamW, RN, OR, L1N, and OL1.}
 \end{figure}
 \clearpage
 
 \begin{figure}[H]
 \centering
 \includegraphics[width=\textwidth]{../../figures/69-status-update-relu-site-clipping-frontiers.pdf}
-\caption{Completed ReLU post-hoc clipping frontiers in one comparable view. The MLP panel is the key activation-function result: RN/OR start near the high exact-zero regime with AdamW-level validation loss, unlike the GELU high-pressure RN/OR tradeoff.}
+\caption{Completed ReLU post-hoc clipping frontiers in one comparable view. The MLP panel is the key activation-function result: RN, OR, L1N, and OL1 start near the high exact-zero regime with AdamW-level validation loss, unlike the GELU high-pressure tradeoff.}
 \end{figure}
+
+\begin{figure}[p]
+\centering
+\includegraphics[width=\textwidth,height=0.88\textheight,keepaspectratio]{../../figures/73-status-update-relu-coupling-density-comparison.pdf}
+\caption{Completed ReLU coupling-density diagnostic. Rows compare AdamW, RN, OR, L1N, and OL1; columns add the post-LayerNorm MLP input density before the MLP-hidden, residual-stream, and attention-output densities.}
+\end{figure}
+\clearpage
+
+\begin{figure}[p]
+\centering
+\includegraphics[width=\textwidth,height=0.88\textheight,keepaspectratio]{../../figures/71-status-update-relu-pressure-weight-diagnostic.pdf}
+\caption{Completed ReLU pressure-weight diagnostic for AdamW, RN, OR, L1N, and OL1. Columns aggregate final-checkpoint weights across all six layers for MLP-hidden input weights, residual-stream output-projection weights, and attention QKV weights.}
+\end{figure}
+\clearpage
 
 \tightsection{Status Takeaways}
 
@@ -255,8 +275,8 @@ OR & \nzvec{74.7}{96.5}{97.8}{97.7}{97.7}{96.9} & \nzvec{37.5}{15.8}{12.6}{13.5}
   \item MLP-only GELU pressure does not stay local in the representation. Off-target residual and attention distributions change enough that site-specific diagnostics are necessary for every serious comparison.
   \item All-site pressure can drive attention outputs to very high near-zero mass, but this appears to redistribute sparsity away from MLP hiddens.
   \item MLP+residual pressure improves validation loss relative to high-pressure MLP-only L1/Ricker variants, but the best MLP+residual result no longer produces strong MLP sparsity.
-  \item ReLU changes the regime: completed ReLU RN/OR runs reach roughly 93--94\pct{} exact-zero MLP hidden activations with AdamW-level validation loss.
-  \item The ReLU result is the priority follow-up, but it is incomplete until ReLU L1N/OL1 finish and key runs are repeated across seeds.
+  \item ReLU changes the regime: completed ReLU RN/OR/L1N/OL1 runs reach roughly 93--96\pct{} exact-zero MLP hidden activations with AdamW-level validation loss.
+  \item The ReLU result is the priority follow-up; the next step is repeating key runs across seeds.
 \end{itemize}
 
 \end{document}

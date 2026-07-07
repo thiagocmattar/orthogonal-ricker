@@ -65,6 +65,18 @@ def test_activation_capture_hooks_residual_stream_and_attention_output() -> None
     assert {site.role for site in capture.site_metadata} == {"residual_stream", "attention_output"}
 
 
+def test_activation_capture_hooks_post_layernorm_mlp_input() -> None:
+    model = _TinyPythiaLikeMlpInputModel()
+    value = torch.tensor([[[-1.0, 2.0]]])
+
+    with ActivationCapture(model, ["mlp_inputs"], torch=torch) as capture:
+        output = model(value)
+
+    assert torch.equal(capture.activations["mlp_inputs.layer_0"], output)
+    assert capture.site_metadata[0].role == "mlp_input"
+    assert capture.site_metadata[0].downstream_operator.endswith("dense_h_to_4h")
+
+
 def test_activation_capture_clips_attention_output_tuple() -> None:
     model = _TinyPythiaLikeBlockModel()
     value = torch.tensor([[[0.001, 2.0]]])
@@ -158,6 +170,16 @@ class _TinyPythiaLikeBlockModel(torch.nn.Module):
         for layer in self.gpt_neox.layers:
             value = layer(value)
         return value
+
+
+class _TinyPythiaLikeMlpInputModel(torch.nn.Module):
+    def __init__(self) -> None:
+        super().__init__()
+        layer = SimpleNamespace(post_attention_layernorm=torch.nn.Identity())
+        self.gpt_neox = SimpleNamespace(layers=[layer])
+
+    def forward(self, value: torch.Tensor) -> torch.Tensor:
+        return self.gpt_neox.layers[0].post_attention_layernorm(value)
 
 
 class _TinyPythiaLikeBlock(torch.nn.Module):
