@@ -1,6 +1,6 @@
 # Internal Reports
 
-This folder is gitignored and is used for internal discussion reports only. Reports here are not part of the reproducible harness interface.
+This folder is used for internal discussion reports. Keep report source and final PDFs trackable; keep run logs and LaTeX auxiliary files ignored.
 
 ## Naming
 

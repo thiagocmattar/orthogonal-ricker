@@ -1,0 +1,160 @@
+\documentclass[10pt]{article}
+
+\usepackage[margin=0.72in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{longtable}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{enumitem}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue!55!black,
+  urlcolor=blue!55!black
+}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.42em}
+\setlist[itemize]{leftmargin=1.3em, itemsep=0.12em, topsep=0.12em}
+\captionsetup{font=small, labelfont=bf}
+
+\newcommand{\code}[1]{\texttt{#1}}
+\newcommand{\pct}{\%}
+\newcommand{\tightsection}[1]{\section{#1}\vspace{-0.35em}}
+\newcommand{\nzvec}[6]{[#1, #2, #3, #4, #5, #6]}
+
+\title{ReLU Site-scope Pressure Comparison}
+\author{Thiago Mattar\\\href{mailto:thiagocmattar@gmail.com}{thiagocmattar@gmail.com}}
+\date{2026-07-09}
+
+\begin{document}
+\maketitle
+\vspace{-1.35em}
+
+\tightsection{Immediate Question}
+
+This report compares only the completed ReLU one-pass MiniPile runs. Pythia-14M is used as a random-initialized architecture with the MLP activation switched to ReLU; no released Pythia checkpoint weights are loaded.
+
+\begin{quote}
+Does ReLU keep the high MLP-hidden sparsity regime when pressure is moved from MLP-only to MLP+residual and all-site pressure, and where does the near-zero mass appear across activation families?
+\end{quote}
+
+The AdamW ReLU run, config 77, is the baseline for all comparisons. The pressure settings are fixed across scopes: RN and OR use \(w=1,c=0.05,\sigma=0.05\); L1N and OL1 use \(w=5\). Site scopes are:
+\begin{itemize}
+  \item \textbf{MLP-only}: pressure on \code{mlp\_hiddens}; configs 78--81.
+  \item \textbf{MLP+residual}: pressure on \code{mlp\_hiddens} and \code{residual\_streams}; configs 86--89.
+  \item \textbf{All-site}: pressure on \code{mlp\_hiddens}, \code{residual\_streams}, and \code{attention\_outputs}; configs 90--93.
+\end{itemize}
+
+\begin{table}[H]
+\centering
+\caption{Endpoint summary for completed ReLU site-scope runs. Validation loss and logged near-zero mass come from each run's \code{metrics.json}. The MLP, residual, and attention columns are validation-cache histogram estimates, averaged over layers 0--5.}
+\small
+\begin{tabular}{llcrrrrrr}
+\toprule
+Scope & Method & Config & Val. loss & \(\Delta\) vs AdamW & Logged NZ & MLP NZ & Resid. NZ & Attn NZ \\
+\midrule
+Baseline & AdamW & 77 & 4.8404 & +0.0000 & 53.9 & 53.6 & 13.3 & 51.4 \\
+MLP-only & RN & 78 & 4.8134 & -0.0271 & 94.2 & 94.0 & 16.0 & 43.9 \\
+MLP-only & OR & 79 & 4.8087 & -0.0317 & 93.6 & 93.5 & 16.4 & 50.1 \\
+MLP-only & L1N & 80 & 4.7967 & -0.0437 & 95.8 & 96.1 & 16.4 & 37.8 \\
+MLP-only & OL1 & 81 & 4.7981 & -0.0423 & 93.6 & 94.1 & 18.4 & 47.5 \\
+MLP+residual & RN & 86 & 5.0495 & +0.2091 & 74.9 & 83.3 & 30.5 & 41.8 \\
+MLP+residual & OR & 87 & 4.9629 & +0.1224 & 78.1 & 85.7 & 35.8 & 54.9 \\
+MLP+residual & L1N & 88 & 4.8233 & -0.0172 & 79.0 & 90.5 & 30.8 & 73.2 \\
+MLP+residual & OL1 & 89 & 4.8293 & -0.0112 & 77.3 & 88.9 & 30.3 & 72.1 \\
+All-site & RN & 90 & 5.0024 & +0.1619 & 78.2 & 84.2 & 33.5 & 97.4 \\
+All-site & OR & 91 & 4.8903 & +0.0498 & 78.5 & 84.7 & 36.2 & 95.7 \\
+All-site & L1N & 92 & 4.7492 & -0.0913 & 73.8 & 87.1 & 27.8 & 85.0 \\
+All-site & OL1 & 93 & 4.8263 & -0.0142 & 74.3 & 85.9 & 27.8 & 90.3 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Readout.} MLP-only ReLU pressure keeps the cleanest high-MLP-sparsity regime: about 94--96\pct{} MLP near-zero mass with validation loss slightly below the ReLU AdamW point estimate. Adding residual pressure reduces the aggregate logged sparsity and separates methods more strongly: L1N and OL1 stay near AdamW validation loss, while RN/OR pay a larger loss cost. All-site pressure moves attention outputs into the near-saturated near-zero regime; L1N all-site is the best single point estimate here, but this is still one seed.
+
+\tightsection{Learning Curves}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{../../figures/74-pythia-14m-minipile-relu-site-scope-learning-curves.pdf}
+\caption{ReLU site-scope learning curves. Rows compare MLP-only, MLP+residual, and all-site pressure; AdamW is repeated as the baseline in each row. The near-zero panel uses each run's logged pressure-site aggregate.}
+\end{figure}
+
+\tightsection{Per-layer Near-zero Mass}
+
+The heatmap and table below use the validation-cache histogram payloads for configs 94--97. Values are histogram-estimated \(|a|\le 0.01\) percentages by layer [0--5], so they should be read as diagnostic distributions rather than exact training metrics.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth,height=0.82\textheight,keepaspectratio]{../../figures/78-status-update-relu-site-scope-near-zero-heatmaps.pdf}
+\caption{Per-layer near-zero mass by activation family for the ReLU site-scope comparison. MLP-only pressure is strongest on MLP hiddens; all-site pressure shifts the attention-output rows toward saturation.}
+\end{figure}
+\clearpage
+
+\begin{longtable}{p{0.17\textwidth}p{0.25\textwidth}p{0.25\textwidth}p{0.25\textwidth}}
+\caption{Validation-cache near-zero mass vectors for ReLU site-scope runs. Entries are histogram-estimated \(|a|\le0.01\) percentages by layer [0--5].}\\
+\toprule
+Run & MLP hiddens & Residual streams & Attention outputs \\
+\midrule
+\endfirsthead
+\toprule
+Run & MLP hiddens & Residual streams & Attention outputs \\
+\midrule
+\endhead
+Baseline AdamW & \nzvec{55}{59}{52}{52}{53}{51} & \nzvec{32}{13}{9}{9}{9}{8} & \nzvec{98}{58}{30}{48}{42}{31} \\
+MLP-only RN & \nzvec{78}{97}{97}{98}{97}{97} & \nzvec{33}{14}{14}{12}{13}{11} & \nzvec{71}{35}{45}{39}{42}{31} \\
+MLP-only OR & \nzvec{75}{96}{98}{98}{98}{97} & \nzvec{33}{15}{13}{13}{13}{11} & \nzvec{95}{45}{34}{52}{44}{31} \\
+MLP-only L1N & \nzvec{94}{98}{97}{96}{96}{95} & \nzvec{33}{15}{12}{12}{13}{13} & \nzvec{34}{34}{41}{40}{47}{31} \\
+MLP-only OL1 & \nzvec{83}{97}{97}{96}{96}{95} & \nzvec{34}{19}{14}{15}{15}{13} & \nzvec{69}{40}{40}{54}{48}{34} \\
+MLP+residual RN & \nzvec{71}{94}{89}{86}{81}{78} & \nzvec{39}{39}{34}{30}{26}{16} & \nzvec{93}{58}{37}{28}{23}{11} \\
+MLP+residual OR & \nzvec{66}{89}{89}{92}{90}{88} & \nzvec{37}{38}{39}{38}{35}{29} & \nzvec{98}{79}{49}{35}{35}{33} \\
+MLP+residual L1N & \nzvec{68}{95}{96}{96}{95}{92} & \nzvec{35}{31}{31}{31}{30}{27} & \nzvec{99}{74}{68}{85}{78}{35} \\
+MLP+residual OL1 & \nzvec{69}{91}{94}{93}{94}{92} & \nzvec{34}{30}{30}{31}{30}{26} & \nzvec{99}{73}{66}{78}{69}{46} \\
+All-site RN & \nzvec{67}{93}{92}{90}{84}{79} & \nzvec{37}{38}{39}{35}{32}{19} & \nzvec{100}{100}{100}{100}{95}{90} \\
+All-site OR & \nzvec{64}{85}{89}{91}{92}{87} & \nzvec{36}{34}{38}{38}{37}{35} & \nzvec{100}{100}{99}{97}{94}{84} \\
+All-site L1N & \nzvec{64}{91}{93}{93}{93}{89} & \nzvec{34}{27}{28}{28}{27}{24} & \nzvec{100}{100}{90}{79}{79}{62} \\
+All-site OL1 & \nzvec{65}{87}{90}{90}{92}{90} & \nzvec{34}{26}{26}{27}{29}{25} & \nzvec{100}{100}{90}{99}{84}{69} \\
+\bottomrule
+\end{longtable}
+
+\tightsection{Post-hoc Clipping Frontiers}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{../../figures/75-status-update-relu-site-scope-clipping-frontiers.pdf}
+\caption{ReLU site-scope post-hoc clipping frontiers. Each column clips only one activation family. MLP-hidden clipping remains the key direct compute-skip proxy; residual and attention clipping show where pressure has moved robustness or fragility off the MLP path.}
+\end{figure}
+
+\tightsection{Activation Densities}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{../../figures/76-status-update-relu-site-scope-activation-density-comparison.pdf}
+\caption{ReLU activation-density comparison at layer 3. The post-LayerNorm MLP-input column exposes how residual-side pressure reshapes inputs before the ReLU MLP hidden site; probability density is log-scaled.}
+\end{figure}
+
+\tightsection{Weight Densities}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{../../figures/77-status-update-relu-site-scope-pressure-weight-diagnostic.pdf}
+\caption{ReLU pressure-weight diagnostic. Columns aggregate final-checkpoint weights over MLP hidden-input weights, output-projection weights that write to residual streams, and attention QKV weights. Weight densities do not imply structured parameter skipping by themselves; they show whether activation pressure is visibly reshaping the corresponding parameter families.}
+\end{figure}
+
+\tightsection{Caveats}
+
+\begin{itemize}
+  \item These are one-seed runs. Treat differences below a few hundredths of validation loss as planning evidence, not a final claim.
+  \item The clipping sweeps use 8 validation batches per threshold. The activation-density and near-zero tables use the full deterministic validation cache used by the histogram configs.
+  \item The near-zero vectors are histogram-estimated because the histogram artifacts store binned counts, not exact threshold counters for every off-target site.
+  \item Activation sparsity is elementwise. Turning it into skipped computation still requires a structured execution rule, especially for upstream residual and MLP up-projection work.
+\end{itemize}
+
+\end{document}

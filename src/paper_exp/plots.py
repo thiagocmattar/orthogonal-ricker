@@ -115,6 +115,18 @@ FULL_PASS_RELU_RESIDUAL_HISTOGRAM_EXPERIMENT = (
 FULL_PASS_RELU_MLP_INPUT_HISTOGRAM_EXPERIMENT = (
     "85-pythia-14m-minipile-relu-completed-mlp-input-histograms"
 )
+RELU_SITE_SCOPE_ATTENTION_OUTPUT_HISTOGRAM_EXPERIMENT = (
+    "94-pythia-14m-minipile-relu-site-scope-attention-output-histograms"
+)
+RELU_SITE_SCOPE_MLP_HISTOGRAM_EXPERIMENT = (
+    "95-pythia-14m-minipile-relu-site-scope-mlp-activation-histograms"
+)
+RELU_SITE_SCOPE_RESIDUAL_HISTOGRAM_EXPERIMENT = (
+    "96-pythia-14m-minipile-relu-site-scope-residual-stream-histograms"
+)
+RELU_SITE_SCOPE_MLP_INPUT_HISTOGRAM_EXPERIMENT = (
+    "97-pythia-14m-minipile-relu-site-scope-mlp-input-histograms"
+)
 STATUS_UPDATE_COUPLING_METHODS = (
     ("AdamW", "AdamW"),
     ("L1N w5", "L1N w5"),
@@ -246,6 +258,96 @@ STATUS_UPDATE_RELU_FRONTIER_RUNS = [
     ("L1N ReLU", "80-pythia-14m-minipile-relu-l1-naive-full-pass-w5"),
     ("OL1 ReLU", "81-pythia-14m-minipile-relu-orthogonal-l1-full-pass-w5"),
 ]
+RELU_SITE_SCOPE_TRAINING_GROUPS = (
+    (
+        "MLP-only",
+        (
+            ("AdamW", "77-pythia-14m-minipile-relu-adamw-full-pass"),
+            ("RN", "78-pythia-14m-minipile-relu-ricker-naive-full-pass-w1-c0p05-s0p05"),
+            ("OR", "79-pythia-14m-minipile-relu-orthogonal-ricker-full-pass-w1-c0p05-s0p05"),
+            ("L1N", "80-pythia-14m-minipile-relu-l1-naive-full-pass-w5"),
+            ("OL1", "81-pythia-14m-minipile-relu-orthogonal-l1-full-pass-w5"),
+        ),
+    ),
+    (
+        "MLP+residual",
+        (
+            ("AdamW", "77-pythia-14m-minipile-relu-adamw-full-pass"),
+            ("RN", "86-pythia-14m-minipile-relu-ricker-naive-mlp-residual-full-pass-w1-c0p05-s0p05"),
+            ("OR", "87-pythia-14m-minipile-relu-orthogonal-ricker-mlp-residual-full-pass-w1-c0p05-s0p05"),
+            ("L1N", "88-pythia-14m-minipile-relu-l1-naive-mlp-residual-full-pass-w5"),
+            ("OL1", "89-pythia-14m-minipile-relu-orthogonal-l1-mlp-residual-full-pass-w5"),
+        ),
+    ),
+    (
+        "All-site",
+        (
+            ("AdamW", "77-pythia-14m-minipile-relu-adamw-full-pass"),
+            ("RN", "90-pythia-14m-minipile-relu-ricker-naive-all-site-full-pass-w1-c0p05-s0p05"),
+            ("OR", "91-pythia-14m-minipile-relu-orthogonal-ricker-all-site-full-pass-w1-c0p05-s0p05"),
+            ("L1N", "92-pythia-14m-minipile-relu-l1-naive-all-site-full-pass-w5"),
+            ("OL1", "93-pythia-14m-minipile-relu-orthogonal-l1-all-site-full-pass-w5"),
+        ),
+    ),
+)
+RELU_SITE_SCOPE_HISTOGRAM_GROUPS = (
+    (
+        "MLP-only",
+        (
+            ("AdamW", "AdamW"),
+            ("RN", "MLP-only RN"),
+            ("OR", "MLP-only OR"),
+            ("L1N", "MLP-only L1N"),
+            ("OL1", "MLP-only OL1"),
+        ),
+    ),
+    (
+        "MLP+residual",
+        (
+            ("AdamW", "AdamW"),
+            ("RN", "MLP+res RN"),
+            ("OR", "MLP+res OR"),
+            ("L1N", "MLP+res L1N"),
+            ("OL1", "MLP+res OL1"),
+        ),
+    ),
+    (
+        "All-site",
+        (
+            ("AdamW", "AdamW"),
+            ("RN", "All-site RN"),
+            ("OR", "All-site OR"),
+            ("L1N", "All-site L1N"),
+            ("OL1", "All-site OL1"),
+        ),
+    ),
+)
+RELU_SITE_SCOPE_REPORT_METHODS = (
+    ("AdamW", "AdamW"),
+    ("MLP-only RN", "MLP-only RN"),
+    ("MLP-only OR", "MLP-only OR"),
+    ("MLP-only L1N", "MLP-only L1N"),
+    ("MLP-only OL1", "MLP-only OL1"),
+    ("MLP+res RN", "MLP+res RN"),
+    ("MLP+res OR", "MLP+res OR"),
+    ("MLP+res L1N", "MLP+res L1N"),
+    ("MLP+res OL1", "MLP+res OL1"),
+    ("All-site RN", "All-site RN"),
+    ("All-site OR", "All-site OR"),
+    ("All-site L1N", "All-site L1N"),
+    ("All-site OL1", "All-site OL1"),
+)
+RELU_SITE_SCOPE_DENSITY_SITE_SPECS = (
+    ("mlp_inputs", "Post-LN MLP inputs", "mlp_inputs.layer_3", (-4.0, 4.0)),
+    ("mlp_hiddens", "MLP hiddens", "mlp_hiddens.layer_3", (-0.08, 0.75)),
+    ("residual_streams", "Residual streams", "residual_streams.layer_3", (-0.35, 0.35)),
+    ("attention_outputs", "Attention outputs", "attention_outputs.layer_3", (-0.35, 0.35)),
+)
+RELU_SITE_SCOPE_NEAR_ZERO_SITES = (
+    ("mlp_hiddens", "MLP hiddens"),
+    ("residual_streams", "Residual streams"),
+    ("attention_outputs", "Attention outputs"),
+)
 
 PLOT_STYLE = {
     "figure.figsize": (6.5, 4.0),
@@ -1231,6 +1333,84 @@ def _generate_known_paper_figures(results_path: Path, figures_path: Path, *, sav
             )
         )
 
+    relu_site_scope_training_groups = _latest_grouped_labeled_runs(
+        results_path,
+        RELU_SITE_SCOPE_TRAINING_GROUPS,
+        "events.jsonl",
+    )
+    if relu_site_scope_training_groups and all(len(runs) >= 2 for _scope, runs in relu_site_scope_training_groups):
+        output_pdf = figures_path / "74-pythia-14m-minipile-relu-site-scope-learning-curves.pdf"
+        outputs.extend(
+            generate_relu_site_scope_learning_curves(
+                grouped_runs=relu_site_scope_training_groups,
+                output=output_pdf,
+                save_png=save_png,
+            )
+        )
+
+    relu_site_scope_clipping = _latest_relu_site_scope_site_clipping_groups(results_path)
+    if _has_relu_site_scope_site_clipping_runs(relu_site_scope_clipping):
+        output_pdf = figures_path / "75-status-update-relu-site-scope-clipping-frontiers.pdf"
+        outputs.extend(
+            generate_relu_site_scope_clipping_frontiers(
+                grouped_site_runs=relu_site_scope_clipping,
+                output=output_pdf,
+                save_png=save_png,
+            )
+        )
+
+    relu_site_scope_histogram_runs = {
+        "mlp_inputs": _latest_run_with(
+            results_path / RELU_SITE_SCOPE_MLP_INPUT_HISTOGRAM_EXPERIMENT,
+            "activation_histograms.json",
+        ),
+        "mlp_hiddens": _latest_run_with(
+            results_path / RELU_SITE_SCOPE_MLP_HISTOGRAM_EXPERIMENT,
+            "activation_histograms.json",
+        ),
+        "residual_streams": _latest_run_with(
+            results_path / RELU_SITE_SCOPE_RESIDUAL_HISTOGRAM_EXPERIMENT,
+            "activation_histograms.json",
+        ),
+        "attention_outputs": _latest_run_with(
+            results_path / RELU_SITE_SCOPE_ATTENTION_OUTPUT_HISTOGRAM_EXPERIMENT,
+            "activation_histograms.json",
+        ),
+    }
+    if all(relu_site_scope_histogram_runs.values()):
+        output_pdf = figures_path / "76-status-update-relu-site-scope-activation-density-comparison.pdf"
+        outputs.extend(
+            generate_relu_site_scope_activation_density_comparison(
+                histogram_runs=relu_site_scope_histogram_runs,
+                output=output_pdf,
+                save_png=save_png,
+            )
+        )
+
+        output_pdf = figures_path / "78-status-update-relu-site-scope-near-zero-heatmaps.pdf"
+        outputs.extend(
+            generate_relu_site_scope_near_zero_heatmaps(
+                histogram_runs=relu_site_scope_histogram_runs,
+                output=output_pdf,
+                save_png=save_png,
+            )
+        )
+
+    relu_site_scope_weight_groups = _latest_grouped_labeled_runs(
+        results_path,
+        RELU_SITE_SCOPE_TRAINING_GROUPS,
+        "checkpoints/final/model.safetensors",
+    )
+    if relu_site_scope_weight_groups and all(len(runs) >= 2 for _scope, runs in relu_site_scope_weight_groups):
+        output_pdf = figures_path / "77-status-update-relu-site-scope-pressure-weight-diagnostic.pdf"
+        outputs.extend(
+            generate_relu_site_scope_pressure_weight_diagnostic(
+                grouped_runs=relu_site_scope_weight_groups,
+                output=output_pdf,
+                save_png=save_png,
+            )
+        )
+
     return outputs
 
 
@@ -1591,6 +1771,132 @@ def generate_status_update_site_clipping_frontiers(
     return outputs
 
 
+def generate_relu_site_scope_learning_curves(
+    *,
+    grouped_runs: list[tuple[str, list[tuple[str, str | Path]]]],
+    output: str | Path,
+    save_png: bool = False,
+) -> list[Path]:
+    plt.rcParams.update(PLOT_STYLE)
+
+    output_path = Path(output)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    grouped_series = [(scope, _load_event_series(runs)) for scope, runs in grouped_runs]
+    grouped_series = [(scope, series) for scope, series in grouped_series if series]
+    if not grouped_series:
+        raise ValueError("No ReLU site-scope learning-curve runs were found.")
+
+    _plot_relu_site_scope_learning_curves(grouped_series, output_path)
+    outputs = [output_path]
+    if save_png:
+        png_path = output_path.with_suffix(".png")
+        _plot_relu_site_scope_learning_curves(grouped_series, png_path)
+        outputs.append(png_path)
+    return outputs
+
+
+def generate_relu_site_scope_clipping_frontiers(
+    *,
+    grouped_site_runs: list[tuple[str, dict[str, list[tuple[str, str | Path]]]]],
+    output: str | Path,
+    save_png: bool = False,
+) -> list[Path]:
+    plt.rcParams.update(PLOT_STYLE)
+
+    output_path = Path(output)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    grouped_site_series = [
+        (scope, {site: _load_clipping_series(runs) for site, runs in site_runs.items()})
+        for scope, site_runs in grouped_site_runs
+    ]
+    grouped_site_series = [(scope, site_series) for scope, site_series in grouped_site_series if site_series]
+    if not grouped_site_series:
+        raise ValueError("No ReLU site-scope clipping frontier runs were found.")
+
+    _plot_relu_site_scope_clipping_frontiers(grouped_site_series, output_path)
+    outputs = [output_path]
+    if save_png:
+        png_path = output_path.with_suffix(".png")
+        _plot_relu_site_scope_clipping_frontiers(grouped_site_series, png_path)
+        outputs.append(png_path)
+    return outputs
+
+
+def generate_relu_site_scope_activation_density_comparison(
+    *,
+    histogram_runs: dict[str, str | Path | None],
+    output: str | Path,
+    save_png: bool = False,
+) -> list[Path]:
+    plt.rcParams.update(PLOT_STYLE)
+
+    output_path = Path(output)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    payloads = {
+        site: read_json(Path(run_dir) / "activation_histograms.json")
+        for site, run_dir in histogram_runs.items()
+        if run_dir is not None
+    }
+    _plot_relu_site_scope_activation_density_comparison(payloads, output_path)
+    outputs = [output_path]
+    if save_png:
+        png_path = output_path.with_suffix(".png")
+        _plot_relu_site_scope_activation_density_comparison(payloads, png_path)
+        outputs.append(png_path)
+    return outputs
+
+
+def generate_relu_site_scope_pressure_weight_diagnostic(
+    *,
+    grouped_runs: list[tuple[str, list[tuple[str, str | Path]]]],
+    output: str | Path,
+    save_png: bool = False,
+) -> list[Path]:
+    plt.rcParams.update(PLOT_STYLE)
+
+    output_path = Path(output)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    grouped_series = [
+        (scope, _load_status_update_pressure_weight_groups(runs, group_specs=STATUS_UPDATE_PRESSURE_WEIGHT_GROUPS))
+        for scope, runs in grouped_runs
+    ]
+    grouped_series = [(scope, series) for scope, series in grouped_series if series]
+    if not grouped_series:
+        raise ValueError("No ReLU site-scope pressure-weight runs were found.")
+
+    _plot_relu_site_scope_pressure_weight_diagnostic(grouped_series, output_path)
+    outputs = [output_path]
+    if save_png:
+        png_path = output_path.with_suffix(".png")
+        _plot_relu_site_scope_pressure_weight_diagnostic(grouped_series, png_path)
+        outputs.append(png_path)
+    return outputs
+
+
+def generate_relu_site_scope_near_zero_heatmaps(
+    *,
+    histogram_runs: dict[str, str | Path | None],
+    output: str | Path,
+    save_png: bool = False,
+) -> list[Path]:
+    plt.rcParams.update(PLOT_STYLE)
+
+    output_path = Path(output)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    payloads = {
+        site: read_json(Path(run_dir) / "activation_histograms.json")
+        for site, run_dir in histogram_runs.items()
+        if run_dir is not None
+    }
+    _plot_relu_site_scope_near_zero_heatmaps(payloads, output_path)
+    outputs = [output_path]
+    if save_png:
+        png_path = output_path.with_suffix(".png")
+        _plot_relu_site_scope_near_zero_heatmaps(payloads, png_path)
+        outputs.append(png_path)
+    return outputs
+
+
 def generate_fixed_step_sweep_summary(
     *,
     rows: list[dict[str, Any]],
@@ -1929,6 +2235,17 @@ def _latest_labeled_runs(
     return runs
 
 
+def _latest_grouped_labeled_runs(
+    results_path: Path,
+    grouped_experiments: tuple[tuple[str, tuple[tuple[str, str], ...]], ...],
+    artifact_name: str,
+) -> list[tuple[str, list[tuple[str, Path]]]]:
+    groups: list[tuple[str, list[tuple[str, Path]]]] = []
+    for scope, experiments in grouped_experiments:
+        groups.append((scope, _latest_labeled_runs(results_path, list(experiments), artifact_name)))
+    return groups
+
+
 def _latest_labeled_runs_filtered(
     results_path: Path,
     experiments: list[tuple[str, str]],
@@ -1951,6 +2268,15 @@ def _latest_labeled_runs_filtered(
     return runs
 
 
+def _latest_relu_site_scope_site_clipping_groups(
+    results_path: Path,
+) -> list[tuple[str, dict[str, list[tuple[str, Path]]]]]:
+    return [
+        (scope, _latest_status_update_site_clipping_runs(results_path, list(experiments)))
+        for scope, experiments in RELU_SITE_SCOPE_TRAINING_GROUPS
+    ]
+
+
 def _latest_status_update_site_clipping_runs(
     results_path: Path,
     experiments: list[tuple[str, str]],
@@ -1969,6 +2295,14 @@ def _latest_status_update_site_clipping_runs(
 
 def _has_status_update_site_clipping_runs(site_runs: dict[str, list[tuple[str, Path]]]) -> bool:
     return all(len(site_runs.get(site, [])) >= 2 for site, _site_label in STATUS_UPDATE_CLIPPING_SITES)
+
+
+def _has_relu_site_scope_site_clipping_runs(
+    grouped_site_runs: list[tuple[str, dict[str, list[tuple[str, Path]]]]],
+) -> bool:
+    return bool(grouped_site_runs) and all(
+        _has_status_update_site_clipping_runs(site_runs) for _scope, site_runs in grouped_site_runs
+    )
 
 
 def _load_pressure_series(runs: list[tuple[str, str | Path]]) -> list[dict[str, Any]]:
@@ -3516,6 +3850,506 @@ def _plot_status_update_site_clipping_frontiers(
     plt.close(fig)
 
 
+def _plot_relu_site_scope_learning_curves(
+    grouped_series: list[tuple[str, list[dict[str, Any]]]],
+    output_path: Path,
+) -> None:
+    row_count = len(grouped_series)
+    fig, axes = plt.subplots(row_count, 2, figsize=(11.0, max(6.8, 2.1 * row_count + 1.4)), sharex="col")
+    if row_count == 1:
+        axes = [axes]
+
+    labels = [
+        str(item["label"])
+        for _scope, series in grouped_series
+        for item in series
+    ]
+    colors = _series_colors(labels)
+    legend_handles: dict[str, Any] = {}
+    token_max = 0
+
+    for row_index, (scope, series) in enumerate(grouped_series):
+        ax_loss = axes[row_index][0]
+        ax_near_zero = axes[row_index][1]
+        loss_values: list[float] = []
+
+        for item in series:
+            label = str(item["label"])
+            color = colors[label]
+            validation_events = sorted(
+                item["validation_events"],
+                key=lambda event: int(event.get("tokens_seen", 0)),
+            )
+            near_zero_events = sorted(
+                [
+                    event
+                    for event in item["train_events"]
+                    if event.get("activation/near_zero_mass/k1em02") is not None
+                ],
+                key=lambda event: int(event.get("tokens_seen", 0)),
+            )
+            if validation_events:
+                token_max = max(token_max, max(int(event["tokens_seen"]) for event in validation_events))
+                loss_values.extend(float(event["validation_loss"]) for event in validation_events)
+                (line,) = ax_loss.plot(
+                    _tokens_millions(validation_events),
+                    [float(event["validation_loss"]) for event in validation_events],
+                    marker=_method_marker(label),
+                    markersize=_marker_size(label, 2.8),
+                    linewidth=_line_width(label),
+                    color=color,
+                    label=label,
+                )
+                legend_handles.setdefault(label, line)
+            if near_zero_events:
+                token_max = max(token_max, max(int(event["tokens_seen"]) for event in near_zero_events))
+                ax_near_zero.plot(
+                    _tokens_millions(near_zero_events),
+                    [100.0 * float(event["activation/near_zero_mass/k1em02"]) for event in near_zero_events],
+                    marker=_method_marker(label),
+                    markersize=_marker_size(label, 2.4),
+                    linewidth=_line_width(label),
+                    color=color,
+                    label=label,
+                )
+
+        if row_index == 0:
+            ax_loss.set_title("Validation loss", fontsize=10)
+            ax_near_zero.set_title("Logged near-zero mass", fontsize=10)
+        ax_loss.set_ylabel(f"{scope}\nloss", fontsize=8)
+        ax_near_zero.set_ylabel("|a| <= 0.01 (%)", fontsize=8)
+        ax_near_zero.set_ylim(0.0, 100.0)
+        if loss_values:
+            _zoom_loss_axis(ax_loss, loss_values)
+        if row_index == row_count - 1:
+            ax_loss.set_xlabel("Tokens seen (millions)")
+            ax_near_zero.set_xlabel("Tokens seen (millions)")
+        ax_loss.tick_params(axis="both", labelsize=8)
+        ax_near_zero.tick_params(axis="both", labelsize=8)
+
+    fig.suptitle("ReLU Site-scope Learning Curves", y=0.985)
+    token_note = f"up to {token_max:,} tokens/run" if token_max else "one MiniPile token-cache pass per run"
+    fig.text(
+        0.5,
+        0.945,
+        (
+            "Rows compare pressure scope; AdamW baseline repeated in each row; "
+            f"{token_note}; near-zero mass is the run's logged pressure-site aggregate"
+        ),
+        ha="center",
+        va="top",
+        fontsize=8,
+    )
+    if legend_handles:
+        fig.legend(
+            list(legend_handles.values()),
+            list(legend_handles.keys()),
+            loc="lower center",
+            bbox_to_anchor=(0.5, 0.012),
+            ncol=min(5, len(legend_handles)),
+            frameon=False,
+            fontsize=8,
+        )
+    fig.subplots_adjust(left=0.095, right=0.995, top=0.88, bottom=0.16, hspace=0.3, wspace=0.24)
+    fig.savefig(output_path)
+    plt.close(fig)
+
+
+def _plot_relu_site_scope_clipping_frontiers(
+    grouped_site_series: list[tuple[str, dict[str, list[dict[str, Any]]]]],
+    output_path: Path,
+) -> None:
+    row_count = len(grouped_site_series)
+    col_count = len(STATUS_UPDATE_CLIPPING_SITES)
+    fig, axes = plt.subplots(
+        row_count,
+        col_count,
+        figsize=(11.4, max(7.1, 2.15 * row_count + 1.35)),
+        sharex=True,
+        sharey=False,
+    )
+    if row_count == 1:
+        axes = [axes]
+
+    labels = [
+        str(item["label"])
+        for _scope, site_series in grouped_site_series
+        for site, _site_label in STATUS_UPDATE_CLIPPING_SITES
+        for item in site_series.get(site, [])
+    ]
+    if not labels:
+        raise ValueError("No ReLU site-scope clipping series were found.")
+    colors = _series_colors(labels)
+    legend_handles: dict[str, Any] = {}
+    total_points = 0
+
+    for row_index, (scope, site_series) in enumerate(grouped_site_series):
+        for col_index, (site, site_label) in enumerate(STATUS_UPDATE_CLIPPING_SITES):
+            ax = axes[row_index][col_index]
+            all_losses: list[float] = []
+            for item in site_series.get(site, []):
+                rows = sorted(item["rows"], key=lambda row: float(row["achieved_sparsity"]))
+                sparsity = [100.0 * float(row["achieved_sparsity"]) for row in rows]
+                losses = [float(row["validation_loss"]) for row in rows]
+                all_losses.extend(losses)
+                total_points += len(rows)
+                label = str(item["label"])
+                (line,) = ax.plot(
+                    sparsity,
+                    losses,
+                    marker=_method_marker(label),
+                    markersize=_marker_size(label, 2.6),
+                    linewidth=_line_width(label),
+                    color=colors[label],
+                    label=label,
+                )
+                legend_handles.setdefault(label, line)
+            if row_index == 0:
+                ax.set_title(site_label, fontsize=10)
+            if col_index == 0:
+                ax.set_ylabel(f"{scope}\nvalidation loss", fontsize=8)
+            else:
+                ax.set_yticklabels([])
+            if row_index == row_count - 1:
+                ax.set_xlabel("Exact zeros after clipping (%)")
+            if all_losses:
+                _zoom_loss_axis(ax, all_losses)
+            ax.tick_params(axis="both", labelsize=8)
+
+    fig.suptitle("ReLU Site-scope Post-hoc Clipping Frontiers", y=0.985)
+    fig.text(
+        0.5,
+        0.945,
+        (
+            "Rows compare pressure scope; columns clip one activation family at a time; "
+            f"{total_points} sweep points; validation-loss axes zoomed"
+        ),
+        ha="center",
+        va="top",
+        fontsize=8,
+    )
+    if legend_handles:
+        fig.legend(
+            list(legend_handles.values()),
+            list(legend_handles.keys()),
+            loc="lower center",
+            bbox_to_anchor=(0.5, 0.012),
+            ncol=min(5, len(legend_handles)),
+            frameon=False,
+            fontsize=8,
+        )
+    fig.subplots_adjust(left=0.095, right=0.995, top=0.88, bottom=0.17, hspace=0.28, wspace=0.12)
+    fig.savefig(output_path)
+    plt.close(fig)
+
+
+def _plot_relu_site_scope_activation_density_comparison(
+    payloads: dict[str, dict[str, Any]],
+    output_path: Path,
+) -> None:
+    missing = [site for site, _title, _layer, _xlim in RELU_SITE_SCOPE_DENSITY_SITE_SPECS if site not in payloads]
+    if missing:
+        raise ValueError(f"Missing ReLU site-scope histogram payloads: {missing}")
+
+    method_labels = [label for _scope, methods in RELU_SITE_SCOPE_HISTOGRAM_GROUPS for label, _prefix in methods]
+    colors = _series_colors(method_labels)
+    site_density: dict[tuple[str, str], dict[str, tuple[list[float], list[float]]]] = {}
+    site_y_limits: dict[str, tuple[float, float]] = {}
+
+    for site, _site_title, layer_name, _xlim in RELU_SITE_SCOPE_DENSITY_SITE_SPECS:
+        payload = payloads[site]
+        edges = [float(value) for value in payload.get("bin_edges", [])]
+        if len(edges) < 2:
+            raise ValueError(f"Histogram payload for {site} has no bin edges.")
+        centers = [(left + right) / 2.0 for left, right in zip(edges[:-1], edges[1:], strict=True)]
+        positive_densities: list[float] = []
+        max_density = 0.0
+        for scope, methods in RELU_SITE_SCOPE_HISTOGRAM_GROUPS:
+            per_method: dict[str, tuple[list[float], list[float]]] = {}
+            for method_label, method_prefix in methods:
+                method = _histogram_method(payload, method_prefix)
+                if method is None:
+                    raise ValueError(f"Missing method {method_prefix!r} in histogram payload for {site}.")
+                layer = _histogram_layer(method, layer_name)
+                densities = _histogram_density(layer, edges)
+                per_method[method_label] = (centers, densities)
+                positive_densities.extend(value for value in densities if value > 0.0)
+                max_density = max(max_density, max(densities, default=0.0))
+            site_density[(scope, site)] = per_method
+        y_min = max(min(positive_densities) * 0.7, max_density * 1e-4, 1e-6) if positive_densities else 1e-6
+        y_max = max_density * 1.7 if max_density > 0.0 else 1.0
+        site_y_limits[site] = (y_min, y_max)
+
+    row_count = len(RELU_SITE_SCOPE_HISTOGRAM_GROUPS)
+    col_count = len(RELU_SITE_SCOPE_DENSITY_SITE_SPECS)
+    fig, axes = plt.subplots(
+        row_count,
+        col_count,
+        figsize=(12.4, max(7.4, 2.1 * row_count + 1.35)),
+        sharex=False,
+        sharey=False,
+    )
+    if row_count == 1:
+        axes = [axes]
+
+    legend_handles: dict[str, Any] = {}
+    for row_index, (scope, methods) in enumerate(RELU_SITE_SCOPE_HISTOGRAM_GROUPS):
+        for col_index, (site, site_title, _layer_name, xlim) in enumerate(RELU_SITE_SCOPE_DENSITY_SITE_SPECS):
+            ax = axes[row_index][col_index]
+            y_min, y_max = site_y_limits[site]
+            for method_label, _method_prefix in methods:
+                centers, densities = site_density[(scope, site)][method_label]
+                y_values = [max(value, y_min) if value > 0.0 else y_min for value in densities]
+                (line,) = ax.step(
+                    centers,
+                    y_values,
+                    where="mid",
+                    color=colors[method_label],
+                    linewidth=_line_width(method_label),
+                    label=method_label,
+                )
+                legend_handles.setdefault(method_label, line)
+            ax.axvspan(-0.01, 0.01, color="#000000", alpha=0.08, linewidth=0)
+            ax.axvline(0.0, color="#4d4d4d", linewidth=0.7, alpha=0.7)
+            ax.set_yscale("log")
+            ax.set_ylim(y_min, y_max)
+            ax.set_xlim(*xlim)
+            if row_index == 0:
+                ax.set_title(site_title, fontsize=10)
+            if col_index == 0:
+                ax.set_ylabel(f"{scope}\ndensity", fontsize=8)
+            else:
+                ax.set_yticklabels([])
+            if row_index == row_count - 1:
+                ax.set_xlabel("Activation value")
+            ax.xaxis.set_major_formatter(FuncFormatter(_trimmed_decimal_tick))
+            ax.tick_params(axis="both", labelsize=8)
+
+    eval_tokens = int(next(iter(payloads.values())).get("validation_tokens") or 0)
+    fig.suptitle("ReLU Site-scope Activation Density Comparison", y=0.985)
+    fig.text(
+        0.5,
+        0.945,
+        (
+            "Rows compare pressure scope; columns show layer 3 for each activation family; "
+            f"{eval_tokens:,} validation tokens; probability density is log-scaled"
+        ),
+        ha="center",
+        va="top",
+        fontsize=8,
+    )
+    if legend_handles:
+        fig.legend(
+            list(legend_handles.values()),
+            list(legend_handles.keys()),
+            loc="lower center",
+            bbox_to_anchor=(0.5, 0.01),
+            ncol=min(5, len(legend_handles)),
+            frameon=False,
+            fontsize=8,
+        )
+    fig.text(
+        0.5,
+        0.055,
+        "Shaded band marks |activation| <= 0.01.",
+        ha="center",
+        va="bottom",
+        fontsize=8,
+    )
+    fig.subplots_adjust(left=0.09, right=0.995, top=0.88, bottom=0.17, hspace=0.28, wspace=0.12)
+    fig.savefig(output_path)
+    plt.close(fig)
+
+
+def _plot_relu_site_scope_pressure_weight_diagnostic(
+    grouped_series: list[tuple[str, list[dict[str, Any]]]],
+    output_path: Path,
+) -> None:
+    group_labels = [group["label"] for group in grouped_series[0][1][0]["groups"]]
+    labels = [str(item["label"]) for _scope, series in grouped_series for item in series]
+    colors = _series_colors(labels)
+    group_y_limits: dict[str, tuple[float, float]] = {}
+    for group_label in group_labels:
+        positive_values = [
+            float(value)
+            for _scope, series in grouped_series
+            for item in series
+            for group in item["groups"]
+            if group["label"] == group_label
+            for value in group["densities"]
+            if value > 0.0
+        ]
+        max_density = max(positive_values, default=1.0)
+        y_min = max(min(positive_values) * 0.7, max_density * 1e-5, 1e-8) if positive_values else 1e-8
+        y_max = max_density * 1.7 if max_density > 0.0 else 1.0
+        group_y_limits[group_label] = (y_min, y_max)
+
+    row_count = len(grouped_series)
+    col_count = len(group_labels)
+    fig, axes = plt.subplots(
+        row_count,
+        col_count,
+        figsize=(11.4, max(7.1, 2.1 * row_count + 1.35)),
+        sharex=False,
+        sharey=False,
+    )
+    if row_count == 1:
+        axes = [axes]
+
+    legend_handles: dict[str, Any] = {}
+    for row_index, (scope, series) in enumerate(grouped_series):
+        for col_index, group_label in enumerate(group_labels):
+            ax = axes[row_index][col_index]
+            y_min, y_max = group_y_limits[group_label]
+            for item in series:
+                method_label = str(item["label"])
+                groups_by_label = {group["label"]: group for group in item["groups"]}
+                group = groups_by_label[group_label]
+                centers = [float(value) for value in group["centers"]]
+                densities = [float(value) for value in group["densities"]]
+                y_values = [max(value, y_min) if value > 0.0 else y_min for value in densities]
+                (line,) = ax.step(
+                    centers,
+                    y_values,
+                    where="mid",
+                    color=colors[method_label],
+                    linewidth=_line_width(method_label),
+                    label=method_label,
+                )
+                legend_handles.setdefault(method_label, line)
+                ax.set_xlim(*group["range"])
+            ax.axvspan(-0.01, 0.01, color="#000000", alpha=0.08, linewidth=0)
+            ax.axvline(0.0, color="#4d4d4d", linewidth=0.7, alpha=0.7)
+            ax.set_yscale("log")
+            ax.set_ylim(y_min, y_max)
+            if row_index == 0:
+                ax.set_title(group_label, fontsize=10)
+            if col_index == 0:
+                ax.set_ylabel(f"{scope}\ndensity", fontsize=8)
+            else:
+                ax.set_yticklabels([])
+            if row_index == row_count - 1:
+                ax.set_xlabel("Weight value")
+            ax.xaxis.set_major_formatter(FuncFormatter(_trimmed_decimal_tick))
+            ax.tick_params(axis="both", labelsize=8)
+
+    fig.suptitle("ReLU Site-scope Pressure Weight Diagnostic", y=0.985)
+    fig.text(
+        0.5,
+        0.945,
+        (
+            "Rows compare pressure scope; columns aggregate final-checkpoint weights across all six layers; "
+            "probability density is log-scaled"
+        ),
+        ha="center",
+        va="top",
+        fontsize=8,
+    )
+    if legend_handles:
+        fig.legend(
+            list(legend_handles.values()),
+            list(legend_handles.keys()),
+            loc="lower center",
+            bbox_to_anchor=(0.5, 0.012),
+            ncol=min(5, len(legend_handles)),
+            frameon=False,
+            fontsize=8,
+        )
+    fig.text(
+        0.5,
+        0.055,
+        (
+            "Shaded band marks |weight| <= 0.01. "
+            "Residual-stream column uses MLP and attention output-projection weights."
+        ),
+        ha="center",
+        va="bottom",
+        fontsize=8,
+    )
+    fig.subplots_adjust(left=0.09, right=0.995, top=0.88, bottom=0.17, hspace=0.28, wspace=0.12)
+    fig.savefig(output_path)
+    plt.close(fig)
+
+
+def _plot_relu_site_scope_near_zero_heatmaps(
+    payloads: dict[str, dict[str, Any]],
+    output_path: Path,
+) -> None:
+    missing = [site for site, _site_label in RELU_SITE_SCOPE_NEAR_ZERO_SITES if site not in payloads]
+    if missing:
+        raise ValueError(f"Missing ReLU near-zero histogram payloads: {missing}")
+
+    row_labels = [label for label, _prefix in RELU_SITE_SCOPE_REPORT_METHODS]
+    matrices: dict[str, list[list[float]]] = {}
+    for site, _site_label in RELU_SITE_SCOPE_NEAR_ZERO_SITES:
+        payload = payloads[site]
+        edges = [float(value) for value in payload.get("bin_edges", [])]
+        if len(edges) < 2:
+            raise ValueError(f"Histogram payload for {site} has no bin edges.")
+        site_matrix: list[list[float]] = []
+        for _method_label, method_prefix in RELU_SITE_SCOPE_REPORT_METHODS:
+            method = _histogram_method(payload, method_prefix)
+            if method is None:
+                raise ValueError(f"Missing method {method_prefix!r} in histogram payload for {site}.")
+            site_matrix.append(
+                [
+                    100.0
+                    * _histogram_center_window_mass(
+                        _histogram_layer(method, f"{site}.layer_{layer_index}"),
+                        edges,
+                        threshold=0.01,
+                    )
+                    for layer_index in range(6)
+                ]
+            )
+        matrices[site] = site_matrix
+
+    fig, axes = plt.subplots(3, 1, figsize=(8.8, 10.2), sharex=True)
+    image = None
+    for ax, (site, site_label) in zip(axes, RELU_SITE_SCOPE_NEAR_ZERO_SITES, strict=True):
+        matrix = matrices[site]
+        image = ax.imshow(matrix, aspect="auto", cmap="viridis", vmin=0.0, vmax=100.0)
+        ax.set_title(site_label, fontsize=10)
+        ax.set_yticks(range(len(row_labels)), row_labels, fontsize=6)
+        ax.set_xticks(range(6), [f"L{index}" for index in range(6)], fontsize=8)
+        for boundary in (0.5, 4.5, 8.5):
+            ax.axhline(boundary, color="white", linewidth=0.9, alpha=0.8)
+        for row_index, row in enumerate(matrix):
+            for col_index, value in enumerate(row):
+                ax.text(
+                    col_index,
+                    row_index,
+                    f"{value:.0f}",
+                    ha="center",
+                    va="center",
+                    fontsize=5,
+                    color="white" if value >= 55.0 else "black",
+                )
+    axes[-1].set_xlabel("Transformer layer")
+
+    fig.suptitle("ReLU Site-scope Near-zero Mass by Layer Type", y=0.985)
+    eval_tokens = int(next(iter(payloads.values())).get("validation_tokens") or 0)
+    fig.text(
+        0.5,
+        0.952,
+        (
+            "Entries are histogram-estimated |activation| <= 0.01 percentages by layer; "
+            f"{eval_tokens:,} validation tokens"
+        ),
+        ha="center",
+        va="top",
+        fontsize=8,
+    )
+    fig.subplots_adjust(left=0.18, right=0.86, top=0.91, bottom=0.08, hspace=0.33)
+    if image is not None:
+        colorbar_axis = fig.add_axes([0.885, 0.18, 0.018, 0.64])
+        colorbar = fig.colorbar(image, cax=colorbar_axis)
+        colorbar.set_label("Near-zero mass (%)", fontsize=8)
+        colorbar.ax.tick_params(labelsize=8)
+    fig.savefig(output_path)
+    plt.close(fig)
+
+
 def _plot_fixed_step_sweep_summary(rows: list[dict[str, Any]], output_path: Path) -> None:
     plottable = [
         row
@@ -4134,6 +4968,22 @@ def _histogram_density(layer: dict[str, Any], edges: list[float]) -> list[float]
     total = float(layer.get("total") or sum(counts) or 1.0)
     widths = [right - left for left, right in zip(edges[:-1], edges[1:], strict=True)]
     return [count / total / width if width > 0.0 else 0.0 for count, width in zip(counts, widths, strict=True)]
+
+
+def _histogram_center_window_mass(layer: dict[str, Any], edges: list[float], *, threshold: float) -> float:
+    counts = [float(value) for value in layer.get("counts", [])]
+    total = float(layer.get("total") or sum(counts) or 1.0)
+    centers = [(left + right) / 2.0 for left, right in zip(edges[:-1], edges[1:], strict=True)]
+    selected_counts = [count for count, center in zip(counts, centers, strict=True) if abs(center) <= threshold]
+    if selected_counts:
+        window_count = sum(selected_counts)
+    else:
+        window_count = sum(
+            count * max(0.0, min(right, threshold) - max(left, -threshold)) / (right - left)
+            for count, left, right in zip(counts, edges[:-1], edges[1:], strict=True)
+            if right > left
+        )
+    return window_count / total if total > 0.0 else 0.0
 
 
 def _plot_weight_histogram_grid(payload: dict[str, Any], output_path: Path) -> None:
