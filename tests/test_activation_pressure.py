@@ -11,6 +11,7 @@ from paper_exp.activation_pressure import apply_adam_step_orthogonal_pressure
 from paper_exp.activation_pressure import pressure_loss
 from paper_exp.activation_pressure import ricker_pressure
 from paper_exp.activations import ActivationCapture
+from paper_exp.activations import activation_exact_zero_counts
 from paper_exp.activations import clip_activation_tensor
 from paper_exp.activations import resolve_site_aliases
 
@@ -77,6 +78,42 @@ def test_activation_capture_hooks_post_layernorm_mlp_input() -> None:
     assert capture.site_metadata[0].downstream_operator.endswith("dense_h_to_4h")
 
 
+def test_activation_capture_hooks_post_relu_attention_and_mlp_inputs() -> None:
+    model = _TinyPythiaLikePostLayernormReluModel()
+    value = torch.tensor([[[-1.0, 2.0]]])
+
+    with ActivationCapture(model, ["attention_inputs", "mlp_inputs"], torch=torch) as capture:
+        output = model(value)
+
+    expected = torch.tensor([[[0.0, 2.0]]])
+    assert torch.equal(capture.activations["attention_inputs.layer_0"], expected)
+    assert torch.equal(capture.activations["mlp_inputs.layer_0"], expected)
+    assert torch.equal(output, expected)
+    assert [site.role for site in capture.site_metadata] == ["attention_input", "mlp_input"]
+    assert capture.site_metadata[0].module_path.endswith("attention_input_relu")
+    assert capture.site_metadata[0].downstream_operator.endswith("attention.query_key_value")
+    assert capture.site_metadata[1].module_path.endswith("mlp_input_relu")
+    assert capture.site_metadata[1].downstream_operator.endswith("mlp.dense_h_to_4h")
+
+
+def test_activation_capture_clips_post_relu_attention_input_before_projection() -> None:
+    model = _TinyPythiaLikePostLayernormReluModel()
+    value = torch.tensor([[[0.001, 2.0]]])
+
+    with ActivationCapture(
+        model,
+        ["attention_inputs"],
+        torch=torch,
+        clipping={"enabled": True, "mode": "threshold", "threshold": 0.01, "sites": ["attention_inputs"]},
+    ) as capture:
+        output = model(value)
+
+    expected = torch.tensor([[[0.0, 2.0]]])
+    assert torch.equal(capture.activations["attention_inputs.layer_0"], expected)
+    assert torch.equal(model.gpt_neox.layers[0].attention.query_key_value.last_input, expected)
+    assert torch.equal(output, expected)
+
+
 def test_activation_capture_clips_attention_output_tuple() -> None:
     model = _TinyPythiaLikeBlockModel()
     value = torch.tensor([[[0.001, 2.0]]])
@@ -110,6 +147,18 @@ def test_clipping_produces_exact_zeros_and_near_zero_metrics() -> None:
     assert torch.equal(clipped, torch.tensor([-0.02, 0.0, 0.0, 0.0, 0.04]))
     assert metrics["activation/near_zero_mass/k0"] == 0.6
     assert metrics["activation/near_zero_mass/k1em02"] == 0.6
+
+
+def test_exact_zero_counts_are_accumulated_as_integers() -> None:
+    zero_count, activation_count = activation_exact_zero_counts(
+        {
+            "attention_inputs.layer_0": torch.tensor([0.0, 1.0, 0.0]),
+            "mlp_inputs.layer_0": torch.tensor([2.0, 0.0]),
+        }
+    )
+
+    assert zero_count == 3
+    assert activation_count == 5
 
 
 def test_rms_threshold_clipping_uses_current_activation_scale() -> None:
@@ -180,6 +229,44 @@ class _TinyPythiaLikeMlpInputModel(torch.nn.Module):
 
     def forward(self, value: torch.Tensor) -> torch.Tensor:
         return self.gpt_neox.layers[0].post_attention_layernorm(value)
+
+
+class _TinyPythiaLikePostLayernormReluModel(torch.nn.Module):
+    def __init__(self) -> None:
+        super().__init__()
+        self.gpt_neox = SimpleNamespace(layers=torch.nn.ModuleList([_TinyPythiaLikePostLayernormReluBlock()]))
+
+    def forward(self, value: torch.Tensor) -> torch.Tensor:
+        return self.gpt_neox.layers[0](value)
+
+
+class _TinyPythiaLikePostLayernormReluBlock(torch.nn.Module):
+    def __init__(self) -> None:
+        super().__init__()
+        self.input_layernorm = torch.nn.Identity()
+        self.attention_input_relu = torch.nn.ReLU()
+        self.attention = torch.nn.Module()
+        self.attention.query_key_value = _RecordingIdentity()
+        self.post_attention_layernorm = torch.nn.Identity()
+        self.mlp_input_relu = torch.nn.ReLU()
+        self.mlp = torch.nn.Module()
+        self.mlp.dense_h_to_4h = _RecordingIdentity()
+
+    def forward(self, value: torch.Tensor) -> torch.Tensor:
+        value = self.attention_input_relu(self.input_layernorm(value))
+        value = self.attention.query_key_value(value)
+        value = self.mlp_input_relu(self.post_attention_layernorm(value))
+        return self.mlp.dense_h_to_4h(value)
+
+
+class _RecordingIdentity(torch.nn.Module):
+    def __init__(self) -> None:
+        super().__init__()
+        self.last_input: torch.Tensor | None = None
+
+    def forward(self, value: torch.Tensor) -> torch.Tensor:
+        self.last_input = value
+        return value
 
 
 class _TinyPythiaLikeBlock(torch.nn.Module):

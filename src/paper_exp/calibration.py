@@ -15,6 +15,7 @@ from paper_exp.activation_pressure import pressure_loss
 from paper_exp.activations import ActivationCapture
 from paper_exp.config import validate_config
 from paper_exp.data import metadata_matches_config, tokenized_cache_dir, validation_metadata_path
+from paper_exp.modeling import apply_post_layernorm_relu
 from paper_exp.run import create_run_dir, write_run_artifacts
 from paper_exp.utils import build_manifest, read_json, write_jsonl
 
@@ -359,6 +360,9 @@ def run_calibration(
     hidden_act = getattr(getattr(model, "config", None), "hidden_act", None)
     if hidden_act is not None:
         model_manifest["hidden_act"] = hidden_act
+    model_manifest["post_layernorm_relu"] = bool(
+        getattr(getattr(model, "config", None), "post_layernorm_relu", False)
+    )
     manifest["model"] = model_manifest
     manifest["validation"] = validation_config
     manifest["checkpoint"] = checkpoint_metadata
@@ -579,16 +583,20 @@ def _build_random_model(
     _apply_model_architecture_overrides(architecture, model_config)
     architecture.torch_dtype = torch.float32
     model = auto_model.from_config(architecture)
+    apply_post_layernorm_relu(model, torch=torch)
     return model.to(device=device, dtype=torch.float32)
 
 
 def _apply_model_architecture_overrides(architecture: Any, model_config: dict[str, Any]) -> None:
     hidden_act = model_config.get("hidden_act")
-    if hidden_act is None:
-        return
-    if not hasattr(architecture, "hidden_act"):
-        raise ValueError("Configured model.hidden_act, but the loaded architecture has no hidden_act field.")
-    architecture.hidden_act = hidden_act
+    if hidden_act is not None:
+        if not hasattr(architecture, "hidden_act"):
+            raise ValueError("Configured model.hidden_act, but the loaded architecture has no hidden_act field.")
+        architecture.hidden_act = hidden_act
+
+    post_layernorm_relu = model_config.get("post_layernorm_relu")
+    if post_layernorm_relu is not None:
+        architecture.post_layernorm_relu = post_layernorm_relu
 
 
 def _autocast_context(torch: Any, device: Any, dtype: Any) -> Any:

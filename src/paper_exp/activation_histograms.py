@@ -7,6 +7,7 @@ from typing import Any
 import yaml
 
 from paper_exp.activations import ActivationCapture
+from paper_exp.modeling import load_checkpoint_model
 from paper_exp.run import create_run_dir, write_run_artifacts
 from paper_exp.utils import build_manifest, read_json, write_json
 
@@ -154,7 +155,7 @@ def _measure_one_run(
 ) -> dict[str, Any]:
     source_manifest = read_json(source_run / "manifest.json")
     checkpoint_path = Path(source_manifest["checkpoint"]["path"])
-    model = auto_model.from_pretrained(checkpoint_path)
+    model = load_checkpoint_model(auto_model, checkpoint_path, torch=torch)
     model.to(device=device, dtype=torch.float32)
     model.eval()
 

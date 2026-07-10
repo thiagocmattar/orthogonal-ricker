@@ -26,7 +26,7 @@ REQUIRED_FIELDS: tuple[tuple[str, ...], ...] = (
     ("output", "dir"),
 )
 
-CONFIG_FILE_RE = re.compile(r"^\d{2}-[a-z0-9][a-z0-9-]*\.ya?ml$")
+CONFIG_FILE_RE = re.compile(r"^\d{2,}-[a-z0-9][a-z0-9-]*\.ya?ml$")
 
 
 def load_config(path: str | Path, *, allow_todos: bool = True) -> dict[str, Any]:
@@ -49,7 +49,7 @@ def validate_config_filename(path: str | Path) -> None:
     name = Path(path).name
     if CONFIG_FILE_RE.match(name) is None:
         raise ConfigError(
-            "Config filenames must be numbered like 01-baseline.yaml, 02-ablation-name.yaml, etc."
+            "Config filenames must start with at least two digits, like 01-baseline.yaml or 100-diagnostic.yaml."
         )
 
 
@@ -75,6 +75,10 @@ def validate_config(config: Mapping[str, Any], *, allow_todos: bool = True) -> N
     hidden_act = config.get("model", {}).get("hidden_act")
     if hidden_act is not None and (not isinstance(hidden_act, str) or not hidden_act.strip()):
         raise ConfigError("Config field model.hidden_act must be a non-empty string when provided.")
+
+    post_layernorm_relu = config.get("model", {}).get("post_layernorm_relu")
+    if post_layernorm_relu is not None and not isinstance(post_layernorm_relu, bool):
+        raise ConfigError("Config field model.post_layernorm_relu must be a boolean when provided.")
 
     if not allow_todos:
         todos = list(find_todo_values(config))

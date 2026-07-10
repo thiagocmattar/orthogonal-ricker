@@ -4,7 +4,13 @@ from dataclasses import dataclass
 from typing import Any
 
 
-SUPPORTED_SITE_ALIASES = {"mlp_hiddens", "mlp_inputs", "residual_streams", "attention_outputs"}
+SUPPORTED_SITE_ALIASES = {
+    "mlp_hiddens",
+    "attention_inputs",
+    "mlp_inputs",
+    "residual_streams",
+    "attention_outputs",
+}
 
 
 @dataclass(frozen=True)
@@ -49,6 +55,8 @@ class ActivationCapture:
         resolved = resolve_site_aliases(self.requested_sites)
         if "mlp_hiddens" in resolved:
             self._register_pythia_mlp_hiddens()
+        if "attention_inputs" in resolved:
+            self._register_pythia_attention_inputs()
         if "mlp_inputs" in resolved:
             self._register_pythia_mlp_inputs()
         if "residual_streams" in resolved:
@@ -83,27 +91,57 @@ class ActivationCapture:
             )
             self._handles.append(activation_module.register_forward_hook(self._make_hook(name, "mlp_hiddens")))
 
+    def _register_pythia_attention_inputs(self) -> None:
+        layers = getattr(getattr(self.model, "gpt_neox", None), "layers", None)
+        if layers is None:
+            raise ValueError("attention_inputs capture currently supports GPTNeoX/Pythia models only.")
+
+        for index, layer in enumerate(layers):
+            capture_module = getattr(layer, "attention_input_relu", None)
+            module_path = f"gpt_neox.layers.{index}.attention_input_relu"
+            if capture_module is None:
+                capture_module = getattr(layer, "input_layernorm", None)
+                module_path = f"gpt_neox.layers.{index}.input_layernorm"
+            if capture_module is None:
+                raise ValueError(f"Could not resolve attention input module for layer {index}.")
+
+            name = f"attention_inputs.layer_{index}"
+            self.site_metadata.append(
+                ActivationSite(
+                    name=name,
+                    module_path=module_path,
+                    role="attention_input",
+                    shape="[batch, seq, hidden]",
+                    downstream_operator=f"gpt_neox.layers.{index}.attention.query_key_value",
+                )
+            )
+            self._handles.append(capture_module.register_forward_hook(self._make_hook(name, "attention_inputs")))
+
     def _register_pythia_mlp_inputs(self) -> None:
         layers = getattr(getattr(self.model, "gpt_neox", None), "layers", None)
         if layers is None:
             raise ValueError("mlp_inputs capture currently supports GPTNeoX/Pythia models only.")
 
         for index, layer in enumerate(layers):
-            layernorm_module = getattr(layer, "post_attention_layernorm", None)
-            if layernorm_module is None:
-                raise ValueError(f"Could not resolve post-attention LayerNorm module for layer {index}.")
+            capture_module = getattr(layer, "mlp_input_relu", None)
+            module_path = f"gpt_neox.layers.{index}.mlp_input_relu"
+            if capture_module is None:
+                capture_module = getattr(layer, "post_attention_layernorm", None)
+                module_path = f"gpt_neox.layers.{index}.post_attention_layernorm"
+            if capture_module is None:
+                raise ValueError(f"Could not resolve MLP input module for layer {index}.")
 
             name = f"mlp_inputs.layer_{index}"
             self.site_metadata.append(
                 ActivationSite(
                     name=name,
-                    module_path=f"gpt_neox.layers.{index}.post_attention_layernorm",
+                    module_path=module_path,
                     role="mlp_input",
                     shape="[batch, seq, hidden]",
                     downstream_operator=f"gpt_neox.layers.{index}.mlp.dense_h_to_4h",
                 )
             )
-            self._handles.append(layernorm_module.register_forward_hook(self._make_hook(name, "mlp_inputs")))
+            self._handles.append(capture_module.register_forward_hook(self._make_hook(name, "mlp_inputs")))
 
     def _register_pythia_residual_streams(self) -> None:
         layers = getattr(getattr(self.model, "gpt_neox", None), "layers", None)
@@ -184,6 +222,16 @@ def resolve_site_aliases(sites: list[str]) -> set[str]:
         else:
             raise ValueError(f"Unsupported activation site for this harness: {site}")
     return resolved
+
+
+def activation_exact_zero_counts(activations: dict[str, Any]) -> tuple[int, int]:
+    zero_count = 0
+    activation_count = 0
+    for value in activations.values():
+        detached = value.detach()
+        zero_count += int((detached == 0).sum().item())
+        activation_count += detached.numel()
+    return zero_count, activation_count
 
 
 def _first_tensor(value: Any) -> Any:

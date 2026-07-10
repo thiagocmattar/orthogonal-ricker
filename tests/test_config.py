@@ -51,8 +51,12 @@ def test_todo_placeholders_can_be_rejected() -> None:
 
 
 def test_config_filenames_must_be_numbered() -> None:
-    with pytest.raises(ConfigError, match="Config filenames must be numbered"):
+    with pytest.raises(ConfigError, match="at least two digits"):
         validate_config_filename("baseline.yaml")
+
+
+def test_config_filenames_allow_three_digit_prefixes() -> None:
+    validate_config_filename("100-diagnostic.yaml")
 
 
 def test_pretraining_configs_must_use_random_initialization() -> None:
@@ -91,4 +95,24 @@ def test_optional_hidden_act_must_be_non_empty_string() -> None:
     }
 
     with pytest.raises(ConfigError, match="hidden_act"):
+        validate_config(config, allow_todos=False)
+
+
+def test_optional_post_layernorm_relu_must_be_boolean() -> None:
+    config = {
+        "experiment_name": "bad_post_layernorm_relu",
+        "model": {
+            "provider": "huggingface",
+            "name": "pythia-14m-random",
+            "architecture": "EleutherAI/pythia-14m-deduped",
+            "initialization": "random",
+            "post_layernorm_relu": "yes",
+        },
+        "data": {"name": "JeanKaddour/minipile", "split": "train"},
+        "evaluation": {"metric": "training_loss"},
+        "run": {"seed": 0, "max_examples": 1},
+        "output": {"dir": "results"},
+    }
+
+    with pytest.raises(ConfigError, match="post_layernorm_relu"):
         validate_config(config, allow_todos=False)

@@ -6,8 +6,9 @@ from typing import Any
 
 import yaml
 
-from paper_exp.activation_pressure import activation_near_zero_metrics
 from paper_exp.activations import ActivationCapture
+from paper_exp.activations import activation_exact_zero_counts
+from paper_exp.modeling import load_checkpoint_model
 from paper_exp.run import create_run_dir, write_run_artifacts
 from paper_exp.utils import build_manifest, read_json, write_jsonl
 
@@ -44,7 +45,7 @@ def run_clipping_sweep(
     dtype = _select_dtype(torch, device, training.get("precision", "auto"))
 
     checkpoint_path = Path(source_manifest["checkpoint"]["path"])
-    model = auto_model.from_pretrained(checkpoint_path)
+    model = load_checkpoint_model(auto_model, checkpoint_path, torch=torch)
     model.to(device=device, dtype=torch.float32)
     model.eval()
 
@@ -177,8 +178,8 @@ def _evaluate_clipped_loss(
     batches = 0
     total_sequences = 0
     total_tokens = 0
-    zero_hits = 0.0
-    zero_count = 0.0
+    zero_hits = 0
+    zero_count = 0
     start_time = time.perf_counter()
 
     with ActivationCapture(model, clipping_cfg.get("sites", ["mlp_hiddens"]), torch=torch, clipping=clipping_cfg) as capture:
@@ -193,9 +194,9 @@ def _evaluate_clipped_loss(
                 if not bool(torch.isfinite(output.loss.detach()).item()):
                     raise RuntimeError("Non-finite clipped validation loss.")
                 losses.append(float(output.loss.detach().cpu()) * len(batch_starts))
-                near_zero = activation_near_zero_metrics(capture.activations, (0.0,))
-                zero_hits += near_zero.get("activation/near_zero_mass/k0", 0.0) * _activation_count(capture.activations)
-                zero_count += _activation_count(capture.activations)
+                batch_zero_hits, batch_activation_count = activation_exact_zero_counts(capture.activations)
+                zero_hits += batch_zero_hits
+                zero_count += batch_activation_count
                 total_sequences += len(batch_starts)
                 total_tokens += len(batch_starts) * block_size
                 batches += 1
@@ -228,10 +229,6 @@ def _eval_starts(tokens: Any, block_size: int, *, eval_batches: int | None, batc
         return [index * block_size for index in range(total_blocks)]
     max_start = len(tokens) - block_size - 1
     return list(np.random.randint(0, max_start, size=int(eval_batches) * batch_size))
-
-
-def _activation_count(activations: dict[str, Any]) -> int:
-    return sum(value.numel() for value in activations.values())
 
 
 def _autocast_context(torch: Any, device: Any, dtype: Any) -> Any:
