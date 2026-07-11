@@ -192,6 +192,14 @@ Post-LayerNorm ReLU architecture and pressure test:
 - Interpretation boundary: this is a one-seed architecture/planning test. Current ReLUs are injected through forward hooks, dense kernels realize no skip, and the large near-zero reservoir is not equivalent to safe exact sparsity.
 - Report: `report/04-2026-07-11-post-layernorm-relu-ol1-comparison/04-2026-07-11-post-layernorm-relu-ol1-comparison.pdf`.
 
+Exact-zero propagation diagnostic:
+
+- Config `102` defines an exact zero by the direct comparison `value == 0`, with no tolerance. Integer counts are pooled over all 338 complete validation blocks, 692,224 token positions, and every tensor coordinate in each layer; percentages are not averages of batch percentages. A width-128 activation cell therefore has denominator `692224 * 128 = 88604672`, and a width-512 MLP cell has denominator `354418688`.
+- Pythia uses parallel residuals: attention and MLP both consume `H_l`, then `H_{l+1} = H_l + O_l + M_l`. The post-LayerNorm ReLUs create local masks. QKV and W1 immediately densify those masks; the MLP-hidden ReLU creates a new mask, W2 densifies it, and residual addition remains effectively dense.
+- A matmul zero-product opportunity is one logical scalar multiplication with at least one exactly-zero activation operand. Future causal-mask entries are excluded from attention probabilities, QK, and PV; eager attention is used only to expose those diagnostic tensors.
+- Across all six major block matmuls (QKV, valid-causal QK, valid-causal PV, attention output, W1, and W2) at sequence length 2,048, the full-validation logical zero-product fraction is 19.71% for config `98` and 21.48% for config `99`. The smaller totals relative to the projection-only proxy occur because QK, PV, and the attention output input are effectively dense.
+- Figure: `figures/85-pythia-14m-minipile-post-layernorm-relu-zero-propagation-heatmaps.pdf`.
+
 ## Expected Scale Ladders
 
 TODO: after the Pythia-14M MiniPile random-init baseline is stable and calibrated, consider scaling within the Pythia family up to 160M if memory and runtime measurements justify it. Do not add scale-up configs until the 14M path is reproducible.

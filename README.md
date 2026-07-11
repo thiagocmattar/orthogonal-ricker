@@ -151,12 +151,14 @@ Post-LayerNorm ReLU and OL1 comparison:
 
 ```text
 training configs: configs/98-pythia-14m-minipile-post-layernorm-relu-adamw-full-pass.yaml and configs/99-pythia-14m-minipile-post-layernorm-relu-orthogonal-l1-full-pass-w5.yaml
-validation diagnostics: configs/100-pythia-14m-minipile-post-layernorm-relu-input-histograms.yaml and configs/101-pythia-14m-minipile-post-layernorm-relu-mlp-hidden-histograms.yaml
+validation diagnostics: configs/100-pythia-14m-minipile-post-layernorm-relu-input-histograms.yaml through configs/102-pythia-14m-minipile-post-layernorm-relu-activation-propagation.yaml
 report: report/04-2026-07-11-post-layernorm-relu-ol1-comparison/04-2026-07-11-post-layernorm-relu-ol1-comparison.pdf
-figures: figures/79-pythia-14m-minipile-post-layernorm-relu-learning-diagnostics.pdf through figures/84-pythia-14m-minipile-post-layernorm-relu-parameter-diagnostics.pdf
+figures: figures/79-pythia-14m-minipile-post-layernorm-relu-learning-diagnostics.pdf through figures/85-pythia-14m-minipile-post-layernorm-relu-zero-propagation-heatmaps.pdf
 ```
 
 This one-seed test applies ReLU after both branch LayerNorms in every transformer block, keeps the MLP-hidden ReLU, and leaves the final LayerNorm unchanged. The matched three-site OL1 run uses weight 5 and step budget 0.5 on `attention_inputs`, `mlp_inputs`, and `mlp_hiddens`.
+
+Config `102` counts exact zeros at every attention, MLP, and residual boundary and the corresponding logical zero-input products in QKV, QK, PV, attention output, W1, and W2 matmuls. It covers all 692,224 evaluated validation tokens and excludes future causal-mask entries from attention-core denominators.
 
 ## Known TODOs
 

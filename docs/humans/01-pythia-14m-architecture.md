@@ -410,6 +410,29 @@ attention_inputs = U_l^+
 mlp_inputs = R_l^+
 ```
 
+### Exact-zero propagation through the parallel block
+
+Pythia-14M uses `use_parallel_residual: true`, so both branches consume the same `H_l`:
+
+```text
+U_l^+ = ReLU(LN_attn(H_l))
+[Q_l, K_l, V_l] = U_l^+ W_qkv^T + b_qkv
+P_l = causal_softmax(RoPE(Q_l) RoPE(K_l)^T / sqrt(32))
+C_l = P_l V_l
+O_l = C_l W_o^T + b_o
+
+R_l^+ = ReLU(LN_mlp(H_l))
+Z_l = R_l^+ W_1^T + b_1
+A_l = ReLU(Z_l)
+M_l = A_l W_2^T + b_2
+
+H_{l+1} = H_l + O_l + M_l
+```
+
+An exact zero at `U_l^+`, `R_l^+`, or `A_l` creates a local logical zero product in the immediately following QKV, W1, or W2 multiplication. It does not normally remain an exact zero in the projection output: dense feature mixing, summation, and nonzero learned biases repopulate the coordinates. `A_l` is therefore a fresh ReLU mask rather than the surviving `R_l^+` mask. The residual sum and the next LayerNorm are also effectively dense, so the next block's ReLUs create new masks again.
+
+Config `102` verifies this path over 692,224 evaluated validation tokens. The fraction of logical scalar products with an exact-zero activation operand across QKV, valid-causal QK, valid-causal PV, attention output, W1, and W2 is 19.71% for config `98` and 21.48% for config `99`. Current dense and attention kernels do not realize those fractions as measured speedup.
+
 A simple nonparametric first operator is soft-thresholding:
 
 ```text

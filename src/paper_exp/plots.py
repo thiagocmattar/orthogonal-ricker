@@ -382,6 +382,34 @@ REPORT04_METHOD_MARKERS = {
     "Three-ReLU AdamW": "^",
     "Three-ReLU OL1": "P",
 }
+POST_LAYERNORM_RELU_PROPAGATION_EXPERIMENT = (
+    "102-pythia-14m-minipile-post-layernorm-relu-activation-propagation"
+)
+PROPAGATION_ACTIVATION_ROWS = (
+    ("residual_input", r"Residual input $H_l$"),
+    ("attention_layernorm_raw", r"Attention LN raw $U_l$"),
+    ("attention_input_relu", r"Attention ReLU $U_l^+$ [QKV input]"),
+    ("query_post_rope", r"Query $Q_l$ after RoPE"),
+    ("key_post_rope", r"Key $K_l$ after RoPE"),
+    ("value", r"Value $V_l$"),
+    ("attention_probabilities", r"Attention prob. $P_l$ [valid causal]"),
+    ("attention_context", r"Context $C_l=P_lV_l$ [$W_o$ input]"),
+    ("attention_output", r"Attention output $O_l$"),
+    ("mlp_layernorm_raw", r"MLP LN raw $R_l$"),
+    ("mlp_input_relu", r"MLP-input ReLU $R_l^+$ [$W_1$ input]"),
+    ("mlp_w1_preactivation", r"MLP preactivation $Z_l$"),
+    ("mlp_hidden_relu", r"MLP-hidden ReLU $A_l$ [$W_2$ input]"),
+    ("mlp_output", r"MLP output $M_l$"),
+    ("residual_output", r"Residual output $H_{l+1}$"),
+)
+PROPAGATION_MATMUL_ROWS = (
+    ("qkv_projection", r"QKV: $U_l^+ W_{qkv}$"),
+    ("qk_scores", r"Attention scores: $Q_l K_l^T$ [valid causal]"),
+    ("probability_value", r"Attention mix: $P_l V_l$ [valid causal]"),
+    ("attention_output_projection", r"Attention projection: $C_l W_o$"),
+    ("mlp_w1", r"MLP up: $R_l^+ W_1$"),
+    ("mlp_w2", r"MLP down: $A_l W_2$"),
+)
 
 PLOT_STYLE = {
     "figure.figsize": (6.5, 4.0),
@@ -1544,6 +1572,20 @@ def _generate_known_paper_figures(results_path: Path, figures_path: Path, *, sav
             )
         )
 
+    propagation_run = _latest_run_with(
+        results_path / POST_LAYERNORM_RELU_PROPAGATION_EXPERIMENT,
+        "activation_propagation.json",
+    )
+    if propagation_run is not None:
+        output_pdf = figures_path / "85-pythia-14m-minipile-post-layernorm-relu-zero-propagation-heatmaps.pdf"
+        outputs.extend(
+            generate_post_layernorm_relu_propagation_heatmaps(
+                run_dir=propagation_run,
+                output=output_pdf,
+                save_png=save_png,
+            )
+        )
+
     return outputs
 
 
@@ -2161,6 +2203,27 @@ def generate_report04_parameter_diagnostics(
     if save_png:
         png_path = output_path.with_suffix(".png")
         _plot_report04_parameter_diagnostics(series, png_path)
+        outputs.append(png_path)
+    return outputs
+
+
+def generate_post_layernorm_relu_propagation_heatmaps(
+    *,
+    run_dir: str | Path,
+    output: str | Path,
+    save_png: bool = False,
+) -> list[Path]:
+    plt.rcParams.update(PLOT_STYLE)
+
+    run_path = Path(run_dir)
+    output_path = Path(output)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    payload = read_json(run_path / "activation_propagation.json")
+    _plot_post_layernorm_relu_propagation_heatmaps(payload, output_path)
+    outputs = [output_path]
+    if save_png:
+        png_path = output_path.with_suffix(".png")
+        _plot_post_layernorm_relu_propagation_heatmaps(payload, png_path)
         outputs.append(png_path)
     return outputs
 
@@ -5448,6 +5511,252 @@ def _plot_report04_parameter_diagnostics(
     fig.subplots_adjust(left=0.075, right=0.995, top=0.88, bottom=0.17)
     fig.savefig(output_path)
     plt.close(fig)
+
+
+def _plot_post_layernorm_relu_propagation_heatmaps(
+    payload: dict[str, Any],
+    output_path: Path,
+) -> None:
+    methods = list(payload.get("methods", []))
+    if len(methods) != 2:
+        raise ValueError("Activation-propagation heatmaps require exactly two matched checkpoints.")
+
+    num_layers = int(methods[0].get("num_layers") or 0)
+    if num_layers <= 0 or any(int(method.get("num_layers") or 0) != num_layers for method in methods):
+        raise ValueError("Activation-propagation payload has inconsistent layer counts.")
+
+    activation_matrices = [
+        _propagation_matrix(method, "activations", PROPAGATION_ACTIVATION_ROWS, num_layers)
+        for method in methods
+    ]
+    matmul_matrices = [
+        _propagation_matrix(method, "matmuls", PROPAGATION_MATMUL_ROWS, num_layers)
+        for method in methods
+    ]
+
+    fig = plt.figure(figsize=(15.2, 10.8))
+    grid = fig.add_gridspec(
+        2,
+        3,
+        width_ratios=(1.0, 1.0, 0.035),
+        height_ratios=(len(PROPAGATION_ACTIVATION_ROWS), len(PROPAGATION_MATMUL_ROWS)),
+        hspace=0.30,
+        wspace=0.13,
+    )
+    axes = [
+        [fig.add_subplot(grid[0, 0]), fig.add_subplot(grid[0, 1])],
+        [fig.add_subplot(grid[1, 0]), fig.add_subplot(grid[1, 1])],
+    ]
+    colorbar_axis = fig.add_subplot(grid[:, 2])
+    column_labels = [f"L{layer}" for layer in range(num_layers)] + ["All"]
+    image = None
+
+    for method_index, method in enumerate(methods):
+        method_label = str(method.get("label") or method.get("config_id") or f"Method {method_index + 1}")
+        panel_label = chr(ord("a") + method_index)
+        activation_axis = axes[0][method_index]
+        image = activation_axis.imshow(
+            activation_matrices[method_index],
+            aspect="auto",
+            cmap="viridis",
+            vmin=0.0,
+            vmax=100.0,
+        )
+        activation_axis.set_title(
+            f"({panel_label}) {method_label}\nActivation outputs: exact-zero scalars (%)",
+            fontsize=11,
+        )
+        _format_propagation_heatmap(
+            activation_axis,
+            image,
+            activation_matrices[method_index],
+            row_labels=[label for _name, label in PROPAGATION_ACTIVATION_ROWS],
+            column_labels=column_labels,
+            show_row_labels=method_index == 0,
+            separators=(0.5, 8.5, 13.5),
+            emphasized_rows=(2, 7, 10, 12),
+        )
+
+        matmul_axis = axes[1][method_index]
+        weighted_matmul_opportunity = _propagation_weighted_fraction(method, "matmuls")
+        matmul_image = matmul_axis.imshow(
+            matmul_matrices[method_index],
+            aspect="auto",
+            cmap="viridis",
+            vmin=0.0,
+            vmax=100.0,
+        )
+        panel_label = chr(ord("c") + method_index)
+        matmul_axis.set_title(
+            f"({panel_label}) {method_label}\n"
+            "Logical products with an exact-zero activation operand (%)\n"
+            f"All six major matmuls weighted together: {weighted_matmul_opportunity:.1f}%",
+            fontsize=10.5,
+        )
+        _format_propagation_heatmap(
+            matmul_axis,
+            matmul_image,
+            matmul_matrices[method_index],
+            row_labels=[label for _name, label in PROPAGATION_MATMUL_ROWS],
+            column_labels=column_labels,
+            show_row_labels=method_index == 0,
+            separators=(3.5,),
+            emphasized_rows=(),
+        )
+        matmul_axis.set_xlabel("Transformer layer; All pools integer counts over L0-L5")
+
+    if image is None:
+        raise ValueError("Activation-propagation payload has no plottable methods.")
+    colorbar = fig.colorbar(image, cax=colorbar_axis)
+    colorbar.set_label("Exact-zero or zero-product fraction (%)", fontsize=9)
+    colorbar.ax.tick_params(labelsize=8)
+
+    validation_tokens = int(payload.get("validation_tokens") or 0)
+    validation_sequences = int(payload.get("validation_sequences") or 0)
+    block_size = int(payload.get("block_size") or 0)
+    trailing_tokens = int(payload.get("trailing_tokens_excluded") or 0)
+    fig.suptitle("Exact-Zero Propagation Through Pythia-14M Transformer Blocks", y=0.992, fontsize=16)
+    fig.text(
+        0.5,
+        0.962,
+        (
+            f"Direct integer counts over {validation_sequences:,} x {block_size:,} = "
+            f"{validation_tokens:,} evaluated validation tokens; {trailing_tokens:,} incomplete-tail tokens excluded"
+        ),
+        ha="center",
+        va="top",
+        fontsize=9,
+    )
+    fig.text(
+        0.5,
+        0.100,
+        (
+            "Exact zero = number of produced scalar values equal to numeric 0 divided by all produced values at that "
+            "stage/layer. Width-128 denominator: 692,224 x 128 = 88,604,672; width-512: 354,418,688."
+        ),
+        ha="center",
+        va="bottom",
+        fontsize=8.2,
+    )
+    fig.text(
+        0.5,
+        0.070,
+        (
+            "Attention-probability, QK, and PV denominators contain only valid lower-triangular causal pairs; "
+            "future mask zeros are excluded. Eager attention is used only to expose these diagnostic tensors."
+        ),
+        ha="center",
+        va="bottom",
+        fontsize=8.2,
+    )
+    fig.text(
+        0.5,
+        0.040,
+        (
+            "Matmul cells count logical scalar products with at least one zero activation operand. "
+            "They are ideal opportunities, not structured sparsity or measured speedup; current kernels execute them."
+        ),
+        ha="center",
+        va="bottom",
+        fontsize=8.2,
+    )
+    fig.subplots_adjust(left=0.285, right=0.93, top=0.91, bottom=0.185)
+    fig.savefig(output_path)
+    plt.close(fig)
+
+
+def _propagation_matrix(
+    method: dict[str, Any],
+    kind: str,
+    row_specs: tuple[tuple[str, str], ...],
+    num_layers: int,
+) -> list[list[float]]:
+    lookup = {
+        (str(row.get("name")), int(row.get("layer"))): row
+        for row in method.get(kind, [])
+    }
+    matrix: list[list[float]] = []
+    for name, _label in row_specs:
+        values: list[float] = []
+        pooled_zero = 0
+        pooled_total = 0
+        for layer in range(num_layers):
+            row = lookup.get((name, layer))
+            if row is None:
+                raise ValueError(
+                    f"Missing activation-propagation row {kind}/{name}/layer_{layer} "
+                    f"for {method.get('label')!r}."
+                )
+            zero_count = int(row.get("zero_count") or 0)
+            total = int(row.get("total") or 0)
+            if total <= 0:
+                raise ValueError(f"Activation-propagation row {kind}/{name}/layer_{layer} has no denominator.")
+            values.append(100.0 * zero_count / total)
+            pooled_zero += zero_count
+            pooled_total += total
+        values.append(100.0 * pooled_zero / pooled_total)
+        matrix.append(values)
+    return matrix
+
+
+def _propagation_weighted_fraction(method: dict[str, Any], kind: str) -> float:
+    rows = list(method.get(kind, []))
+    zero_count = sum(int(row.get("zero_count") or 0) for row in rows)
+    total = sum(int(row.get("total") or 0) for row in rows)
+    if total <= 0:
+        raise ValueError(f"Activation-propagation payload has no {kind} denominator.")
+    return 100.0 * zero_count / total
+
+
+def _format_propagation_heatmap(
+    ax: Any,
+    image: Any,
+    matrix: list[list[float]],
+    *,
+    row_labels: list[str],
+    column_labels: list[str],
+    show_row_labels: bool,
+    separators: tuple[float, ...],
+    emphasized_rows: tuple[int, ...],
+) -> None:
+    ax.grid(False)
+    ax.set_xticks(range(len(column_labels)), column_labels)
+    ax.set_yticks(range(len(row_labels)))
+    if show_row_labels:
+        ax.set_yticklabels(row_labels, fontsize=8.2)
+        for index in emphasized_rows:
+            ax.get_yticklabels()[index].set_fontweight("bold")
+    else:
+        ax.set_yticklabels([])
+        ax.tick_params(axis="y", length=0)
+    ax.tick_params(axis="x", labelsize=8)
+    ax.axvline(len(column_labels) - 1.5, color="white", linewidth=1.8, alpha=0.95)
+    for separator in separators:
+        ax.axhline(separator, color="white", linewidth=1.4, alpha=0.9)
+
+    for row_index, row in enumerate(matrix):
+        for column_index, value in enumerate(row):
+            red, green, blue, _alpha = image.cmap(image.norm(value))
+            luminance = 0.2126 * red + 0.7152 * green + 0.0722 * blue
+            ax.text(
+                column_index,
+                row_index,
+                _propagation_cell_label(value),
+                ha="center",
+                va="center",
+                fontsize=6.9,
+                color="black" if luminance >= 0.56 else "white",
+            )
+
+
+def _propagation_cell_label(percent: float) -> str:
+    if percent == 0.0:
+        return "0"
+    if percent < 0.001:
+        return f"{percent:.1e}"
+    if percent < 0.1:
+        return f"{percent:.3f}"
+    return f"{percent:.1f}"
 
 
 def _plot_fixed_step_sweep_summary(rows: list[dict[str, Any]], output_path: Path) -> None:
