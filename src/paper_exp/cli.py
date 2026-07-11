@@ -5,6 +5,7 @@ import sys
 from pathlib import Path
 
 from paper_exp.activation_histograms import run_activation_histograms
+from paper_exp.activation_propagation import run_activation_propagation
 from paper_exp.calibration import run_calibration
 from paper_exp.clipping import run_clipping_sweep
 from paper_exp.config import ConfigError, load_config
@@ -101,6 +102,15 @@ def build_parser() -> argparse.ArgumentParser:
     activation_histograms.add_argument(
         "--config",
         default="configs/49-pythia-14m-pressure-fixed-2048-selected-activation-histograms.yaml",
+    )
+
+    activation_propagation = subparsers.add_parser(
+        "activation-propagation",
+        help="Measure exact-zero propagation through selected GPT-NeoX checkpoints.",
+    )
+    activation_propagation.add_argument(
+        "--config",
+        default="configs/102-pythia-14m-minipile-post-layernorm-relu-activation-propagation.yaml",
     )
 
     weight_histograms = subparsers.add_parser(
@@ -221,6 +231,12 @@ def main(argv: list[str] | None = None) -> int:
             config = load_config(args.config, allow_todos=False)
             run_dir = run_activation_histograms(config, config_path=args.config, command=command)
             print(f"Activation histograms written to {run_dir}")
+            return 0
+
+        if args.command == "activation-propagation":
+            config = load_config(args.config, allow_todos=False)
+            run_dir = run_activation_propagation(config, config_path=args.config, command=command)
+            print(f"Activation propagation written to {run_dir}")
             return 0
 
         if args.command == "weight-histograms":
