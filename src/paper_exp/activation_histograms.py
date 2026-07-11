@@ -26,6 +26,7 @@ def run_activation_histograms(
     bins = int(histogram_config["bins"])
     range_min = float(histogram_config["range_min"])
     range_max = float(histogram_config["range_max"])
+    thresholds = tuple(float(value) for value in histogram_config.get("thresholds", [0.0, 0.01]))
     if bins <= 0:
         raise ValueError("activation_histograms.bins must be positive.")
     if range_min >= range_max:
@@ -73,6 +74,7 @@ def run_activation_histograms(
             bins=bins,
             range_min=range_min,
             range_max=range_max,
+            thresholds=thresholds,
         )
         results.append(result)
         if device.type == "cuda":
@@ -112,6 +114,7 @@ def run_activation_histograms(
         "range_min": range_min,
         "range_max": range_max,
         "selected_runs": selected_runs,
+        "thresholds": list(thresholds),
         "eval_batches": eval_batches,
         "batch_size": batch_size,
         "validation_sequences": total_sequences,
@@ -119,13 +122,14 @@ def run_activation_histograms(
     }
 
     payload = {
-        "schema_version": 1,
+        "schema_version": 2,
         "plot_title": histogram_config.get("plot_title"),
         "bin_edges": bin_edges,
         "range_min": range_min,
         "range_max": range_max,
         "bins": bins,
         "sites": histogram_config.get("sites", ["mlp_hiddens"]),
+        "thresholds": list(thresholds),
         "validation_sequences": total_sequences,
         "validation_tokens": total_tokens,
         "methods": results,
@@ -152,6 +156,7 @@ def _measure_one_run(
     bins: int,
     range_min: float,
     range_max: float,
+    thresholds: tuple[float, ...],
 ) -> dict[str, Any]:
     source_manifest = read_json(source_run / "manifest.json")
     checkpoint_path = Path(source_manifest["checkpoint"]["path"])
@@ -164,6 +169,15 @@ def _measure_one_run(
     overflow: dict[str, int] = {}
     nonfinite: dict[str, int] = {}
     totals: dict[str, int] = {}
+    finite_totals: dict[str, int] = {}
+    threshold_hits: dict[str, dict[str, int]] = {}
+    sums: dict[str, float] = {}
+    square_sums: dict[str, float] = {}
+    absolute_sums: dict[str, float] = {}
+    nonzero_absolute_sums: dict[str, float] = {}
+    nonzero_totals: dict[str, int] = {}
+    positive_totals: dict[str, int] = {}
+    negative_totals: dict[str, int] = {}
     batches = 0
     method_start = time.perf_counter()
 
@@ -186,11 +200,34 @@ def _measure_one_run(
                         overflow[name] = 0
                         nonfinite[name] = 0
                         totals[name] = 0
+                        finite_totals[name] = 0
+                        threshold_hits[name] = {_threshold_key(threshold): 0 for threshold in thresholds}
+                        sums[name] = 0.0
+                        square_sums[name] = 0.0
+                        absolute_sums[name] = 0.0
+                        nonzero_absolute_sums[name] = 0.0
+                        nonzero_totals[name] = 0
+                        positive_totals[name] = 0
+                        negative_totals[name] = 0
                     if finite_values.numel():
                         counts = torch.histc(finite_values, bins=bins, min=range_min, max=range_max).cpu().double()
                         layer_counts[name] += counts
                         underflow[name] += int((finite_values < range_min).sum().detach().cpu())
                         overflow[name] += int((finite_values > range_max).sum().detach().cpu())
+                        absolute_values = finite_values.abs()
+                        nonzero = finite_values != 0
+                        finite_totals[name] += int(finite_values.numel())
+                        sums[name] += float(finite_values.sum().detach().cpu())
+                        square_sums[name] += float(finite_values.square().sum().detach().cpu())
+                        absolute_sums[name] += float(absolute_values.sum().detach().cpu())
+                        nonzero_absolute_sums[name] += float(absolute_values[nonzero].sum().detach().cpu())
+                        nonzero_totals[name] += int(nonzero.sum().detach().cpu())
+                        positive_totals[name] += int((finite_values > 0).sum().detach().cpu())
+                        negative_totals[name] += int((finite_values < 0).sum().detach().cpu())
+                        for threshold in thresholds:
+                            threshold_hits[name][_threshold_key(threshold)] += int(
+                                (absolute_values <= threshold).sum().detach().cpu()
+                            )
                     nonfinite[name] += int((~finite).sum().detach().cpu())
                     totals[name] += int(flat.numel())
                 batches += 1
@@ -203,6 +240,8 @@ def _measure_one_run(
     for name in sorted(layer_counts, key=_layer_sort_key):
         total = totals[name]
         in_range = int(layer_counts[name].sum().item())
+        finite_total = finite_totals[name]
+        nonzero_total = nonzero_totals[name]
         layers.append(
             {
                 "name": name,
@@ -212,8 +251,22 @@ def _measure_one_run(
                 "underflow": underflow[name],
                 "overflow": overflow[name],
                 "nonfinite": nonfinite[name],
+                "finite": finite_total,
                 "underflow_fraction": underflow[name] / total if total else None,
                 "overflow_fraction": overflow[name] / total if total else None,
+                "threshold_hits": threshold_hits[name],
+                "threshold_fractions": {
+                    key: value / total if total else None
+                    for key, value in threshold_hits[name].items()
+                },
+                "mean": sums[name] / finite_total if finite_total else None,
+                "rms": (square_sums[name] / finite_total) ** 0.5 if finite_total else None,
+                "mean_abs": absolute_sums[name] / finite_total if finite_total else None,
+                "nonzero_mean_abs": (
+                    nonzero_absolute_sums[name] / nonzero_total if nonzero_total else None
+                ),
+                "positive_fraction": positive_totals[name] / total if total else None,
+                "negative_fraction": negative_totals[name] / total if total else None,
             }
         )
 
@@ -258,6 +311,10 @@ def _layer_sort_key(name: str) -> int:
         return int(name.rsplit("_", 1)[1])
     except (IndexError, ValueError):
         return 9999
+
+
+def _threshold_key(threshold: float) -> str:
+    return f"{threshold:g}"
 
 
 def _autocast_context(torch: Any, device: Any, dtype: Any) -> Any:

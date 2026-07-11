@@ -234,6 +234,18 @@ def activation_exact_zero_counts(activations: dict[str, Any]) -> tuple[int, int]
     return zero_count, activation_count
 
 
+def activation_exact_zero_counts_by_alias(activations: dict[str, Any]) -> dict[str, tuple[int, int]]:
+    counts: dict[str, list[int]] = {}
+    for name, value in activations.items():
+        alias = name.split(".layer_", 1)[0]
+        detached = value.detach()
+        if alias not in counts:
+            counts[alias] = [0, 0]
+        counts[alias][0] += int((detached == 0).sum().item())
+        counts[alias][1] += detached.numel()
+    return {alias: (values[0], values[1]) for alias, values in counts.items()}
+
+
 def _first_tensor(value: Any) -> Any:
     if isinstance(value, (tuple, list)):
         for item in value:

@@ -12,6 +12,7 @@ from paper_exp.activation_pressure import pressure_loss
 from paper_exp.activation_pressure import ricker_pressure
 from paper_exp.activations import ActivationCapture
 from paper_exp.activations import activation_exact_zero_counts
+from paper_exp.activations import activation_exact_zero_counts_by_alias
 from paper_exp.activations import clip_activation_tensor
 from paper_exp.activations import resolve_site_aliases
 
@@ -159,6 +160,21 @@ def test_exact_zero_counts_are_accumulated_as_integers() -> None:
 
     assert zero_count == 3
     assert activation_count == 5
+
+
+def test_exact_zero_counts_are_grouped_by_site_alias() -> None:
+    counts = activation_exact_zero_counts_by_alias(
+        {
+            "attention_inputs.layer_0": torch.tensor([0.0, 1.0, 0.0]),
+            "attention_inputs.layer_1": torch.tensor([2.0, 0.0]),
+            "mlp_hiddens.layer_0": torch.tensor([0.0, 3.0]),
+        }
+    )
+
+    assert counts == {
+        "attention_inputs": (3, 5),
+        "mlp_hiddens": (1, 2),
+    }
 
 
 def test_rms_threshold_clipping_uses_current_activation_scale() -> None:

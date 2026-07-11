@@ -1,0 +1,55 @@
+experiment_name: pythia_14m_minipile_post_layernorm_relu_input_histograms
+model:
+  provider: huggingface
+  name: pythia-14m-random-post-layernorm-relu-diagnostics
+  architecture: EleutherAI/pythia-14m-deduped
+  revision: main
+  initialization: random
+data:
+  name: JeanKaddour/minipile
+  revision: main
+  split: validation
+  text_column: text
+  max_documents: 500
+evaluation:
+  metric: activation_histogram
+run:
+  seed: 0
+  max_examples: 500
+tokenizer:
+  name: EleutherAI/pythia-14m-deduped
+  revision: main
+preprocessing:
+  output_dir: data/tokenized
+  cache_id: 03-pythia-14m-minipile-random-full-10min
+  block_size: 2048
+  append_eos: true
+  overwrite: false
+validation:
+  enabled: true
+  split: validation
+  max_documents: 500
+  eval_batches: null
+  batch_size: 4
+activation_histograms:
+  sites:
+    - attention_inputs
+    - mlp_inputs
+  bins: 180
+  range_min: -4.0
+  range_max: 4.0
+  thresholds:
+    - 0.0
+    - 0.01
+  plot_title: Post-LayerNorm Attention and MLP Input Densities
+  selected_runs:
+    - label: MLP-ReLU AdamW
+      config_id: 77-pythia-14m-minipile-relu-adamw-full-pass
+    - label: MLP-ReLU OL1
+      config_id: 81-pythia-14m-minipile-relu-orthogonal-l1-full-pass-w5
+    - label: Three-ReLU AdamW
+      config_id: 98-pythia-14m-minipile-post-layernorm-relu-adamw-full-pass
+    - label: Three-ReLU OL1
+      config_id: 99-pythia-14m-minipile-post-layernorm-relu-orthogonal-l1-full-pass-w5
+output:
+  dir: results

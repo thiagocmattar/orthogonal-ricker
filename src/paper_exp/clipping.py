@@ -8,6 +8,7 @@ import yaml
 
 from paper_exp.activations import ActivationCapture
 from paper_exp.activations import activation_exact_zero_counts
+from paper_exp.activations import activation_exact_zero_counts_by_alias
 from paper_exp.modeling import load_checkpoint_model
 from paper_exp.run import create_run_dir, write_run_artifacts
 from paper_exp.utils import build_manifest, read_json, write_jsonl
@@ -180,6 +181,8 @@ def _evaluate_clipped_loss(
     total_tokens = 0
     zero_hits = 0
     zero_count = 0
+    site_zero_hits: dict[str, int] = {}
+    site_zero_counts: dict[str, int] = {}
     start_time = time.perf_counter()
 
     with ActivationCapture(model, clipping_cfg.get("sites", ["mlp_hiddens"]), torch=torch, clipping=clipping_cfg) as capture:
@@ -197,6 +200,11 @@ def _evaluate_clipped_loss(
                 batch_zero_hits, batch_activation_count = activation_exact_zero_counts(capture.activations)
                 zero_hits += batch_zero_hits
                 zero_count += batch_activation_count
+                for alias, (alias_hits, alias_count) in activation_exact_zero_counts_by_alias(
+                    capture.activations
+                ).items():
+                    site_zero_hits[alias] = site_zero_hits.get(alias, 0) + alias_hits
+                    site_zero_counts[alias] = site_zero_counts.get(alias, 0) + alias_count
                 total_sequences += len(batch_starts)
                 total_tokens += len(batch_starts) * block_size
                 batches += 1
@@ -214,6 +222,13 @@ def _evaluate_clipped_loss(
             else None
         ),
         "sites": clipping_cfg.get("sites", ["mlp_hiddens"]),
+        "site_achieved_sparsity": {
+            alias: site_zero_hits[alias] / site_zero_counts[alias]
+            for alias in sorted(site_zero_counts)
+            if site_zero_counts[alias]
+        },
+        "site_zero_hits": {alias: site_zero_hits[alias] for alias in sorted(site_zero_hits)},
+        "site_activation_count": {alias: site_zero_counts[alias] for alias in sorted(site_zero_counts)},
         "validation_loss": sum(losses) / total_sequences,
         "achieved_sparsity": zero_hits / zero_count if zero_count else None,
         "validation_batches": batches,
