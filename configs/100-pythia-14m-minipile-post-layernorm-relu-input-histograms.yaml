@@ -43,6 +43,8 @@ activation_histograms:
     - 0.01
   plot_title: Post-LayerNorm Attention and MLP Input Densities
   selected_runs:
+    - label: GELU AdamW
+      config_id: 50-pythia-14m-minipile-adamw-full-pass
     - label: MLP-ReLU AdamW
       config_id: 77-pythia-14m-minipile-relu-adamw-full-pass
     - label: MLP-ReLU OL1

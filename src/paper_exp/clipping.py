@@ -106,6 +106,23 @@ def run_clipping_sweep(
     manifest["quantiles"] = quantiles
     manifest["rms_multipliers"] = rms_multipliers
     manifest["clipping_sites"] = _clipping_sites(config)
+    if {"attention_inputs", "mlp_inputs", "mlp_hiddens"}.issubset(manifest["clipping_sites"]):
+        manifest["compute_skip_proxy"] = {
+            "activation_statistic": "exact-zero fraction",
+            "eligible_projection_formula": "(3*z_attention_inputs + 4*z_mlp_inputs + 4*z_mlp_hiddens) / 11",
+            "block_linear_formula": "(3*z_attention_inputs + 4*z_mlp_inputs + 4*z_mlp_hiddens) / 12",
+            "eligible_projection_weights": {
+                "attention_inputs_to_qkv": 3,
+                "mlp_inputs_to_dense_h_to_4h": 4,
+                "mlp_hiddens_to_dense_4h_to_h": 4,
+            },
+            "unaffected_block_linear_weight": {"attention_output_projection": 1},
+            "targeted_multiplications_per_token_all_six_layers": 1081344,
+            "interpretation": (
+                "Ideal potentially skippable input-weight multiplications for Pythia-14M; "
+                "not measured wall-clock speedup and not a structured sparsity metric."
+            ),
+        }
     if suffix:
         manifest["clipping_sweep_suffix"] = suffix
     if rms_multipliers:
@@ -210,6 +227,12 @@ def _evaluate_clipped_loss(
                 batches += 1
 
     wall_seconds = time.perf_counter() - start_time
+    site_achieved_sparsity = {
+        alias: site_zero_hits[alias] / site_zero_counts[alias]
+        for alias in sorted(site_zero_counts)
+        if site_zero_counts[alias]
+    }
+    skip_proxies = pythia_projection_skip_proxies(site_achieved_sparsity)
     return {
         "event": "clipping_sweep",
         "mode": clipping_cfg["mode"],
@@ -222,19 +245,31 @@ def _evaluate_clipped_loss(
             else None
         ),
         "sites": clipping_cfg.get("sites", ["mlp_hiddens"]),
-        "site_achieved_sparsity": {
-            alias: site_zero_hits[alias] / site_zero_counts[alias]
-            for alias in sorted(site_zero_counts)
-            if site_zero_counts[alias]
-        },
+        "site_achieved_sparsity": site_achieved_sparsity,
         "site_zero_hits": {alias: site_zero_hits[alias] for alias in sorted(site_zero_hits)},
         "site_activation_count": {alias: site_zero_counts[alias] for alias in sorted(site_zero_counts)},
+        **skip_proxies,
         "validation_loss": sum(losses) / total_sequences,
         "achieved_sparsity": zero_hits / zero_count if zero_count else None,
         "validation_batches": batches,
         "validation_tokens": total_tokens,
         "wall_seconds": wall_seconds,
         "tokens_per_second": total_tokens / wall_seconds if wall_seconds > 0 else None,
+    }
+
+
+def pythia_projection_skip_proxies(site_exact_zero_fraction: dict[str, float]) -> dict[str, float]:
+    required = {"attention_inputs", "mlp_inputs", "mlp_hiddens"}
+    if not required.issubset(site_exact_zero_fraction):
+        return {}
+    weighted = (
+        3.0 * site_exact_zero_fraction["attention_inputs"]
+        + 4.0 * site_exact_zero_fraction["mlp_inputs"]
+        + 4.0 * site_exact_zero_fraction["mlp_hiddens"]
+    )
+    return {
+        "eligible_projection_skip_fraction": weighted / 11.0,
+        "block_linear_skip_fraction": weighted / 12.0,
     }
 
 

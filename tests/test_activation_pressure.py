@@ -15,6 +15,7 @@ from paper_exp.activations import activation_exact_zero_counts
 from paper_exp.activations import activation_exact_zero_counts_by_alias
 from paper_exp.activations import clip_activation_tensor
 from paper_exp.activations import resolve_site_aliases
+from paper_exp.clipping import pythia_projection_skip_proxies
 
 
 def test_pressure_functions_are_finite() -> None:
@@ -175,6 +176,20 @@ def test_exact_zero_counts_are_grouped_by_site_alias() -> None:
         "attention_inputs": (3, 5),
         "mlp_hiddens": (1, 2),
     }
+
+
+def test_pythia_projection_skip_proxies_use_projection_mac_weights() -> None:
+    proxies = pythia_projection_skip_proxies(
+        {
+            "attention_inputs": 0.5,
+            "mlp_inputs": 0.25,
+            "mlp_hiddens": 0.75,
+        }
+    )
+
+    assert proxies["eligible_projection_skip_fraction"] == 5.5 / 11.0
+    assert proxies["block_linear_skip_fraction"] == 5.5 / 12.0
+    assert pythia_projection_skip_proxies({"mlp_hiddens": 0.75}) == {}
 
 
 def test_rms_threshold_clipping_uses_current_activation_scale() -> None:
