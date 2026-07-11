@@ -147,6 +147,17 @@ summary: docs/humans/02-fixed-step-pressure-screen.md
 figures: figures/05-pythia-14m-pressure-fixed-2048-summary.pdf through figures/20-pythia-14m-pressure-fixed-2048-high-pressure-clipping-frontiers.pdf
 ```
 
+Post-LayerNorm ReLU and OL1 comparison:
+
+```text
+training configs: configs/98-pythia-14m-minipile-post-layernorm-relu-adamw-full-pass.yaml and configs/99-pythia-14m-minipile-post-layernorm-relu-orthogonal-l1-full-pass-w5.yaml
+validation diagnostics: configs/100-pythia-14m-minipile-post-layernorm-relu-input-histograms.yaml and configs/101-pythia-14m-minipile-post-layernorm-relu-mlp-hidden-histograms.yaml
+report: report/04-2026-07-11-post-layernorm-relu-ol1-comparison/04-2026-07-11-post-layernorm-relu-ol1-comparison.pdf
+figures: figures/79-pythia-14m-minipile-post-layernorm-relu-learning-diagnostics.pdf through figures/84-pythia-14m-minipile-post-layernorm-relu-parameter-diagnostics.pdf
+```
+
+This one-seed test applies ReLU after both branch LayerNorms in every transformer block, keeps the MLP-hidden ReLU, and leaves the final LayerNorm unchanged. The matched three-site OL1 run uses weight 5 and step budget 0.5 on `attention_inputs`, `mlp_inputs`, and `mlp_hiddens`.
+
 ## Known TODOs
 
 - `TODO:` choose the longer MiniPile pretraining budget for the full ablation.

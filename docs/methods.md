@@ -179,6 +179,19 @@ All-site pressure figures:
 - `figures/47-pythia-14m-minipile-full-pass-all-site-pressure-residual-streams-clipping-frontiers.pdf`
 - `figures/48-pythia-14m-minipile-full-pass-all-site-pressure-attention-outputs-clipping-frontiers.pdf`
 
+Post-LayerNorm ReLU architecture and pressure test:
+
+- Configs `98` and `99` add a ReLU after each block's `input_layernorm` and `post_attention_layernorm`, keep `model.hidden_act: relu`, and do not modify `gpt_neox.final_layer_norm`.
+- Stable activation-site names are `attention_inputs`, `mlp_inputs`, and `mlp_hiddens`. For configs `98` and `99`, these capture the post-ReLU tensors consumed by attention QKV, MLP up-projection, and MLP down-projection.
+- Config `98` is monitor-only AdamW with `activation_pressure.method: none`. Config `99` uses `orthogonal_l1`, weight 5, and step budget 0.5 on all three ReLU sites.
+- Both runs use one MiniPile token-cache pass: 22,762 optimizer steps and 1,491,730,432 tokens.
+- Final validation losses were 4.9564 for config `98` and 5.1706 for config `99`. The clean post-LayerNorm ReLU architecture contrast is config `98` minus config `77`: +0.1160 validation loss. The matched three-site OL1 contrast is config `99` minus config `98`: +0.2142.
+- Full-validation exact-zero fractions for config `98` were 49.54% at `attention_inputs`, 50.14% at `mlp_inputs`, and 50.72% at `mlp_hiddens`. Config `99` reached 83.07%, 39.25%, and 48.87%, respectively. OL1 therefore redistributed exact zeros toward attention inputs rather than uniformly increasing them.
+- For exact-zero fractions `z_attention`, `z_mlp_input`, and `z_mlp_hidden`, the ideal Pythia projection skip proxy is `(3*z_attention + 4*z_mlp_input + 4*z_mlp_hidden) / 11`. It counts potentially skippable input-weight multiplications in QKV, MLP up, and MLP down projections; it is not measured speedup.
+- At threshold 0, the full-validation eligible-projection proxy was 50.19% for config `98` and 54.70% for config `99`. Config `99` reached 59.64% at threshold 0.003 with +0.0259 validation loss relative to its own checkpoint, but its MLP-hidden threshold-0.01 clipping point cost +0.8074 validation loss.
+- Interpretation boundary: this is a one-seed architecture/planning test. Current ReLUs are injected through forward hooks, dense kernels realize no skip, and the large near-zero reservoir is not equivalent to safe exact sparsity.
+- Report: `report/04-2026-07-11-post-layernorm-relu-ol1-comparison/04-2026-07-11-post-layernorm-relu-ol1-comparison.pdf`.
+
 ## Expected Scale Ladders
 
 TODO: after the Pythia-14M MiniPile random-init baseline is stable and calibrated, consider scaling within the Pythia family up to 160M if memory and runtime measurements justify it. Do not add scale-up configs until the 14M path is reproducible.

@@ -1,0 +1,204 @@
+\documentclass[10pt]{article}
+
+\usepackage[margin=0.72in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{enumitem}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue!55!black,
+  urlcolor=blue!55!black
+}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.42em}
+\setlist[itemize]{leftmargin=1.3em, itemsep=0.12em, topsep=0.12em}
+\captionsetup{font=small, labelfont=bf}
+
+\newcommand{\code}[1]{\texttt{#1}}
+\newcommand{\pct}{\%}
+\newcommand{\tightsection}[1]{\section{#1}\vspace{-0.35em}}
+
+\title{Post-LayerNorm ReLU and OL1 Comparison}
+\author{Thiago Mattar\\\href{mailto:thiagocmattar@gmail.com}{thiagocmattar@gmail.com}}
+\date{2026-07-11}
+
+\begin{document}
+\maketitle
+\vspace{-1.35em}
+
+\tightsection{Immediate Question}
+
+This report evaluates a one-seed, fixed-budget Pythia-14M MiniPile architecture and pressure test. All training runs use random initialization, 22,762 optimizer steps, and 1,491,730,432 tokens. No released Pythia checkpoint weights are loaded.
+
+\begin{quote}
+Can ReLU gates immediately after the attention-input and MLP-input LayerNorms create useful exact zeros without an unacceptable quality cost, and does orthogonal L1 pressure improve the quality-versus-potential-compute frontier?
+\end{quote}
+
+For each transformer block, the tested architecture computes
+\begin{align*}
+U_l^+ &= \operatorname{ReLU}(\operatorname{input\_layernorm}_l(H_l)),\\
+R_l^+ &= \operatorname{ReLU}(\operatorname{post\_attention\_layernorm}_l(H_l)),\\
+A_l &= \operatorname{ReLU}(W_{1,l}R_l^+).
+\end{align*}
+The final model LayerNorm is unchanged. Config 98 trains this three-ReLU architecture with AdamW and no pressure. Config 99 uses the identical architecture with \code{orthogonal\_l1}, weight 5, and step budget 0.5 on \code{attention\_inputs}, \code{mlp\_inputs}, and \code{mlp\_hiddens}.
+
+The control ladder separates the relevant changes:
+\begin{itemize}
+  \item Config 50: stock GELU AdamW reference.
+  \item Config 77: MLP-hidden ReLU AdamW; the clean control for adding the two branch-input ReLUs.
+  \item Config 81: historical MLP-hidden ReLU with MLP-only OL1.
+  \item Config 98: three-ReLU AdamW, no pressure.
+  \item Config 99: three-ReLU, three-site OL1.
+\end{itemize}
+
+\tightsection{Endpoint Quality and Training Cost}
+
+\begin{table}[H]
+\centering
+\caption{One-pass endpoint summary. Validation uses the complete deterministic cache: 85 batches and 692,224 tokens. PPL is exponentiated validation loss. Throughput is observed training throughput in the current harness.}
+\small
+\begin{tabular}{cllrrrr}
+\toprule
+Config & Architecture & Pressure & Val. loss & PPL & Tokens/s & Peak MB \\
+\midrule
+50 & GELU & None & 4.8317 & 125.4 & 137,648 & 5,996 \\
+77 & MLP ReLU & None & 4.8404 & 126.5 & 143,021 & 5,948 \\
+81 & MLP ReLU & OL1, MLP only & 4.7981 & 121.3 & 109,379 & 6,886 \\
+98 & Three ReLUs & None & 4.9564 & 142.1 & 120,139 & 5,996 \\
+99 & Three ReLUs & OL1, three sites & 5.1706 & 176.0 & 95,971 & 6,930 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Clean architecture contrast.} Switching only the MLP hidden activation from GELU to ReLU changed validation loss by +0.0087 (config 77 minus 50). In that tested MLP-ReLU background, adding the two post-LayerNorm ReLUs then added +0.1160 (config 98 minus 77), a 12.3\pct{} perplexity increase. The incremental penalty is therefore associated with the two new branch-input gates or their interaction with the MLP-hidden ReLU; this design does not separate those possibilities.
+
+\textbf{Clean pressure contrast.} Three-site OL1 added another +0.2142 validation loss relative to its matched AdamW baseline (config 99 minus 98), a 23.9\pct{} perplexity increase. This is qualitatively different from historical MLP-only OL1, which changed validation loss by -0.0423 relative to config 77.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{../../figures/79-pythia-14m-minipile-post-layernorm-relu-learning-diagnostics.pdf}
+\caption{Learning and OL1 diagnostics. Validation loss compares the full control ladder. Site trajectories distinguish exact zero from \(\lvert a\rvert\leq0.01\) mass for the new matched pair. The OL1 panel compares raw and final Adam-step pressure ratios with the configured 0.5 cap.}
+\end{figure}
+
+Config 98 is worse than config 77 at every saved validation evaluation. Config 99 is slightly better than 98 only through step 1,000 and is worse from step 2,000 onward. The separation is persistent rather than a late isolated failure.
+
+\tightsection{Where the Zeros Appear}
+
+The table below uses direct counters over the full deterministic validation cache, not histogram-bin estimates. Entries show exact-zero percentage followed by \(\lvert a\rvert\leq0.01\) percentage.
+
+\begin{table}[H]
+\centering
+\caption{Full-validation activation sparsity. The final column is the exact-zero ideal skip proxy over QKV, MLP up, and MLP down input-weight multiplications.}
+\small
+\begin{tabular}{clrrrr}
+\toprule
+Config & Run & Attention inputs & MLP inputs & MLP hiddens & Exact proxy \\
+\midrule
+50 & GELU AdamW & 0.0 / 0.8 & 0.0 / 0.8 & 0.0 / 6.1 & 0.0 \\
+77 & MLP-ReLU AdamW & 0.0 / 0.8 & 0.0 / 0.8 & 52.1 / 53.6 & 18.9 \\
+81 & MLP-ReLU OL1 & 0.0 / 0.7 & 0.0 / 0.8 & 93.6 / 94.2 & 34.0 \\
+98 & Three-ReLU AdamW & 49.5 / 50.0 & 50.1 / 50.5 & 50.7 / 53.0 & 50.2 \\
+99 & Three-ReLU OL1 & 83.1 / 85.9 & 39.3 / 47.4 & 48.9 / 78.4 & 54.7 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+For exact-zero fractions \(z_a,z_m,z_h\) at attention inputs, MLP inputs, and MLP hiddens, the Pythia-14M ideal eligible-projection proxy is
+\[
+S_{11}=\frac{3z_a+4z_m+4z_h}{11}.
+\]
+The weights reflect QKV \((3d^2)\), MLP up \((4d^2)\), and MLP down \((4d^2)\). Dividing the same numerator by 12 expresses the proxy over all block-linear multiplications after adding the unaffected attention output projection.
+
+On that all-block denominator, the natural exact-zero proxy is 46.0\pct{} for config 98 and 50.1\pct{} for config 99. Both proxies are ideal input-weight multiplication opportunities, not structured sparsity or measured runtime savings.
+
+OL1 increases the exact eligible proxy from 50.2\pct{} to 54.7\pct{}, only +4.5 percentage points. This gain is entirely concentrated at \code{attention\_inputs}. Relative to config 98, config 99 raises attention-input exact zeros by 33.5 points on full validation, but lowers MLP-input exact zeros by 10.9 points and MLP-hidden exact zeros by 1.9 points.
+
+The near-zero picture is different. The \(\lvert a\rvert\leq0.01\) projection-weighted proxy rises from 51.3\pct{} to 69.2\pct{}. MLP-hidden near-zero mass reaches 78.4\pct{} although its exact-zero mass remains 48.9\pct{}. This gap is the central diagnostic question for clipping.
+
+The aggregate also hides strong layer asymmetry in config 99. Attention-input exact zeros are 52.8\pct{} at layer 0, 86.8--97.3\pct{} at layers 1--4, and 82.9\pct{} at layer 5. MLP-input exact zeros move in the opposite pattern: 63.7\pct{} at layer 0 but only 32.6--36.2\pct{} thereafter. MLP-hidden near-zero mass peaks at 88.1--92.4\pct{} in layers 2--4 but falls to 55.7\pct{} in layer 5. A single global pressure setting therefore induces different site- and layer-specific gate operating points.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{../../figures/80-pythia-14m-minipile-post-layernorm-relu-activation-heatmaps.pdf}
+\caption{Direct full-validation sparsity by site and layer. Rows compare the five control-ladder runs; columns within each panel are layers 0--5. Exact zeros and \(\lvert a\rvert\leq0.01\) are shown separately to expose the large nonzero reservoir near zero in config 99.}
+\end{figure}
+
+\tightsection{Activation Scale and Distribution}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{../../figures/81-pythia-14m-minipile-post-layernorm-relu-activation-densities.pdf}
+\caption{Layer-3 activation densities over 692,224 validation tokens. The vertical band marks \(\lvert a\rvert\leq0.01\). Density is log-scaled; exact-zero masses are reported by direct counters in the preceding section rather than inferred from bins.}
+\end{figure}
+
+Three-site OL1 primarily changes scale. Pooling squared activations across all six layers and the full validation cache, config 99 reduces RMS from 0.723 to 0.172 at attention inputs, from 0.705 to 0.148 at MLP inputs, and from 0.115 to 0.020 at MLP hiddens relative to config 98. These are reductions of approximately 76\pct{}, 79\pct{}, and 83\pct{}, respectively. The pressure therefore creates both hard ReLU gating and a large population of small positive values.
+
+\tightsection{Post-hoc Clipping Frontiers}
+
+All clipping sweeps use the complete deterministic validation cache, seed 0, and the same eleven absolute thresholds: 0, 0.001, 0.003, 0.01, 0.03, 0.05, 0.075, 0.1, 0.15, 0.2, and 0.3. Threshold 0 is the unmodified checkpoint because clipping only changes values with \(\lvert a\rvert\leq0\), which are already zero.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{../../figures/82-pythia-14m-minipile-post-layernorm-relu-site-clipping-frontiers.pdf}
+\caption{Site-specific clipping frontiers for configs 77, 98, and 99. The vertical coordinate is validation-loss change from each checkpoint's threshold-0 point, isolating clipping fragility from the checkpoints' different base losses.}
+\end{figure}
+
+The config 99 near-zero reservoir is not uniformly safe to remove. At threshold 0.01, attention-input clipping adds only 0.00034 validation loss and MLP-input clipping adds 0.00719, but MLP-hidden clipping adds 0.8074. The apparent MLP-hidden sparsity at \(\lvert a\rvert\leq0.01\) therefore does not translate into a safe exact-zero operating point.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{../../figures/83-pythia-14m-minipile-post-layernorm-relu-joint-compute-frontier.pdf}
+\caption{Joint three-site clipping frontier. The horizontal axis is the 3:4:4 exact-zero eligible-projection proxy, not the element-count-weighted aggregate. The inset labels each checkpoint's threshold-0 point and expands the low-loss regime while retaining the full frontier. Dense PyTorch kernels do not realize these ideal multiplication counts as wall-clock savings.}
+\end{figure}
+
+At threshold 0, configs 77, 98, and 99 occupy 18.9\pct{}, 50.2\pct{}, and 54.7\pct{} eligible skip, respectively. Config 98 reaches 53.4\pct{} at threshold 0.03 with +0.0345 validation loss. Config 99 reaches 59.6\pct{} at threshold 0.003 with +0.0259 relative to its own checkpoint, but that checkpoint already starts 0.2142 loss above config 98.
+
+Config 99 is therefore not globally dominated: it extends the observed frontier beyond roughly 56\pct{} eligible skip. It is, however, worse in the unmodified and low-loss regime. Config 98 provides the better quality point through approximately 55.5\pct{} eligible skip; config 99 buys access to higher exact-zero fractions at additional quality cost.
+
+\tightsection{How OL1 Implements the Gate}
+
+Config 99 changes the branch LayerNorm affine parameters substantially relative to config 98. Mean attention-input LayerNorm scale moves from 1.017 to 0.870 and mean bias from +0.017 to -0.135. Mean MLP-input LayerNorm scale moves from 1.003 to 0.918 and mean bias from +0.003 to -0.089. Negative biases are associated with the increased ReLU gate rate, especially at attention inputs.
+
+Downstream weights broaden rather than become sparse. QKV weight RMS rises from 0.0433 to 0.0493, MLP-up RMS from 0.0219 to 0.0235, and MLP-down RMS from 0.0218 to 0.0251. This is consistent with weight adaptation to smaller activations, but it does not establish compensation as a causal mechanism and does not create parameter sparsity.
+
+Across 229 logged OL1 snapshots, config 99 projects the pressure update in Adam-step space 97.4\pct{} of the time and hits the 0.5 step budget 9.2\pct{} of the time. Its median final pressure/task update ratio is 0.098, and its endpoint ratio is 0.070. MLP-only config 81 has a larger median ratio of 0.157 and a qualitatively better validation result. The poor config 99 result is therefore not explained by the step budget being continuously saturated.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{../../figures/84-pythia-14m-minipile-post-layernorm-relu-parameter-diagnostics.pdf}
+\caption{Checkpoint parameter diagnostics. QKV, MLP-up, and MLP-down distributions show downstream weight adaptation. Branch LayerNorm scale and bias summaries show the affine changes immediately before the new ReLU gates. These are associations, not causal decompositions.}
+\end{figure}
+
+\tightsection{Limitations}
+
+\begin{itemize}
+  \item This is one seed and one MiniPile token-cache pass. The comparisons are planning evidence, not paper-ready estimates with uncertainty.
+  \item The two new ReLUs are injected through Python forward hooks. Config 98's observed 16\pct{} throughput reduction relative to config 77 includes hook and three-site monitoring overhead; it is not an intrinsic fused-ReLU inference cost.
+  \item All skip estimates are ideal elementwise input-weight multiplication counts. Current dense kernels execute every multiplication, and elementwise zeros are not structured channel or token sparsity.
+  \item The same OL1 weight 5 was inherited from the MLP-only experiment and applied to three equally averaged tensor losses. Equal site averaging is not compute-weighted and may be poorly calibrated for this scope.
+  \item The clipping frontiers measure validation loss under deterministic absolute clipping. They do not measure latency, energy, or sparse-kernel overhead.
+\end{itemize}
+
+\tightsection{Conclusion and Recommendation}
+
+The tested three-ReLU architecture creates substantial native exact zeros, but it pays a clear validation-loss cost. Three-site OL1 at weight 5 further worsens the unmodified checkpoint and adds only about 4.5 percentage points of intrinsic exact eligible-projection skip. Its much larger near-zero gain is partly fragile, especially at MLP hiddens.
+
+The current setting should not be carried forward unchanged. The recommended next sequence is:
+\begin{enumerate}[leftmargin=1.5em, itemsep=0.16em, topsep=0.16em]
+  \item Separate the architecture change into attention-input-only and MLP-input-only ReLU ablations against config 77.
+  \item Test attention-input-only OL1, because that site receives the useful exact-zero gain and remains robust to mild clipping.
+  \item Keep MLP-hidden-only OL1 as the stronger historical reference; config 81 remains the best point estimate in this control ladder.
+  \item For any multi-site follow-up, lower or normalize pressure weights by site rather than inheriting one weight unchanged.
+  \item Repeat only promising settings over multiple seeds, then test structured sparsity and an actual zero-aware kernel before making speed claims.
+\end{enumerate}
+
+\end{document}

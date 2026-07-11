@@ -7,7 +7,7 @@ Scope:
 - Model family: Pythia / GPT-NeoX causal language model.
 - Current architecture source: `EleutherAI/pythia-14m-deduped`.
 - Current training mode in this repository: random initialization from the architecture config, not released checkpoint weights.
-- Current implemented pressure site: MLP hidden activations, named `mlp_hiddens`.
+- Implemented pressure sites include `mlp_hiddens`, `attention_inputs`, `mlp_inputs`, `attention_outputs`, and `residual_streams`; configs select sites explicitly.
 
 This document describes architecture and implementation surfaces only. It does not claim that any sparsity pressure is scientifically effective.
 
@@ -173,7 +173,7 @@ For layer `l`, where `l = 0, ..., 5`, the relevant Transformers module names are
 | `M_l` | `[B, T, 128]` | `gpt_neox.layers.l.mlp.dense_4h_to_h` output | MLP branch output |
 | `H_{l+1}` | `[B, T, 128]` | residual after block add | Not currently hooked |
 
-The current implementation in `src/paper_exp/activations.py` registers:
+The primary MLP-hidden implementation in `src/paper_exp/activations.py` registers:
 
 ```text
 gpt_neox.layers.{l}.mlp.act
@@ -185,13 +185,22 @@ and records the output as:
 mlp_hiddens.layer_{l}
 ```
 
-This means the current pressure tensor is:
+For the default GELU architecture, this pressure tensor is:
 
 ```text
 A_l = GELU(Z_l) in R^{B x T x 512}
 ```
 
-for every transformer block `l`.
+for every transformer block `l`. ReLU architecture configs instead capture `A_l = ReLU(Z_l)` at the same stable site.
+
+The branch-input sites are:
+
+```text
+attention_inputs.layer_{l} = tensor consumed by attention.query_key_value
+mlp_inputs.layer_{l}       = tensor consumed by mlp.dense_h_to_4h
+```
+
+For configs with `model.post_layernorm_relu: true`, these are the post-ReLU outputs of `input_layernorm` and `post_attention_layernorm`. Historical checkpoints without that flag fall back to the raw LayerNorm outputs.
 
 The current sparsity notion is elementwise. A value such as `80%` exact-zero sparsity means that `80%` of scalar entries `A_l[b,t,j]` are zero across the measured layers, batches, token positions, and MLP hidden channels. It does not mean that the same `80%` of the 512 MLP hidden channels are zero for every batch item and every token position. Structured channel sparsity would require a separate channel-level metric or pressure.
 
@@ -321,14 +330,14 @@ The table below separates currently implemented sites from plausible future site
 
 | Site | Status | Tensor | Shape | Why it may matter | Main risk |
 | ---- | ------ | ------ | ----- | ----------------- | --------- |
-| MLP hidden activation | implemented | `A_l = GELU(Z_l)` | `[B, T, 512]` | Direct high-dimensional activation target before MLP compression | May reduce useful nonlinear features |
-| MLP input | future hook | `R_l` | `[B, T, 128]` | Tests whether sparsity before `dense_h_to_4h` can skip MLP up-projection compute | LayerNorm output may resist sparsity or harm branch conditioning |
+| MLP hidden activation | implemented as `mlp_hiddens` | `A_l = act(Z_l)` | `[B, T, 512]` | Direct high-dimensional activation target before MLP compression | May reduce useful nonlinear features |
+| Attention input | implemented as `attention_inputs` | `U_l` or its configured post-LayerNorm transform | `[B, T, 128]` | Exact zeros can expose potentially skippable QKV input-weight multiplications | Can damage attention routing and context aggregation |
+| MLP input | implemented as `mlp_inputs` | `R_l` or its configured post-LayerNorm transform | `[B, T, 128]` | Tests whether sparsity before `dense_h_to_4h` can skip MLP up-projection compute | LayerNorm output may resist sparsity or harm branch conditioning |
 | MLP preactivation | future hook | `Z_l` | `[B, T, 512]` | Pressures the signal before GELU | Changes activation gating behavior more directly |
 | MLP output | future hook | `M_l` | `[B, T, 128]` | Pressures the MLP contribution to the residual stream | Lower dimensional and closer to residual semantics |
-| Attention output | future hook | `O_l` | `[B, T, 128]` | Pressures attention contribution to residual stream | May disturb routing and context aggregation |
+| Attention output | implemented as `attention_outputs` | `O_l` | `[B, T, 128]` | Pressures attention contribution to residual stream | May disturb routing and context aggregation |
 | Q/K/V projections | future deeper hook | `Q_l,K_l,V_l` | `[B, T, 4, 32]` | Could target attention internals | Easy to break attention geometry |
-| Residual stream | future hook | `H_l` or `H_{l+1}` | `[B, T, 128]` | Broadest representation-level pressure | Most likely to interfere with all downstream computation |
-| LayerNorm outputs | future hook | `U_l`, `R_l` | `[B, T, 128]` | Normalized branch inputs may be easier to compare across layers | Can fight normalization dynamics |
+| Residual stream | implemented as `residual_streams` | `H_l` | `[B, T, 128]` | Broadest representation-level pressure | Most likely to interfere with all downstream computation |
 
 Recommended progression:
 
@@ -337,10 +346,7 @@ Recommended progression:
 3. Add `Z_l` or `M_l` only if the MLP hidden results justify a finer question.
 4. Treat attention and residual-stream pressures as separate method variants, not minor implementation changes.
 
-TODO: Add an MLP-input pressure/clipping ablation for the up-projection compute question.
-Use a new explicit site name such as `mlp_inputs` for `R_l`, the output of
-`gpt_neox.layers.l.post_attention_layernorm` and the direct input to
-`gpt_neox.layers.l.mlp.dense_h_to_4h`.
+The MLP-input pressure/clipping site is implemented as `mlp_inputs`. It captures `R_l`, the output of `gpt_neox.layers.l.post_attention_layernorm` and the direct input to `gpt_neox.layers.l.mlp.dense_h_to_4h`, or the configured post-LayerNorm ReLU output when that architecture switch is enabled.
 
 Architecture note for Pythia-14M:
 
@@ -390,20 +396,18 @@ LayerNorm subtracts the token mean, rescales by the token standard deviation,
 and then applies learned per-dimension affine parameters. It can also amplify
 small coordinates when the token-level variance is small.
 
-TODO: Test branch-input sparsifiers after LayerNorm, before expensive
-projections, instead of first gating the whole residual stream. The first
-diagnostic should be post-hoc clipping/histograms for:
+Configs `98` and `99` test branch-input ReLUs after LayerNorm and before the expensive projections. The corresponding clipping/histogram tensors are:
 
 ```text
-U_l = input_layernorm_l(H_l)                # attention branch input
-R_l = post_attention_layernorm_l(H_l)       # MLP branch input
+U_l^+ = ReLU(input_layernorm_l(H_l))                # attention branch input
+R_l^+ = ReLU(post_attention_layernorm_l(H_l))       # MLP branch input
 ```
 
-Then test trained pressure sites:
+The stable trained pressure-site names are:
 
 ```text
-attention_inputs = U_l
-mlp_inputs = R_l
+attention_inputs = U_l^+
+mlp_inputs = R_l^+
 ```
 
 A simple nonparametric first operator is soft-thresholding:

@@ -349,6 +349,40 @@ RELU_SITE_SCOPE_NEAR_ZERO_SITES = (
     ("attention_outputs", "Attention outputs"),
 )
 
+REPORT04_TRAINING_RUNS = (
+    ("GELU AdamW", "50-pythia-14m-minipile-adamw-full-pass"),
+    ("MLP-ReLU AdamW", "77-pythia-14m-minipile-relu-adamw-full-pass"),
+    ("MLP-ReLU OL1", "81-pythia-14m-minipile-relu-orthogonal-l1-full-pass-w5"),
+    ("Three-ReLU AdamW", "98-pythia-14m-minipile-post-layernorm-relu-adamw-full-pass"),
+    ("Three-ReLU OL1", "99-pythia-14m-minipile-post-layernorm-relu-orthogonal-l1-full-pass-w5"),
+)
+REPORT04_CLIPPING_RUNS = (
+    ("MLP-ReLU AdamW", "77-pythia-14m-minipile-relu-adamw-full-pass"),
+    ("Three-ReLU AdamW", "98-pythia-14m-minipile-post-layernorm-relu-adamw-full-pass"),
+    ("Three-ReLU OL1", "99-pythia-14m-minipile-post-layernorm-relu-orthogonal-l1-full-pass-w5"),
+)
+REPORT04_CLIPPING_SITES = (
+    ("attention_inputs", "Attention inputs"),
+    ("mlp_inputs", "MLP inputs"),
+    ("mlp_hiddens", "MLP hiddens"),
+)
+REPORT04_INPUT_HISTOGRAM_EXPERIMENT = "100-pythia-14m-minipile-post-layernorm-relu-input-histograms"
+REPORT04_MLP_HISTOGRAM_EXPERIMENT = "101-pythia-14m-minipile-post-layernorm-relu-mlp-hidden-histograms"
+REPORT04_METHOD_COLORS = {
+    "GELU AdamW": "#000000",
+    "MLP-ReLU AdamW": "#0072B2",
+    "MLP-ReLU OL1": "#E69F00",
+    "Three-ReLU AdamW": "#009E73",
+    "Three-ReLU OL1": "#CC79A7",
+}
+REPORT04_METHOD_MARKERS = {
+    "GELU AdamW": "D",
+    "MLP-ReLU AdamW": "o",
+    "MLP-ReLU OL1": "s",
+    "Three-ReLU AdamW": "^",
+    "Three-ReLU OL1": "P",
+}
+
 PLOT_STYLE = {
     "figure.figsize": (6.5, 4.0),
     "figure.dpi": 150,
@@ -1411,6 +1445,105 @@ def _generate_known_paper_figures(results_path: Path, figures_path: Path, *, sav
             )
         )
 
+    report04_training_runs = _latest_labeled_runs(
+        results_path,
+        list(REPORT04_TRAINING_RUNS),
+        "events.jsonl",
+    )
+    if len(report04_training_runs) == len(REPORT04_TRAINING_RUNS):
+        output_pdf = figures_path / "79-pythia-14m-minipile-post-layernorm-relu-learning-diagnostics.pdf"
+        outputs.extend(
+            generate_report04_learning_diagnostics(
+                runs=report04_training_runs,
+                output=output_pdf,
+                save_png=save_png,
+            )
+        )
+
+    report04_histogram_runs = {
+        "inputs": _latest_run_with(
+            results_path / REPORT04_INPUT_HISTOGRAM_EXPERIMENT,
+            "activation_histograms.json",
+        ),
+        "mlp_hiddens": _latest_run_with(
+            results_path / REPORT04_MLP_HISTOGRAM_EXPERIMENT,
+            "activation_histograms.json",
+        ),
+    }
+    if all(report04_histogram_runs.values()):
+        output_pdf = figures_path / "80-pythia-14m-minipile-post-layernorm-relu-activation-heatmaps.pdf"
+        outputs.extend(
+            generate_report04_activation_heatmaps(
+                histogram_runs=report04_histogram_runs,
+                output=output_pdf,
+                save_png=save_png,
+            )
+        )
+
+        output_pdf = figures_path / "81-pythia-14m-minipile-post-layernorm-relu-activation-densities.pdf"
+        outputs.extend(
+            generate_report04_activation_densities(
+                histogram_runs=report04_histogram_runs,
+                output=output_pdf,
+                save_png=save_png,
+            )
+        )
+
+    report04_site_clipping_runs: dict[str, list[tuple[str, Path]]] = {}
+    for site, _site_label in REPORT04_CLIPPING_SITES:
+        suffix = site.replace("_", "-")
+        experiments = [
+            (label, f"{experiment_id}-clipping-sweep-report04-{suffix}")
+            for label, experiment_id in REPORT04_CLIPPING_RUNS
+        ]
+        report04_site_clipping_runs[site] = _latest_labeled_runs(
+            results_path,
+            experiments,
+            "clipping_frontier.jsonl",
+        )
+    if all(len(runs) == len(REPORT04_CLIPPING_RUNS) for runs in report04_site_clipping_runs.values()):
+        output_pdf = figures_path / "82-pythia-14m-minipile-post-layernorm-relu-site-clipping-frontiers.pdf"
+        outputs.extend(
+            generate_report04_site_clipping_frontiers(
+                site_runs=report04_site_clipping_runs,
+                output=output_pdf,
+                save_png=save_png,
+            )
+        )
+
+    report04_joint_clipping_runs = _latest_labeled_runs(
+        results_path,
+        [
+            (label, f"{experiment_id}-clipping-sweep-report04-joint")
+            for label, experiment_id in REPORT04_CLIPPING_RUNS
+        ],
+        "clipping_frontier.jsonl",
+    )
+    if len(report04_joint_clipping_runs) == len(REPORT04_CLIPPING_RUNS):
+        output_pdf = figures_path / "83-pythia-14m-minipile-post-layernorm-relu-joint-compute-frontier.pdf"
+        outputs.extend(
+            generate_report04_joint_compute_frontier(
+                runs=report04_joint_clipping_runs,
+                output=output_pdf,
+                save_png=save_png,
+            )
+        )
+
+    report04_parameter_runs = _latest_labeled_runs(
+        results_path,
+        list(REPORT04_TRAINING_RUNS),
+        "checkpoints/final/model.safetensors",
+    )
+    if len(report04_parameter_runs) == len(REPORT04_TRAINING_RUNS):
+        output_pdf = figures_path / "84-pythia-14m-minipile-post-layernorm-relu-parameter-diagnostics.pdf"
+        outputs.extend(
+            generate_report04_parameter_diagnostics(
+                runs=report04_parameter_runs,
+                output=output_pdf,
+                save_png=save_png,
+            )
+        )
+
     return outputs
 
 
@@ -1893,6 +2026,141 @@ def generate_relu_site_scope_near_zero_heatmaps(
     if save_png:
         png_path = output_path.with_suffix(".png")
         _plot_relu_site_scope_near_zero_heatmaps(payloads, png_path)
+        outputs.append(png_path)
+    return outputs
+
+
+def generate_report04_learning_diagnostics(
+    *,
+    runs: list[tuple[str, str | Path]],
+    output: str | Path,
+    save_png: bool = False,
+) -> list[Path]:
+    plt.rcParams.update(PLOT_STYLE)
+
+    output_path = Path(output)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    series = _load_event_series(runs)
+    if not series:
+        raise ValueError("No report-04 learning-diagnostic runs were found.")
+
+    _plot_report04_learning_diagnostics(series, output_path)
+    outputs = [output_path]
+    if save_png:
+        png_path = output_path.with_suffix(".png")
+        _plot_report04_learning_diagnostics(series, png_path)
+        outputs.append(png_path)
+    return outputs
+
+
+def generate_report04_activation_heatmaps(
+    *,
+    histogram_runs: dict[str, str | Path | None],
+    output: str | Path,
+    save_png: bool = False,
+) -> list[Path]:
+    plt.rcParams.update(PLOT_STYLE)
+
+    output_path = Path(output)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    payloads = {
+        key: read_json(Path(run_dir) / "activation_histograms.json")
+        for key, run_dir in histogram_runs.items()
+        if run_dir is not None
+    }
+    _plot_report04_activation_heatmaps(payloads, output_path)
+    outputs = [output_path]
+    if save_png:
+        png_path = output_path.with_suffix(".png")
+        _plot_report04_activation_heatmaps(payloads, png_path)
+        outputs.append(png_path)
+    return outputs
+
+
+def generate_report04_activation_densities(
+    *,
+    histogram_runs: dict[str, str | Path | None],
+    output: str | Path,
+    save_png: bool = False,
+) -> list[Path]:
+    plt.rcParams.update(PLOT_STYLE)
+
+    output_path = Path(output)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    payloads = {
+        key: read_json(Path(run_dir) / "activation_histograms.json")
+        for key, run_dir in histogram_runs.items()
+        if run_dir is not None
+    }
+    _plot_report04_activation_densities(payloads, output_path)
+    outputs = [output_path]
+    if save_png:
+        png_path = output_path.with_suffix(".png")
+        _plot_report04_activation_densities(payloads, png_path)
+        outputs.append(png_path)
+    return outputs
+
+
+def generate_report04_site_clipping_frontiers(
+    *,
+    site_runs: dict[str, list[tuple[str, str | Path]]],
+    output: str | Path,
+    save_png: bool = False,
+) -> list[Path]:
+    plt.rcParams.update(PLOT_STYLE)
+
+    output_path = Path(output)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    site_series = {site: _load_clipping_series(runs) for site, runs in site_runs.items()}
+    _plot_report04_site_clipping_frontiers(site_series, output_path)
+    outputs = [output_path]
+    if save_png:
+        png_path = output_path.with_suffix(".png")
+        _plot_report04_site_clipping_frontiers(site_series, png_path)
+        outputs.append(png_path)
+    return outputs
+
+
+def generate_report04_joint_compute_frontier(
+    *,
+    runs: list[tuple[str, str | Path]],
+    output: str | Path,
+    save_png: bool = False,
+) -> list[Path]:
+    plt.rcParams.update(PLOT_STYLE)
+
+    output_path = Path(output)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    series = _load_clipping_series(runs)
+    if not series:
+        raise ValueError("No report-04 joint clipping runs were found.")
+    _plot_report04_joint_compute_frontier(series, output_path)
+    outputs = [output_path]
+    if save_png:
+        png_path = output_path.with_suffix(".png")
+        _plot_report04_joint_compute_frontier(series, png_path)
+        outputs.append(png_path)
+    return outputs
+
+
+def generate_report04_parameter_diagnostics(
+    *,
+    runs: list[tuple[str, str | Path]],
+    output: str | Path,
+    save_png: bool = False,
+) -> list[Path]:
+    plt.rcParams.update(PLOT_STYLE)
+
+    output_path = Path(output)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    series = _load_report04_parameter_series(runs)
+    if not series:
+        raise ValueError("No report-04 parameter checkpoints were found.")
+    _plot_report04_parameter_diagnostics(series, output_path)
+    outputs = [output_path]
+    if save_png:
+        png_path = output_path.with_suffix(".png")
+        _plot_report04_parameter_diagnostics(series, png_path)
         outputs.append(png_path)
     return outputs
 
@@ -2665,6 +2933,101 @@ def _load_status_update_pressure_weight_groups(
                 )
         series.append({"label": label, "run_dir": str(run_path), "groups": groups})
 
+    return series
+
+
+def _load_report04_parameter_series(
+    runs: list[tuple[str, str | Path]],
+) -> list[dict[str, Any]]:
+    try:
+        import torch
+        from safetensors import safe_open
+    except ImportError as exc:
+        raise RuntimeError("Report-04 parameter diagnostics require torch and safetensors.") from exc
+
+    weight_specs = (
+        (
+            "qkv",
+            "Attention QKV weights",
+            re.compile(r"^gpt_neox\.layers\.\d+\.attention\.query_key_value\.weight$"),
+            (-0.65, 0.65),
+        ),
+        (
+            "w1",
+            "MLP W1 weights",
+            re.compile(r"^gpt_neox\.layers\.\d+\.mlp\.dense_h_to_4h\.weight$"),
+            (-0.22, 0.22),
+        ),
+        (
+            "w2",
+            "MLP W2 weights",
+            re.compile(r"^gpt_neox\.layers\.\d+\.mlp\.dense_4h_to_h\.weight$"),
+            (-0.22, 0.22),
+        ),
+    )
+    layer_norm_specs = (
+        ("attention", "Pre-attention LayerNorm", "input_layernorm"),
+        ("mlp", "Pre-MLP LayerNorm", "post_attention_layernorm"),
+    )
+
+    bins = 180
+    series: list[dict[str, Any]] = []
+    for label, run_dir in runs:
+        run_path = Path(run_dir)
+        checkpoint_path = run_path / "checkpoints" / "final" / "model.safetensors"
+        weight_groups: dict[str, dict[str, Any]] = {}
+        layer_norms: dict[str, dict[str, Any]] = {}
+        with safe_open(str(checkpoint_path), framework="pt", device="cpu") as handle:
+            keys = list(handle.keys())
+            for group_id, group_label, pattern, (range_min, range_max) in weight_specs:
+                values = [
+                    handle.get_tensor(key).detach().float().reshape(-1)
+                    for key in keys
+                    if pattern.match(key) is not None
+                ]
+                if not values:
+                    raise ValueError(f"No {group_label} tensors found for {label}.")
+                flat = torch.cat(values)
+                finite = flat[torch.isfinite(flat)]
+                counts = torch.histc(finite, bins=bins, min=range_min, max=range_max).cpu().double()
+                width = (range_max - range_min) / bins
+                total = int(finite.numel())
+                weight_groups[group_id] = {
+                    "label": group_label,
+                    "centers": [range_min + (index + 0.5) * width for index in range(bins)],
+                    "densities": [float(count) / total / width for count in counts.tolist()],
+                    "range": (range_min, range_max),
+                    "total": total,
+                    "tensor_count": len(values),
+                    "outside": int(((finite < range_min) | (finite > range_max)).sum().item()),
+                }
+
+            for branch_id, branch_label, module_name in layer_norm_specs:
+                parameters: dict[str, list[dict[str, Any]]] = {"gamma": [], "beta": []}
+                for layer_index in range(6):
+                    for parameter_id, tensor_name in (("gamma", "weight"), ("beta", "bias")):
+                        key = f"gpt_neox.layers.{layer_index}.{module_name}.{tensor_name}"
+                        if key not in keys:
+                            raise ValueError(f"Missing LayerNorm tensor {key!r} for {label}.")
+                        tensor = handle.get_tensor(key).detach().double().reshape(-1)
+                        parameters[parameter_id].append(
+                            {
+                                "layer": layer_index,
+                                "mean": float(tensor.mean()),
+                                "std": float(tensor.std(unbiased=False)),
+                                "count": int(tensor.numel()),
+                            }
+                        )
+                layer_norms[branch_id] = {"label": branch_label, "parameters": parameters}
+
+        series.append(
+            {
+                "label": label,
+                "run_dir": str(run_path),
+                "weight_groups": weight_groups,
+                "layer_norms": layer_norms,
+            }
+        )
     return series
 
 
@@ -4346,6 +4709,743 @@ def _plot_relu_site_scope_near_zero_heatmaps(
         colorbar = fig.colorbar(image, cax=colorbar_axis)
         colorbar.set_label("Near-zero mass (%)", fontsize=8)
         colorbar.ax.tick_params(labelsize=8)
+    fig.savefig(output_path)
+    plt.close(fig)
+
+
+def _report04_site_event_fraction(event: dict[str, Any], site: str, threshold_key: str) -> float | None:
+    values = [
+        event.get(f"activation/{site}.layer_{layer_index}/near_zero_mass/{threshold_key}")
+        for layer_index in range(6)
+    ]
+    finite_values = [float(value) for value in values if _finite(value)]
+    return sum(finite_values) / len(finite_values) if finite_values else None
+
+
+def _plot_report04_learning_diagnostics(
+    series: list[dict[str, Any]],
+    output_path: Path,
+) -> None:
+    by_label = {str(item["label"]): item for item in series}
+    required = {label for label, _experiment_id in REPORT04_TRAINING_RUNS}
+    missing = sorted(required.difference(by_label))
+    if missing:
+        raise ValueError(f"Missing report-04 training series: {missing}")
+
+    fig, axes = plt.subplots(2, 2, figsize=(11.2, 7.6), sharex=False)
+    ax_validation, ax_exact = axes[0]
+    ax_near_zero, ax_update = axes[1]
+
+    for label, _experiment_id in REPORT04_TRAINING_RUNS:
+        item = by_label[label]
+        events = item["validation_events"]
+        if not events:
+            continue
+        ax_validation.plot(
+            [float(event["tokens_seen"]) / 1e9 for event in events],
+            [float(event["validation_loss"]) for event in events],
+            color=REPORT04_METHOD_COLORS[label],
+            marker=REPORT04_METHOD_MARKERS[label],
+            markersize=3.0,
+            linewidth=1.5,
+            label=label,
+        )
+    ax_validation.set_title("(a) Full-validation learning curves")
+    ax_validation.set_xlabel("Tokens seen (billions)")
+    ax_validation.set_ylabel("Validation loss")
+    ax_validation.legend(frameon=False, fontsize=7, ncol=2)
+
+    site_styles = {
+        "attention_inputs": ("Attention inputs", "-", "o"),
+        "mlp_inputs": ("MLP inputs", "--", "s"),
+        "mlp_hiddens": ("MLP hiddens", ":", "^"),
+    }
+    for ax, threshold_key, panel_title in (
+        (ax_exact, "k0", "(b) Exact-zero trajectories"),
+        (ax_near_zero, "k1em02", "(c) |activation| <= 0.01 trajectories"),
+    ):
+        for label in ("Three-ReLU AdamW", "Three-ReLU OL1"):
+            train_events = by_label[label]["train_events"]
+            for site, (site_label, linestyle, marker) in site_styles.items():
+                points = [
+                    (float(event["tokens_seen"]) / 1e9, _report04_site_event_fraction(event, site, threshold_key))
+                    for event in train_events
+                ]
+                points = [(x_value, y_value) for x_value, y_value in points if y_value is not None]
+                if not points:
+                    continue
+                ax.plot(
+                    [x_value for x_value, _y_value in points],
+                    [100.0 * float(y_value) for _x_value, y_value in points],
+                    color=REPORT04_METHOD_COLORS[label],
+                    linestyle=linestyle,
+                    marker=marker,
+                    markevery=max(1, len(points) // 9),
+                    markersize=2.4,
+                    linewidth=1.25,
+                    label=f"{label.replace('Three-ReLU ', '')} - {site_label}",
+                )
+        ax.set_title(panel_title)
+        ax.set_xlabel("Tokens seen (billions)")
+        ax.set_ylabel("Elementwise activation fraction (%)")
+        ax.set_ylim(-2.0, 102.0)
+        ax.legend(frameon=False, fontsize=6.5, ncol=2)
+
+    for label in ("MLP-ReLU OL1", "Three-ReLU OL1"):
+        train_events = by_label[label]["train_events"]
+        for metric_key, metric_label, linestyle in (
+            ("pressure/pressure_update_ratio_raw", "raw", ":"),
+            ("pressure/pressure_update_ratio_final", "final", "-"),
+        ):
+            points = [
+                (float(event["tokens_seen"]) / 1e9, float(event[metric_key]))
+                for event in train_events
+                if _finite(event.get(metric_key)) and float(event[metric_key]) > 0.0
+            ]
+            ax_update.plot(
+                [x_value for x_value, _y_value in points],
+                [y_value for _x_value, y_value in points],
+                color=REPORT04_METHOD_COLORS[label],
+                linestyle=linestyle,
+                linewidth=1.35,
+                label=f"{label} - {metric_label}",
+            )
+    ax_update.axhline(0.5, color="#4d4d4d", linestyle="--", linewidth=1.0, label="step budget = 0.5")
+    ax_update.set_yscale("log")
+    ax_update.set_title("(d) OL1 pressure/task update ratios")
+    ax_update.set_xlabel("Tokens seen (billions)")
+    ax_update.set_ylabel("Pressure update / AdamW update")
+    ax_update.legend(frameon=False, fontsize=7, ncol=2)
+
+    validation_tokens = max(
+        (
+            int(event.get("validation_tokens") or 0)
+            for item in series
+            for event in item["validation_events"]
+        ),
+        default=0,
+    )
+    fig.suptitle("Post-LayerNorm ReLU Training Diagnostics", y=0.985)
+    fig.text(
+        0.5,
+        0.948,
+        (
+            f"One seed per method; fixed 22,762-step / 1.492B-token budget; "
+            f"each validation point uses {validation_tokens:,} tokens"
+        ),
+        ha="center",
+        va="top",
+        fontsize=8,
+    )
+    fig.text(
+        0.5,
+        0.018,
+        "Activation trajectories are layer means from logged training minibatches; no seed uncertainty is estimated.",
+        ha="center",
+        va="bottom",
+        fontsize=8,
+    )
+    fig.subplots_adjust(left=0.085, right=0.99, top=0.90, bottom=0.09, hspace=0.34, wspace=0.25)
+    fig.savefig(output_path)
+    plt.close(fig)
+
+
+def _report04_histogram_payload(payloads: dict[str, dict[str, Any]], site: str) -> dict[str, Any]:
+    key = "mlp_hiddens" if site == "mlp_hiddens" else "inputs"
+    if key not in payloads:
+        raise ValueError(f"Missing report-04 histogram payload {key!r}.")
+    return payloads[key]
+
+
+def _report04_histogram_fraction(
+    payloads: dict[str, dict[str, Any]],
+    method_label: str,
+    site: str,
+    layer_index: int,
+    threshold_key: str,
+) -> float:
+    payload = _report04_histogram_payload(payloads, site)
+    method = _histogram_method(payload, method_label)
+    if method is None:
+        raise ValueError(f"Missing histogram method {method_label!r} for {site}.")
+    layer = _histogram_layer(method, f"{site}.layer_{layer_index}")
+    fractions = layer.get("threshold_fractions") or {}
+    value = fractions.get(threshold_key)
+    if not _finite(value):
+        raise ValueError(
+            f"Missing threshold fraction {threshold_key!r} for {method_label}, {site}, layer {layer_index}."
+        )
+    return float(value)
+
+
+def _plot_report04_activation_heatmaps(
+    payloads: dict[str, dict[str, Any]],
+    output_path: Path,
+) -> None:
+    method_labels = [label for label, _experiment_id in REPORT04_TRAINING_RUNS]
+    threshold_specs = (("0", "Exact zeros"), ("0.01", "|activation| <= 0.01"))
+    fig, axes = plt.subplots(3, 2, figsize=(10.5, 10.2), sharex=True, sharey=True)
+    image = None
+
+    for row_index, (site, site_label) in enumerate(REPORT04_CLIPPING_SITES):
+        for col_index, (threshold_key, threshold_label) in enumerate(threshold_specs):
+            ax = axes[row_index][col_index]
+            matrix = [
+                [
+                    100.0
+                    * _report04_histogram_fraction(
+                        payloads,
+                        method_label,
+                        site,
+                        layer_index,
+                        threshold_key,
+                    )
+                    for layer_index in range(6)
+                ]
+                for method_label in method_labels
+            ]
+            image = ax.imshow(matrix, aspect="auto", cmap="viridis", vmin=0.0, vmax=100.0)
+            ax.set_title(f"{site_label}: {threshold_label}", fontsize=10)
+            ax.set_xticks(range(6), [f"L{layer_index}" for layer_index in range(6)])
+            ax.set_yticks(range(len(method_labels)), method_labels, fontsize=7)
+            if col_index == 1:
+                ax.tick_params(labelleft=False)
+            for method_index, row in enumerate(matrix):
+                for layer_index, value in enumerate(row):
+                    ax.text(
+                        layer_index,
+                        method_index,
+                        f"{value:.1f}",
+                        ha="center",
+                        va="center",
+                        fontsize=6,
+                        color="black" if value >= 55.0 else "white",
+                    )
+    axes[-1][0].set_xlabel("Transformer layer")
+    axes[-1][1].set_xlabel("Transformer layer")
+
+    validation_tokens = int(payloads["inputs"].get("validation_tokens") or 0)
+    validation_sequences = int(payloads["inputs"].get("validation_sequences") or 0)
+    fig.suptitle("Post-LayerNorm ReLU Activation Fractions by Layer", y=0.988)
+    fig.text(
+        0.5,
+        0.955,
+        (
+            f"Full deterministic validation cache: {validation_sequences:,} sequences / "
+            f"{validation_tokens:,} tokens; stored elementwise counts"
+        ),
+        ha="center",
+        va="top",
+        fontsize=8,
+    )
+    fig.text(
+        0.5,
+        0.018,
+        (
+            "One seed per method and a fixed 1.492B-token training budget; "
+            "values are descriptive, without seed uncertainty."
+        ),
+        ha="center",
+        va="bottom",
+        fontsize=8,
+    )
+    fig.subplots_adjust(left=0.19, right=0.88, top=0.91, bottom=0.07, hspace=0.30, wspace=0.08)
+    if image is not None:
+        colorbar_axis = fig.add_axes([0.905, 0.18, 0.018, 0.64])
+        colorbar = fig.colorbar(image, cax=colorbar_axis)
+        colorbar.set_label("Elementwise fraction (%)", fontsize=8)
+        colorbar.ax.tick_params(labelsize=8)
+    fig.savefig(output_path)
+    plt.close(fig)
+
+
+def _plot_report04_activation_densities(
+    payloads: dict[str, dict[str, Any]],
+    output_path: Path,
+) -> None:
+    method_labels = [label for label, _experiment_id in REPORT04_TRAINING_RUNS]
+    site_specs = (
+        ("attention_inputs", "Attention inputs", (-4.0, 4.0)),
+        ("mlp_inputs", "MLP inputs", (-4.0, 4.0)),
+        ("mlp_hiddens", "MLP hiddens", (-0.25, 0.75)),
+    )
+    fig, axes = plt.subplots(1, 3, figsize=(11.8, 4.7), sharey=False)
+    legend_handles: dict[str, Any] = {}
+    max_hidden_outside = 0.0
+
+    for ax, (site, site_label, x_limits) in zip(axes, site_specs, strict=True):
+        payload = _report04_histogram_payload(payloads, site)
+        edges = [float(value) for value in payload.get("bin_edges", [])]
+        if len(edges) < 2:
+            raise ValueError(f"Histogram payload for {site} has no bin edges.")
+        if site == "mlp_hiddens":
+            upper_edge = next((edge for edge in edges if edge >= x_limits[1]), x_limits[1])
+            x_limits = (x_limits[0], upper_edge)
+        centers = [(left + right) / 2.0 for left, right in zip(edges[:-1], edges[1:], strict=True)]
+        densities_by_method: dict[str, list[float]] = {}
+        positive_values: list[float] = []
+        for method_label in method_labels:
+            method = _histogram_method(payload, method_label)
+            if method is None:
+                raise ValueError(f"Missing histogram method {method_label!r} for {site}.")
+            layer = _histogram_layer(method, f"{site}.layer_3")
+            densities = _histogram_density(layer, edges)
+            densities_by_method[method_label] = densities
+            positive_values.extend(value for value in densities if value > 0.0)
+            if site == "mlp_hiddens":
+                outside_count = int(layer.get("underflow") or 0) + int(layer.get("overflow") or 0)
+                outside_count += sum(
+                    int(count)
+                    for count, left, right in zip(layer.get("counts", []), edges[:-1], edges[1:], strict=True)
+                    if right <= x_limits[0] or left >= x_limits[1]
+                )
+                max_hidden_outside = max(
+                    max_hidden_outside,
+                    outside_count / max(int(layer.get("total") or 0), 1),
+                )
+        max_density = max(positive_values, default=1.0)
+        y_min = max(min(positive_values) * 0.7, max_density * 1e-5, 1e-8) if positive_values else 1e-8
+        y_max = max_density * 1.5
+        for method_label in method_labels:
+            densities = densities_by_method[method_label]
+            visible = [max(value, y_min) if value > 0.0 else y_min for value in densities]
+            (line,) = ax.step(
+                centers,
+                visible,
+                where="mid",
+                color=REPORT04_METHOD_COLORS[method_label],
+                linewidth=1.4,
+                label=method_label,
+            )
+            legend_handles.setdefault(method_label, line)
+        ax.axvspan(-0.01, 0.01, color="#000000", alpha=0.08, linewidth=0)
+        ax.axvline(0.0, color="#4d4d4d", linewidth=0.7, alpha=0.7)
+        ax.set_yscale("log")
+        ax.set_ylim(y_min, y_max)
+        ax.set_xlim(*x_limits)
+        ax.set_title(f"{site_label}, layer 3")
+        ax.set_xlabel("Activation value")
+        ax.xaxis.set_major_formatter(FuncFormatter(_trimmed_decimal_tick))
+    axes[0].set_ylabel("Probability density (log scale)")
+
+    validation_tokens = int(payloads["inputs"].get("validation_tokens") or 0)
+    fig.suptitle("Post-LayerNorm ReLU Layer-3 Activation Densities", y=0.99)
+    fig.text(
+        0.5,
+        0.947,
+        f"Full deterministic validation cache ({validation_tokens:,} tokens); one seed per method; fixed budget",
+        ha="center",
+        va="top",
+        fontsize=8,
+    )
+    fig.legend(
+        list(legend_handles.values()),
+        list(legend_handles.keys()),
+        loc="lower center",
+        bbox_to_anchor=(0.5, 0.01),
+        ncol=5,
+        frameon=False,
+        fontsize=7.5,
+    )
+    fig.text(
+        0.5,
+        0.075,
+        (
+            "Shaded band marks |activation| <= 0.01; exact zeros share the central histogram bin. "
+            f"The MLP-hidden view omits at most {100.0 * max_hidden_outside:.3f}% of mass per method."
+        ),
+        ha="center",
+        va="bottom",
+        fontsize=8,
+    )
+    fig.subplots_adjust(left=0.075, right=0.995, top=0.84, bottom=0.20, wspace=0.24)
+    fig.savefig(output_path)
+    plt.close(fig)
+
+
+def _plot_report04_site_clipping_frontiers(
+    site_series: dict[str, list[dict[str, Any]]],
+    output_path: Path,
+) -> None:
+    fig, axes = plt.subplots(1, 3, figsize=(11.4, 3.9), sharey=False)
+    legend_handles: dict[str, Any] = {}
+    total_points = 0
+    validation_tokens = 0
+
+    for ax, (site, site_label) in zip(axes, REPORT04_CLIPPING_SITES, strict=True):
+        panel_deltas: list[float] = []
+        for item in site_series.get(site, []):
+            rows = sorted(item["rows"], key=lambda row: float(row.get("threshold") or 0.0))
+            if not rows:
+                continue
+            baseline = min(rows, key=lambda row: abs(float(row.get("threshold") or 0.0)))
+            baseline_loss = float(baseline["validation_loss"])
+            sparsity = [100.0 * float(row["achieved_sparsity"]) for row in rows]
+            deltas = [float(row["validation_loss"]) - baseline_loss for row in rows]
+            panel_deltas.extend(deltas)
+            total_points += len(rows)
+            validation_tokens = max(validation_tokens, max(int(row.get("validation_tokens") or 0) for row in rows))
+            label = str(item["label"])
+            (line,) = ax.plot(
+                sparsity,
+                deltas,
+                color=REPORT04_METHOD_COLORS[label],
+                marker=REPORT04_METHOD_MARKERS[label],
+                markersize=3.0,
+                linewidth=1.4,
+                label=label,
+            )
+            legend_handles.setdefault(label, line)
+        ax.axhline(0.0, color="#4d4d4d", linestyle="--", linewidth=0.8)
+        ax.set_title(site_label)
+        ax.set_xlabel("Achieved exact zeros (%)")
+        ax.set_ylabel("Validation loss change from threshold 0")
+        if panel_deltas:
+            maximum = max(panel_deltas)
+            minimum = min(panel_deltas)
+            span = max(maximum - minimum, maximum, 1e-3)
+            ax.set_ylim(min(-0.02 * span, minimum - 0.03 * span), maximum + 0.08 * span)
+
+    fig.suptitle("Site-Specific Post-Hoc Clipping Frontiers", y=0.985)
+    fig.text(
+        0.5,
+        0.945,
+        (
+            f"{total_points} sweep points; {validation_tokens:,} validation tokens per point; "
+            "each curve is referenced to its own threshold-0 loss"
+        ),
+        ha="center",
+        va="top",
+        fontsize=8,
+    )
+    fig.legend(
+        list(legend_handles.values()),
+        list(legend_handles.keys()),
+        loc="lower center",
+        bbox_to_anchor=(0.5, 0.01),
+        ncol=3,
+        frameon=False,
+        fontsize=8,
+    )
+    fig.text(
+        0.5,
+        0.072,
+        "One seed per method; fixed training budget; panel-specific y scales are shown explicitly.",
+        ha="center",
+        va="bottom",
+        fontsize=8,
+    )
+    fig.subplots_adjust(left=0.08, right=0.995, top=0.87, bottom=0.22, wspace=0.28)
+    fig.savefig(output_path)
+    plt.close(fig)
+
+
+def _nondominated_skip_loss_points(points: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    nondominated: list[dict[str, Any]] = []
+    for point in points:
+        skip = float(point["skip"])
+        loss = float(point["loss"])
+        dominated = any(
+            float(other["skip"]) >= skip
+            and float(other["loss"]) <= loss
+            and (float(other["skip"]) > skip or float(other["loss"]) < loss)
+            for other in points
+        )
+        if not dominated:
+            nondominated.append(point)
+    return sorted(nondominated, key=lambda point: float(point["skip"]))
+
+
+def _plot_report04_joint_compute_frontier(
+    series: list[dict[str, Any]],
+    output_path: Path,
+) -> None:
+    fig, ax = plt.subplots(figsize=(8.3, 5.5))
+    all_points: list[dict[str, Any]] = []
+    plotted_series: list[dict[str, Any]] = []
+    threshold_zero_points: list[dict[str, Any]] = []
+    validation_tokens = 0
+
+    for item in series:
+        rows = [row for row in item["rows"] if _finite(row.get("eligible_projection_skip_fraction"))]
+        rows = sorted(rows, key=lambda row: float(row["eligible_projection_skip_fraction"]))
+        if not rows:
+            continue
+        label = str(item["label"])
+        x_values = [100.0 * float(row["eligible_projection_skip_fraction"]) for row in rows]
+        y_values = [float(row["validation_loss"]) for row in rows]
+        ax.plot(
+            x_values,
+            y_values,
+            color=REPORT04_METHOD_COLORS[label],
+            marker=REPORT04_METHOD_MARKERS[label],
+            markersize=4.0,
+            linewidth=1.45,
+            label=label,
+            zorder=3,
+        )
+        threshold_zero = min(rows, key=lambda row: abs(float(row.get("threshold") or 0.0)))
+        threshold_zero_points.append(
+            {
+                "label": label,
+                "skip": 100.0 * float(threshold_zero["eligible_projection_skip_fraction"]),
+                "loss": float(threshold_zero["validation_loss"]),
+            }
+        )
+        plotted_series.append({"label": label, "x": x_values, "y": y_values})
+        validation_tokens = max(validation_tokens, max(int(row.get("validation_tokens") or 0) for row in rows))
+        all_points.extend(
+            {
+                "skip": 100.0 * float(row["eligible_projection_skip_fraction"]),
+                "loss": float(row["validation_loss"]),
+                "label": label,
+                "threshold": float(row.get("threshold") or 0.0),
+            }
+            for row in rows
+        )
+
+    pareto = _nondominated_skip_loss_points(all_points)
+    if pareto:
+        pareto_x = [float(point["skip"]) for point in pareto]
+        pareto_y = [float(point["loss"]) for point in pareto]
+        ax.plot(
+            pareto_x,
+            pareto_y,
+            color="#4d4d4d",
+            linestyle="--",
+            linewidth=2.0,
+            label="Nondominated envelope",
+            zorder=2,
+        )
+        ax.scatter(
+            pareto_x,
+            pareto_y,
+            facecolors="none",
+            edgecolors="#1a1a1a",
+            linewidths=0.9,
+            s=42,
+            zorder=4,
+        )
+
+    inset = ax.inset_axes([0.06, 0.51, 0.47, 0.36])
+    for item in plotted_series:
+        label = str(item["label"])
+        inset.plot(
+            item["x"],
+            item["y"],
+            color=REPORT04_METHOD_COLORS[label],
+            marker=REPORT04_METHOD_MARKERS[label],
+            markersize=2.8,
+            linewidth=1.15,
+        )
+    if pareto:
+        inset.plot(pareto_x, pareto_y, color="#4d4d4d", linestyle="--", linewidth=1.4)
+        inset.scatter(
+            pareto_x,
+            pareto_y,
+            facecolors="none",
+            edgecolors="#1a1a1a",
+            linewidths=0.65,
+            s=25,
+            zorder=4,
+        )
+    annotation_offsets = ((6, 10), (-58, 12), (-62, 9))
+    for point, offset in zip(threshold_zero_points, annotation_offsets, strict=True):
+        label = str(point["label"])
+        inset.annotate(
+            "threshold 0",
+            (float(point["skip"]), float(point["loss"])),
+            xytext=offset,
+            textcoords="offset points",
+            fontsize=6,
+            color=REPORT04_METHOD_COLORS[label],
+            arrowprops={"arrowstyle": "-", "color": REPORT04_METHOD_COLORS[label], "linewidth": 0.6},
+        )
+    inset.set_xlim(
+        min(float(point["skip"]) for point in all_points) - 1.0,
+        max(float(point["skip"]) for point in threshold_zero_points) + 6.0,
+    )
+    inset.set_ylim(
+        min(float(point["loss"]) for point in all_points) - 0.02,
+        max(float(point["loss"]) for point in threshold_zero_points) + 0.08,
+    )
+    inset.set_title("Low-loss zoom (full frontier retained)", fontsize=7.5)
+    inset.tick_params(axis="both", labelsize=6)
+    inset.grid(alpha=0.2)
+    ax.indicate_inset_zoom(inset, edgecolor="#666666", alpha=0.55, linewidth=0.8)
+
+    ax.set_xlabel("Potentially skippable eligible projection multiplies (%)")
+    ax.set_ylabel("Absolute validation loss")
+    ax.legend(loc="lower right", frameon=False, fontsize=8, ncol=2)
+    fig.suptitle("Joint Three-Site Clipping and Eligible-Projection Skip Proxy", y=0.985)
+    fig.text(
+        0.5,
+        0.945,
+        (
+            f"{validation_tokens:,} validation tokens per point; nondominance minimizes loss and maximizes skip "
+            "across all plotted sweep points"
+        ),
+        ha="center",
+        va="top",
+        fontsize=8,
+    )
+    fig.text(
+        0.5,
+        0.022,
+        (
+            "Skip proxy = (3 z_attention-input + 4 z_MLP-input + 4 z_MLP-hidden) / 11. "
+            "It is an elementwise multiplication opportunity, not measured runtime speedup."
+        ),
+        ha="center",
+        va="bottom",
+        fontsize=8,
+    )
+    fig.text(
+        0.5,
+        0.052,
+        "One seed per method; fixed 1.492B-token training budget.",
+        ha="center",
+        va="bottom",
+        fontsize=8,
+    )
+    fig.subplots_adjust(left=0.11, right=0.985, top=0.88, bottom=0.15)
+    fig.savefig(output_path)
+    plt.close(fig)
+
+
+def _plot_report04_parameter_diagnostics(
+    series: list[dict[str, Any]],
+    output_path: Path,
+) -> None:
+    labels = [str(item["label"]) for item in series]
+    fig = plt.figure(figsize=(11.8, 9.2))
+    grid = fig.add_gridspec(3, 6, height_ratios=(1.15, 1.0, 1.0), hspace=0.46, wspace=0.55)
+    weight_axes = {
+        "qkv": fig.add_subplot(grid[0, 0:2]),
+        "w1": fig.add_subplot(grid[0, 2:4]),
+        "w2": fig.add_subplot(grid[0, 4:6]),
+    }
+    layer_norm_axes = {
+        ("attention", "gamma"): fig.add_subplot(grid[1, 0:3]),
+        ("mlp", "gamma"): fig.add_subplot(grid[1, 3:6]),
+        ("attention", "beta"): fig.add_subplot(grid[2, 0:3]),
+        ("mlp", "beta"): fig.add_subplot(grid[2, 3:6]),
+    }
+    legend_handles: dict[str, Any] = {}
+    maximum_outside = 0
+
+    for group_id, ax in weight_axes.items():
+        positive_values = [
+            float(value)
+            for item in series
+            for value in item["weight_groups"][group_id]["densities"]
+            if float(value) > 0.0
+        ]
+        max_density = max(positive_values, default=1.0)
+        y_min = max(min(positive_values) * 0.7, max_density * 1e-5, 1e-8) if positive_values else 1e-8
+        for item in series:
+            label = str(item["label"])
+            group = item["weight_groups"][group_id]
+            y_values = [max(float(value), y_min) if float(value) > 0.0 else y_min for value in group["densities"]]
+            (line,) = ax.step(
+                group["centers"],
+                y_values,
+                where="mid",
+                color=REPORT04_METHOD_COLORS[label],
+                linewidth=1.35,
+                label=label,
+            )
+            legend_handles.setdefault(label, line)
+            maximum_outside = max(maximum_outside, int(group["outside"]))
+        reference_group = series[0]["weight_groups"][group_id]
+        ax.axvspan(-0.01, 0.01, color="#000000", alpha=0.08, linewidth=0)
+        ax.axvline(0.0, color="#4d4d4d", linewidth=0.7, alpha=0.7)
+        ax.set_yscale("log")
+        ax.set_ylim(y_min, max_density * 1.5)
+        ax.set_xlim(*reference_group["range"])
+        ax.set_title(
+            f"{reference_group['label']}\n"
+            f"n={int(reference_group['total']):,} per method; {int(reference_group['tensor_count'])} tensors",
+            fontsize=9,
+        )
+        ax.set_xlabel("Weight value")
+        ax.xaxis.set_major_formatter(FuncFormatter(_trimmed_decimal_tick))
+    weight_axes["qkv"].set_ylabel("Probability density (log scale)")
+
+    parameter_titles = {"gamma": "gamma", "beta": "beta"}
+    for (branch_id, parameter_id), ax in layer_norm_axes.items():
+        for item in series:
+            label = str(item["label"])
+            branch = item["layer_norms"][branch_id]
+            summaries = branch["parameters"][parameter_id]
+            layers = [int(summary["layer"]) for summary in summaries]
+            means = [float(summary["mean"]) for summary in summaries]
+            stds = [float(summary["std"]) for summary in summaries]
+            color = REPORT04_METHOD_COLORS[label]
+            ax.fill_between(
+                layers,
+                [mean - std for mean, std in zip(means, stds, strict=True)],
+                [mean + std for mean, std in zip(means, stds, strict=True)],
+                color=color,
+                alpha=0.07,
+                linewidth=0,
+            )
+            ax.plot(
+                layers,
+                means,
+                color=color,
+                marker=REPORT04_METHOD_MARKERS[label],
+                markersize=3.0,
+                linewidth=1.25,
+            )
+        branch_label = series[0]["layer_norms"][branch_id]["label"]
+        ax.set_title(f"{branch_label} {parameter_titles[parameter_id]}: feature mean +/- SD", fontsize=9)
+        ax.set_xticks(range(6), [f"L{layer_index}" for layer_index in range(6)])
+        ax.set_xlabel("Transformer layer")
+        ax.set_ylabel(f"{parameter_titles[parameter_id]} value")
+        ax.ticklabel_format(axis="y", style="plain", useOffset=False)
+
+    fig.suptitle("Final-Checkpoint Weight and Branch-LayerNorm Diagnostics", y=0.99)
+    fig.text(
+        0.5,
+        0.958,
+        (
+            "Five matched one-seed checkpoints; all weight densities aggregate "
+            "the six transformer layers; biases excluded"
+        ),
+        ha="center",
+        va="top",
+        fontsize=8,
+    )
+    fig.legend(
+        list(legend_handles.values()),
+        list(legend_handles.keys()),
+        loc="lower center",
+        bbox_to_anchor=(0.5, 0.008),
+        ncol=min(5, len(labels)),
+        frameon=False,
+        fontsize=8,
+    )
+    fig.text(
+        0.5,
+        0.058,
+        (
+            "LayerNorm bands are within-layer feature SD (n=128), not seed uncertainty. "
+            f"Shading marks |weight| <= 0.01; maximum values outside plotted ranges: {maximum_outside}."
+        ),
+        ha="center",
+        va="bottom",
+        fontsize=8,
+    )
+    fig.text(
+        0.5,
+        0.092,
+        "One seed per method; fixed 22,762-step / 1.492B-token training budget.",
+        ha="center",
+        va="bottom",
+        fontsize=8,
+    )
+    fig.subplots_adjust(left=0.075, right=0.995, top=0.88, bottom=0.17)
     fig.savefig(output_path)
     plt.close(fig)
 
