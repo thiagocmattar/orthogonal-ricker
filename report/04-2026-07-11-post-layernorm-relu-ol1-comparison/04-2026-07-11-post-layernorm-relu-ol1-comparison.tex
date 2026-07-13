@@ -256,13 +256,29 @@ Here $\gamma$ controls normalized scale and $\beta$ moves coordinates across the
 \centering
 \includegraphics[width=\textwidth]{../../figures/89-pythia-14m-minipile-post-layernorm-relu-layernorm-parameters.pdf}
 \caption{Attention-branch and MLP-branch LayerNorm affine parameters, separated from downstream matrix weights. Negative bias shifts more normalized coordinates below the ReLU threshold; scale changes alter the width of the surviving distribution. Values are associations at the final checkpoint, not a causal decomposition.}
+\label{fig:layernorm-parameters}
 \end{figure}
 
-A natural architectural follow-up is a learnable gate
+\noindent\textbf{TODO --- Learnable zero-threshold activation.}
+The proposed follow-up makes the ReLU zero boundary an explicit model parameter instead of asking LayerNorm to move activations around a fixed boundary. Let $z_l^{(s)}$ enter gate $s\in\{\text{attention input},\text{MLP input},\text{MLP hidden}\}$ in layer $l$. It is the corresponding LayerNorm output at the first two sites and the MLP-up output at the hidden site. Define
 \[
-A_l^{(s)}=\operatorname{ReLU}\!\left(\operatorname{LN}_l^{(s)}(H_l)-\tau_l^{(s)}\right),
+g_{\tau_l^{(s)}}(z)=
+\begin{cases}
+0, & z\leq\tau_l^{(s)},\\
+z, & z>\tau_l^{(s)},
+\end{cases}
+\qquad
+A_l^{(s)}=g_{\tau_l^{(s)}}\!\left(z_l^{(s)}\right).
 \]
-with a global compute budget allocating thresholds $\tau_l^{(s)}$ across layers and sites. A free per-coordinate $\tau$ is algebraically redundant with LayerNorm bias, so the useful version should be constrained---for example one scalar per layer/site, monotone or budget-regularized---and evaluated by the compute it actually controls. This makes the gate policy explicit instead of asking unconstrained LayerNorm biases to discover it indirectly.
+This hard gate leaves surviving values unchanged. At $\tau_l^{(s)}=0$ it is exactly the current ReLU; $\tau_l^{(s)}>0$ creates more exact zeros by removing small positive values. A negative threshold would pass negative values, so the first test should constrain $\tau_l^{(s)}\geq0$. The symbol $\tau$ avoids collision with LayerNorm scale $\gamma$.
+
+The TODO has three concrete parts:
+\begin{itemize}[leftmargin=1.3em]
+  \item \textbf{Parameterization.} Initialize one scalar $\tau_l^{(s)}=0$ per layer/site and learn it jointly with the model, allowing each gate to choose a different zero rate without per-coordinate thresholds.
+  \item \textbf{Optimization.} Use a global, matmul-cost-weighted exact-zero budget. Because the hard boundary has no useful derivative with respect to $\tau$ away from the boundary, compare smooth or straight-through training with alternating hard-threshold calibration.
+  \item \textbf{Evaluation.} Compare fixed Three-ReLU, post-hoc clipping, and learned thresholds at matched validation loss and $R_{\mathrm{model}}$. Report learned thresholds, exact-zero rates by layer/site, the clipping frontier, logical product reduction, and measured sparse-kernel latency.
+\end{itemize}
+Figure~\ref{fig:layernorm-parameters} motivates this TODO: $\gamma$ and $\beta$ shift after post-LayerNorm ReLU, showing that the model already changes the distribution around the fixed zero boundary. This association does not establish that a learned threshold will help; the proposed experiment asks whether controlling the boundary directly yields a better quality--compute frontier. No learnable-threshold run has been performed in this study.
 
 \tightsection{Post-hoc Clipping: Robustness and the Compute Frontier}
 
@@ -288,19 +304,28 @@ The head-inclusive percentage is deliberately smaller than the 28.66\pct{} OR bl
 
 \tightsection{Conclusions and Recommended Next Step}
 
-This test answers five questions. First, post-LayerNorm ReLUs do create genuine, directly consumable zeros before QKV and MLP-up, but the tested Three-ReLU architecture costs 0.1160 validation loss relative to MLP-ReLU AdamW. Second, pressure is method-dependent: OR produces a balanced rise across all three gates and is the only positive three-site candidate, while L1N and OL1 reveal adverse cross-site redistribution. Third, ReLU zeros do not propagate as zeros through ordinary dense layers; each gate only exposes products in its immediately downstream matmul, and the MLP hidden ReLU creates a new mask. Fourth, exact-zero, near-zero, weight, and LayerNorm distributions together show how the model changes its gate operating points, but they do not by themselves establish a causal compensation mechanism. Fifth, the low absolute $R_{\mathrm{model}}$ at 14M is strongly architecture-limited: OR already uses 73.0\pct{} of its ceiling, and the ceiling rises sharply with Pythia scale.
+The current evidence supports six conclusions:
+\begin{itemize}[leftmargin=1.3em]
+  \item \textbf{Architecture.} Post-LayerNorm ReLUs create genuine, directly consumable zeros before QKV and MLP-up, but the tested Three-ReLU architecture costs 0.1160 validation loss relative to MLP-ReLU AdamW.
+  \item \textbf{Pressure result is provisional.} OR produces the best balanced three-gate result among the completed runs. However, the matched Three-ReLU RN control---naive Ricker without Adam-step orthogonalization---has not been run because of GPU/time constraints. The present experiment therefore cannot separate the effect of Ricker pressure itself from the effect of orthogonalization.
+  \item \textbf{Propagation is local.} Each existing ReLU gate exposes products only in its immediately downstream QKV, MLP-up, or MLP-down matmul. Dense projections and residual addition do not preserve the scalar zero mask; the MLP-hidden ReLU creates a new mask.
+  \item \textbf{QK and PV are open targets.} In the current block, Q, K, and V are dense after the QKV projection. RoPE then rotates pairs of Q/K coordinates: it does not need dense values merely to know token position, but an isolated scalar zero is generally mixed with its paired coordinate, while an all-zero pair remains zero. Standard softmax probabilities are positive at valid causal positions, so plain ReLU on $P$ would not sparsify $PV$.
+  \item \textbf{TODO: make the zero threshold learnable.} The LayerNorm $\gamma$/$\beta$ shifts in Figure~\ref{fig:layernorm-parameters} show that the distribution moves around a fixed ReLU boundary. A nonnegative $\tau_l^{(s)}$, initialized at zero and learned per layer/site under a global compute budget, would make this sparsity decision explicit. This is a proposed experiment, not a result.
+  \item \textbf{Scale changes the ceiling.} The low absolute $R_{\mathrm{model}}$ at 14M is strongly architecture-limited: OR already uses 73.0\pct{} of its ceiling, and the ceiling rises sharply with Pythia scale.
+\end{itemize}
 
 The research agenda should now move from local sparsity maximization to a global, hardware-aware activation budget:
 \begin{enumerate}
+  \item \textbf{Complete the missing RN control.} Add and run a Three-ReLU RN full-pass configuration matched to OR in initialization, data order, token budget, and Ricker parameters $w=1$, $c=\sigma=0.05$. This is the required comparison for attributing any gain to Ricker pressure versus Adam-step orthogonalization. Keep OR and MLP-only OL1 (config 81) as references; do not prioritize L1N or Three-ReLU OL1 at their present weights. This run was deferred only by GPU/time constraints.
   \item \textbf{Separate the architecture cost.} Train attention-input-only and MLP-input-only post-LayerNorm ReLU ablations against MLP-ReLU AdamW. Keep the final LayerNorm untouched.
-  \item \textbf{Carry OR and MLP-only OL1 as references.} OR is the three-site frontier candidate; config 81 is the quality-preserving narrow-scope reference. Do not carry L1N or three-site OL1 at the present weights unchanged.
-  \item \textbf{Learn where to spend zeros.} Replace equal site averaging with the model-matmul cost weights and constrained learned thresholds. Optimize one global budget over layer--site gates, not three independent sparsity percentages.
+  \item \textbf{TODO: learn where to spend zeros.} Replace equal site averaging with model-matmul cost weights and nonnegative $g_{\tau}$ gates initialized as ordinary ReLUs. Start with one threshold per layer/site and one global compute budget; compare smooth or straight-through training with alternating hard-threshold calibration, fixed ReLU, and post-hoc clipping.
+  \item \textbf{Open a sparse-attention-core track.} For QK, compare pair-structured Q/K gates before RoPE with gates after RoPE; both avoid assuming that arbitrary scalar zeros survive the rotation. For PV, gate V after the QKV split and replace plain ReLU on $P$ with an explicit threshold or structured probability sparsifier followed by renormalization. Treat QK and PV as separate TODOs and measure their quality and kernel cost independently.
   \item \textbf{Test redistribution causally.} Intervene on one gate at a time---freeze, clamp, or remove its pressure---and measure changes at downstream and parallel sites. Use ``cross-site coupling'' for observational results and reserve ``compensation'' for effects established by these interventions.
-  \item \textbf{Match the representation to execution.} After the gate policy is stable across seeds, test token-, channel-, or block-structured masks and a zero-aware kernel. Compare logical product reduction, kernel latency, memory traffic, and energy rather than treating zeros as measured speed.
-  \item \textbf{Scale only the surviving design.} Repeat the architecture ablation and OR/threshold candidate across seeds at 14M, then measure them anew at 70M and 160M, whose ceilings are 33.97\pct{} and 54.65\pct{}. Do not project the 14M zero rates upward. The present one-seed, one-pass result is mechanism and planning evidence, not an uncertainty-qualified final estimate.
+  \item \textbf{Match the representation to execution.} After the gate policy is stable across seeds, test token-, channel-, pair-, or block-structured masks and a zero-aware kernel. Compare logical product reduction, kernel latency, memory traffic, and energy rather than treating zeros as measured speed.
+  \item \textbf{Scale only the surviving design.} Repeat the architecture ablation and RN/OR/threshold candidates across seeds at 14M, then measure them anew at 70M and 160M, whose ceilings are 33.97\pct{} and 54.65\pct{}. Do not project the 14M zero rates upward. The present one-seed, one-pass result is mechanism and planning evidence, not an uncertainty-qualified final estimate.
 \end{enumerate}
 
-The central recommendation is therefore specific: \textbf{build the next experiment around constrained, cost-weighted ReLU thresholds before QKV, MLP-up, and MLP-down, with OR as the pressured comparator and exact-zero propagation as a required diagnostic.}
+The central recommendation is therefore staged: \textbf{first complete the matched Three-ReLU RN versus OR comparison; then test constrained, cost-weighted $g_{\tau}$ gates before QKV, MLP-up, and MLP-down. Keep sparse QK and PV as an explicit follow-up track, with exact-zero propagation and zero-aware kernel measurements required throughout.}
 
 \begin{thebibliography}{9}
 \small
