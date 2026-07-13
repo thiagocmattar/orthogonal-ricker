@@ -24,3 +24,4 @@ report/run-logs/
 report/**/*.aux
 report/**/*.log
 report/**/*.out
+report/04-2026-07-11-post-layernorm-relu-ol1-comparison/relu_strikes_back_ref_figure.png
