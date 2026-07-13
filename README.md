@@ -151,9 +151,9 @@ Post-LayerNorm ReLU pressure comparison:
 
 ```text
 training configs: configs/98-pythia-14m-minipile-post-layernorm-relu-adamw-full-pass.yaml, configs/99-pythia-14m-minipile-post-layernorm-relu-orthogonal-l1-full-pass-w5.yaml, configs/103-pythia-14m-minipile-post-layernorm-relu-orthogonal-ricker-full-pass-w1-c0p05-s0p05.yaml, and configs/104-pythia-14m-minipile-post-layernorm-relu-l1-naive-full-pass-w5.yaml
-validation diagnostics: configs/100-pythia-14m-minipile-post-layernorm-relu-input-histograms.yaml through configs/102-pythia-14m-minipile-post-layernorm-relu-activation-propagation.yaml
+validation diagnostics: configs/100-pythia-14m-minipile-post-layernorm-relu-input-histograms.yaml through configs/102-pythia-14m-minipile-post-layernorm-relu-activation-propagation.yaml, plus full-cache site-specific and joint clipping sweeps
 report: report/04-2026-07-11-post-layernorm-relu-ol1-comparison/04-2026-07-11-post-layernorm-relu-ol1-comparison.pdf
-figures: figures/79-pythia-14m-minipile-post-layernorm-relu-learning-diagnostics.pdf through figures/85-pythia-14m-minipile-post-layernorm-relu-zero-propagation-heatmaps.pdf
+figures: figures/79-pythia-14m-minipile-post-layernorm-relu-learning-diagnostics.pdf through figures/90-pythia-family-three-relu-model-compute-ceilings.pdf
 ```
 
 This one-seed test applies ReLU after both branch LayerNorms in every transformer block, keeps the MLP-hidden ReLU, and leaves the final LayerNorm unchanged. Pressure is applied only to `attention_inputs`, `mlp_inputs`, and `mlp_hiddens`. The tested settings are OR weight 1 with `c = sigma = 0.05` and step budget 0.5, L1N weight 5, and OL1 weight 5 with step budget 0.5.

@@ -11,6 +11,7 @@ import matplotlib
 matplotlib.use("Agg")
 
 import matplotlib.pyplot as plt
+from matplotlib.patches import FancyArrowPatch, FancyBboxPatch
 from matplotlib.ticker import FuncFormatter
 
 from paper_exp.utils import read_json
@@ -354,11 +355,21 @@ REPORT04_TRAINING_RUNS = (
     ("MLP-ReLU AdamW", "77-pythia-14m-minipile-relu-adamw-full-pass"),
     ("MLP-ReLU OL1", "81-pythia-14m-minipile-relu-orthogonal-l1-full-pass-w5"),
     ("Three-ReLU AdamW", "98-pythia-14m-minipile-post-layernorm-relu-adamw-full-pass"),
+    (
+        "Three-ReLU OR",
+        "103-pythia-14m-minipile-post-layernorm-relu-orthogonal-ricker-full-pass-w1-c0p05-s0p05",
+    ),
+    ("Three-ReLU L1N", "104-pythia-14m-minipile-post-layernorm-relu-l1-naive-full-pass-w5"),
     ("Three-ReLU OL1", "99-pythia-14m-minipile-post-layernorm-relu-orthogonal-l1-full-pass-w5"),
 )
 REPORT04_CLIPPING_RUNS = (
     ("MLP-ReLU AdamW", "77-pythia-14m-minipile-relu-adamw-full-pass"),
     ("Three-ReLU AdamW", "98-pythia-14m-minipile-post-layernorm-relu-adamw-full-pass"),
+    (
+        "Three-ReLU OR",
+        "103-pythia-14m-minipile-post-layernorm-relu-orthogonal-ricker-full-pass-w1-c0p05-s0p05",
+    ),
+    ("Three-ReLU L1N", "104-pythia-14m-minipile-post-layernorm-relu-l1-naive-full-pass-w5"),
     ("Three-ReLU OL1", "99-pythia-14m-minipile-post-layernorm-relu-orthogonal-l1-full-pass-w5"),
 )
 REPORT04_JOINT_CLIPPING_RUNS = (
@@ -420,6 +431,46 @@ PROPAGATION_MATMUL_ROWS = (
     ("attention_output_projection", r"Attention projection: $C_l W_o$"),
     ("mlp_w1", r"MLP up: $R_l^+ W_1$"),
     ("mlp_w2", r"MLP down: $A_l W_2$"),
+)
+
+# Pythia-14M forward-pass accounting used in report 04.  The attention terms
+# count valid causal pairs rather than the masked upper triangle.  The metric
+# is a logical scalar-product opportunity, not a wall-clock or kernel FLOP claim.
+REPORT04_HIDDEN_SIZE = 128
+REPORT04_INTERMEDIATE_SIZE = 512
+REPORT04_NUM_LAYERS = 6
+REPORT04_BLOCK_SIZE = 2048
+REPORT04_VOCAB_SIZE = 50304
+REPORT04_TARGET_PRODUCTS_PER_TOKEN = REPORT04_NUM_LAYERS * (
+    3 * REPORT04_HIDDEN_SIZE**2
+    + REPORT04_HIDDEN_SIZE * REPORT04_INTERMEDIATE_SIZE
+    + REPORT04_INTERMEDIATE_SIZE * REPORT04_HIDDEN_SIZE
+)
+REPORT04_BLOCK_PRODUCTS_PER_TOKEN = REPORT04_NUM_LAYERS * (
+    3 * REPORT04_HIDDEN_SIZE**2
+    + REPORT04_HIDDEN_SIZE**2
+    + REPORT04_HIDDEN_SIZE * REPORT04_INTERMEDIATE_SIZE
+    + REPORT04_INTERMEDIATE_SIZE * REPORT04_HIDDEN_SIZE
+    + REPORT04_HIDDEN_SIZE * (REPORT04_BLOCK_SIZE + 1)
+)
+REPORT04_LM_HEAD_PRODUCTS_PER_TOKEN = REPORT04_HIDDEN_SIZE * REPORT04_VOCAB_SIZE
+REPORT04_MODEL_PRODUCTS_PER_TOKEN = REPORT04_BLOCK_PRODUCTS_PER_TOKEN + REPORT04_LM_HEAD_PRODUCTS_PER_TOKEN
+REPORT04_TARGET_MODEL_FRACTION = REPORT04_TARGET_PRODUCTS_PER_TOKEN / REPORT04_MODEL_PRODUCTS_PER_TOKEN
+
+# Official Pythia architecture dimensions.  The family table provides L and d;
+# the Hugging Face configs provide the padded vocabulary sizes used by each LM
+# head.  All models use T=2048 and an intermediate width of 4d.
+REPORT04_PYTHIA_FAMILY = (
+    ("14M", 6, 128, 50304),
+    ("31M", 6, 256, 50304),
+    ("70M", 6, 512, 50304),
+    ("160M", 12, 768, 50304),
+    ("410M", 24, 1024, 50304),
+    ("1B", 16, 2048, 50304),
+    ("1.4B", 24, 2048, 50304),
+    ("2.8B", 32, 2560, 50304),
+    ("6.9B", 32, 4096, 50432),
+    ("12B", 36, 5120, 50688),
 )
 
 PLOT_STYLE = {
@@ -1499,6 +1550,12 @@ def _generate_known_paper_figures(results_path: Path, figures_path: Path, *, sav
             )
         )
 
+        output_pdf = figures_path / "87-pythia-14m-minipile-three-relu-architecture-compute-map.pdf"
+        outputs.extend(generate_report04_three_relu_architecture(output=output_pdf, save_png=save_png))
+
+        output_pdf = figures_path / "90-pythia-family-three-relu-model-compute-ceilings.pdf"
+        outputs.extend(generate_report04_pythia_family_compute_ceiling(output=output_pdf, save_png=save_png))
+
     report04_histogram_runs = {
         "inputs": _latest_run_with(
             results_path / REPORT04_INPUT_HISTOGRAM_EXPERIMENT,
@@ -1583,6 +1640,26 @@ def _generate_known_paper_figures(results_path: Path, figures_path: Path, *, sav
             )
         )
 
+        output_pdf = figures_path / "89-pythia-14m-minipile-post-layernorm-relu-layernorm-parameters.pdf"
+        outputs.extend(
+            generate_report04_layernorm_parameters(
+                runs=report04_parameter_runs,
+                output=output_pdf,
+                save_png=save_png,
+            )
+        )
+
+        if all(report04_histogram_runs.values()):
+            output_pdf = figures_path / "88-pythia-14m-minipile-post-layernorm-relu-activation-weight-densities.pdf"
+            outputs.extend(
+                generate_report04_activation_weight_densities(
+                    histogram_runs=report04_histogram_runs,
+                    runs=report04_parameter_runs,
+                    output=output_pdf,
+                    save_png=save_png,
+                )
+            )
+
     propagation_run = _latest_run_with(
         results_path / POST_LAYERNORM_RELU_PROPAGATION_EXPERIMENT,
         "activation_propagation.json",
@@ -1591,6 +1668,18 @@ def _generate_known_paper_figures(results_path: Path, figures_path: Path, *, sav
         output_pdf = figures_path / "85-pythia-14m-minipile-post-layernorm-relu-zero-propagation-heatmaps.pdf"
         outputs.extend(
             generate_post_layernorm_relu_propagation_heatmaps(
+                run_dir=propagation_run,
+                output=output_pdf,
+                save_png=save_png,
+            )
+        )
+
+        output_pdf = (
+            figures_path
+            / "86-pythia-14m-minipile-post-layernorm-relu-zero-product-propagation-heatmaps.pdf"
+        )
+        outputs.extend(
+            generate_post_layernorm_relu_zero_product_heatmaps(
                 run_dir=propagation_run,
                 output=output_pdf,
                 save_png=save_png,
@@ -2218,6 +2307,92 @@ def generate_report04_parameter_diagnostics(
     return outputs
 
 
+def generate_report04_activation_weight_densities(
+    *,
+    histogram_runs: dict[str, str | Path | None],
+    runs: list[tuple[str, str | Path]],
+    output: str | Path,
+    save_png: bool = False,
+) -> list[Path]:
+    plt.rcParams.update(PLOT_STYLE)
+
+    output_path = Path(output)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    payloads = {
+        key: read_json(Path(run_dir) / "activation_histograms.json")
+        for key, run_dir in histogram_runs.items()
+        if run_dir is not None
+    }
+    series = _load_report04_parameter_series(runs)
+    if not series:
+        raise ValueError("No report-04 parameter checkpoints were found.")
+    _plot_report04_activation_weight_densities(payloads, series, output_path)
+    outputs = [output_path]
+    if save_png:
+        png_path = output_path.with_suffix(".png")
+        _plot_report04_activation_weight_densities(payloads, series, png_path)
+        outputs.append(png_path)
+    return outputs
+
+
+def generate_report04_layernorm_parameters(
+    *,
+    runs: list[tuple[str, str | Path]],
+    output: str | Path,
+    save_png: bool = False,
+) -> list[Path]:
+    plt.rcParams.update(PLOT_STYLE)
+
+    output_path = Path(output)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    series = _load_report04_parameter_series(runs)
+    if not series:
+        raise ValueError("No report-04 parameter checkpoints were found.")
+    _plot_report04_layernorm_parameters(series, output_path)
+    outputs = [output_path]
+    if save_png:
+        png_path = output_path.with_suffix(".png")
+        _plot_report04_layernorm_parameters(series, png_path)
+        outputs.append(png_path)
+    return outputs
+
+
+def generate_report04_three_relu_architecture(
+    *,
+    output: str | Path,
+    save_png: bool = False,
+) -> list[Path]:
+    plt.rcParams.update(PLOT_STYLE)
+
+    output_path = Path(output)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    _plot_report04_three_relu_architecture(output_path)
+    outputs = [output_path]
+    if save_png:
+        png_path = output_path.with_suffix(".png")
+        _plot_report04_three_relu_architecture(png_path)
+        outputs.append(png_path)
+    return outputs
+
+
+def generate_report04_pythia_family_compute_ceiling(
+    *,
+    output: str | Path,
+    save_png: bool = False,
+) -> list[Path]:
+    plt.rcParams.update(PLOT_STYLE)
+
+    output_path = Path(output)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    _plot_report04_pythia_family_compute_ceiling(output_path)
+    outputs = [output_path]
+    if save_png:
+        png_path = output_path.with_suffix(".png")
+        _plot_report04_pythia_family_compute_ceiling(png_path)
+        outputs.append(png_path)
+    return outputs
+
+
 def generate_post_layernorm_relu_propagation_heatmaps(
     *,
     run_dir: str | Path,
@@ -2235,6 +2410,27 @@ def generate_post_layernorm_relu_propagation_heatmaps(
     if save_png:
         png_path = output_path.with_suffix(".png")
         _plot_post_layernorm_relu_propagation_heatmaps(payload, png_path)
+        outputs.append(png_path)
+    return outputs
+
+
+def generate_post_layernorm_relu_zero_product_heatmaps(
+    *,
+    run_dir: str | Path,
+    output: str | Path,
+    save_png: bool = False,
+) -> list[Path]:
+    plt.rcParams.update(PLOT_STYLE)
+
+    run_path = Path(run_dir)
+    output_path = Path(output)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    payload = read_json(run_path / "activation_propagation.json")
+    _plot_post_layernorm_relu_zero_product_heatmaps(payload, output_path)
+    outputs = [output_path]
+    if save_png:
+        png_path = output_path.with_suffix(".png")
+        _plot_post_layernorm_relu_zero_product_heatmaps(payload, png_path)
         outputs.append(png_path)
     return outputs
 
@@ -4838,7 +5034,7 @@ def _plot_report04_learning_diagnostics(
         (ax_exact, "k0", "(b) Exact-zero trajectories"),
         (ax_near_zero, "k1em02", "(c) |activation| <= 0.01 trajectories"),
     ):
-        for label in ("Three-ReLU AdamW", "Three-ReLU OL1"):
+        for label in ("Three-ReLU AdamW", "Three-ReLU OR", "Three-ReLU L1N", "Three-ReLU OL1"):
             train_events = by_label[label]["train_events"]
             for site, (site_label, linestyle, marker) in site_styles.items():
                 points = [
@@ -4865,7 +5061,7 @@ def _plot_report04_learning_diagnostics(
         ax.set_ylim(-2.0, 102.0)
         ax.legend(frameon=False, fontsize=6.5, ncol=2)
 
-    for label in ("MLP-ReLU OL1", "Three-ReLU OL1"):
+    for label in ("MLP-ReLU OL1", "Three-ReLU OR", "Three-ReLU OL1"):
         train_events = by_label[label]["train_events"]
         for metric_key, metric_label, linestyle in (
             ("pressure/pressure_update_ratio_raw", "raw", ":"),
@@ -4886,7 +5082,7 @@ def _plot_report04_learning_diagnostics(
             )
     ax_update.axhline(0.5, color="#4d4d4d", linestyle="--", linewidth=1.0, label="step budget = 0.5")
     ax_update.set_yscale("log")
-    ax_update.set_title("(d) OL1 pressure/task update ratios")
+    ax_update.set_title("(d) Orthogonal-pressure update ratios")
     ax_update.set_xlabel("Tokens seen (billions)")
     ax_update.set_ylabel("Pressure update / AdamW update")
     ax_update.legend(frameon=False, fontsize=7, ncol=2)
@@ -5141,7 +5337,7 @@ def _plot_report04_site_clipping_frontiers(
     site_series: dict[str, list[dict[str, Any]]],
     output_path: Path,
 ) -> None:
-    fig, axes = plt.subplots(1, 3, figsize=(11.4, 3.9), sharey=False)
+    fig, axes = plt.subplots(1, 3, figsize=(11.4, 4.3), sharey=False)
     legend_handles: dict[str, Any] = {}
     total_points = 0
     validation_tokens = 0
@@ -5196,20 +5392,20 @@ def _plot_report04_site_clipping_frontiers(
         list(legend_handles.values()),
         list(legend_handles.keys()),
         loc="lower center",
-        bbox_to_anchor=(0.5, 0.01),
-        ncol=3,
+        bbox_to_anchor=(0.5, 0.012),
+        ncol=5,
         frameon=False,
         fontsize=8,
     )
     fig.text(
         0.5,
-        0.072,
+        0.105,
         "One seed per method; fixed training budget; panel-specific y scales are shown explicitly.",
         ha="center",
         va="bottom",
         fontsize=8,
     )
-    fig.subplots_adjust(left=0.08, right=0.995, top=0.87, bottom=0.22, wspace=0.28)
+    fig.subplots_adjust(left=0.08, right=0.995, top=0.87, bottom=0.29, wspace=0.28)
     fig.savefig(output_path)
     plt.close(fig)
 
@@ -5246,7 +5442,10 @@ def _plot_report04_joint_compute_frontier(
         if not rows:
             continue
         label = str(item["label"])
-        x_values = [100.0 * float(row["eligible_projection_skip_fraction"]) for row in rows]
+        x_values = [
+            100.0 * float(row["eligible_projection_skip_fraction"]) * REPORT04_TARGET_MODEL_FRACTION
+            for row in rows
+        ]
         y_values = [float(row["validation_loss"]) for row in rows]
         ax.plot(
             x_values,
@@ -5262,7 +5461,11 @@ def _plot_report04_joint_compute_frontier(
         threshold_zero_points.append(
             {
                 "label": label,
-                "skip": 100.0 * float(threshold_zero["eligible_projection_skip_fraction"]),
+                "skip": (
+                    100.0
+                    * float(threshold_zero["eligible_projection_skip_fraction"])
+                    * REPORT04_TARGET_MODEL_FRACTION
+                ),
                 "loss": float(threshold_zero["validation_loss"]),
             }
         )
@@ -5270,7 +5473,9 @@ def _plot_report04_joint_compute_frontier(
         validation_tokens = max(validation_tokens, max(int(row.get("validation_tokens") or 0) for row in rows))
         all_points.extend(
             {
-                "skip": 100.0 * float(row["eligible_projection_skip_fraction"]),
+                "skip": (
+                    100.0 * float(row["eligible_projection_skip_fraction"]) * REPORT04_TARGET_MODEL_FRACTION
+                ),
                 "loss": float(row["validation_loss"]),
                 "label": label,
                 "threshold": float(row.get("threshold") or 0.0),
@@ -5337,7 +5542,7 @@ def _plot_report04_joint_compute_frontier(
         )
     inset.set_xlim(
         min(float(point["skip"]) for point in all_points) - 1.0,
-        max(float(point["skip"]) for point in threshold_zero_points) + 6.0,
+        max(float(point["skip"]) for point in threshold_zero_points) + 0.8,
     )
     inset.set_ylim(
         min(float(point["loss"]) for point in all_points) - 0.02,
@@ -5348,7 +5553,7 @@ def _plot_report04_joint_compute_frontier(
     inset.grid(alpha=0.2)
     ax.indicate_inset_zoom(inset, edgecolor="#666666", alpha=0.55, linewidth=0.8)
 
-    ax.set_xlabel("Potentially skippable eligible projection multiplies (%)")
+    ax.set_xlabel("Potentially avoidable model matmul products (%)")
     ax.set_ylabel("Absolute validation loss")
     handles, legend_labels = ax.get_legend_handles_labels()
     fig.legend(
@@ -5362,7 +5567,7 @@ def _plot_report04_joint_compute_frontier(
         columnspacing=1.3,
         handlelength=2.8,
     )
-    fig.suptitle("Joint Three-Site Clipping and Eligible-Projection Skip Proxy", y=0.985)
+    fig.suptitle("Joint Three-Site Clipping: Quality vs Model-Matmul Opportunity", y=0.985)
     fig.text(
         0.5,
         0.945,
@@ -5378,8 +5583,8 @@ def _plot_report04_joint_compute_frontier(
         0.5,
         0.024,
         (
-            "Skip proxy = (3 z_attention-input + 4 z_MLP-input + 4 z_MLP-hidden) / 11. "
-            "It is an elementwise multiplication opportunity, not measured runtime speedup."
+            "Numerator = exact-zero input products at QKV, W1, and W2. Denominator = all six-block causal-logical "
+            "matmul products plus the LM head (9,192,192 products/token); maximum targetable share is 11.76%."
         ),
         ha="center",
         va="bottom",
@@ -5388,7 +5593,7 @@ def _plot_report04_joint_compute_frontier(
     fig.text(
         0.5,
         0.066,
-        "One seed per method; fixed 1.492B-token training budget.",
+        "One seed per method; fixed 1.492B-token training budget. Dense kernels execute every plotted opportunity.",
         ha="center",
         va="bottom",
         fontsize=8,
@@ -5495,7 +5700,7 @@ def _plot_report04_parameter_diagnostics(
         0.5,
         0.958,
         (
-            "Five matched one-seed checkpoints; all weight densities aggregate "
+            f"{len(labels)} matched one-seed checkpoints; all weight densities aggregate "
             "the six transformer layers; biases excluded"
         ),
         ha="center",
@@ -5535,6 +5740,494 @@ def _plot_report04_parameter_diagnostics(
     plt.close(fig)
 
 
+def _plot_report04_activation_weight_densities(
+    payloads: dict[str, dict[str, Any]],
+    series: list[dict[str, Any]],
+    output_path: Path,
+) -> None:
+    labels = [label for label, _experiment_id in REPORT04_TRAINING_RUNS]
+    by_label = {str(item["label"]): item for item in series}
+    missing = [label for label in labels if label not in by_label]
+    if missing:
+        raise ValueError(f"Missing report-04 parameter series: {missing}")
+
+    fig, axes = plt.subplots(2, 3, figsize=(12.4, 8.0))
+    legend_handles: dict[str, Any] = {}
+    activation_specs = (
+        ("attention_inputs", "Attention-input ReLU output, layer 3", (-0.15, 2.0)),
+        ("mlp_inputs", "MLP-input ReLU output, layer 3", (-0.15, 2.0)),
+        ("mlp_hiddens", "MLP-hidden ReLU output, layer 3", (-0.05, 0.75)),
+    )
+
+    for ax, (site, title, x_limits) in zip(axes[0], activation_specs, strict=True):
+        payload = _report04_histogram_payload(payloads, site)
+        edges = [float(value) for value in payload.get("bin_edges", [])]
+        if len(edges) < 2:
+            raise ValueError(f"Histogram payload for {site} has no bin edges.")
+        centers = [(left + right) / 2.0 for left, right in zip(edges[:-1], edges[1:], strict=True)]
+        densities_by_label: dict[str, list[float]] = {}
+        positive: list[float] = []
+        for label in labels:
+            method = _histogram_method(payload, label)
+            if method is None:
+                raise ValueError(f"Missing histogram method {label!r} for {site}.")
+            densities = _histogram_density(_histogram_layer(method, f"{site}.layer_3"), edges)
+            densities_by_label[label] = densities
+            positive.extend(value for value in densities if value > 0.0)
+        max_density = max(positive, default=1.0)
+        y_min = max(min(positive) * 0.7, max_density * 1e-5, 1e-8) if positive else 1e-8
+        for label in labels:
+            values = [max(value, y_min) if value > 0.0 else y_min for value in densities_by_label[label]]
+            (line,) = ax.step(
+                centers,
+                values,
+                where="mid",
+                color=REPORT04_METHOD_COLORS[label],
+                linewidth=1.25,
+                label=label,
+            )
+            legend_handles.setdefault(label, line)
+        ax.axvspan(-0.01, 0.01, color="#000000", alpha=0.08, linewidth=0)
+        ax.axvline(0.0, color="#4d4d4d", linewidth=0.7, alpha=0.7)
+        ax.set_yscale("log")
+        ax.set_ylim(y_min, max_density * 1.5)
+        ax.set_xlim(*x_limits)
+        ax.set_title(title, fontsize=9.5)
+        ax.set_xlabel("Activation value")
+        ax.xaxis.set_major_formatter(FuncFormatter(_trimmed_decimal_tick))
+    axes[0, 0].set_ylabel("Probability density (log scale)")
+
+    for ax, group_id in zip(axes[1], ("qkv", "w1", "w2"), strict=True):
+        positive = [
+            float(value)
+            for item in series
+            for value in item["weight_groups"][group_id]["densities"]
+            if float(value) > 0.0
+        ]
+        max_density = max(positive, default=1.0)
+        y_min = max(min(positive) * 0.7, max_density * 1e-5, 1e-8) if positive else 1e-8
+        for label in labels:
+            group = by_label[label]["weight_groups"][group_id]
+            values = [
+                max(float(value), y_min) if float(value) > 0.0 else y_min
+                for value in group["densities"]
+            ]
+            ax.step(
+                group["centers"],
+                values,
+                where="mid",
+                color=REPORT04_METHOD_COLORS[label],
+                linewidth=1.25,
+            )
+        reference = by_label[labels[0]]["weight_groups"][group_id]
+        ax.axvspan(-0.01, 0.01, color="#000000", alpha=0.08, linewidth=0)
+        ax.axvline(0.0, color="#4d4d4d", linewidth=0.7, alpha=0.7)
+        ax.set_yscale("log")
+        ax.set_ylim(y_min, max_density * 1.5)
+        ax.set_xlim(*reference["range"])
+        ax.set_title(
+            f"{reference['label']}\n"
+            f"{int(reference['total']):,} weights across {int(reference['tensor_count'])} tensors",
+            fontsize=9.5,
+        )
+        ax.set_xlabel("Weight value")
+        ax.xaxis.set_major_formatter(FuncFormatter(_trimmed_decimal_tick))
+    axes[1, 0].set_ylabel("Probability density (log scale)")
+
+    validation_tokens = int(payloads["inputs"].get("validation_tokens") or 0)
+    fig.suptitle("Activation and Immediately Downstream Weight Distributions", y=0.987, fontsize=14)
+    fig.text(
+        0.5,
+        0.953,
+        (
+            f"Activations: {validation_tokens:,} deterministic validation tokens at layer 3; "
+            "weights: final checkpoints pooled over six layers"
+        ),
+        ha="center",
+        va="top",
+        fontsize=8.5,
+    )
+    fig.legend(
+        list(legend_handles.values()),
+        list(legend_handles.keys()),
+        loc="lower center",
+        bbox_to_anchor=(0.5, 0.015),
+        ncol=4,
+        frameon=False,
+        fontsize=7.5,
+    )
+    fig.text(
+        0.5,
+        0.066,
+        (
+            "Gray bands mark |value| <= 0.01. ReLU point masses at exactly zero are quantified by direct counters, "
+            "not by the continuous histogram density. One seed per method."
+        ),
+        ha="center",
+        va="bottom",
+        fontsize=8,
+    )
+    fig.subplots_adjust(left=0.075, right=0.99, top=0.89, bottom=0.14, hspace=0.36, wspace=0.27)
+    fig.savefig(output_path)
+    plt.close(fig)
+
+
+def _plot_report04_layernorm_parameters(
+    series: list[dict[str, Any]],
+    output_path: Path,
+) -> None:
+    labels = [str(item["label"]) for item in series]
+    fig, axes = plt.subplots(2, 2, figsize=(11.2, 6.9), sharex=True)
+    panel_specs = (
+        ("attention", "gamma", r"Attention branch scale $\gamma$"),
+        ("mlp", "gamma", r"MLP branch scale $\gamma$"),
+        ("attention", "beta", r"Attention branch bias $\beta$"),
+        ("mlp", "beta", r"MLP branch bias $\beta$"),
+    )
+    legend_handles: dict[str, Any] = {}
+    for ax, (branch_id, parameter_id, title) in zip(axes.flat, panel_specs, strict=True):
+        for item in series:
+            label = str(item["label"])
+            summaries = item["layer_norms"][branch_id]["parameters"][parameter_id]
+            layers = [int(summary["layer"]) for summary in summaries]
+            means = [float(summary["mean"]) for summary in summaries]
+            stds = [float(summary["std"]) for summary in summaries]
+            color = REPORT04_METHOD_COLORS[label]
+            ax.fill_between(
+                layers,
+                [mean - std for mean, std in zip(means, stds, strict=True)],
+                [mean + std for mean, std in zip(means, stds, strict=True)],
+                color=color,
+                alpha=0.06,
+                linewidth=0,
+            )
+            (line,) = ax.plot(
+                layers,
+                means,
+                color=color,
+                marker=REPORT04_METHOD_MARKERS[label],
+                markersize=3.0,
+                linewidth=1.25,
+                label=label,
+            )
+            legend_handles.setdefault(label, line)
+        ax.set_title(title, fontsize=10)
+        ax.set_xticks(range(6), [f"L{layer}" for layer in range(6)])
+        ax.set_ylabel("Feature mean +/- within-layer SD")
+        ax.ticklabel_format(axis="y", style="plain", useOffset=False)
+    axes[1, 0].set_xlabel("Transformer layer")
+    axes[1, 1].set_xlabel("Transformer layer")
+
+    fig.suptitle("Branch LayerNorm Affine Parameters at the Final Checkpoint", y=0.985, fontsize=14)
+    fig.text(
+        0.5,
+        0.946,
+        r"For normalized feature $\hat{x}$, LayerNorm returns $y=\gamma\odot\hat{x}+\beta$ before the added ReLU.",
+        ha="center",
+        va="top",
+        fontsize=8.5,
+    )
+    fig.legend(
+        list(legend_handles.values()),
+        list(legend_handles.keys()),
+        loc="lower center",
+        bbox_to_anchor=(0.5, 0.012),
+        ncol=4,
+        frameon=False,
+        fontsize=7.5,
+    )
+    fig.text(
+        0.5,
+        0.066,
+        "Bands are feature variation within one checkpoint (n=128), not seed uncertainty; one seed per method.",
+        ha="center",
+        va="bottom",
+        fontsize=8,
+    )
+    fig.subplots_adjust(left=0.085, right=0.99, top=0.88, bottom=0.15, hspace=0.33, wspace=0.24)
+    fig.savefig(output_path)
+    plt.close(fig)
+
+
+def _plot_report04_three_relu_architecture(output_path: Path) -> None:
+    fig, ax = plt.subplots(figsize=(14.4, 6.0))
+    ax.set_xlim(0.0, 1.30)
+    ax.set_ylim(0.0, 1.0)
+    ax.axis("off")
+
+    gate_color = "#CC79A7"
+    projection_color = "#56B4E9"
+    dense_color = "#E8E8E8"
+    residual_color = "#333333"
+
+    def box(
+        x: float,
+        y: float,
+        width: float,
+        height: float,
+        text_value: str,
+        *,
+        facecolor: str = "white",
+        edgecolor: str = "#555555",
+        linewidth: float = 1.1,
+        linestyle: str = "-",
+        fontsize: float = 8.5,
+        weight: str = "normal",
+    ) -> None:
+        patch = FancyBboxPatch(
+            (x, y),
+            width,
+            height,
+            boxstyle="round,pad=0.008,rounding_size=0.008",
+            facecolor=facecolor,
+            edgecolor=edgecolor,
+            linewidth=linewidth,
+            linestyle=linestyle,
+        )
+        ax.add_patch(patch)
+        ax.text(x + width / 2, y + height / 2, text_value, ha="center", va="center", fontsize=fontsize, weight=weight)
+
+    def arrow(start: tuple[float, float], end: tuple[float, float], *, color: str = residual_color, width: float = 1.2) -> None:
+        ax.add_patch(
+            FancyArrowPatch(
+                start,
+                end,
+                arrowstyle="-|>",
+                mutation_scale=9,
+                linewidth=width,
+                color=color,
+                shrinkA=0,
+                shrinkB=0,
+            )
+        )
+
+    ax.text(0.025, 0.94, "(a) One Pythia-14M parallel-residual transformer block", fontsize=12, weight="bold")
+    box(0.020, 0.43, 0.070, 0.13, "Residual\n" + r"$H_l$", facecolor="white", edgecolor=residual_color, weight="bold")
+    box(0.110, 0.70, 0.075, 0.10, r"LN$_{attn}$", facecolor=dense_color)
+    box(0.205, 0.70, 0.065, 0.10, "ReLU", facecolor="#FBE3F0", edgecolor=gate_color, linewidth=2.0, weight="bold")
+    box(
+        0.290,
+        0.675,
+        0.150,
+        0.15,
+        "QKV\n" + r"$U_l[T\!\times\!128]\,W_{QKV}[128\!\times\!384]$" + "\n" + r"$\to[T\!\times\!384]$",
+        facecolor="#DDF1FA",
+        edgecolor=projection_color,
+        linewidth=1.7,
+        fontsize=7.2,
+    )
+    box(0.460, 0.70, 0.105, 0.10, "RoPE / QK\nsoftmax / PV", facecolor=dense_color, fontsize=8)
+    box(0.585, 0.70, 0.085, 0.10, r"$W_o$" + "\n" + r"$[T\!\times\!128]$", facecolor=dense_color)
+
+    box(0.110, 0.20, 0.075, 0.10, r"LN$_{mlp}$", facecolor=dense_color)
+    box(0.205, 0.20, 0.065, 0.10, "ReLU", facecolor="#FBE3F0", edgecolor=gate_color, linewidth=2.0, weight="bold")
+    box(
+        0.290,
+        0.175,
+        0.150,
+        0.15,
+        r"MLP up $W_1$" + "\n" + r"$M_l[T\!\times\!128]W_1[128\!\times\!512]$" + "\n" + r"$\to[T\!\times\!512]$",
+        facecolor="#DDF1FA",
+        edgecolor=projection_color,
+        linewidth=1.7,
+        fontsize=7.2,
+    )
+    box(0.460, 0.20, 0.065, 0.10, "ReLU", facecolor="#FBE3F0", edgecolor=gate_color, linewidth=2.0, weight="bold")
+    box(
+        0.545,
+        0.175,
+        0.150,
+        0.15,
+        r"MLP down $W_2$" + "\n" + r"$G_l[T\!\times\!512]W_2[512\!\times\!128]$" + "\n" + r"$\to[T\!\times\!128]$",
+        facecolor="#DDF1FA",
+        edgecolor=projection_color,
+        linewidth=1.7,
+        fontsize=7.2,
+    )
+    box(0.720, 0.43, 0.070, 0.13, r"$+$" + "\nparallel", facecolor="white", edgecolor=residual_color, fontsize=9, weight="bold")
+    box(0.810, 0.43, 0.070, 0.13, r"$H_{l+1}$", facecolor="white", edgecolor=residual_color, weight="bold")
+
+    arrow((0.090, 0.495), (0.110, 0.75))
+    arrow((0.185, 0.75), (0.205, 0.75))
+    arrow((0.270, 0.75), (0.290, 0.75), color=gate_color, width=2.0)
+    arrow((0.440, 0.75), (0.460, 0.75))
+    arrow((0.565, 0.75), (0.585, 0.75))
+    arrow((0.670, 0.75), (0.755, 0.56))
+    arrow((0.090, 0.495), (0.110, 0.25))
+    arrow((0.185, 0.25), (0.205, 0.25))
+    arrow((0.270, 0.25), (0.290, 0.25), color=gate_color, width=2.0)
+    arrow((0.440, 0.25), (0.460, 0.25))
+    arrow((0.525, 0.25), (0.545, 0.25), color=gate_color, width=2.0)
+    arrow((0.695, 0.25), (0.755, 0.43))
+    arrow((0.090, 0.495), (0.720, 0.495))
+    arrow((0.790, 0.495), (0.810, 0.495))
+
+    ax.text(0.2375, 0.655, "attention_inputs", ha="center", va="top", fontsize=7.5, color=gate_color, weight="bold")
+    ax.text(0.2375, 0.155, "mlp_inputs", ha="center", va="top", fontsize=7.5, color=gate_color, weight="bold")
+    ax.text(0.4925, 0.155, "mlp_hiddens", ha="center", va="top", fontsize=7.5, color=gate_color, weight="bold")
+    ax.text(0.515, 0.62, "dense after projection or mixing", ha="center", fontsize=7.5, color="#666666")
+    box(0.705, 0.08, 0.175, 0.075, "Final model LayerNorm: unchanged", facecolor="white", edgecolor="#777777", linestyle="--", fontsize=7.8)
+
+    ax.plot([0.905, 0.905], [0.08, 0.90], color="#B0B0B0", linewidth=1.0)
+    ax.text(0.930, 0.88, "(b) What each exact-zero gate can skip", fontsize=11, weight="bold")
+    local_rows = (
+        (0.70, "attention_inputs", r"QKV: $U_l[T\!\times\!128]W_{QKV}[128\!\times\!384]\to[T\!\times\!384]$", r"$3d^2=49{,}152$ products/token"),
+        (0.50, "mlp_inputs", r"MLP up: $M_l[T\!\times\!128]W_1[128\!\times\!512]\to[T\!\times\!512]$", r"$4d^2=65{,}536$ products/token"),
+        (0.30, "mlp_hiddens", r"MLP down: $G_l[T\!\times\!512]W_2[512\!\times\!128]\to[T\!\times\!128]$", r"$4d^2=65{,}536$ products/token"),
+    )
+    for y_value, site, operation, products in local_rows:
+        box(0.930, y_value, 0.085, 0.095, site.replace("_", "\n"), facecolor="#FBE3F0", edgecolor=gate_color, fontsize=7.1)
+        arrow((1.015, y_value + 0.0475), (1.035, y_value + 0.0475), color=gate_color, width=1.8)
+        ax.text(1.045, y_value + 0.067, operation, ha="left", va="center", fontsize=7.7)
+        ax.text(1.045, y_value + 0.025, products, ha="left", va="center", fontsize=7.7, weight="bold")
+    ax.text(
+        0.930,
+        0.215,
+        r"$C_{target}(z)=3d^2z_a+4d^2z_m+4d^2z_h$" + "\n"
+        + r"$R_{block}=C_{target}/C_{block}$;  $R_{model}=LC_{target}/C_{model}$",
+        ha="left",
+        va="top",
+        fontsize=8.0,
+    )
+    ax.text(
+        0.930,
+        0.125,
+        "Architecture ceilings when " + r"$z_a=z_m=z_h=1$" + ":\n"
+        + r"$R_{block}^{max}=39.27\%$;  $R_{model}^{max}=11.76\%$ (six blocks + LM head)",
+        ha="left",
+        va="top",
+        fontsize=8.0,
+        weight="bold",
+    )
+    fig.suptitle("Three-ReLU Pythia-14M: Exact-Zero Gates and Immediately Downstream Matmuls", y=0.995, fontsize=15)
+    fig.text(
+        0.5,
+        0.01,
+        (
+            "Original Pythia-specific rendering. Magenta: exact-zero-producing ReLU; blue: immediately eligible "
+            "projection; gray: downstream dense computation. Percentages are mathematical ceilings, not observed speedups."
+        ),
+        ha="center",
+        va="bottom",
+        fontsize=8.2,
+    )
+    fig.subplots_adjust(left=0.01, right=0.99, top=0.91, bottom=0.08)
+    fig.savefig(output_path)
+    plt.close(fig)
+
+
+def _plot_report04_pythia_family_compute_ceiling(output_path: Path) -> None:
+    model_labels: list[str] = []
+    targetable_shares: list[float] = []
+    other_block_shares: list[float] = []
+    lm_head_shares: list[float] = []
+
+    for model_label, num_layers, hidden_size, vocab_size in REPORT04_PYTHIA_FAMILY:
+        targetable_products = 11 * num_layers * hidden_size**2
+        other_block_products = num_layers * (
+            hidden_size**2 + hidden_size * (REPORT04_BLOCK_SIZE + 1)
+        )
+        lm_head_products = hidden_size * vocab_size
+        model_products = targetable_products + other_block_products + lm_head_products
+        model_labels.append(model_label)
+        targetable_shares.append(100.0 * targetable_products / model_products)
+        other_block_shares.append(100.0 * other_block_products / model_products)
+        lm_head_shares.append(100.0 * lm_head_products / model_products)
+
+    y_positions = list(range(len(model_labels)))
+    lm_head_left = [
+        targetable_share + other_block_share
+        for targetable_share, other_block_share in zip(
+            targetable_shares,
+            other_block_shares,
+            strict=True,
+        )
+    ]
+
+    fig, ax = plt.subplots(figsize=(7.2, 4.9))
+    ax.barh(
+        y_positions,
+        targetable_shares,
+        color="#0072B2",
+        edgecolor="white",
+        linewidth=0.5,
+        label=r"Three-ReLU targetable ($R_{model}^{max}$)",
+    )
+    ax.barh(
+        y_positions,
+        other_block_shares,
+        left=targetable_shares,
+        color="#999999",
+        edgecolor="white",
+        linewidth=0.5,
+        label="Other block products",
+    )
+    ax.barh(
+        y_positions,
+        lm_head_shares,
+        left=lm_head_left,
+        color="#E69F00",
+        edgecolor="white",
+        linewidth=0.5,
+        label="LM head",
+    )
+
+    for y_value, share in zip(y_positions, targetable_shares, strict=True):
+        ax.text(
+            share / 2.0,
+            y_value,
+            f"{share:.1f}%",
+            ha="center",
+            va="center",
+            color="white",
+            fontsize=8.0,
+            weight="bold",
+        )
+
+    ax.text(
+        lm_head_left[0] + lm_head_shares[0] / 2.0,
+        y_positions[0],
+        "LM head\n70.0%",
+        ha="center",
+        va="center",
+        color="#222222",
+        fontsize=7.8,
+        weight="bold",
+    )
+    ax.annotate(
+        "LM head 2.2%",
+        xy=(100.0 - lm_head_shares[-1] / 2.0, y_positions[-1]),
+        xytext=(97.0, y_positions[-1]),
+        ha="right",
+        va="center",
+        fontsize=7.8,
+        arrowprops={"arrowstyle": "-", "color": "#555555", "linewidth": 0.7},
+    )
+
+    ax.set_yticks(y_positions, model_labels)
+    ax.invert_yaxis()
+    ax.set_xlim(0.0, 100.0)
+    ax.set_xlabel("Share of full-model scalar products (%)")
+    ax.set_title("Pythia-Family Model-Matmul Denominator at $T=2{,}048$", pad=36)
+    ax.grid(axis="y", visible=False)
+    ax.grid(axis="x", alpha=0.22)
+    ax.legend(loc="lower center", bbox_to_anchor=(0.5, 1.005), ncol=3, frameon=False, fontsize=7.8)
+    fig.text(
+        0.5,
+        0.015,
+        (
+            r"Architecture ceiling: $z_a=z_m=z_h=1$. Other block products are $W_o$ plus valid-causal QK and PV; "
+            "percentages are logical product shares, not speedups."
+        ),
+        ha="center",
+        va="bottom",
+        fontsize=7.6,
+    )
+    fig.subplots_adjust(left=0.11, right=0.985, top=0.79, bottom=0.14)
+    fig.savefig(output_path)
+    plt.close(fig)
+
+
 def _plot_post_layernorm_relu_propagation_heatmaps(
     payload: dict[str, Any],
     output_path: Path,
@@ -5547,107 +6240,67 @@ def _plot_post_layernorm_relu_propagation_heatmaps(
     if num_layers <= 0 or any(int(method.get("num_layers") or 0) != num_layers for method in methods):
         raise ValueError("Activation-propagation payload has inconsistent layer counts.")
 
-    activation_matrices = [
+    matrices = [
         _propagation_matrix(method, "activations", PROPAGATION_ACTIVATION_ROWS, num_layers)
         for method in methods
     ]
-    matmul_matrices = [
-        _propagation_matrix(method, "matmuls", PROPAGATION_MATMUL_ROWS, num_layers)
-        for method in methods
-    ]
 
-    fig = plt.figure(figsize=(15.2, 19.5))
+    fig = plt.figure(figsize=(14.2, 9.4))
     outer_grid = fig.add_gridspec(
         2,
         3,
         width_ratios=(1.0, 1.0, 0.035),
         height_ratios=(1.0, 1.0),
-        hspace=0.22,
-        wspace=0.13,
+        hspace=0.34,
+        wspace=0.11,
     )
-    axes: list[tuple[Any, Any]] = []
-    for method_index in range(len(methods)):
-        group_index, column_index = divmod(method_index, 2)
-        method_grid = outer_grid[group_index, column_index].subgridspec(
-            2,
-            1,
-            height_ratios=(len(PROPAGATION_ACTIVATION_ROWS), len(PROPAGATION_MATMUL_ROWS)),
-            hspace=0.34,
-        )
-        axes.append((fig.add_subplot(method_grid[0, 0]), fig.add_subplot(method_grid[1, 0])))
+    axes = [fig.add_subplot(outer_grid[row, column]) for row in range(2) for column in range(2)]
     colorbar_axis = fig.add_subplot(outer_grid[:, 2])
     column_labels = [f"L{layer}" for layer in range(num_layers)] + ["All"]
     image = None
 
     for method_index, method in enumerate(methods):
         method_label = str(method.get("label") or method.get("config_id") or f"Method {method_index + 1}")
-        group_index, column_index = divmod(method_index, 2)
-        activation_panel_index = group_index * 4 + column_index
-        matmul_panel_index = activation_panel_index + 2
-        activation_axis, matmul_axis = axes[method_index]
-        image = activation_axis.imshow(
-            activation_matrices[method_index],
+        _row_index, column_index = divmod(method_index, 2)
+        ax = axes[method_index]
+        image = ax.imshow(
+            matrices[method_index],
             aspect="auto",
             cmap="viridis",
             vmin=0.0,
             vmax=100.0,
         )
-        activation_axis.set_title(
-            f"({chr(ord('a') + activation_panel_index)}) {method_label}\n"
-            "Activation outputs: exact-zero scalars (%)",
-            fontsize=11,
+        ax.set_title(
+            f"({chr(ord('a') + method_index)}) {method_label}: exact-zero activation outputs (%)",
+            fontsize=10.5,
         )
         _format_propagation_heatmap(
-            activation_axis,
+            ax,
             image,
-            activation_matrices[method_index],
+            matrices[method_index],
             row_labels=[label for _name, label in PROPAGATION_ACTIVATION_ROWS],
             column_labels=column_labels,
             show_row_labels=column_index == 0,
             separators=(0.5, 8.5, 13.5),
             emphasized_rows=(2, 7, 10, 12),
         )
-
-        weighted_matmul_opportunity = _propagation_weighted_fraction(method, "matmuls")
-        matmul_image = matmul_axis.imshow(
-            matmul_matrices[method_index],
-            aspect="auto",
-            cmap="viridis",
-            vmin=0.0,
-            vmax=100.0,
-        )
-        matmul_axis.set_title(
-            f"({chr(ord('a') + matmul_panel_index)}) {method_label}\n"
-            "Logical products with an exact-zero activation operand (%)\n"
-            f"All six major matmuls weighted together: {weighted_matmul_opportunity:.1f}%",
-            fontsize=10.5,
-        )
-        _format_propagation_heatmap(
-            matmul_axis,
-            matmul_image,
-            matmul_matrices[method_index],
-            row_labels=[label for _name, label in PROPAGATION_MATMUL_ROWS],
-            column_labels=column_labels,
-            show_row_labels=column_index == 0,
-            separators=(3.5,),
-            emphasized_rows=(),
-        )
-        matmul_axis.set_xlabel("Transformer layer; All pools integer counts over L0-L5")
+        if method_index >= 2:
+            ax.set_xlabel("Transformer layer; All pools integer counts over L0-L5")
 
     if image is None:
         raise ValueError("Activation-propagation payload has no plottable methods.")
     colorbar = fig.colorbar(image, cax=colorbar_axis)
-    colorbar.set_label("Exact-zero or zero-product fraction (%)", fontsize=9)
+    colorbar.set_label("Exact-zero scalar fraction (%)", fontsize=9)
     colorbar.ax.tick_params(labelsize=8)
 
     validation_tokens = int(payload.get("validation_tokens") or 0)
     validation_sequences = int(payload.get("validation_sequences") or 0)
     block_size = int(payload.get("block_size") or 0)
     trailing_tokens = int(payload.get("trailing_tokens_excluded") or 0)
-    fig.suptitle("Exact-Zero Propagation Through Pythia-14M Transformer Blocks", y=0.994, fontsize=16)
+    fig.suptitle("Where Exact Zeros Persist Through Pythia-14M Blocks", y=0.995, fontsize=15)
     fig.text(
         0.5,
-        0.978,
+        0.958,
         (
             f"Direct integer counts over {validation_sequences:,} x {block_size:,} = "
             f"{validation_tokens:,} evaluated validation tokens; {trailing_tokens:,} incomplete-tail tokens excluded"
@@ -5658,7 +6311,7 @@ def _plot_post_layernorm_relu_propagation_heatmaps(
     )
     fig.text(
         0.5,
-        0.075,
+        0.055,
         (
             "Exact zero = number of produced scalar values equal to numeric 0 divided by all produced values at that "
             f"stage/layer. Width-128 denominator: {validation_tokens:,} x 128 = "
@@ -5670,38 +6323,104 @@ def _plot_post_layernorm_relu_propagation_heatmaps(
     )
     fig.text(
         0.5,
-        0.055,
+        0.032,
         (
-            r"Pythia uses parallel residuals: both branch LayerNorms consume $H_l$, then "
-            r"$H_{l+1}=H_l+O_l+M_l$."
+            r"Parallel residual: both branch LayerNorms consume $H_l$ and $H_{l+1}=H_l+O_l+M_l$. "
+            "White rules separate residual, attention, MLP, and output stages."
         ),
         ha="center",
         va="bottom",
         fontsize=8.2,
+    )
+    fig.subplots_adjust(left=0.22, right=0.93, top=0.89, bottom=0.105)
+    fig.savefig(output_path)
+    plt.close(fig)
+
+
+def _plot_post_layernorm_relu_zero_product_heatmaps(
+    payload: dict[str, Any],
+    output_path: Path,
+) -> None:
+    methods = list(payload.get("methods", []))
+    if len(methods) != 4:
+        raise ValueError("Zero-product heatmaps require exactly four matched checkpoints.")
+    num_layers = int(methods[0].get("num_layers") or 0)
+    if num_layers <= 0 or any(int(method.get("num_layers") or 0) != num_layers for method in methods):
+        raise ValueError("Activation-propagation payload has inconsistent layer counts.")
+
+    matrices = [
+        _propagation_matrix(method, "matmuls", PROPAGATION_MATMUL_ROWS, num_layers)
+        for method in methods
+    ]
+    fig = plt.figure(figsize=(12.6, 7.2))
+    grid = fig.add_gridspec(
+        2,
+        3,
+        width_ratios=(1.0, 1.0, 0.035),
+        hspace=0.43,
+        wspace=0.12,
+    )
+    axes = [fig.add_subplot(grid[row, column]) for row in range(2) for column in range(2)]
+    colorbar_axis = fig.add_subplot(grid[:, 2])
+    column_labels = [f"L{layer}" for layer in range(num_layers)] + ["All"]
+    image = None
+
+    for method_index, method in enumerate(methods):
+        label = str(method.get("label") or method.get("config_id") or f"Method {method_index + 1}")
+        _row_index, column_index = divmod(method_index, 2)
+        block_opportunity = _propagation_weighted_fraction(method, "matmuls")
+        model_opportunity = block_opportunity * REPORT04_BLOCK_PRODUCTS_PER_TOKEN / REPORT04_MODEL_PRODUCTS_PER_TOKEN
+        ax = axes[method_index]
+        image = ax.imshow(matrices[method_index], aspect="auto", cmap="viridis", vmin=0.0, vmax=100.0)
+        ax.set_title(
+            f"({chr(ord('a') + method_index)}) {label}\n"
+            f"all block matmuls: {block_opportunity:.1f}% | model incl. LM head: {model_opportunity:.1f}%",
+            fontsize=9.5,
+        )
+        _format_propagation_heatmap(
+            ax,
+            image,
+            matrices[method_index],
+            row_labels=[row_label for _name, row_label in PROPAGATION_MATMUL_ROWS],
+            column_labels=column_labels,
+            show_row_labels=column_index == 0,
+            separators=(3.5,),
+            emphasized_rows=(0, 4, 5),
+        )
+        if method_index >= 2:
+            ax.set_xlabel("Transformer layer; All pools integer counts over L0-L5")
+
+    if image is None:
+        raise ValueError("Activation-propagation payload has no plottable methods.")
+    colorbar = fig.colorbar(image, cax=colorbar_axis)
+    colorbar.set_label("Products with an exact-zero activation operand (%)", fontsize=8.5)
+    colorbar.ax.tick_params(labelsize=8)
+
+    validation_tokens = int(payload.get("validation_tokens") or 0)
+    fig.suptitle("Local Exact-Zero Matmul Opportunities", y=0.985, fontsize=14)
+    fig.text(
+        0.5,
+        0.944,
+        (
+            f"Direct integer counts over {validation_tokens:,} validation tokens; valid lower-triangular causal pairs "
+            "only (future-mask zeros excluded)"
+        ),
+        ha="center",
+        va="top",
+        fontsize=8.5,
     )
     fig.text(
         0.5,
-        0.036,
+        0.035,
         (
-            "Attention-probability, QK, and PV denominators contain only valid lower-triangular causal pairs; "
-            "future mask zeros are excluded. Diagnostic eager attention exposes tensors; checkpoint validation used SDPA."
+            "A counted product has at least one activation operand exactly equal to numeric 0. "
+            "Percentages are ideal logical opportunities; dense kernels still execute them."
         ),
         ha="center",
         va="bottom",
-        fontsize=8.2,
+        fontsize=8,
     )
-    fig.text(
-        0.5,
-        0.017,
-        (
-            "Matmul cells count logical scalar products with at least one zero activation operand. "
-            "They are ideal opportunities, not structured sparsity or measured speedup; current kernels execute them."
-        ),
-        ha="center",
-        va="bottom",
-        fontsize=8.2,
-    )
-    fig.subplots_adjust(left=0.285, right=0.93, top=0.942, bottom=0.115)
+    fig.subplots_adjust(left=0.24, right=0.92, top=0.87, bottom=0.13)
     fig.savefig(output_path)
     plt.close(fig)
 

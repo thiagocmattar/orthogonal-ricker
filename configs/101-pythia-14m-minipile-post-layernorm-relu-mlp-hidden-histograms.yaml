@@ -50,6 +50,10 @@ activation_histograms:
       config_id: 81-pythia-14m-minipile-relu-orthogonal-l1-full-pass-w5
     - label: Three-ReLU AdamW
       config_id: 98-pythia-14m-minipile-post-layernorm-relu-adamw-full-pass
+    - label: Three-ReLU OR
+      config_id: 103-pythia-14m-minipile-post-layernorm-relu-orthogonal-ricker-full-pass-w1-c0p05-s0p05
+    - label: Three-ReLU L1N
+      config_id: 104-pythia-14m-minipile-post-layernorm-relu-l1-naive-full-pass-w5
     - label: Three-ReLU OL1
       config_id: 99-pythia-14m-minipile-post-layernorm-relu-orthogonal-l1-full-pass-w5
 output:
