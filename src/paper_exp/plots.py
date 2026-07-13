@@ -5234,7 +5234,7 @@ def _plot_report04_joint_compute_frontier(
     series: list[dict[str, Any]],
     output_path: Path,
 ) -> None:
-    fig, ax = plt.subplots(figsize=(8.3, 5.5))
+    fig, ax = plt.subplots(figsize=(9.0, 6.2))
     all_points: list[dict[str, Any]] = []
     plotted_series: list[dict[str, Any]] = []
     threshold_zero_points: list[dict[str, Any]] = []
@@ -5323,7 +5323,7 @@ def _plot_report04_joint_compute_frontier(
             s=25,
             zorder=4,
         )
-    annotation_offsets = ((6, 10), (-58, 12), (-44, -15), (8, 12), (-58, -15))
+    annotation_offsets = ((6, 10), (-58, 12), (-44, -15), (8, -18), (-58, -15))
     for point, offset in zip(threshold_zero_points, annotation_offsets, strict=True):
         label = str(point["label"])
         inset.annotate(
@@ -5350,7 +5350,18 @@ def _plot_report04_joint_compute_frontier(
 
     ax.set_xlabel("Potentially skippable eligible projection multiplies (%)")
     ax.set_ylabel("Absolute validation loss")
-    ax.legend(loc="lower right", frameon=False, fontsize=8, ncol=2)
+    handles, legend_labels = ax.get_legend_handles_labels()
+    fig.legend(
+        handles,
+        legend_labels,
+        loc="lower center",
+        bbox_to_anchor=(0.5, 0.112),
+        frameon=False,
+        fontsize=8,
+        ncol=3,
+        columnspacing=1.3,
+        handlelength=2.8,
+    )
     fig.suptitle("Joint Three-Site Clipping and Eligible-Projection Skip Proxy", y=0.985)
     fig.text(
         0.5,
@@ -5365,7 +5376,7 @@ def _plot_report04_joint_compute_frontier(
     )
     fig.text(
         0.5,
-        0.022,
+        0.024,
         (
             "Skip proxy = (3 z_attention-input + 4 z_MLP-input + 4 z_MLP-hidden) / 11. "
             "It is an elementwise multiplication opportunity, not measured runtime speedup."
@@ -5376,13 +5387,13 @@ def _plot_report04_joint_compute_frontier(
     )
     fig.text(
         0.5,
-        0.052,
+        0.066,
         "One seed per method; fixed 1.492B-token training budget.",
         ha="center",
         va="bottom",
         fontsize=8,
     )
-    fig.subplots_adjust(left=0.11, right=0.985, top=0.88, bottom=0.15)
+    fig.subplots_adjust(left=0.11, right=0.985, top=0.88, bottom=0.245)
     fig.savefig(output_path)
     plt.close(fig)
 
