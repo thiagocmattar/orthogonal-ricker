@@ -361,6 +361,13 @@ REPORT04_CLIPPING_RUNS = (
     ("Three-ReLU AdamW", "98-pythia-14m-minipile-post-layernorm-relu-adamw-full-pass"),
     ("Three-ReLU OL1", "99-pythia-14m-minipile-post-layernorm-relu-orthogonal-l1-full-pass-w5"),
 )
+REPORT04_JOINT_CLIPPING_RUNS = (
+    ("MLP-ReLU AdamW", "77-pythia-14m-minipile-relu-adamw-full-pass"),
+    ("Three-ReLU AdamW", "98-pythia-14m-minipile-post-layernorm-relu-adamw-full-pass"),
+    ("Three-ReLU OR", "103-pythia-14m-minipile-post-layernorm-relu-orthogonal-ricker-full-pass-w1-c0p05-s0p05"),
+    ("Three-ReLU L1N", "104-pythia-14m-minipile-post-layernorm-relu-l1-naive-full-pass-w5"),
+    ("Three-ReLU OL1", "99-pythia-14m-minipile-post-layernorm-relu-orthogonal-l1-full-pass-w5"),
+)
 REPORT04_CLIPPING_SITES = (
     ("attention_inputs", "Attention inputs"),
     ("mlp_inputs", "MLP inputs"),
@@ -373,6 +380,8 @@ REPORT04_METHOD_COLORS = {
     "MLP-ReLU AdamW": "#0072B2",
     "MLP-ReLU OL1": "#E69F00",
     "Three-ReLU AdamW": "#009E73",
+    "Three-ReLU OR": "#D55E00",
+    "Three-ReLU L1N": "#56B4E9",
     "Three-ReLU OL1": "#CC79A7",
 }
 REPORT04_METHOD_MARKERS = {
@@ -380,6 +389,8 @@ REPORT04_METHOD_MARKERS = {
     "MLP-ReLU AdamW": "o",
     "MLP-ReLU OL1": "s",
     "Three-ReLU AdamW": "^",
+    "Three-ReLU OR": "X",
+    "Three-ReLU L1N": "v",
     "Three-ReLU OL1": "P",
 }
 POST_LAYERNORM_RELU_PROPAGATION_EXPERIMENT = (
@@ -1543,11 +1554,11 @@ def _generate_known_paper_figures(results_path: Path, figures_path: Path, *, sav
         results_path,
         [
             (label, f"{experiment_id}-clipping-sweep-report04-joint")
-            for label, experiment_id in REPORT04_CLIPPING_RUNS
+            for label, experiment_id in REPORT04_JOINT_CLIPPING_RUNS
         ],
         "clipping_frontier.jsonl",
     )
-    if len(report04_joint_clipping_runs) == len(REPORT04_CLIPPING_RUNS):
+    if len(report04_joint_clipping_runs) == len(REPORT04_JOINT_CLIPPING_RUNS):
         output_pdf = figures_path / "83-pythia-14m-minipile-post-layernorm-relu-joint-compute-frontier.pdf"
         outputs.extend(
             generate_report04_joint_compute_frontier(
@@ -5312,11 +5323,11 @@ def _plot_report04_joint_compute_frontier(
             s=25,
             zorder=4,
         )
-    annotation_offsets = ((6, 10), (-58, 12), (-62, 9))
+    annotation_offsets = ((6, 10), (-58, 12), (-44, -15), (8, 12), (-58, -15))
     for point, offset in zip(threshold_zero_points, annotation_offsets, strict=True):
         label = str(point["label"])
         inset.annotate(
-            "threshold 0",
+            "t = 0",
             (float(point["skip"]), float(point["loss"])),
             xytext=offset,
             textcoords="offset points",
@@ -5518,8 +5529,8 @@ def _plot_post_layernorm_relu_propagation_heatmaps(
     output_path: Path,
 ) -> None:
     methods = list(payload.get("methods", []))
-    if len(methods) != 2:
-        raise ValueError("Activation-propagation heatmaps require exactly two matched checkpoints.")
+    if len(methods) != 4:
+        raise ValueError("Activation-propagation heatmaps require exactly four matched checkpoints.")
 
     num_layers = int(methods[0].get("num_layers") or 0)
     if num_layers <= 0 or any(int(method.get("num_layers") or 0) != num_layers for method in methods):
@@ -5534,27 +5545,35 @@ def _plot_post_layernorm_relu_propagation_heatmaps(
         for method in methods
     ]
 
-    fig = plt.figure(figsize=(15.2, 10.8))
-    grid = fig.add_gridspec(
+    fig = plt.figure(figsize=(15.2, 19.5))
+    outer_grid = fig.add_gridspec(
         2,
         3,
         width_ratios=(1.0, 1.0, 0.035),
-        height_ratios=(len(PROPAGATION_ACTIVATION_ROWS), len(PROPAGATION_MATMUL_ROWS)),
-        hspace=0.30,
+        height_ratios=(1.0, 1.0),
+        hspace=0.22,
         wspace=0.13,
     )
-    axes = [
-        [fig.add_subplot(grid[0, 0]), fig.add_subplot(grid[0, 1])],
-        [fig.add_subplot(grid[1, 0]), fig.add_subplot(grid[1, 1])],
-    ]
-    colorbar_axis = fig.add_subplot(grid[:, 2])
+    axes: list[tuple[Any, Any]] = []
+    for method_index in range(len(methods)):
+        group_index, column_index = divmod(method_index, 2)
+        method_grid = outer_grid[group_index, column_index].subgridspec(
+            2,
+            1,
+            height_ratios=(len(PROPAGATION_ACTIVATION_ROWS), len(PROPAGATION_MATMUL_ROWS)),
+            hspace=0.34,
+        )
+        axes.append((fig.add_subplot(method_grid[0, 0]), fig.add_subplot(method_grid[1, 0])))
+    colorbar_axis = fig.add_subplot(outer_grid[:, 2])
     column_labels = [f"L{layer}" for layer in range(num_layers)] + ["All"]
     image = None
 
     for method_index, method in enumerate(methods):
         method_label = str(method.get("label") or method.get("config_id") or f"Method {method_index + 1}")
-        panel_label = chr(ord("a") + method_index)
-        activation_axis = axes[0][method_index]
+        group_index, column_index = divmod(method_index, 2)
+        activation_panel_index = group_index * 4 + column_index
+        matmul_panel_index = activation_panel_index + 2
+        activation_axis, matmul_axis = axes[method_index]
         image = activation_axis.imshow(
             activation_matrices[method_index],
             aspect="auto",
@@ -5563,7 +5582,8 @@ def _plot_post_layernorm_relu_propagation_heatmaps(
             vmax=100.0,
         )
         activation_axis.set_title(
-            f"({panel_label}) {method_label}\nActivation outputs: exact-zero scalars (%)",
+            f"({chr(ord('a') + activation_panel_index)}) {method_label}\n"
+            "Activation outputs: exact-zero scalars (%)",
             fontsize=11,
         )
         _format_propagation_heatmap(
@@ -5572,12 +5592,11 @@ def _plot_post_layernorm_relu_propagation_heatmaps(
             activation_matrices[method_index],
             row_labels=[label for _name, label in PROPAGATION_ACTIVATION_ROWS],
             column_labels=column_labels,
-            show_row_labels=method_index == 0,
+            show_row_labels=column_index == 0,
             separators=(0.5, 8.5, 13.5),
             emphasized_rows=(2, 7, 10, 12),
         )
 
-        matmul_axis = axes[1][method_index]
         weighted_matmul_opportunity = _propagation_weighted_fraction(method, "matmuls")
         matmul_image = matmul_axis.imshow(
             matmul_matrices[method_index],
@@ -5586,9 +5605,8 @@ def _plot_post_layernorm_relu_propagation_heatmaps(
             vmin=0.0,
             vmax=100.0,
         )
-        panel_label = chr(ord("c") + method_index)
         matmul_axis.set_title(
-            f"({panel_label}) {method_label}\n"
+            f"({chr(ord('a') + matmul_panel_index)}) {method_label}\n"
             "Logical products with an exact-zero activation operand (%)\n"
             f"All six major matmuls weighted together: {weighted_matmul_opportunity:.1f}%",
             fontsize=10.5,
@@ -5599,7 +5617,7 @@ def _plot_post_layernorm_relu_propagation_heatmaps(
             matmul_matrices[method_index],
             row_labels=[label for _name, label in PROPAGATION_MATMUL_ROWS],
             column_labels=column_labels,
-            show_row_labels=method_index == 0,
+            show_row_labels=column_index == 0,
             separators=(3.5,),
             emphasized_rows=(),
         )
@@ -5615,10 +5633,10 @@ def _plot_post_layernorm_relu_propagation_heatmaps(
     validation_sequences = int(payload.get("validation_sequences") or 0)
     block_size = int(payload.get("block_size") or 0)
     trailing_tokens = int(payload.get("trailing_tokens_excluded") or 0)
-    fig.suptitle("Exact-Zero Propagation Through Pythia-14M Transformer Blocks", y=0.992, fontsize=16)
+    fig.suptitle("Exact-Zero Propagation Through Pythia-14M Transformer Blocks", y=0.994, fontsize=16)
     fig.text(
         0.5,
-        0.962,
+        0.978,
         (
             f"Direct integer counts over {validation_sequences:,} x {block_size:,} = "
             f"{validation_tokens:,} evaluated validation tokens; {trailing_tokens:,} incomplete-tail tokens excluded"
@@ -5629,10 +5647,11 @@ def _plot_post_layernorm_relu_propagation_heatmaps(
     )
     fig.text(
         0.5,
-        0.100,
+        0.075,
         (
             "Exact zero = number of produced scalar values equal to numeric 0 divided by all produced values at that "
-            "stage/layer. Width-128 denominator: 692,224 x 128 = 88,604,672; width-512: 354,418,688."
+            f"stage/layer. Width-128 denominator: {validation_tokens:,} x 128 = "
+            f"{validation_tokens * 128:,}; width-512: {validation_tokens * 512:,}."
         ),
         ha="center",
         va="bottom",
@@ -5640,10 +5659,21 @@ def _plot_post_layernorm_relu_propagation_heatmaps(
     )
     fig.text(
         0.5,
-        0.070,
+        0.055,
+        (
+            r"Pythia uses parallel residuals: both branch LayerNorms consume $H_l$, then "
+            r"$H_{l+1}=H_l+O_l+M_l$."
+        ),
+        ha="center",
+        va="bottom",
+        fontsize=8.2,
+    )
+    fig.text(
+        0.5,
+        0.036,
         (
             "Attention-probability, QK, and PV denominators contain only valid lower-triangular causal pairs; "
-            "future mask zeros are excluded. Eager attention is used only to expose these diagnostic tensors."
+            "future mask zeros are excluded. Diagnostic eager attention exposes tensors; checkpoint validation used SDPA."
         ),
         ha="center",
         va="bottom",
@@ -5651,7 +5681,7 @@ def _plot_post_layernorm_relu_propagation_heatmaps(
     )
     fig.text(
         0.5,
-        0.040,
+        0.017,
         (
             "Matmul cells count logical scalar products with at least one zero activation operand. "
             "They are ideal opportunities, not structured sparsity or measured speedup; current kernels execute them."
@@ -5660,7 +5690,7 @@ def _plot_post_layernorm_relu_propagation_heatmaps(
         va="bottom",
         fontsize=8.2,
     )
-    fig.subplots_adjust(left=0.285, right=0.93, top=0.91, bottom=0.185)
+    fig.subplots_adjust(left=0.285, right=0.93, top=0.942, bottom=0.115)
     fig.savefig(output_path)
     plt.close(fig)
 
