@@ -1,12 +1,15 @@
 PYTHON ?= python
 
-.PHONY: install test smoke baseline prepare-minipile calibrate-pythia-14m pretrain-pythia-14m-full-10min pressure-smoke-ricker-naive pressure-smoke-l1-naive pressure-smoke-orthogonal-ricker pressure-smoke-orthogonal-l1 pressure-short-ricker-naive pressure-short-l1-naive pressure-short-orthogonal-ricker pressure-short-orthogonal-l1 pressure-short-all plots
+.PHONY: install test check smoke baseline prepare-minipile calibrate-pythia-14m pretrain-pythia-14m-full-10min pressure-smoke-ricker-naive pressure-smoke-l1-naive pressure-smoke-orthogonal-ricker pressure-smoke-orthogonal-l1 pressure-short-ricker-naive pressure-short-l1-naive pressure-short-orthogonal-ricker pressure-short-orthogonal-l1 pressure-short-all plots
 
 install:
 	$(PYTHON) -m pip install -e .
 
 test:
 	$(PYTHON) -m pytest --basetemp=.pytest_tmp_run
+
+check:
+	$(PYTHON) -m paper_exp.cli check
 
 smoke:
 	$(PYTHON) -m paper_exp.cli smoke --config configs/01-pythia-14m-minipile-smoke.yaml

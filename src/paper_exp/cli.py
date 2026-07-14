@@ -10,6 +10,7 @@ from paper_exp.calibration import run_calibration
 from paper_exp.clipping import run_clipping_sweep
 from paper_exp.config import ConfigError, load_config
 from paper_exp.data import prepare_tokenized_data
+from paper_exp.integrity import check_repository
 from paper_exp.plots import generate_clipping_frontier, generate_plots, generate_run_diagnostics
 from paper_exp.run import run_baseline, run_smoke
 from paper_exp.sweeps import run_pressure_fixed_step_clipping_sweeps
@@ -44,6 +45,22 @@ def build_parser() -> argparse.ArgumentParser:
     plots.add_argument("--results", default="results")
     plots.add_argument("--figures", default="figures")
     plots.add_argument("--png", action="store_true", help="Also save PNG copies.")
+
+    check = subparsers.add_parser(
+        "check",
+        help="Inspect repository conventions and artifact references without writing files.",
+    )
+    check.add_argument("--root", default=".", help="Repository root to inspect.")
+    check.add_argument(
+        "--verbose",
+        action="store_true",
+        help="Also print informational findings for completed runs.",
+    )
+    check.add_argument(
+        "--strict",
+        action="store_true",
+        help="Return a nonzero status for warnings as well as errors.",
+    )
 
     plot_run = subparsers.add_parser("plot-run", help="Generate diagnostics for one run directory.")
     plot_run.add_argument("--run-dir", required=True)
@@ -165,6 +182,32 @@ def main(argv: list[str] | None = None) -> int:
             outputs = generate_plots(results_dir=args.results, figures_dir=args.figures, save_png=args.png)
             for output in outputs:
                 print(f"Wrote {output}")
+            return 0
+
+        if args.command == "check":
+            findings = check_repository(args.root)
+            visible_findings = (
+                findings
+                if args.verbose
+                else [finding for finding in findings if finding.severity != "info"]
+            )
+            for finding in visible_findings:
+                print(
+                    f"{finding.severity.upper()} [{finding.code}] "
+                    f"{finding.path}: {finding.message}"
+                )
+
+            counts = {
+                severity: sum(finding.severity == severity for finding in findings)
+                for severity in ("error", "warning", "info")
+            }
+            print(
+                "Integrity summary: "
+                f"{counts['error']} error(s), {counts['warning']} warning(s), "
+                f"{counts['info']} informational finding(s)."
+            )
+            if counts["error"] or (args.strict and counts["warning"]):
+                return 1
             return 0
 
         if args.command == "plot-run":

@@ -13,6 +13,12 @@ from paper_exp.eval import compute_smoke_metrics
 from paper_exp.utils import build_manifest, write_json, write_jsonl
 
 RUN_SEQUENCE_RE = re.compile(r"^(\d{3})-")
+CORE_RUN_ARTIFACTS: tuple[str, ...] = (
+    "config.yaml",
+    "manifest.json",
+    "metrics.json",
+    "predictions.jsonl",
+)
 
 
 def run_smoke(
