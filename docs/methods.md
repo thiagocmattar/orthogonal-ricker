@@ -38,6 +38,27 @@ Training/calibration tracking:
 - Calibration and baseline runs can save final model weights under `checkpoints/final/` when `checkpoint.save_final` is true.
 - Activation-pressure runs log task loss and pressure loss separately, task/pressure gradient interference metrics, near-zero activation mass at configured thresholds, and Adam-step projection metrics for orthogonal methods.
 
+## Standard ReLU Result Handoff
+
+When the user asks to "bring me back the results" for a ReLU-style activation or architecture comparison, the default handoff is a chat-visible table with one row per matched method and these columns:
+
+| Method | Validation loss | $R_{\mathrm{block}}$ | $R_{\mathrm{model}}$ | $z_a$ | $z_m$ | $z_h$ |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+
+The reporting contract is:
+
+- `Method` uses repository nomenclature and keeps naive and orthogonal methods distinct: AdamW, RN, OR, L1N, and OL1 where available.
+- Validation loss comes from the deterministic validation pass at the compared checkpoint. Methods must use the same architecture, training budget, validation cache, and checkpoint rule; otherwise state the mismatch next to the table.
+- $z_a$, $z_m$, and $z_h$ are exact-zero fractions at the compute-facing attention input, MLP input, and MLP hidden activation. Compute them by direct equality to floating-point zero and pool integer zero/element counts over all evaluated tokens, tensor coordinates, and layers. Do not substitute the last training minibatch, a histogram bin, or a near-zero threshold.
+- If a standard site is absent from an architecture, report `N/A`; report `0.00%` only when a matching full-validation counter actually measured zero exact zeros there. If an architecture adds different compute-facing ReLU sites, extend the table with explicitly named $z_s$ columns rather than silently remapping them.
+- $R_{\mathrm{block}}$ is the fraction of all logical scalar products in the measured transformer block that have an exactly-zero activation operand. $R_{\mathrm{model}}$ uses the full-model denominator, including untargeted block operations and output heads. Prefer pooled integer zero-product counts from an `activation-propagation` result.
+- For an architecture without direct zero-product counters, derive $R_{\mathrm{block}}=\sum_s C_s z_s/C_{\mathrm{block}}$ and $R_{\mathrm{model}}=\sum_{b,s} C_{b,s}z_{b,s}/C_{\mathrm{model}}$ from its actual operation dimensions and evaluation regime. Recompute these costs when width, depth, sequence length, attention implementation, output head, decoding regime, or gate placement changes; never reuse Pythia-14M constants for another architecture.
+- The Three-ReLU projection-only quantity $(3z_a+4z_m+4z_h)/11$ is ceiling utilization among its directly gated projections, not $R_{\mathrm{block}}$ or $R_{\mathrm{model}}$.
+- In chat, default to four decimals for validation loss and two decimals for percentages, retain exact values in saved artifacts, state the validation token count and seed count, and label $R$ values as logical opportunities rather than measured speedups.
+- After the absolute table, report matched deltas for pressure versus same-architecture AdamW and orthogonal versus naive pressure when those controls exist. State uncertainty limits, especially for one-seed comparisons, and link the source training and diagnostic runs.
+
+If comparable full-validation $z$ and $R$ values do not exist, first add or extend a numbered `activation-propagation` diagnostic config and run it across the selected completed checkpoints. Do not infer the standard table from training-event snapshots.
+
 Current cleanup note:
 
 - Pretraining configs now require `model.initialization: random`.
@@ -181,26 +202,38 @@ All-site pressure figures:
 
 Post-LayerNorm ReLU architecture and pressure test:
 
-- Configs `98` and `99` add a ReLU after each block's `input_layernorm` and `post_attention_layernorm`, keep `model.hidden_act: relu`, and do not modify `gpt_neox.final_layer_norm`.
-- Stable activation-site names are `attention_inputs`, `mlp_inputs`, and `mlp_hiddens`. For configs `98` and `99`, these capture the post-ReLU tensors consumed by attention QKV, MLP up-projection, and MLP down-projection.
-- Config `98` is monitor-only AdamW with `activation_pressure.method: none`. Config `99` uses `orthogonal_l1`, weight 5, and step budget 0.5 on all three ReLU sites.
-- Config `103` uses `orthogonal_ricker`, weight 1, `c = sigma = 0.05`, and step budget 0.5 on the same sites. Config `104` uses `l1_naive`, weight 5, on the same sites.
-- Both runs use one MiniPile token-cache pass: 22,762 optimizer steps and 1,491,730,432 tokens.
-- Final validation losses were 4.9564 for config `98` and 5.1706 for config `99`. The clean post-LayerNorm ReLU architecture contrast is config `98` minus config `77`: +0.1160 validation loss. The matched three-site OL1 contrast is config `99` minus config `98`: +0.2142.
-- Full-validation exact-zero fractions at `attention_inputs`, `mlp_inputs`, and `mlp_hiddens` were 49.54%, 50.14%, and 50.72% for config `98`; 72.74%, 71.00%, and 75.15% for config `103`; 80.38%, 44.50%, and 54.19% for config `104`; and 83.07%, 39.25%, and 48.87% for config `99`. OR increased exact zeros broadly, whereas both L1 variants concentrated them at attention inputs.
-- For exact-zero fractions `z_attention`, `z_mlp_input`, and `z_mlp_hidden`, the ideal Pythia projection skip proxy is `(3*z_attention + 4*z_mlp_input + 4*z_mlp_hidden) / 11`. It counts potentially skippable input-weight multiplications in QKV, MLP up, and MLP down projections; it is not measured speedup.
-- At threshold 0, the full-validation eligible-projection proxy was 50.19% for config `98` and 54.70% for config `99`. Config `99` reached 59.64% at threshold 0.003 with +0.0259 validation loss relative to its own checkpoint, but its MLP-hidden threshold-0.01 clipping point cost +0.8074 validation loss.
-- Configs `103` and `104` finished at validation losses 5.0091 and 5.1882. Their full-validation eligible-projection proxies at threshold 0 were 72.98% and 57.81%, respectively. OR at threshold 0.003 reached 73.28% at validation loss 5.0090, the strongest useful pressured frontier among the tested settings.
-- Interpretation boundary: this is a one-seed architecture/planning test. Current ReLUs are injected through forward hooks, dense kernels realize no skip, and the large near-zero reservoir is not equivalent to safe exact sparsity.
-- Report: `report/04-2026-07-11-post-layernorm-relu-ol1-comparison/04-2026-07-11-post-layernorm-relu-ol1-comparison.pdf`.
+- Configs `98`, `99`, `103`, `104`, and `105` add a ReLU after each block's `input_layernorm` and `post_attention_layernorm`, keep `model.hidden_act: relu`, and do not modify `gpt_neox.final_layer_norm`.
+- Stable activation-site names are `attention_inputs`, `mlp_inputs`, and `mlp_hiddens`. They capture the post-ReLU tensors consumed by attention QKV, MLP up-projection, and MLP down-projection.
+- Config `98` is monitor-only AdamW. Config `105` is RN with weight 1 and `c = sigma = 0.05`; config `103` is the matched OR setting with step budget 0.5. Config `104` is L1N with weight 5; config `99` is the matched OL1 setting with step budget 0.5.
+- All five runs use seed 0 and one MiniPile token-cache pass: 22,762 optimizer steps and 1,491,730,432 tokens. Their final validation passes use the same 692,224 tokens.
+- Config `106` is the five-checkpoint full-validation result-handoff diagnostic. It supplies the pooled exact-zero and logical zero-product counters below; the training-run endpoint metrics supply validation loss.
+
+| Method | Validation loss | $R_{\mathrm{block}}$ | $R_{\mathrm{model}}$ | $z_a$ | $z_m$ | $z_h$ |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| AdamW | 4.9564 | 19.71% | 5.90% | 49.54% | 50.14% | 50.72% |
+| RN | 5.0263 | 28.42% | 8.51% | 72.41% | 71.96% | 72.70% |
+| OR | 5.0091 | 28.66% | 8.59% | 72.74% | 71.00% | 75.15% |
+| L1N | 5.1882 | 22.70% | 6.80% | 80.38% | 44.50% | 54.19% |
+| OL1 | 5.1706 | 21.48% | 6.43% | 83.07% | 39.25% | 48.87% |
+
+- Relative to same-architecture AdamW, RN adds 0.0699 validation loss, 8.71 percentage points of $R_{\mathrm{block}}$, and 2.61 points of $R_{\mathrm{model}}$.
+- In the matched Ricker pair, OR has 0.0173 lower validation loss, 0.25 percentage points higher $R_{\mathrm{block}}$, and 0.07 points higher $R_{\mathrm{model}}$ than RN. This descriptive one-seed difference compares the complete naive-loss and projected Adam-step procedures, including OR's 0.5 trust budget; it does not isolate projection alone.
+- RN and OR distribute zeros across all three compute-facing sites. L1N and OL1 place more zeros at attention inputs but substantially fewer at MLP inputs and MLP hiddens.
+- The clean post-LayerNorm ReLU architecture contrast remains config `98` minus MLP-ReLU AdamW config `77`: +0.1160 validation loss.
+- The projection-only ceiling utilization $(3z_a+4z_m+4z_h)/11$ is 50.19% for AdamW, 72.36% for RN, 72.98% for OR, 57.81% for L1N, and 54.70% for OL1. It is not $R_{\mathrm{block}}$, $R_{\mathrm{model}}$, or measured speedup.
+- Existing post-hoc clipping results predate RN. OR at threshold 0.003 reached 73.28% projection-only ceiling utilization at validation loss 5.0090. OL1 reached 59.64% at threshold 0.003 with +0.0259 validation loss relative to its checkpoint, but its MLP-hidden threshold-0.01 point cost +0.8074.
+- Interpretation boundary: this is a one-seed architecture/planning test with no uncertainty estimate. Dense kernels realize no skip, and the large near-zero reservoir is not equivalent to safe exact sparsity.
+- Training result: `results/105-pythia-14m-minipile-post-layernorm-relu-ricker-naive-full-pass-w1-c0p05-s0p05/001-20260713-152341-8ddca42a/`.
+- Five-method diagnostic: `results/106-pythia-14m-minipile-post-layernorm-relu-rn-comparison-activation-propagation/001-20260714-110538-01fcdff2/`.
+- Report 04 predates configs `105` and `106`; RN remains to be integrated into its figures and text before the report can be treated as the five-method artifact.
 
 Exact-zero propagation diagnostic:
 
-- Config `102` defines an exact zero by the direct comparison `value == 0`, with no tolerance. Integer counts are pooled over all 338 complete validation blocks, 692,224 token positions, and every tensor coordinate in each layer; percentages are not averages of batch percentages. A width-128 activation cell therefore has denominator `692224 * 128 = 88604672`, and a width-512 MLP cell has denominator `354418688`.
+- Configs `102` and `106` define an exact zero by the direct comparison `value == 0`, with no tolerance. Integer counts are pooled over all 338 complete validation blocks, 692,224 token positions, and every tensor coordinate in each layer; percentages are not averages of batch percentages. A width-128 activation cell therefore has denominator `692224 * 128 = 88604672`, and a width-512 MLP cell has denominator `354418688`.
 - Pythia uses parallel residuals: attention and MLP both consume `H_l`, then `H_{l+1} = H_l + O_l + M_l`. The post-LayerNorm ReLUs create local masks. QKV and W1 immediately densify those masks; the MLP-hidden ReLU creates a new mask, W2 densifies it, and residual addition remains effectively dense.
 - A matmul zero-product opportunity is one logical scalar multiplication with at least one exactly-zero activation operand. Future causal-mask entries are excluded from attention probabilities, QK, and PV; eager attention is used only to expose those diagnostic tensors.
-- Across all six major block matmuls (QKV, valid-causal QK, valid-causal PV, attention output, W1, and W2) at sequence length 2,048, the full-validation logical zero-product fractions are 19.71% for config `98`, 28.66% for config `103`, 22.70% for config `104`, and 21.48% for config `99`. The smaller totals relative to the projection-only proxy occur because QK, PV, and the attention output input are effectively dense.
-- Figure: `figures/85-pythia-14m-minipile-post-layernorm-relu-zero-propagation-heatmaps.pdf`.
+- Across all six major block matmuls (QKV, valid-causal QK, valid-causal PV, attention output, W1, and W2) at sequence length 2,048, config `106` measures full-validation logical zero-product fractions of 19.71% for config `98`, 28.42% for config `105`, 28.66% for config `103`, 22.70% for config `104`, and 21.48% for config `99`. The smaller totals relative to projection-only ceiling utilization occur because QK, PV, and the attention-output input are effectively dense.
+- Config `102` generated `figures/85-pythia-14m-minipile-post-layernorm-relu-zero-propagation-heatmaps.pdf`; that existing figure does not yet include RN.
 
 ## Expected Scale Ladders
 
