@@ -17,7 +17,9 @@ Author: Thiago Mattar <thiagocmattar@gmail.com>
 See [`docs/code_map.md`](docs/code_map.md) for module ownership, CLI-to-artifact
 routes, config ownership, and surgical recipes for adding methods, activation
 sites, diagnostics, and paper figures. See [`configs/README.md`](configs/README.md)
-before creating or promoting an experiment config.
+before creating or promoting an experiment config. See
+[`docs/plotting.md`](docs/plotting.md) for the Report 04 visual contract,
+plotting-module boundaries, and the parity checks required for figure changes.
 
 ## Install
 

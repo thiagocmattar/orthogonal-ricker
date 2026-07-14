@@ -53,7 +53,7 @@ never overwrite a paper artifact as the first validation step.
 
 Every figure is a research artifact, not decoration. Aim for figures that can go into the paper unchanged.
 
-Use the shared Matplotlib style centralized in `src/paper_exp/plots.py`.
+Use the shared Matplotlib style centralized in `src/paper_exp/plot_style.py`.
 Family-specific loaders and renderers may live in focused modules, but should
 reuse that style. Do not add notebook-only styling that cannot be reproduced by
 `make plots`.

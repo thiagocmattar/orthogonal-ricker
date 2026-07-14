@@ -41,15 +41,19 @@ measurement but does not dispatch the command.
 | `weight_histograms.py` | Checkpoint parameter-distribution diagnostics | `weight_histograms` runs |
 | `activation_propagation.py` | Exact-zero propagation and logical zero-product accounting | `activation_propagation` runs |
 | `sweeps.py` | The fixed-step pressure matrix, generated configs, and sequential sweep runners | Existing fixed-step sweep composition |
-| `plots.py` | Shared paper style, procedural figure dispatch, result selection/loaders, and family renderers | Figure dependencies, labels, layouts, and output names |
+| `plots.py` | Stable plotting facade, procedural dispatch, result selection, public wrappers, and legacy figure families | CLI compatibility, figure dependencies, output names, or a family not yet extracted |
+| `plot_style.py` | Shared paper rc parameters, palettes, method colors/markers, and export defaults | Typography, semantic series styling, or repository-wide presentation behavior |
+| `plot_common.py` | Small pure helpers with callers in multiple plotting families | Shared histogram normalization, formatting, and finite-value handling |
+| `plot_report04.py` | Report 04 cohorts, reductions, compute accounting, checkpoint preparation, and renderers for figures `79` through `90` | Post-LayerNorm ReLU report figures or their scientific presentation |
 | `eval.py` | Tiny harness-only prediction metrics | Smoke-test metrics |
 
 Focused tests live in `tests/test_config.py`, `tests/test_activation_pressure.py`,
 `tests/test_modeling.py`, `tests/test_activation_propagation.py`, and
 `tests/test_smoke.py`. Repository and plot-selection contracts are covered by
-`tests/test_integrity.py` and `tests/test_plot_selection.py`; launch/terminal
-transitions are covered by `tests/test_run_lifecycle.py` and
-`tests/test_calibration_lifecycle.py`.
+`tests/test_integrity.py` and `tests/test_plot_selection.py`. Report 04 dispatch
+and selected numerical helpers are locked by `tests/test_report04_contract.py` and
+`tests/test_report04_math.py`; launch/terminal transitions are covered by
+`tests/test_run_lifecycle.py` and `tests/test_calibration_lifecycle.py`.
 
 ## Run Lifecycle: First Tranche
 
@@ -159,11 +163,10 @@ See `configs/README.md` for field ownership and starting examples.
 
 1. Add a row to `docs/paper_map.md` with purpose, exact configs, exact saved
    results, and the numbered output filename.
-2. In `plots.py`, keep the family together: dependency constants, selection in
-   `_generate_known_paper_figures`, an export wrapper, data loader, and renderer.
-   Shared colors, typography, axes, and output behavior remain centralized;
-   family-specific loaders/renderers may move to a focused module when that
-   makes a surgical edit easier.
+2. Keep CLI selection and the stable export wrapper in `plots.py`. Put the
+   family cohort, pure reductions, and explicit renderers together in its
+   focused module; Report 04 uses `plot_report04.py` as the reference boundary.
+   Shared colors, typography, and export defaults belong in `plot_style.py`.
 3. Read only saved artifacts. Do not place training or measurement logic inside
    a renderer, and do not silently substitute a different experiment.
 4. Generate into a temporary comparison location first. Check inputs, series,
@@ -171,6 +174,7 @@ See `configs/README.md` for field ownership and starting examples.
    replacing a paper artifact.
 5. Treat Report 04 and figures `79` through `90` as the current visual baseline:
    `report/04-2026-07-11-post-layernorm-relu-ol1-comparison/`.
+   See `docs/plotting.md` for the exact embedded figure set and parity workflow.
 
 ## Architecture Changes
 
