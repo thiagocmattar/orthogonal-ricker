@@ -1,3 +1,16 @@
+"""Paper-figure discovery, loading, and rendering.
+
+Navigation follows the data path: dependency constants and shared style,
+``generate_plots`` / ``_generate_known_paper_figures`` dispatch, public
+``generate_*`` wrappers, result loaders/selectors, then private ``_plot_*``
+renderers. Figure-family names are repeated across those layers, so searching
+for a family token such as ``report04`` is the quickest surgical route.
+
+Report 04 (figures 79--90) is the current visual baseline. Its data-backed
+selectors require a coherent terminal run envelope; the architecture-only
+figures 87 and 90 do not depend on a complete training cohort.
+"""
+
 from __future__ import annotations
 
 import json
@@ -14,6 +27,7 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import FancyArrowPatch, FancyBboxPatch
 from matplotlib.ticker import FuncFormatter
 
+from paper_exp.run import CORE_RUN_ARTIFACTS
 from paper_exp.utils import read_json
 
 
@@ -1539,6 +1553,7 @@ def _generate_known_paper_figures(results_path: Path, figures_path: Path, *, sav
         results_path,
         list(REPORT04_TRAINING_RUNS),
         "events.jsonl",
+        require_complete_run=True,
     )
     if len(report04_training_runs) == len(REPORT04_TRAINING_RUNS):
         output_pdf = figures_path / "79-pythia-14m-minipile-post-layernorm-relu-learning-diagnostics.pdf"
@@ -1550,20 +1565,16 @@ def _generate_known_paper_figures(results_path: Path, figures_path: Path, *, sav
             )
         )
 
-        output_pdf = figures_path / "87-pythia-14m-minipile-three-relu-architecture-compute-map.pdf"
-        outputs.extend(generate_report04_three_relu_architecture(output=output_pdf, save_png=save_png))
-
-        output_pdf = figures_path / "90-pythia-family-three-relu-model-compute-ceilings.pdf"
-        outputs.extend(generate_report04_pythia_family_compute_ceiling(output=output_pdf, save_png=save_png))
-
     report04_histogram_runs = {
         "inputs": _latest_run_with(
             results_path / REPORT04_INPUT_HISTOGRAM_EXPERIMENT,
             "activation_histograms.json",
+            require_complete_run=True,
         ),
         "mlp_hiddens": _latest_run_with(
             results_path / REPORT04_MLP_HISTOGRAM_EXPERIMENT,
             "activation_histograms.json",
+            require_complete_run=True,
         ),
     }
     if all(report04_histogram_runs.values()):
@@ -1596,6 +1607,7 @@ def _generate_known_paper_figures(results_path: Path, figures_path: Path, *, sav
             results_path,
             experiments,
             "clipping_frontier.jsonl",
+            require_complete_run=True,
         )
     if all(len(runs) == len(REPORT04_CLIPPING_RUNS) for runs in report04_site_clipping_runs.values()):
         output_pdf = figures_path / "82-pythia-14m-minipile-post-layernorm-relu-site-clipping-frontiers.pdf"
@@ -1614,6 +1626,7 @@ def _generate_known_paper_figures(results_path: Path, figures_path: Path, *, sav
             for label, experiment_id in REPORT04_JOINT_CLIPPING_RUNS
         ],
         "clipping_frontier.jsonl",
+        require_complete_run=True,
     )
     if len(report04_joint_clipping_runs) == len(REPORT04_JOINT_CLIPPING_RUNS):
         output_pdf = figures_path / "83-pythia-14m-minipile-post-layernorm-relu-joint-compute-frontier.pdf"
@@ -1629,6 +1642,7 @@ def _generate_known_paper_figures(results_path: Path, figures_path: Path, *, sav
         results_path,
         list(REPORT04_TRAINING_RUNS),
         "checkpoints/final/model.safetensors",
+        require_complete_run=True,
     )
     if len(report04_parameter_runs) == len(REPORT04_TRAINING_RUNS):
         output_pdf = figures_path / "84-pythia-14m-minipile-post-layernorm-relu-parameter-diagnostics.pdf"
@@ -1663,6 +1677,7 @@ def _generate_known_paper_figures(results_path: Path, figures_path: Path, *, sav
     propagation_run = _latest_run_with(
         results_path / POST_LAYERNORM_RELU_PROPAGATION_EXPERIMENT,
         "activation_propagation.json",
+        require_complete_run=True,
     )
     if propagation_run is not None:
         output_pdf = figures_path / "85-pythia-14m-minipile-post-layernorm-relu-zero-propagation-heatmaps.pdf"
@@ -1686,14 +1701,73 @@ def _generate_known_paper_figures(results_path: Path, figures_path: Path, *, sav
             )
         )
 
+    report04_specific_training_ids = {
+        experiment_id
+        for _label, experiment_id in REPORT04_TRAINING_RUNS
+        if experiment_id.startswith(("98-", "99-", "103-", "104-"))
+    }
+    report04_context_available = (
+        any(
+            run.parent.name in report04_specific_training_ids
+            for _label, run in report04_training_runs
+        )
+        or any(report04_histogram_runs.values())
+        or any(report04_site_clipping_runs.values())
+        or bool(report04_joint_clipping_runs)
+        or propagation_run is not None
+    )
+    if report04_context_available:
+        output_pdf = figures_path / "87-pythia-14m-minipile-three-relu-architecture-compute-map.pdf"
+        outputs.extend(
+            generate_report04_three_relu_architecture(
+                output=output_pdf,
+                save_png=save_png,
+            )
+        )
+
+        output_pdf = figures_path / "90-pythia-family-three-relu-model-compute-ceilings.pdf"
+        outputs.extend(
+            generate_report04_pythia_family_compute_ceiling(
+                output=output_pdf,
+                save_png=save_png,
+            )
+        )
+
     return outputs
 
 
-def _latest_run_with(experiment_dir: Path, artifact_name: str) -> Path | None:
+def _latest_run_with(
+    experiment_dir: Path,
+    artifact_name: str,
+    *,
+    require_complete_run: bool = False,
+) -> Path | None:
     if not experiment_dir.exists():
         return None
-    candidates = [path for path in sorted(experiment_dir.iterdir()) if (path / artifact_name).exists()]
+    candidates = [
+        path
+        for path in sorted(experiment_dir.iterdir())
+        if (path / artifact_name).exists()
+        and (not require_complete_run or _has_coherent_terminal_manifest(path))
+    ]
     return candidates[-1] if candidates else None
+
+
+def _has_coherent_terminal_manifest(run_dir: Path) -> bool:
+    if not all((run_dir / artifact).is_file() for artifact in CORE_RUN_ARTIFACTS):
+        return False
+    try:
+        manifest = read_json(run_dir / "manifest.json")
+    except (OSError, UnicodeError, ValueError):
+        return False
+    if not isinstance(manifest, dict):
+        return False
+    if manifest.get("config_id") != run_dir.parent.name:
+        return False
+    if manifest.get("run_id") != run_dir.name:
+        return False
+    status = manifest.get("status")
+    return status is None or status == "completed"
 
 
 def generate_run_diagnostics(
@@ -2764,10 +2838,16 @@ def _latest_labeled_runs(
     results_path: Path,
     experiments: list[tuple[str, str]],
     artifact_name: str,
+    *,
+    require_complete_run: bool = False,
 ) -> list[tuple[str, Path]]:
     runs: list[tuple[str, Path]] = []
     for label, experiment_id in experiments:
-        run = _latest_run_with(results_path / experiment_id, artifact_name)
+        run = _latest_run_with(
+            results_path / experiment_id,
+            artifact_name,
+            require_complete_run=require_complete_run,
+        )
         if run is not None:
             runs.append((label, run))
     return runs
