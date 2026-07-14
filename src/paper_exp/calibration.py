@@ -16,8 +16,8 @@ from paper_exp.activations import ActivationCapture
 from paper_exp.config import validate_config
 from paper_exp.data import metadata_matches_config, tokenized_cache_dir, validation_metadata_path
 from paper_exp.modeling import apply_post_layernorm_relu
-from paper_exp.run import create_run_dir, write_run_artifacts
-from paper_exp.utils import build_manifest, read_json, write_jsonl
+from paper_exp.run import RunHandle, complete_run, run_lifecycle
+from paper_exp.utils import read_json, write_jsonl
 
 
 def run_calibration(
@@ -29,11 +29,28 @@ def run_calibration(
     mode: str = "calibrate",
 ) -> Path:
     validate_config(config, allow_todos=False)
+    with run_lifecycle(
+        config,
+        config_path=config_path,
+        command=command,
+        mode=mode,
+        run_id=run_id,
+    ) as run:
+        return _run_started_calibration(run.config, run=run)
+
+
+def _run_started_calibration(
+    config: dict[str, Any],
+    *,
+    run: RunHandle,
+) -> Path:
+    """Execute validated training inside an already-persisted run lifecycle."""
 
     torch, np, auto_config, auto_model = _load_training_dependencies()
     _set_seed(torch, config["run"]["seed"])
 
-    experiment_id, numbered_run_id, run_dir = create_run_dir(config, config_path, run_id=run_id)
+    experiment_id = run.config_id
+    run_dir = run.run_dir
     metadata_path = tokenized_cache_dir(config, experiment_id) / "metadata.json"
     if not metadata_path.exists():
         raise FileNotFoundError(f"Token cache not found. Run prepare-data first: {metadata_path}")
@@ -310,45 +327,38 @@ def run_calibration(
         "checkpoint/final_saved": checkpoint_metadata["saved"],
     }
     metrics.update({f"final/{key}": value for key, value in final_pressure_metrics.items()})
-    manifest = build_manifest(
-        config=config,
-        config_path=config_path,
-        run_id=numbered_run_id,
-        command=command,
-        mode=mode,
-        config_id=experiment_id,
-        result_path=run_dir,
-    )
-    manifest["tokenized_data"] = {"train": train_metadata, "validation": validation_metadata}
-    manifest["training"] = {
-        "block_size": block_size,
-        "micro_batch_size": micro_batch_size,
-        "gradient_accumulation_steps": grad_accum,
-        "max_steps": max_steps,
-        "completed_steps": completed_steps,
-        "max_wall_seconds": max_wall_seconds,
-        "tokens_per_step": tokens_per_step,
-        "loss_logged_as": "mean_micro_batch_loss_over_gradient_accumulation",
-        "sampling": "random_contiguous_blocks_with_replacement",
-        "learning_rate": base_learning_rate,
-        "warmup_steps": warmup_steps,
-        "learning_rate_schedule": "linear_warmup_then_constant",
-        "optimizer": optimizer_config["name"],
-        "adamw_betas": list(optimizer_config["betas"]),
-        "adamw_eps": optimizer_config["eps"],
-        "weight_decay": optimizer_config["weight_decay"],
-        "gradient_clipping": None,
-    }
-    manifest["activation_pressure"] = {
-        "enabled": pressure_config.enabled,
-        "method": pressure_config.method,
-        "sites": pressure_config.sites,
-        "weight": pressure_config.weight,
-        "pressure_kind": pressure_config.pressure_kind,
-        "ricker_c": pressure_config.ricker_c,
-        "ricker_sigma": pressure_config.ricker_sigma,
-        "step_budget": pressure_config.step_budget,
-        "log_thresholds": list(pressure_config.log_thresholds),
+    manifest_updates: dict[str, Any] = {
+        "tokenized_data": {"train": train_metadata, "validation": validation_metadata},
+        "training": {
+            "block_size": block_size,
+            "micro_batch_size": micro_batch_size,
+            "gradient_accumulation_steps": grad_accum,
+            "max_steps": max_steps,
+            "completed_steps": completed_steps,
+            "max_wall_seconds": max_wall_seconds,
+            "tokens_per_step": tokens_per_step,
+            "loss_logged_as": "mean_micro_batch_loss_over_gradient_accumulation",
+            "sampling": "random_contiguous_blocks_with_replacement",
+            "learning_rate": base_learning_rate,
+            "warmup_steps": warmup_steps,
+            "learning_rate_schedule": "linear_warmup_then_constant",
+            "optimizer": optimizer_config["name"],
+            "adamw_betas": list(optimizer_config["betas"]),
+            "adamw_eps": optimizer_config["eps"],
+            "weight_decay": optimizer_config["weight_decay"],
+            "gradient_clipping": None,
+        },
+        "activation_pressure": {
+            "enabled": pressure_config.enabled,
+            "method": pressure_config.method,
+            "sites": pressure_config.sites,
+            "weight": pressure_config.weight,
+            "pressure_kind": pressure_config.pressure_kind,
+            "ricker_c": pressure_config.ricker_c,
+            "ricker_sigma": pressure_config.ricker_sigma,
+            "step_budget": pressure_config.step_budget,
+            "log_thresholds": list(pressure_config.log_thresholds),
+        },
     }
     model_manifest = {
         "name": config["model"]["name"],
@@ -363,15 +373,19 @@ def run_calibration(
     model_manifest["post_layernorm_relu"] = bool(
         getattr(getattr(model, "config", None), "post_layernorm_relu", False)
     )
-    manifest["model"] = model_manifest
-    manifest["validation"] = validation_config
-    manifest["checkpoint"] = checkpoint_metadata
+    manifest_updates["model"] = model_manifest
+    manifest_updates["validation"] = validation_config
+    manifest_updates["checkpoint"] = checkpoint_metadata
     if "sweep" in config:
-        manifest["sweep"] = config["sweep"]
+        manifest_updates["sweep"] = config["sweep"]
 
-    write_run_artifacts(run_dir, config=config, metrics=metrics, manifest=manifest, predictions=events)
     write_jsonl(run_dir / "events.jsonl", events)
-    return run_dir
+    return complete_run(
+        run,
+        metrics=metrics,
+        predictions=events,
+        manifest_updates=manifest_updates,
+    )
 
 
 def _write_live_events(run_dir: Path, events: list[dict[str, Any]]) -> None:

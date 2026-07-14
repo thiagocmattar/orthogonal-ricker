@@ -65,12 +65,71 @@ def test_run_directories_are_classified_from_artifacts(tmp_path: Path) -> None:
 
     complete = result_group / "003-complete"
     complete.mkdir()
-    for artifact in ("config.yaml", "manifest.json", "metrics.json", "predictions.jsonl"):
+    for artifact in ("config.yaml", "metrics.json", "predictions.jsonl"):
         (complete / artifact).write_text("{}\n", encoding="utf-8")
+    (complete / "manifest.json").write_text(
+        '{"config_id": "01-test", "run_id": "003-complete"}\n',
+        encoding="utf-8",
+    )
+
+    running = result_group / "004-running"
+    running.mkdir()
+    (running / "config.yaml").write_text(VALID_CONFIG, encoding="utf-8")
+    (running / "manifest.json").write_text(
+        '{"config_id": "01-test", "run_id": "004-running", '
+        '"status": "running", "started_at": "2026-01-01T00:00:00Z"}\n',
+        encoding="utf-8",
+    )
+
+    failed = result_group / "005-failed"
+    failed.mkdir()
+    (failed / "config.yaml").write_text(VALID_CONFIG, encoding="utf-8")
+    (failed / "manifest.json").write_text(
+        '{"config_id": "01-test", "run_id": "005-failed", '
+        '"status": "failed", "started_at": "2026-01-01T00:00:00Z", '
+        '"finished_at": "2026-01-01T00:01:00Z", '
+        '"failure": {"type": "RuntimeError", "message": "test"}}\n',
+        encoding="utf-8",
+    )
+
+    inconsistent = result_group / "006-inconsistent"
+    inconsistent.mkdir()
+    (inconsistent / "config.yaml").write_text(VALID_CONFIG, encoding="utf-8")
+    (inconsistent / "manifest.json").write_text(
+        '{"config_id": "01-test", "run_id": "006-inconsistent", '
+        '"status": "completed", "started_at": "2026-01-01T00:00:00Z", '
+        '"finished_at": "2026-01-01T00:01:00Z"}\n',
+        encoding="utf-8",
+    )
+
+    mismatched = result_group / "007-mismatched"
+    mismatched.mkdir()
+    for artifact in ("config.yaml", "metrics.json", "predictions.jsonl"):
+        (mismatched / artifact).write_text("{}\n", encoding="utf-8")
+    (mismatched / "manifest.json").write_text(
+        '{"config_id": "wrong", "run_id": "007-mismatched"}\n',
+        encoding="utf-8",
+    )
+
+    completed = result_group / "008-completed"
+    completed.mkdir()
+    for artifact in ("config.yaml", "metrics.json", "predictions.jsonl"):
+        (completed / artifact).write_text("{}\n", encoding="utf-8")
+    (completed / "manifest.json").write_text(
+        '{"config_id": "01-test", "run_id": "008-completed", '
+        '"status": "completed", "started_at": "2026-01-01T00:00:00Z", '
+        '"finished_at": "2026-01-01T00:01:00Z"}\n',
+        encoding="utf-8",
+    )
 
     assert classify_run_directory(active) == "event_stream"
     assert classify_run_directory(partial) == "partial"
     assert classify_run_directory(complete) == "complete"
+    assert classify_run_directory(running) == "running"
+    assert classify_run_directory(failed) == "failed"
+    assert classify_run_directory(inconsistent) == "inconsistent"
+    assert classify_run_directory(mismatched) == "inconsistent"
+    assert classify_run_directory(completed) == "complete"
 
     findings = check_repository(tmp_path)
 
@@ -81,9 +140,31 @@ def test_run_directories_are_classified_from_artifacts(tmp_path: Path) -> None:
     )
     partial_finding = _finding(findings, "run.partial", "results/01-test/002-partial")
     complete_finding = _finding(findings, "run.complete", "results/01-test/003-complete")
+    running_finding = _finding(findings, "run.running", "results/01-test/004-running")
+    failed_finding = _finding(findings, "run.failed", "results/01-test/005-failed")
+    inconsistent_finding = _finding(
+        findings,
+        "run.inconsistent",
+        "results/01-test/006-inconsistent",
+    )
+    mismatched_finding = _finding(
+        findings,
+        "run.inconsistent",
+        "results/01-test/007-mismatched",
+    )
+    completed_finding = _finding(
+        findings,
+        "run.complete",
+        "results/01-test/008-completed",
+    )
     assert active_finding.severity == "warning"
     assert partial_finding.severity == "warning"
     assert complete_finding.severity == "info"
+    assert running_finding.severity == "warning"
+    assert failed_finding.severity == "warning"
+    assert inconsistent_finding.severity == "error"
+    assert mismatched_finding.severity == "error"
+    assert completed_finding.severity == "info"
 
 
 def test_literal_references_and_paper_outputs_are_checked(tmp_path: Path) -> None:

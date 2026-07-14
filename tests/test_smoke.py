@@ -36,6 +36,9 @@ def test_smoke_run_creates_expected_output_files(tmp_path: Path) -> None:
     assert manifest["run_id"] == "001-test-run"
     assert manifest["run_sequence"] == 1
     assert manifest["seed"] == 0
+    assert manifest["status"] == "completed"
+    assert manifest["started_at"] == manifest["timestamp"]
+    assert manifest["finished_at"] >= manifest["started_at"]
 
 
 def test_plots_command_can_generate_pdf_from_smoke_results(tmp_path: Path) -> None:

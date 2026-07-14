@@ -66,6 +66,27 @@ def test_strict_selection_accepts_legacy_terminal_manifest_without_status(
     )
 
 
+def test_strict_selection_accepts_explicit_completed_manifest(
+    tmp_path: Path,
+) -> None:
+    experiment_dir = tmp_path / "results" / "01-example"
+    run_dir = _write_complete_run(
+        experiment_dir,
+        "001-run",
+        status="completed",
+    )
+    (run_dir / "events.jsonl").write_text("{}\n", encoding="utf-8")
+
+    assert (
+        plots._latest_run_with(
+            experiment_dir,
+            "events.jsonl",
+            require_complete_run=True,
+        )
+        == run_dir
+    )
+
+
 @pytest.mark.parametrize("manifest", ["not json", {"config_id": "wrong", "run_id": "001-run"}])
 def test_strict_selection_rejects_malformed_or_mismatched_manifest(
     tmp_path: Path,

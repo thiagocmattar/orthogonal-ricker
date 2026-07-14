@@ -3,16 +3,24 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 import re
-from typing import Literal
+from typing import Any, Literal
 
 from yaml import YAMLError
 
 from paper_exp.config import CONFIG_FILE_RE, ConfigError, load_config
 from paper_exp.run import CORE_RUN_ARTIFACTS
+from paper_exp.utils import read_json
 
 
 Severity = Literal["info", "warning", "error"]
-RunStatus = Literal["event_stream", "partial", "complete"]
+RunStatus = Literal[
+    "running",
+    "failed",
+    "complete",
+    "inconsistent",
+    "event_stream",
+    "partial",
+]
 
 
 @dataclass(frozen=True)
@@ -72,7 +80,17 @@ def classify_run_directory(run_dir: str | Path) -> RunStatus:
     """Classify a run without guessing whether its process is still alive."""
 
     path = Path(run_dir)
-    if all((path / name).is_file() for name in CORE_RUN_ARTIFACTS):
+    has_core_envelope = all((path / name).is_file() for name in CORE_RUN_ARTIFACTS)
+    manifest_status, manifest_is_valid = _explicit_manifest_status(path)
+    if not manifest_is_valid:
+        return "inconsistent"
+    if manifest_status == "running":
+        return "running"
+    if manifest_status == "failed":
+        return "failed"
+    if manifest_status == "completed":
+        return "complete" if has_core_envelope else "inconsistent"
+    if has_core_envelope:
         return "complete"
     if (path / "events.jsonl").is_file():
         return "event_stream"
@@ -183,7 +201,44 @@ def _check_runs(repository: Path) -> list[IntegrityFinding]:
                 continue
 
             missing_text = ", ".join(missing)
-            if status == "event_stream":
+            if status == "running":
+                findings.append(
+                    IntegrityFinding(
+                        severity="warning",
+                        code="run.running",
+                        message=(
+                            "Run manifest is explicitly running and must not be consumed "
+                            f"as completed. Missing: {missing_text or 'none'}."
+                        ),
+                        path=run_path,
+                    )
+                )
+            elif status == "failed":
+                findings.append(
+                    IntegrityFinding(
+                        severity="warning",
+                        code="run.failed",
+                        message=(
+                            "Run manifest records a failed terminal state. "
+                            f"Missing: {missing_text or 'none'}."
+                        ),
+                        path=run_path,
+                    )
+                )
+            elif status == "inconsistent":
+                findings.append(
+                    IntegrityFinding(
+                        severity="error",
+                        code="run.inconsistent",
+                        message=(
+                            "Run manifest is malformed, has an unknown status, or claims "
+                            "completion without the core artifact envelope. "
+                            f"Missing: {missing_text or 'none'}."
+                        ),
+                        path=run_path,
+                    )
+                )
+            elif status == "event_stream":
                 findings.append(
                     IntegrityFinding(
                         severity="warning",
@@ -209,6 +264,52 @@ def _check_runs(repository: Path) -> list[IntegrityFinding]:
                     )
                 )
     return findings
+
+
+def _explicit_manifest_status(run_dir: Path) -> tuple[str | None, bool]:
+    manifest_path = run_dir / "manifest.json"
+    if not manifest_path.is_file():
+        return None, True
+    try:
+        manifest = read_json(manifest_path)
+    except (OSError, UnicodeError, ValueError):
+        return None, False
+    if not isinstance(manifest, dict):
+        return None, False
+    if manifest.get("config_id") != run_dir.parent.name:
+        return None, False
+    if manifest.get("run_id") != run_dir.name:
+        return None, False
+    status = manifest.get("status")
+    if status is None:
+        return None, True
+    if status not in {"running", "failed", "completed"}:
+        return None, False
+    if not (run_dir / "config.yaml").is_file():
+        return None, False
+    if not _is_nonempty_string(manifest.get("started_at")):
+        return None, False
+    if status == "running":
+        if "finished_at" in manifest or "failure" in manifest:
+            return None, False
+    else:
+        if not _is_nonempty_string(manifest.get("finished_at")):
+            return None, False
+    if status == "failed":
+        failure = manifest.get("failure")
+        if not isinstance(failure, dict):
+            return None, False
+        if not _is_nonempty_string(failure.get("type")):
+            return None, False
+        if not isinstance(failure.get("message"), str):
+            return None, False
+    elif "failure" in manifest:
+        return None, False
+    return status, True
+
+
+def _is_nonempty_string(value: Any) -> bool:
+    return isinstance(value, str) and bool(value.strip())
 
 
 def _check_numbered_figures(repository: Path) -> list[IntegrityFinding]:
