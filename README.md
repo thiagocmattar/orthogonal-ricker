@@ -12,6 +12,13 @@ Author: Thiago Mattar <thiagocmattar@gmail.com>
 - Data preparation tokenizes MiniPile into a local cache before calibration or paper runs.
 - Repository files, documentation, result records, plot labels, and generated outputs are kept in English.
 
+## Code Navigation
+
+See [`docs/code_map.md`](docs/code_map.md) for module ownership, CLI-to-artifact
+routes, config ownership, and surgical recipes for adding methods, activation
+sites, diagnostics, and paper figures. See [`configs/README.md`](configs/README.md)
+before creating or promoting an experiment config.
+
 ## Install
 
 ```bash
@@ -28,6 +35,7 @@ python -c "import torch; print(torch.__version__, torch.cuda.is_available())"
 
 ```bash
 make test      # run lightweight unit tests
+make check     # read-only config, run-artifact, and paper-reference checks
 make smoke     # run a tiny harness sanity check
 make prepare-minipile      # tokenize the configured MiniPile subset locally
 make calibrate-pythia-14m  # random-init Pythia-14M pretraining calibration
@@ -41,6 +49,11 @@ make baseline  # blocked until the pretraining budget is chosen
 make plots     # regenerate figures from saved results
 ```
 
+`make check` reports warnings for incomplete run directories and reused figure
+prefixes but exits nonzero only for errors. Use
+`python -m paper_exp.cli check --strict` as a release gate when warnings must
+also fail.
+
 ## Human-facing Notes
 
 Documents written for human reading live under `docs/humans/`.
@@ -49,6 +62,7 @@ Current notes:
 
 - `docs/humans/01-pythia-14m-architecture.md`: Pythia-14M architecture, block equations, pseudocode, and activation-pressure hook sites.
 - `docs/humans/02-fixed-step-pressure-screen.md`: fixed-step Pythia-14M MiniPile pressure screen, metrics table, figures, and interpretation boundary.
+- `docs/humans/03-research-agenda-to-publication.md`: internal research agenda that separates observations, hypotheses, candidate claims, and publication-stage evidence requirements.
 
 ## Model Initialization
 

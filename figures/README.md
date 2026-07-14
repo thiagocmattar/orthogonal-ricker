@@ -2,32 +2,38 @@
 
 Paper-ready figures generated from saved random-initialized pretraining results go here.
 
-Use sequential figure names:
+## Figure Inventory
+
+[`docs/paper_map.md`](../docs/paper_map.md) is the canonical figure inventory.
+It maps each paper purpose to its exact configs, saved results, and numbered
+figure outputs. Update that map when adding, replacing, or retiring a paper
+figure; do not maintain a second exhaustive filename list here.
+
+Use sequential, unique numeric prefixes:
 
 ```text
 01-pythia-14m-minipile-random-full-10min-diagnostics.pdf
 02-pythia-14m-minipile-clipping-frontier-smoke.pdf
-03-pythia-14m-pressure-short-learning-curves.pdf
-04-pythia-14m-pressure-short-clipping-frontiers.pdf
-05-pythia-14m-pressure-fixed-2048-summary.pdf
-06-pythia-14m-pressure-fixed-2048-learning-curves.pdf
-07-pythia-14m-pressure-fixed-2048-clipping-frontiers.pdf
-08-pythia-14m-pressure-fixed-2048-naive-ricker-learning-curves.pdf
-09-pythia-14m-pressure-fixed-2048-naive-l1-learning-curves.pdf
-10-pythia-14m-pressure-fixed-2048-orthogonal-ricker-learning-curves.pdf
-11-pythia-14m-pressure-fixed-2048-orthogonal-l1-learning-curves.pdf
-12-pythia-14m-pressure-fixed-2048-naive-ricker-clipping-frontiers.pdf
-13-pythia-14m-pressure-fixed-2048-naive-l1-clipping-frontiers.pdf
-14-pythia-14m-pressure-fixed-2048-orthogonal-ricker-clipping-frontiers.pdf
-15-pythia-14m-pressure-fixed-2048-orthogonal-l1-clipping-frontiers.pdf
-16-pythia-14m-pressure-fixed-2048-selected-clipping-frontiers.pdf
-17-pythia-14m-pressure-fixed-2048-high-pressure-rn-learning-curves.pdf
-18-pythia-14m-pressure-fixed-2048-high-pressure-or-learning-curves.pdf
-19-pythia-14m-pressure-fixed-2048-high-pressure-l1-learning-curves.pdf
-20-pythia-14m-pressure-fixed-2048-high-pressure-clipping-frontiers.pdf
-21-pythia-14m-pressure-fixed-2048-or-l1-weight-norms.pdf
-22-pythia-14m-pressure-fixed-2048-selected-activation-histograms.pdf
 ```
+
+Each prefix identifies one canonical figure, even when both PDF and PNG copies
+exist. Check both this directory and the paper map before assigning the next
+number. Do not reuse a prefix for a different filename or leave competing
+canonical variants under the same prefix.
+
+The current visual baseline is Report 04 and figures `79` through `90`:
+
+```text
+report/04-2026-07-11-post-layernorm-relu-ol1-comparison/
+figures/79-*.pdf through figures/90-*.pdf
+```
+
+Preserve their typography, color language, information density, panel spacing,
+and compute-accounting clarity when extending the plotting package. A new
+figure may differ when its scientific content requires it, but should remain
+visually coherent with this family.
+
+## Regeneration Workflow
 
 Regenerate figures with:
 
@@ -37,11 +43,20 @@ make plots
 
 Figures should be reproducible from files under `results/`. Do not rely on notebook-only plotting for paper figures.
 
+Generate changed figures into a temporary comparison directory first, outside
+`figures/`. Compare the candidate with the current artifact for exact input
+runs, series, labels, axes, sample size or uncertainty, layout, PDF rendering,
+and optional PNG rendering. Promote it to `figures/` only after that review;
+never overwrite a paper artifact as the first validation step.
+
 ## Plotting Standards
 
 Every figure is a research artifact, not decoration. Aim for figures that can go into the paper unchanged.
 
-Use the centralized Matplotlib style in `src/paper_exp/plots.py`. Do not add notebook-only styling that cannot be reproduced by `make plots`.
+Use the shared Matplotlib style centralized in `src/paper_exp/plots.py`.
+Family-specific loaders and renderers may live in focused modules, but should
+reuse that style. Do not add notebook-only styling that cannot be reproduced by
+`make plots`.
 
 Honesty rules:
 

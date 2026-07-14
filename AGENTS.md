@@ -7,13 +7,15 @@ Principle: simplicity over complexity. Do not add abstractions, frameworks, or f
 Read first:
 
 1. `README.md`
-2. `docs/methods.md`
-3. `docs/experiment_log.md`
-4. `docs/paper_map.md`
+2. `docs/code_map.md`
+3. `docs/methods.md`
+4. `docs/experiment_log.md`
+5. `docs/paper_map.md`
 
 Core commands:
 
 - `make test`
+- `make check`
 - `make smoke`
 - `make prepare-minipile`
 - `make calibrate-pythia-14m`
@@ -31,6 +33,6 @@ Rules:
 - Configs, result folders, run folders, and figures should use sequential prefixes such as `01-baseline.yaml`, `001-<timestamp>-<id>`, and `01-results-summary.pdf`.
 - Every run should save its config, metrics, predictions, and manifest.
 - Every paper figure should be regenerable from saved results.
-- Treat figures as paper artifacts: avoid misleading axis truncation, use colorblind-safe colors, show sample size or uncertainty when relevant, and keep plotting style centralized in `src/paper_exp/plots.py`.
+- Treat figures as paper artifacts: avoid misleading axis truncation, use colorblind-safe colors, show sample size or uncertainty when relevant, and keep shared plotting style centralized (currently in `src/paper_exp/plots.py`); family-specific loaders and renderers may live in focused modules.
 - Prefer one clear script over many clever abstractions.
 - If adding complexity, explain why it is necessary.

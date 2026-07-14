@@ -11,6 +11,10 @@ run-logs/
 data/tokenized/
 data/raw/
 
+# Existing selected configs remain tracked. New exploratory configs stay local
+# until they are deliberately promoted with `git add -f`.
+configs/*.yaml
+
 results/*/
 !results/README.md
 !results/.gitkeep
