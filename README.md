@@ -119,18 +119,40 @@ The number is for human ordering. Run directories still include a timestamp and 
 
 ## Results
 
-Each run writes:
+Completed run directories normally contain:
 
 ```text
 config.yaml
 metrics.json
 manifest.json
 predictions.jsonl
-events.jsonl
-checkpoints/final/
+events.jsonl          # calibration/pretrain only
+checkpoints/final/    # when enabled
 ```
 
-`manifest.json` records the model architecture, random initialization, config path, command, seed, dataset, Python version, package versions, and git commit when available.
+Smoke and calibration/pretrain runs use the first explicit run lifecycle. At
+launch they save an immutable `config.yaml` snapshot and a manifest with
+`status: running`. The manifest records the model architecture, random
+initialization, config path, command, seed, dataset, Python version, package
+versions, and Git commit/dirty state as observed at launch. Completion writes
+metrics and predictions before atomically publishing `status: completed` and
+`finished_at` in the manifest. An escaping exception is re-raised after the
+manifest is updated to `status: failed`, `finished_at`, and its exception type
+and message; metrics and predictions may therefore be absent from failed runs.
+
+Statusless historical runs remain supported as completed runs when their core
+config, metrics, manifest, and predictions envelope is coherent. Data
+preparation, activation/weight histogram diagnostics, activation propagation,
+and clipping sweeps still use the legacy end-of-run artifact writer; they will
+receive the same lifecycle in a separate migration.
+
+For calibration/pretrain runs, `predictions.jsonl` currently stores the same
+training and validation event history represented by `events.jsonl`; it does
+not contain generated-token predictions. The metric
+`calibration/wall_seconds_train` measures the timed training interval including
+validation performed inside that interval. Validation duration is also
+reported separately, while `calibration/wall_seconds_total` additionally
+includes final checkpoint work but not the final artifact writes.
 
 First valid full-MiniPile random-init checkpoint:
 

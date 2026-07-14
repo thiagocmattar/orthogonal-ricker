@@ -29,7 +29,7 @@ measurement but does not dispatch the command.
 | `cli.py` | Argument parsing and command dispatch | Command names, flags, or routing |
 | `config.py` | Shared filename and minimum-field validation; random-initialization invariant | Cross-workflow config rules |
 | `integrity.py` | Read-only checks for configs, run envelopes, document references, paper outputs, and figure numbering | Preflight and open-source release checks |
-| `run.py` | Experiment/run directory naming and the common config/metrics/manifest/predictions envelope | Artifacts required of every run |
+| `run.py` | Experiment/run directory naming, smoke/calibration lifecycle, and the common config/metrics/manifest/predictions envelope | Launch snapshots, terminal status, and artifacts required of completed runs |
 | `utils.py` | JSON/JSONL helpers and environment, Git, GPU, package, and run provenance | Manifest contents and serialization |
 | `data.py` | Dataset loading, tokenization, cache metadata, and cache reuse checks | `data`, `tokenizer`, and `preprocessing` behavior |
 | `calibration.py` | Calibration and pretraining loops, validation, checkpoints, training events, and naive/orthogonal update routing | Optimizer or training-loop behavior |
@@ -47,22 +47,54 @@ measurement but does not dispatch the command.
 Focused tests live in `tests/test_config.py`, `tests/test_activation_pressure.py`,
 `tests/test_modeling.py`, `tests/test_activation_propagation.py`, and
 `tests/test_smoke.py`. Repository and plot-selection contracts are covered by
-`tests/test_integrity.py` and `tests/test_plot_selection.py`.
+`tests/test_integrity.py` and `tests/test_plot_selection.py`; launch/terminal
+transitions are covered by `tests/test_run_lifecycle.py` and
+`tests/test_calibration_lifecycle.py`.
+
+## Run Lifecycle: First Tranche
+
+`run.start_run` snapshots `config.yaml` and a `status: running` manifest before
+smoke or calibration/pretrain work begins. `run.complete_run` writes metrics
+and predictions first, then atomically publishes the terminal manifest with
+`status: completed` and `finished_at`. `run.run_lifecycle` records an escaping
+exception as `status: failed` with `finished_at`, exception type, and message,
+then re-raises it. A normal lifecycle exit without `complete_run` is also
+rejected and recorded as failed. Terminal manifests are derived from the immutable launch
+snapshot, so their Git commit and dirty state remain launch provenance even if
+the working tree changes during a run.
+
+This lifecycle currently applies only to `run.run_smoke` and
+`calibration.run_calibration`, including CLI `calibrate` and `pretrain` calls.
+Data preparation, activation and weight histograms, activation propagation,
+and clipping still use `create_run_dir`, a late `build_manifest`, and
+`write_run_artifacts`. They remain legacy workflows until the second migration;
+do not describe their directories as having explicit `running`, `completed`,
+or `failed` status. Statusless historical runs remain supported when their core
+artifact envelope is coherent.
+
+For calibration/pretrain, `predictions.jsonl` currently duplicates the train
+and validation event history in `events.jsonl`; it is not generated-token
+output. `calibration/wall_seconds_train` includes validation performed inside
+the timed training interval. Separate validation timing metrics expose that
+component, and `calibration/wall_seconds_total` additionally includes final
+checkpoint work but not the final artifact writes.
 
 ## CLI and Artifact Index
 
 Commands that accept `--config` first use `config.load_config`; `clip-sweep`
-instead loads the config and manifest saved by its checkpoint run. Unless
-noted, a run also gets `config.yaml`, `metrics.json`, `manifest.json`, and
-`predictions.jsonl` from `run.write_run_artifacts`.
+instead loads the config and manifest saved by its checkpoint run. Smoke and
+calibration/pretrain use the explicit lifecycle above. The remaining
+run-producing workflows still write `config.yaml`, `metrics.json`,
+`manifest.json`, and `predictions.jsonl` together at successful completion via
+the legacy `run.write_run_artifacts`.
 
 | CLI command | Workflow entry point | Workflow-owned config sections | Additional or primary artifacts |
 | --- | --- | --- | --- |
-| `smoke` | `run.run_smoke` | Shared required fields | Common run envelope with canned smoke predictions |
+| `smoke` | `run.run_smoke` | Shared required fields | Lifecycle launch snapshot, then common completed envelope with canned smoke predictions |
 | `baseline` | `run.run_baseline` | Shared required fields | Currently stops at the explicit budget `TODO`; no baseline run is implemented |
 | `prepare-data` | `data.prepare_tokenized_data` | `data`, `tokenizer`, `preprocessing`, optional `validation` | `tokens.int32.bin` and `metadata.json` under the token cache; cache paths are recorded in the run |
-| `calibrate` | `calibration.run_calibration` | `model`, `data`, `preprocessing`, `training`, `validation`, `checkpoint`, optional `activation_pressure` | `events.jsonl`; optional `checkpoints/final/` |
-| `pretrain` | `calibration.run_calibration(..., mode="pretrain")` | Same as `calibrate` | `events.jsonl`; optional `checkpoints/final/` |
+| `calibrate` | `calibration.run_calibration` | `model`, `data`, `preprocessing`, `training`, `validation`, `checkpoint`, optional `activation_pressure` | Lifecycle launch snapshot; `events.jsonl`; optional `checkpoints/final/`; terminal manifest last |
+| `pretrain` | `calibration.run_calibration(..., mode="pretrain")` | Same as `calibrate` | Same lifecycle as `calibrate`; `predictions.jsonl` currently contains event history |
 | `clip-sweep` | `clipping.run_clipping_sweep` | Saved source-run config plus `activation_clipping`; thresholds/sites are normally CLI arguments | `clipping_frontier.jsonl` and the common envelope |
 | `activation-histograms` | `activation_histograms.run_activation_histograms` | `activation_histograms`, `validation`, and cache/model fields | `activation_histograms.json` and the common envelope |
 | `weight-histograms` | `weight_histograms.run_weight_histograms` | `weight_histograms` and source-run references | `weight_histograms.json` and the common envelope |
@@ -113,8 +145,11 @@ See `configs/README.md` for field ownership and starting examples.
    not, add one focused workflow module with a single `run_*` entry point.
 2. Give it a workflow-owned config section and a numbered config; add CLI
    parsing/routing in `cli.py`.
-3. Use `create_run_dir`, `build_manifest`, and `write_run_artifacts`, then write
-   the specialized JSON/JSONL next to the common envelope.
+3. Existing diagnostic workflows still use `create_run_dir`, `build_manifest`,
+   and `write_run_artifacts`, then write specialized JSON/JSONL next to the
+   common envelope. Do not migrate one diagnostic ad hoc: the second lifecycle
+   tranche must also make source-run status checks and specialized-artifact
+   ordering consistent.
 4. Select only completed source runs and record their config/run identifiers in
    the payload or manifest. Add a CPU-sized test for the schema or calculation.
 5. Document what is measured, its denominator/sample size, and its limits in

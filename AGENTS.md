@@ -31,7 +31,8 @@ Rules:
 - Activation pressure methods currently target `mlp_hiddens` first. Keep naive pressure and Adam-step orthogonal pressure separate in configs, metrics, and docs.
 - Every experiment should have a config.
 - Configs, result folders, run folders, and figures should use sequential prefixes such as `01-baseline.yaml`, `001-<timestamp>-<id>`, and `01-results-summary.pdf`.
-- Every run should save its config, metrics, predictions, and manifest.
+- Smoke and calibration/pretrain runs must save `config.yaml` and a `status: running` manifest at launch, preserve that launch Git provenance, and publish the terminal `status: completed` manifest only after metrics and predictions are durable; escaping exceptions must leave `status: failed`. Data preparation, diagnostic, and clipping workflows still use the legacy end-of-run writer until their separate migration.
+- Completed runs should save config, metrics, predictions, and manifest. Statusless historical runs remain valid when their core artifact envelope is coherent.
 - Every paper figure should be regenerable from saved results.
 - Treat figures as paper artifacts: avoid misleading axis truncation, use colorblind-safe colors, show sample size or uncertainty when relevant, and keep shared plotting style centralized (currently in `src/paper_exp/plots.py`); family-specific loaders and renderers may live in focused modules.
 - Prefer one clear script over many clever abstractions.
