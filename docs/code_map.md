@@ -42,16 +42,21 @@ measurement but does not dispatch the command.
 | `activation_propagation.py` | Exact-zero propagation and logical zero-product accounting | `activation_propagation` runs |
 | `sweeps.py` | The fixed-step pressure matrix, generated configs, and sequential sweep runners | Existing fixed-step sweep composition |
 | `plots.py` | Stable plotting facade, procedural dispatch, result selection, public wrappers, and legacy figure families | CLI compatibility, figure dependencies, output names, or a family not yet extracted |
+| `plot_api.py` | Count-derived panel grids, scoped one-build PDF/PNG export, and publication-profile validation | Shared final-size layout/export behavior that does not change scientific content |
+| `plot_catalog.py` | Metadata-only Report 04 figure index | Figure numbers, filenames, saved-input kinds, wrapper names, or report embedding status |
 | `plot_style.py` | Shared paper rc parameters, palettes, method colors/markers, and export defaults | Typography, semantic series styling, or repository-wide presentation behavior |
-| `plot_common.py` | Small pure helpers with callers in multiple plotting families | Shared histogram normalization, formatting, and finite-value handling |
+| `plot_common.py` | Small pure helpers with callers in multiple plotting families | Shared histogram normalization (including zero-atom separation), formatting, and finite-value handling |
 | `plot_report04.py` | Report 04 cohorts, reductions, compute accounting, checkpoint preparation, and renderers for figures `79` through `90` | Post-LayerNorm ReLU report figures or their scientific presentation |
 | `eval.py` | Tiny harness-only prediction metrics | Smoke-test metrics |
 
 Focused tests live in `tests/test_config.py`, `tests/test_activation_pressure.py`,
 `tests/test_modeling.py`, `tests/test_activation_propagation.py`, and
 `tests/test_smoke.py`. Repository and plot-selection contracts are covered by
-`tests/test_integrity.py` and `tests/test_plot_selection.py`. Report 04 dispatch
-and selected numerical helpers are locked by `tests/test_report04_contract.py` and
+`tests/test_integrity.py` and `tests/test_plot_selection.py`. Shared plotting
+mechanics and catalog metadata are covered by `tests/test_plot_api.py`,
+`tests/test_plot_catalog.py`, and `tests/test_plot_catalog_cli.py`. Report 04
+suite dispatch, CLI preflight, and selected numerical helpers are locked by
+`tests/test_report04_contract.py`, `tests/test_plot_report04_cli.py`, and
 `tests/test_report04_math.py`; launch/terminal transitions are covered by
 `tests/test_run_lifecycle.py` and `tests/test_calibration_lifecycle.py`.
 
@@ -107,6 +112,8 @@ the legacy `run.write_run_artifacts`.
 | `run-pressure-sweep` | `sweeps.run_pressure_fixed_step_sweep` | Generated training configs | Standard pretraining run artifacts for each selected config |
 | `run-pressure-sweep-clipping` | `sweeps.run_pressure_fixed_step_clipping_sweeps` | Completed sweep configs plus CLI clipping arguments | Standard clipping-sweep artifacts |
 | `plots` | `plots.generate_plots` | No live config; consumes saved result artifacts and the dispatch in `plots.py` | Numbered PDFs and optional PNGs |
+| `plot-report04` | `plots.generate_report04_figures` | No live config; resolves every declared Report 04 cohort before rendering | Figures `79` through `90`, optional PNGs, and strict-run `report04-provenance.json`; explicit `--allow-partial` exploration mode omits provenance |
+| `plot-catalog` | `plot_catalog.report04_catalog_rows` | No config or result reads | Deterministic Report 04 figure metadata on stdout |
 | `check` | `integrity.check_repository` | No config; reads repository indexes and artifact envelopes | Findings only; never writes repository files |
 | `plot-run` | `plots.generate_run_diagnostics` | No live config; consumes one run | Requested PDF and optional PNG |
 | `plot-clipping-frontier` | `plots.generate_clipping_frontier` | No live config; consumes one clipping run | Requested PDF and optional PNG |
@@ -167,12 +174,16 @@ See `configs/README.md` for field ownership and starting examples.
    family cohort, pure reductions, and explicit renderers together in its
    focused module; Report 04 uses `plot_report04.py` as the reference boundary.
    Shared colors, typography, and export defaults belong in `plot_style.py`.
-3. Read only saved artifacts. Do not place training or measurement logic inside
+3. Add searchable metadata to `plot_catalog.py` so the figure can be found by
+   number, filename, plot type, or wrapper. Reuse `GridLayout` and the relevant
+   publication profile instead of hard-coding a method-count grid or oversized
+   canvas.
+4. Read only saved artifacts. Do not place training or measurement logic inside
    a renderer, and do not silently substitute a different experiment.
-4. Generate into a temporary comparison location first. Check inputs, series,
+5. Generate into a temporary comparison location first. Check inputs, series,
    labels, axes, sample size/uncertainty, layout, PDF, and optional PNG before
    replacing a paper artifact.
-5. Treat Report 04 and figures `79` through `90` as the current visual baseline:
+6. Treat Report 04 and figures `79` through `90` as the current visual baseline:
    `report/04-2026-07-11-post-layernorm-relu-ol1-comparison/`.
    See `docs/plotting.md` for the exact embedded figure set and parity workflow.
 

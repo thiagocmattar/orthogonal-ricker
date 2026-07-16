@@ -21,6 +21,7 @@ results/*/
 
 figures/*.pdf
 figures/*.png
+figures/report04-provenance.json
 !figures/README.md
 !figures/.gitkeep
 

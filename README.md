@@ -49,6 +49,7 @@ make pressure-smoke-orthogonal-l1
 make pressure-short-all  # four short full-MiniPile pressure checks
 make baseline  # blocked until the pretraining budget is chosen
 make plots     # regenerate figures from saved results
+make plot-report04  # strict Report 04 suite + deterministic input provenance
 ```
 
 `make check` reports warnings for incomplete run directories and reused figure

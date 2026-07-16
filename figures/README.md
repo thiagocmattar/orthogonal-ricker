@@ -35,11 +35,26 @@ visually coherent with this family.
 
 ## Regeneration Workflow
 
-Regenerate figures with:
+Regenerate the complete Report 04 visual baseline through its strict preflight:
+
+```bash
+make plot-report04
+```
+
+This requires every declared Report 04 input before rendering and writes
+`report04-provenance.json` beside the figures. The sidecar is generated and
+ignored by default. Deliberately select it for a release only after reviewing
+the figure suite and its input hashes; use
+`git add -f figures/report04-provenance.json` when that release decision is made.
+
+Regenerate the broader mixed-family figure collection during exploration with:
 
 ```bash
 make plots
 ```
+
+The mixed command retains partial Report 04 behavior and does not write the
+strict provenance sidecar.
 
 Figures should be reproducible from files under `results/`. Do not rely on notebook-only plotting for paper figures.
 

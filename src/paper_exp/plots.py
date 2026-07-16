@@ -13,9 +13,11 @@ figures 87 and 90 do not depend on a complete training cohort.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 import re
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -34,6 +36,13 @@ from paper_exp.plot_common import (
     _histogram_method,
     _trimmed_decimal_tick,
 )
+from paper_exp.plot_api import (
+    REPORT04_PUBLICATION_PROFILE,
+    GridLayout,
+    export_figure,
+    publish_staged_outputs,
+)
+from paper_exp.plot_catalog import REPORT04_FIGURES
 from paper_exp.plot_report04 import (
     POST_LAYERNORM_RELU_PROPAGATION_EXPERIMENT,
     PROPAGATION_ACTIVATION_ROWS,
@@ -43,6 +52,7 @@ from paper_exp.plot_report04 import (
     REPORT04_CLIPPING_RUNS,
     REPORT04_CLIPPING_SITES,
     REPORT04_HIDDEN_SIZE,
+    REPORT04_HISTOGRAM_METHOD_LABELS,
     REPORT04_INPUT_HISTOGRAM_EXPERIMENT,
     REPORT04_INTERMEDIATE_SIZE,
     REPORT04_JOINT_CLIPPING_RUNS,
@@ -51,6 +61,8 @@ from paper_exp.plot_report04 import (
     REPORT04_MODEL_PRODUCTS_PER_TOKEN,
     REPORT04_NUM_LAYERS,
     REPORT04_PYTHIA_FAMILY,
+    REPORT04_RN_PROPAGATION_EXPERIMENT,
+    REPORT04_RN_TRAINING_RUNS,
     REPORT04_TARGET_MODEL_FRACTION,
     REPORT04_TARGET_PRODUCTS_PER_TOKEN,
     REPORT04_TRAINING_RUNS,
@@ -77,7 +89,9 @@ from paper_exp.plot_style import (
     DEFAULT_SERIES_LINEWIDTH,
     PLOT_STYLE,
     REPORT04_METHOD_COLORS,
+    REPORT04_METHOD_LINESTYLES,
     REPORT04_METHOD_MARKERS,
+    REPORT04_PLOT_STYLE,
 )
 from paper_exp.run import CORE_RUN_ARTIFACTS
 from paper_exp.utils import read_json
@@ -1444,22 +1458,106 @@ def _generate_known_paper_figures(results_path: Path, figures_path: Path, *, sav
             )
         )
 
+    outputs.extend(
+        generate_report04_figures(
+            results_path,
+            figures_path,
+            save_png=save_png,
+            strict=False,
+        )
+    )
+
+    return outputs
+
+
+class Report04InputError(RuntimeError):
+    """Raised when the strict Report 04 suite cannot resolve every input."""
+
+
+def generate_report04_figures(
+    results_dir: str | Path,
+    figures_dir: str | Path,
+    save_png: bool = False,
+    strict: bool = True,
+    write_provenance: bool = False,
+    include_rn: bool = False,
+) -> list[Path]:
+    """Generate the Report 04 figure suite from coherent terminal runs.
+
+    Selection is resolved for every figure family before rendering starts. The
+    default is the published pre-RN cohort; ``include_rn=True`` adds run 105 and
+    switches propagation figures to run 106. In strict mode, any missing cohort
+    member or training/checkpoint mismatch is reported together. A complete
+    strict suite is rendered in a sibling staging directory and promoted with
+    rollback only after every figure succeeds, so a renderer failure cannot
+    mix old and new artifacts. ``strict=False`` keeps the historical paper
+    dispatcher behavior: complete families are rendered and incomplete
+    families are skipped. Input provenance is opt-in for direct callers and is
+    only valid for a complete strict suite.
+    """
+
+    if write_provenance and not strict:
+        raise ValueError("Report 04 input provenance requires strict=True.")
+
+    if not strict:
+        return _generate_report04_figures_in_place(
+            results_dir,
+            figures_dir,
+            save_png=save_png,
+            strict=False,
+            write_provenance=False,
+            include_rn=include_rn,
+        )
+
+    figures_path = Path(figures_dir)
+    figures_path.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(
+        prefix=".report04-stage-",
+        dir=figures_path.parent,
+    ) as staging_directory:
+        staged_outputs = _generate_report04_figures_in_place(
+            results_dir,
+            staging_directory,
+            save_png=save_png,
+            strict=True,
+            write_provenance=write_provenance,
+            include_rn=include_rn,
+        )
+        figures_path.mkdir(parents=True, exist_ok=True)
+        final_outputs = [figures_path / path.name for path in staged_outputs]
+        publish_staged_outputs(dict(zip(final_outputs, staged_outputs, strict=True)))
+    return final_outputs
+
+
+def _generate_report04_figures_in_place(
+    results_dir: str | Path,
+    figures_dir: str | Path,
+    save_png: bool = False,
+    strict: bool = True,
+    write_provenance: bool = False,
+    include_rn: bool = False,
+) -> list[Path]:
+    """Resolve and render one Report 04 cohort into a single destination."""
+
+    if write_provenance and not strict:
+        raise ValueError("Report 04 input provenance requires strict=True.")
+
+    results_path = Path(results_dir)
+    figures_path = Path(figures_dir)
+    training_specs = REPORT04_RN_TRAINING_RUNS if include_rn else REPORT04_TRAINING_RUNS
+    propagation_experiment = (
+        REPORT04_RN_PROPAGATION_EXPERIMENT
+        if include_rn
+        else POST_LAYERNORM_RELU_PROPAGATION_EXPERIMENT
+    )
+    cohort = "rn-comparison" if include_rn else "published-pre-rn"
+
     report04_training_runs = _latest_labeled_runs(
         results_path,
-        list(REPORT04_TRAINING_RUNS),
+        list(training_specs),
         "events.jsonl",
         require_complete_run=True,
     )
-    if len(report04_training_runs) == len(REPORT04_TRAINING_RUNS):
-        output_pdf = figures_path / "79-pythia-14m-minipile-post-layernorm-relu-learning-diagnostics.pdf"
-        outputs.extend(
-            generate_report04_learning_diagnostics(
-                runs=report04_training_runs,
-                output=output_pdf,
-                save_png=save_png,
-            )
-        )
-
     report04_histogram_runs = {
         "inputs": _latest_run_with(
             results_path / REPORT04_INPUT_HISTOGRAM_EXPERIMENT,
@@ -1472,24 +1570,6 @@ def _generate_known_paper_figures(results_path: Path, figures_path: Path, *, sav
             require_complete_run=True,
         ),
     }
-    if all(report04_histogram_runs.values()):
-        output_pdf = figures_path / "80-pythia-14m-minipile-post-layernorm-relu-activation-heatmaps.pdf"
-        outputs.extend(
-            generate_report04_activation_heatmaps(
-                histogram_runs=report04_histogram_runs,
-                output=output_pdf,
-                save_png=save_png,
-            )
-        )
-
-        output_pdf = figures_path / "81-pythia-14m-minipile-post-layernorm-relu-activation-densities.pdf"
-        outputs.extend(
-            generate_report04_activation_densities(
-                histogram_runs=report04_histogram_runs,
-                output=output_pdf,
-                save_png=save_png,
-            )
-        )
 
     report04_site_clipping_runs: dict[str, list[tuple[str, Path]]] = {}
     for site, _site_label in REPORT04_CLIPPING_SITES:
@@ -1504,15 +1584,6 @@ def _generate_known_paper_figures(results_path: Path, figures_path: Path, *, sav
             "clipping_frontier.jsonl",
             require_complete_run=True,
         )
-    if all(len(runs) == len(REPORT04_CLIPPING_RUNS) for runs in report04_site_clipping_runs.values()):
-        output_pdf = figures_path / "82-pythia-14m-minipile-post-layernorm-relu-site-clipping-frontiers.pdf"
-        outputs.extend(
-            generate_report04_site_clipping_frontiers(
-                site_runs=report04_site_clipping_runs,
-                output=output_pdf,
-                save_png=save_png,
-            )
-        )
 
     report04_joint_clipping_runs = _latest_labeled_runs(
         results_path,
@@ -1523,83 +1594,180 @@ def _generate_known_paper_figures(results_path: Path, figures_path: Path, *, sav
         "clipping_frontier.jsonl",
         require_complete_run=True,
     )
-    if len(report04_joint_clipping_runs) == len(REPORT04_JOINT_CLIPPING_RUNS):
-        output_pdf = figures_path / "83-pythia-14m-minipile-post-layernorm-relu-joint-compute-frontier.pdf"
-        outputs.extend(
-            generate_report04_joint_compute_frontier(
-                runs=report04_joint_clipping_runs,
-                output=output_pdf,
-                save_png=save_png,
-            )
-        )
-
     report04_parameter_runs = _latest_labeled_runs(
         results_path,
-        list(REPORT04_TRAINING_RUNS),
+        list(training_specs),
         "checkpoints/final/model.safetensors",
         require_complete_run=True,
     )
-    if len(report04_parameter_runs) == len(REPORT04_TRAINING_RUNS):
-        output_pdf = figures_path / "84-pythia-14m-minipile-post-layernorm-relu-parameter-diagnostics.pdf"
-        outputs.extend(
-            generate_report04_parameter_diagnostics(
-                runs=report04_parameter_runs,
-                output=output_pdf,
-                save_png=save_png,
-            )
-        )
-
-        output_pdf = figures_path / "89-pythia-14m-minipile-post-layernorm-relu-layernorm-parameters.pdf"
-        outputs.extend(
-            generate_report04_layernorm_parameters(
-                runs=report04_parameter_runs,
-                output=output_pdf,
-                save_png=save_png,
-            )
-        )
-
-        if all(report04_histogram_runs.values()):
-            output_pdf = figures_path / "88-pythia-14m-minipile-post-layernorm-relu-activation-weight-densities.pdf"
-            outputs.extend(
-                generate_report04_activation_weight_densities(
-                    histogram_runs=report04_histogram_runs,
-                    runs=report04_parameter_runs,
-                    output=output_pdf,
-                    save_png=save_png,
-                )
-            )
-
+    (
+        report04_histogram_parameter_runs,
+        histogram_parameter_issues,
+    ) = _report04_histogram_checkpoint_runs(
+        results_path,
+        report04_histogram_runs,
+    )
     propagation_run = _latest_run_with(
-        results_path / POST_LAYERNORM_RELU_PROPAGATION_EXPERIMENT,
+        results_path / propagation_experiment,
         "activation_propagation.json",
         require_complete_run=True,
     )
-    if propagation_run is not None:
-        output_pdf = figures_path / "85-pythia-14m-minipile-post-layernorm-relu-zero-propagation-heatmaps.pdf"
+
+    if strict:
+        input_issues = _report04_input_issues(
+            training_specs=training_specs,
+            propagation_experiment=propagation_experiment,
+            training_runs=report04_training_runs,
+            histogram_runs=report04_histogram_runs,
+            site_clipping_runs=report04_site_clipping_runs,
+            joint_clipping_runs=report04_joint_clipping_runs,
+            parameter_runs=report04_parameter_runs,
+            histogram_parameter_issues=histogram_parameter_issues,
+            propagation_run=propagation_run,
+        )
+        if input_issues:
+            details = "\n".join(f"- {issue}" for issue in input_issues)
+            raise Report04InputError(
+                "Report 04 input preflight failed; no figures were generated:\n"
+                f"{details}\n"
+                "Use --allow-partial to generate only complete figure families."
+            )
+
+    outputs: list[Path] = []
+    training_complete = len(report04_training_runs) == len(training_specs)
+    histograms_complete = all(report04_histogram_runs.values())
+    site_clipping_complete = all(
+        len(runs) == len(REPORT04_CLIPPING_RUNS)
+        for runs in report04_site_clipping_runs.values()
+    )
+    joint_clipping_complete = (
+        len(report04_joint_clipping_runs) == len(REPORT04_JOINT_CLIPPING_RUNS)
+    )
+    parameters_complete = len(report04_parameter_runs) == len(training_specs)
+    histogram_parameters_complete = (
+        len(report04_histogram_parameter_runs) == len(REPORT04_HISTOGRAM_METHOD_LABELS)
+        and not histogram_parameter_issues
+    )
+
+    if training_complete:
         outputs.extend(
-            generate_post_layernorm_relu_propagation_heatmaps(
-                run_dir=propagation_run,
-                output=output_pdf,
+            generate_report04_learning_diagnostics(
+                runs=report04_training_runs,
+                training_specs=training_specs,
+                output=(
+                    figures_path
+                    / "79-pythia-14m-minipile-post-layernorm-relu-learning-diagnostics.pdf"
+                ),
                 save_png=save_png,
             )
         )
 
-        output_pdf = (
-            figures_path
-            / "86-pythia-14m-minipile-post-layernorm-relu-zero-product-propagation-heatmaps.pdf"
+    if histograms_complete:
+        outputs.extend(
+            generate_report04_activation_heatmaps(
+                histogram_runs=report04_histogram_runs,
+                output=(
+                    figures_path
+                    / "80-pythia-14m-minipile-post-layernorm-relu-activation-heatmaps.pdf"
+                ),
+                save_png=save_png,
+            )
+        )
+        outputs.extend(
+            generate_report04_activation_densities(
+                histogram_runs=report04_histogram_runs,
+                output=(
+                    figures_path
+                    / "81-pythia-14m-minipile-post-layernorm-relu-activation-densities.pdf"
+                ),
+                save_png=save_png,
+            )
+        )
+
+    if site_clipping_complete:
+        outputs.extend(
+            generate_report04_site_clipping_frontiers(
+                site_runs=report04_site_clipping_runs,
+                output=(
+                    figures_path
+                    / "82-pythia-14m-minipile-post-layernorm-relu-site-clipping-frontiers.pdf"
+                ),
+                save_png=save_png,
+            )
+        )
+
+    if joint_clipping_complete:
+        outputs.extend(
+            generate_report04_joint_compute_frontier(
+                runs=report04_joint_clipping_runs,
+                output=(
+                    figures_path
+                    / "83-pythia-14m-minipile-post-layernorm-relu-joint-compute-frontier.pdf"
+                ),
+                save_png=save_png,
+            )
+        )
+
+    if parameters_complete:
+        outputs.extend(
+            generate_report04_parameter_diagnostics(
+                runs=report04_parameter_runs,
+                output=(
+                    figures_path
+                    / "84-pythia-14m-minipile-post-layernorm-relu-parameter-diagnostics.pdf"
+                ),
+                save_png=save_png,
+            )
+        )
+        outputs.extend(
+            generate_report04_layernorm_parameters(
+                runs=report04_parameter_runs,
+                output=(
+                    figures_path
+                    / "89-pythia-14m-minipile-post-layernorm-relu-layernorm-parameters.pdf"
+                ),
+                save_png=save_png,
+            )
+        )
+    if histograms_complete and histogram_parameters_complete:
+        outputs.extend(
+            generate_report04_activation_weight_densities(
+                histogram_runs=report04_histogram_runs,
+                runs=report04_histogram_parameter_runs,
+                output=(
+                    figures_path
+                    / "88-pythia-14m-minipile-post-layernorm-relu-activation-weight-densities.pdf"
+                ),
+                save_png=save_png,
+            )
+        )
+
+    if propagation_run is not None:
+        outputs.extend(
+            generate_post_layernorm_relu_propagation_heatmaps(
+                run_dir=propagation_run,
+                output=(
+                    figures_path
+                    / "85-pythia-14m-minipile-post-layernorm-relu-zero-propagation-heatmaps.pdf"
+                ),
+                save_png=save_png,
+            )
         )
         outputs.extend(
             generate_post_layernorm_relu_zero_product_heatmaps(
                 run_dir=propagation_run,
-                output=output_pdf,
+                output=(
+                    figures_path
+                    / "86-pythia-14m-minipile-post-layernorm-relu-zero-product-propagation-heatmaps.pdf"
+                ),
                 save_png=save_png,
             )
         )
 
     report04_specific_training_ids = {
         experiment_id
-        for _label, experiment_id in REPORT04_TRAINING_RUNS
-        if experiment_id.startswith(("98-", "99-", "103-", "104-"))
+        for _label, experiment_id in training_specs
+        if experiment_id.startswith(("98-", "99-", "103-", "104-", "105-"))
     }
     report04_context_available = (
         any(
@@ -1612,23 +1780,500 @@ def _generate_known_paper_figures(results_path: Path, figures_path: Path, *, sav
         or propagation_run is not None
     )
     if report04_context_available:
-        output_pdf = figures_path / "87-pythia-14m-minipile-three-relu-architecture-compute-map.pdf"
         outputs.extend(
             generate_report04_three_relu_architecture(
-                output=output_pdf,
+                output=(
+                    figures_path
+                    / "87-pythia-14m-minipile-three-relu-architecture-compute-map.pdf"
+                ),
                 save_png=save_png,
             )
         )
-
-        output_pdf = figures_path / "90-pythia-family-three-relu-model-compute-ceilings.pdf"
         outputs.extend(
             generate_report04_pythia_family_compute_ceiling(
-                output=output_pdf,
+                output=(
+                    figures_path
+                    / "90-pythia-family-three-relu-model-compute-ceilings.pdf"
+                ),
                 save_png=save_png,
             )
         )
 
+    if write_provenance:
+        provenance_path = figures_path / "report04-provenance.json"
+        provenance = _build_report04_provenance(
+            results_path=results_path,
+            cohort=cohort,
+            propagation_experiment=propagation_experiment,
+            training_runs=report04_training_runs,
+            histogram_runs=report04_histogram_runs,
+            site_clipping_runs=report04_site_clipping_runs,
+            joint_clipping_runs=report04_joint_clipping_runs,
+            parameter_runs=report04_parameter_runs,
+            histogram_parameter_runs=report04_histogram_parameter_runs,
+            propagation_run=propagation_run,
+            output_paths=outputs,
+        )
+        _write_report04_provenance(provenance_path, provenance)
+        outputs.append(provenance_path)
+
     return outputs
+
+
+def _build_report04_provenance(
+    *,
+    results_path: Path,
+    cohort: str,
+    propagation_experiment: str,
+    training_runs: list[tuple[str, Path]],
+    histogram_runs: dict[str, Path | None],
+    site_clipping_runs: dict[str, list[tuple[str, Path]]],
+    joint_clipping_runs: list[tuple[str, Path]],
+    parameter_runs: list[tuple[str, Path]],
+    histogram_parameter_runs: list[tuple[str, Path]],
+    propagation_run: Path | None,
+    output_paths: list[Path],
+) -> dict[str, Any]:
+    """Describe the selected strict-suite cohort and exact portable inputs."""
+
+    if any(run is None for run in histogram_runs.values()) or propagation_run is None:
+        raise ValueError("Report 04 provenance requires a complete strict input cohort.")
+
+    sha256_cache: dict[Path, str] = {}
+    training_inputs = [
+        _report04_provenance_input(
+            results_path=results_path,
+            run_dir=run_dir,
+            artifact="events.jsonl",
+            role="training_events",
+            label=label,
+            sha256_cache=sha256_cache,
+        )
+        for label, run_dir in training_runs
+    ]
+    histogram_inputs = [
+        _report04_provenance_input(
+            results_path=results_path,
+            run_dir=histogram_runs[label],
+            artifact="activation_histograms.json",
+            role="activation_histograms",
+            label=label,
+            sha256_cache=sha256_cache,
+        )
+        for label in ("inputs", "mlp_hiddens")
+        if histogram_runs[label] is not None
+    ]
+    site_clipping_inputs = [
+        _report04_provenance_input(
+            results_path=results_path,
+            run_dir=run_dir,
+            artifact="clipping_frontier.jsonl",
+            role="site_clipping_frontier",
+            label=label,
+            site=site,
+            sha256_cache=sha256_cache,
+        )
+        for site, _site_label in REPORT04_CLIPPING_SITES
+        for label, run_dir in site_clipping_runs[site]
+    ]
+    joint_clipping_inputs = [
+        _report04_provenance_input(
+            results_path=results_path,
+            run_dir=run_dir,
+            artifact="clipping_frontier.jsonl",
+            role="joint_clipping_frontier",
+            label=label,
+            sha256_cache=sha256_cache,
+        )
+        for label, run_dir in joint_clipping_runs
+    ]
+    parameter_inputs = [
+        _report04_provenance_input(
+            results_path=results_path,
+            run_dir=run_dir,
+            artifact="checkpoints/final/model.safetensors",
+            role="final_checkpoint",
+            label=label,
+            sha256_cache=sha256_cache,
+        )
+        for label, run_dir in parameter_runs
+    ]
+    histogram_parameter_inputs = [
+        _report04_provenance_input(
+            results_path=results_path,
+            run_dir=run_dir,
+            artifact="checkpoints/final/model.safetensors",
+            role="histogram_source_checkpoint",
+            label=label,
+            sha256_cache=sha256_cache,
+        )
+        for label, run_dir in histogram_parameter_runs
+    ]
+    propagation_inputs = [
+        _report04_provenance_input(
+            results_path=results_path,
+            run_dir=propagation_run,
+            artifact="activation_propagation.json",
+            role="activation_propagation",
+            label=propagation_experiment,
+            sha256_cache=sha256_cache,
+        )
+    ]
+
+    figure_inputs = {
+        79: training_inputs,
+        80: histogram_inputs,
+        81: histogram_inputs,
+        82: site_clipping_inputs,
+        83: joint_clipping_inputs,
+        84: parameter_inputs,
+        85: propagation_inputs,
+        86: propagation_inputs,
+        87: [],
+        88: [*histogram_inputs, *histogram_parameter_inputs],
+        89: parameter_inputs,
+        90: [],
+    }
+    catalog_numbers = {entry.number for entry in REPORT04_FIGURES}
+    if set(figure_inputs) != catalog_numbers:
+        raise ValueError("Report 04 provenance input mapping does not match the figure catalog.")
+
+    outputs_by_name = {path.name: path for path in output_paths}
+    missing_outputs = [
+        entry.filename
+        for entry in REPORT04_FIGURES
+        if entry.filename not in outputs_by_name
+    ]
+    if missing_outputs:
+        raise ValueError(
+            "Report 04 provenance requires every catalog PDF; missing: "
+            + ", ".join(missing_outputs)
+        )
+
+    figure_outputs = {
+        entry.number: [
+            {
+                "filename": filename,
+                "sha256": _report04_artifact_sha256(outputs_by_name[filename], sha256_cache),
+                "size_bytes": outputs_by_name[filename].stat().st_size,
+            }
+            for filename in (
+                entry.filename,
+                Path(entry.filename).with_suffix(".png").name,
+            )
+            if filename in outputs_by_name
+        ]
+        for entry in REPORT04_FIGURES
+    }
+
+    return {
+        "schema_version": 3,
+        "suite": "report04",
+        "cohort": cohort,
+        "selection_policy": (
+            "latest coherent terminal run containing the required artifact under each "
+            "declared experiment ID; figure 88 checkpoints use the exact config_id/run_id "
+            "recorded consistently by both histogram artifacts"
+        ),
+        "terminal_run_policy": (
+            "config.yaml, metrics.json, predictions.jsonl, and matching manifest config_id/run_id; "
+            "manifest status absent or completed"
+        ),
+        "figures": [
+            {
+                "number": entry.number,
+                "filename": entry.filename,
+                "plot_type": entry.plot_type,
+                "required_artifact_kinds": list(entry.required_artifact_kinds),
+                "public_wrapper": entry.public_wrapper,
+                "embedded_in_report": entry.embedded_in_report,
+                "inputs": list(figure_inputs[entry.number]),
+                "outputs": figure_outputs[entry.number],
+            }
+            for entry in REPORT04_FIGURES
+        ],
+    }
+
+
+def _report04_provenance_input(
+    *,
+    results_path: Path,
+    run_dir: Path,
+    artifact: str,
+    role: str,
+    label: str,
+    sha256_cache: dict[Path, str],
+    site: str | None = None,
+) -> dict[str, Any]:
+    relative_run = run_dir.relative_to(results_path)
+    artifact_path = run_dir / artifact
+    config_path = run_dir / "config.yaml"
+    manifest_path = run_dir / "manifest.json"
+    manifest = read_json(manifest_path)
+    input_record = {
+        "role": role,
+        "label": label,
+        "experiment_id": run_dir.parent.name,
+        "run_id": run_dir.name,
+        "run_dir": relative_run.as_posix(),
+        "artifact": artifact,
+        "artifact_path": (relative_run / artifact).as_posix(),
+        "sha256": _report04_artifact_sha256(artifact_path, sha256_cache),
+        "run_config": {
+            "artifact_path": (relative_run / "config.yaml").as_posix(),
+            "sha256": _report04_artifact_sha256(config_path, sha256_cache),
+        },
+        "run_manifest": {
+            "artifact_path": (relative_run / "manifest.json").as_posix(),
+            "sha256": _report04_artifact_sha256(manifest_path, sha256_cache),
+            "git_commit": manifest.get("git_commit"),
+            "git_dirty": manifest.get("git_dirty"),
+        },
+    }
+    if site is not None:
+        input_record["site"] = site
+    return input_record
+
+
+def _report04_artifact_sha256(path: Path, cache: dict[Path, str]) -> str:
+    if path not in cache:
+        digest = hashlib.sha256()
+        with path.open("rb") as handle:
+            for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                digest.update(chunk)
+        cache[path] = digest.hexdigest()
+    return cache[path]
+
+
+def _write_report04_provenance(path: Path, payload: dict[str, Any]) -> None:
+    """Atomically write stable UTF-8 JSON with platform-independent newlines."""
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary_path = path.with_name(f"{path.name}.tmp")
+    text = json.dumps(payload, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
+    try:
+        with temporary_path.open("w", encoding="utf-8", newline="\n") as handle:
+            handle.write(text)
+        temporary_path.replace(path)
+    finally:
+        if temporary_path.exists():
+            temporary_path.unlink()
+
+
+def _report04_histogram_checkpoint_runs(
+    results_path: Path,
+    histogram_runs: dict[str, Path | None],
+) -> tuple[list[tuple[str, Path]], list[str]]:
+    """Resolve Figure 88 checkpoints from the histogram source metadata.
+
+    The activation and weight distributions must describe the same saved
+    models. Histogram artifacts therefore pin Figure 88 to their recorded
+    ``config_id``/``run_id`` pairs instead of the latest run in each training
+    experiment.
+    """
+
+    issue_prefix = "histogram_matched_checkpoints (figure 88)"
+    source_by_role: dict[str, dict[str, tuple[str, str]]] = {}
+    issues: list[str] = []
+
+    for role in ("inputs", "mlp_hiddens"):
+        run_dir = histogram_runs.get(role)
+        if run_dir is None:
+            continue
+        try:
+            payload = read_json(run_dir / "activation_histograms.json")
+        except (OSError, UnicodeError, ValueError):
+            issues.append(
+                f"{issue_prefix}: could not read source metadata from the {role} histogram"
+            )
+            continue
+        methods = payload.get("methods") if isinstance(payload, dict) else None
+        if not isinstance(methods, list):
+            issues.append(
+                f"{issue_prefix}: the {role} histogram has no methods source metadata"
+            )
+            continue
+
+        role_sources: dict[str, tuple[str, str]] = {}
+        for label in REPORT04_HISTOGRAM_METHOD_LABELS:
+            matches = [
+                method
+                for method in methods
+                if isinstance(method, dict) and method.get("label") == label
+            ]
+            if len(matches) != 1:
+                qualifier = "no" if not matches else "duplicate"
+                issues.append(
+                    f"{issue_prefix}: {qualifier} source metadata for {label} "
+                    f"in the {role} histogram"
+                )
+                continue
+            config_id = matches[0].get("config_id")
+            run_id = matches[0].get("run_id")
+            identifiers = (config_id, run_id)
+            if any(
+                not isinstance(identifier, str)
+                or not identifier
+                or identifier in {".", ".."}
+                or "/" in identifier
+                or "\\" in identifier
+                for identifier in identifiers
+            ):
+                issues.append(
+                    f"{issue_prefix}: invalid config_id/run_id for {label} "
+                    f"in the {role} histogram"
+                )
+                continue
+            role_sources[label] = (config_id, run_id)
+        source_by_role[role] = role_sources
+
+    expected_experiment_by_label = dict(REPORT04_TRAINING_RUNS)
+    selected: list[tuple[str, Path]] = []
+    for label in REPORT04_HISTOGRAM_METHOD_LABELS:
+        role_identities = [
+            (role, sources[label])
+            for role, sources in source_by_role.items()
+            if label in sources
+        ]
+        if not role_identities:
+            continue
+        distinct_identities = {identity for _role, identity in role_identities}
+        if len(distinct_identities) != 1:
+            details = ", ".join(
+                f"{role}={config_id}/{run_id}"
+                for role, (config_id, run_id) in role_identities
+            )
+            issues.append(
+                f"{issue_prefix}: histogram sources disagree for {label} ({details})"
+            )
+            continue
+
+        config_id, run_id = role_identities[0][1]
+        expected_experiment = expected_experiment_by_label.get(label)
+        if config_id != expected_experiment:
+            issues.append(
+                f"{issue_prefix}: {label} records experiment {config_id}, "
+                f"expected {expected_experiment}"
+            )
+            continue
+        run_dir = results_path / config_id / run_id
+        checkpoint = run_dir / "checkpoints/final/model.safetensors"
+        if not _has_coherent_terminal_manifest(run_dir) or not checkpoint.is_file():
+            issues.append(
+                f"{issue_prefix}: missing coherent source checkpoint for "
+                f"{label} ({config_id}/{run_id})"
+            )
+            continue
+        selected.append((label, run_dir))
+
+    return selected, issues
+
+
+def _report04_input_issues(
+    *,
+    training_specs: tuple[tuple[str, str], ...],
+    propagation_experiment: str,
+    training_runs: list[tuple[str, Path]],
+    histogram_runs: dict[str, Path | None],
+    site_clipping_runs: dict[str, list[tuple[str, Path]]],
+    joint_clipping_runs: list[tuple[str, Path]],
+    parameter_runs: list[tuple[str, Path]],
+    histogram_parameter_issues: list[str],
+    propagation_run: Path | None,
+) -> list[str]:
+    """Return deterministic, human-readable strict-suite preflight issues."""
+
+    issues: list[str] = []
+    missing_training = _missing_report04_labeled_runs(training_specs, training_runs)
+    if missing_training:
+        issues.append(
+            "training_events (figure 79): missing coherent events.jsonl for "
+            + ", ".join(missing_training)
+        )
+
+    missing_histograms = [
+        f"{role} ({experiment_id})"
+        for role, experiment_id in (
+            ("inputs", REPORT04_INPUT_HISTOGRAM_EXPERIMENT),
+            ("mlp_hiddens", REPORT04_MLP_HISTOGRAM_EXPERIMENT),
+        )
+        if histogram_runs.get(role) is None
+    ]
+    if missing_histograms:
+        issues.append(
+            "activation_histograms (figures 80, 81, 88): missing coherent "
+            "activation_histograms.json for " + ", ".join(missing_histograms)
+        )
+
+    missing_sites: list[str] = []
+    for site, _site_label in REPORT04_CLIPPING_SITES:
+        missing = _missing_report04_labeled_runs(
+            REPORT04_CLIPPING_RUNS,
+            site_clipping_runs.get(site, []),
+        )
+        if missing:
+            missing_sites.append(f"{site}: {', '.join(missing)}")
+    if missing_sites:
+        issues.append(
+            "site_clipping_frontiers (figure 82): missing coherent clipping_frontier.jsonl for "
+            + "; ".join(missing_sites)
+        )
+
+    missing_joint = _missing_report04_labeled_runs(
+        REPORT04_JOINT_CLIPPING_RUNS,
+        joint_clipping_runs,
+    )
+    if missing_joint:
+        issues.append(
+            "joint_clipping_frontiers (figure 83): missing coherent clipping_frontier.jsonl for "
+            + ", ".join(missing_joint)
+        )
+
+    missing_parameters = _missing_report04_labeled_runs(
+        training_specs,
+        parameter_runs,
+    )
+    if missing_parameters:
+        issues.append(
+            "final_checkpoints (figures 84, 89): missing coherent "
+            "checkpoints/final/model.safetensors for " + ", ".join(missing_parameters)
+        )
+
+    issues.extend(histogram_parameter_issues)
+
+    if propagation_run is None:
+        issues.append(
+            "activation_propagation (figures 85, 86): missing coherent "
+            f"activation_propagation.json for {propagation_experiment}"
+        )
+
+    if not missing_training and not missing_parameters:
+        event_runs = dict(training_runs)
+        checkpoint_runs = dict(parameter_runs)
+        mismatched = [
+            label
+            for label, _experiment_id in training_specs
+            if event_runs[label] != checkpoint_runs[label]
+        ]
+        if mismatched:
+            issues.append(
+                "training_checkpoint_alignment (figures 79, 84, 89): events and final "
+                "checkpoint selected from different runs for " + ", ".join(mismatched)
+            )
+
+    return issues
+
+
+def _missing_report04_labeled_runs(
+    expected: tuple[tuple[str, str], ...],
+    selected: list[tuple[str, Path]],
+) -> list[str]:
+    selected_labels = {label for label, _run in selected}
+    return [
+        f"{label} ({experiment_id})"
+        for label, experiment_id in expected
+        if label not in selected_labels
+    ]
 
 
 def _latest_run_with(
@@ -2146,22 +2791,18 @@ def generate_report04_learning_diagnostics(
     runs: list[tuple[str, str | Path]],
     output: str | Path,
     save_png: bool = False,
+    training_specs: tuple[tuple[str, str], ...] = REPORT04_TRAINING_RUNS,
 ) -> list[Path]:
-    plt.rcParams.update(PLOT_STYLE)
-
-    output_path = Path(output)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
     series = _load_event_series(runs)
     if not series:
         raise ValueError("No report-04 learning-diagnostic runs were found.")
-
-    _plot_report04_learning_diagnostics(series, output_path)
-    outputs = [output_path]
-    if save_png:
-        png_path = output_path.with_suffix(".png")
-        _plot_report04_learning_diagnostics(series, png_path)
-        outputs.append(png_path)
-    return outputs
+    return export_figure(
+        lambda: _plot_report04_learning_diagnostics(series, training_specs),
+        output,
+        save_png=save_png,
+        style=REPORT04_PLOT_STYLE,
+        profile=REPORT04_PUBLICATION_PROFILE,
+    )
 
 
 def generate_report04_activation_heatmaps(
@@ -2169,23 +2810,20 @@ def generate_report04_activation_heatmaps(
     histogram_runs: dict[str, str | Path | None],
     output: str | Path,
     save_png: bool = False,
+    layout: GridLayout | None = None,
 ) -> list[Path]:
-    plt.rcParams.update(PLOT_STYLE)
-
-    output_path = Path(output)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
     payloads = {
         key: read_json(Path(run_dir) / "activation_histograms.json")
         for key, run_dir in histogram_runs.items()
         if run_dir is not None
     }
-    _plot_report04_activation_heatmaps(payloads, output_path)
-    outputs = [output_path]
-    if save_png:
-        png_path = output_path.with_suffix(".png")
-        _plot_report04_activation_heatmaps(payloads, png_path)
-        outputs.append(png_path)
-    return outputs
+    return export_figure(
+        lambda: _plot_report04_activation_heatmaps(payloads, layout=layout),
+        output,
+        save_png=save_png,
+        style=REPORT04_PLOT_STYLE,
+        profile=REPORT04_PUBLICATION_PROFILE,
+    )
 
 
 def generate_report04_activation_densities(
@@ -2194,22 +2832,18 @@ def generate_report04_activation_densities(
     output: str | Path,
     save_png: bool = False,
 ) -> list[Path]:
-    plt.rcParams.update(PLOT_STYLE)
-
-    output_path = Path(output)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
     payloads = {
         key: read_json(Path(run_dir) / "activation_histograms.json")
         for key, run_dir in histogram_runs.items()
         if run_dir is not None
     }
-    _plot_report04_activation_densities(payloads, output_path)
-    outputs = [output_path]
-    if save_png:
-        png_path = output_path.with_suffix(".png")
-        _plot_report04_activation_densities(payloads, png_path)
-        outputs.append(png_path)
-    return outputs
+    return export_figure(
+        lambda: _plot_report04_activation_densities(payloads),
+        output,
+        save_png=save_png,
+        style=REPORT04_PLOT_STYLE,
+        profile=REPORT04_PUBLICATION_PROFILE,
+    )
 
 
 def generate_report04_site_clipping_frontiers(
@@ -2217,19 +2851,16 @@ def generate_report04_site_clipping_frontiers(
     site_runs: dict[str, list[tuple[str, str | Path]]],
     output: str | Path,
     save_png: bool = False,
+    layout: GridLayout | None = None,
 ) -> list[Path]:
-    plt.rcParams.update(PLOT_STYLE)
-
-    output_path = Path(output)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
     site_series = {site: _load_clipping_series(runs) for site, runs in site_runs.items()}
-    _plot_report04_site_clipping_frontiers(site_series, output_path)
-    outputs = [output_path]
-    if save_png:
-        png_path = output_path.with_suffix(".png")
-        _plot_report04_site_clipping_frontiers(site_series, png_path)
-        outputs.append(png_path)
-    return outputs
+    return export_figure(
+        lambda: _plot_report04_site_clipping_frontiers(site_series, layout=layout),
+        output,
+        save_png=save_png,
+        style=REPORT04_PLOT_STYLE,
+        profile=REPORT04_PUBLICATION_PROFILE,
+    )
 
 
 def generate_report04_joint_compute_frontier(
@@ -2238,20 +2869,16 @@ def generate_report04_joint_compute_frontier(
     output: str | Path,
     save_png: bool = False,
 ) -> list[Path]:
-    plt.rcParams.update(PLOT_STYLE)
-
-    output_path = Path(output)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
     series = _load_clipping_series(runs)
     if not series:
         raise ValueError("No report-04 joint clipping runs were found.")
-    _plot_report04_joint_compute_frontier(series, output_path)
-    outputs = [output_path]
-    if save_png:
-        png_path = output_path.with_suffix(".png")
-        _plot_report04_joint_compute_frontier(series, png_path)
-        outputs.append(png_path)
-    return outputs
+    return export_figure(
+        lambda: _plot_report04_joint_compute_frontier(series),
+        output,
+        save_png=save_png,
+        style=REPORT04_PLOT_STYLE,
+        profile=REPORT04_PUBLICATION_PROFILE,
+    )
 
 
 def generate_report04_parameter_diagnostics(
@@ -2260,20 +2887,16 @@ def generate_report04_parameter_diagnostics(
     output: str | Path,
     save_png: bool = False,
 ) -> list[Path]:
-    plt.rcParams.update(PLOT_STYLE)
-
-    output_path = Path(output)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
     series = _load_report04_parameter_series(runs)
     if not series:
         raise ValueError("No report-04 parameter checkpoints were found.")
-    _plot_report04_parameter_diagnostics(series, output_path)
-    outputs = [output_path]
-    if save_png:
-        png_path = output_path.with_suffix(".png")
-        _plot_report04_parameter_diagnostics(series, png_path)
-        outputs.append(png_path)
-    return outputs
+    return export_figure(
+        lambda: _plot_report04_parameter_diagnostics(series),
+        output,
+        save_png=save_png,
+        style=REPORT04_PLOT_STYLE,
+        profile=REPORT04_PUBLICATION_PROFILE,
+    )
 
 
 def generate_report04_activation_weight_densities(
@@ -2283,10 +2906,6 @@ def generate_report04_activation_weight_densities(
     output: str | Path,
     save_png: bool = False,
 ) -> list[Path]:
-    plt.rcParams.update(PLOT_STYLE)
-
-    output_path = Path(output)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
     payloads = {
         key: read_json(Path(run_dir) / "activation_histograms.json")
         for key, run_dir in histogram_runs.items()
@@ -2295,13 +2914,13 @@ def generate_report04_activation_weight_densities(
     series = _load_report04_parameter_series(runs)
     if not series:
         raise ValueError("No report-04 parameter checkpoints were found.")
-    _plot_report04_activation_weight_densities(payloads, series, output_path)
-    outputs = [output_path]
-    if save_png:
-        png_path = output_path.with_suffix(".png")
-        _plot_report04_activation_weight_densities(payloads, series, png_path)
-        outputs.append(png_path)
-    return outputs
+    return export_figure(
+        lambda: _plot_report04_activation_weight_densities(payloads, series),
+        output,
+        save_png=save_png,
+        style=REPORT04_PLOT_STYLE,
+        profile=REPORT04_PUBLICATION_PROFILE,
+    )
 
 
 def generate_report04_layernorm_parameters(
@@ -2310,20 +2929,16 @@ def generate_report04_layernorm_parameters(
     output: str | Path,
     save_png: bool = False,
 ) -> list[Path]:
-    plt.rcParams.update(PLOT_STYLE)
-
-    output_path = Path(output)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
     series = _load_report04_parameter_series(runs)
     if not series:
         raise ValueError("No report-04 parameter checkpoints were found.")
-    _plot_report04_layernorm_parameters(series, output_path)
-    outputs = [output_path]
-    if save_png:
-        png_path = output_path.with_suffix(".png")
-        _plot_report04_layernorm_parameters(series, png_path)
-        outputs.append(png_path)
-    return outputs
+    return export_figure(
+        lambda: _plot_report04_layernorm_parameters(series),
+        output,
+        save_png=save_png,
+        style=REPORT04_PLOT_STYLE,
+        profile=REPORT04_PUBLICATION_PROFILE,
+    )
 
 
 def generate_report04_three_relu_architecture(
@@ -2331,17 +2946,13 @@ def generate_report04_three_relu_architecture(
     output: str | Path,
     save_png: bool = False,
 ) -> list[Path]:
-    plt.rcParams.update(PLOT_STYLE)
-
-    output_path = Path(output)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    _plot_report04_three_relu_architecture(output_path)
-    outputs = [output_path]
-    if save_png:
-        png_path = output_path.with_suffix(".png")
-        _plot_report04_three_relu_architecture(png_path)
-        outputs.append(png_path)
-    return outputs
+    return export_figure(
+        _plot_report04_three_relu_architecture,
+        output,
+        save_png=save_png,
+        style=REPORT04_PLOT_STYLE,
+        profile=REPORT04_PUBLICATION_PROFILE,
+    )
 
 
 def generate_report04_pythia_family_compute_ceiling(
@@ -2349,17 +2960,13 @@ def generate_report04_pythia_family_compute_ceiling(
     output: str | Path,
     save_png: bool = False,
 ) -> list[Path]:
-    plt.rcParams.update(PLOT_STYLE)
-
-    output_path = Path(output)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    _plot_report04_pythia_family_compute_ceiling(output_path)
-    outputs = [output_path]
-    if save_png:
-        png_path = output_path.with_suffix(".png")
-        _plot_report04_pythia_family_compute_ceiling(png_path)
-        outputs.append(png_path)
-    return outputs
+    return export_figure(
+        _plot_report04_pythia_family_compute_ceiling,
+        output,
+        save_png=save_png,
+        style=REPORT04_PLOT_STYLE,
+        profile=REPORT04_PUBLICATION_PROFILE,
+    )
 
 
 def generate_post_layernorm_relu_propagation_heatmaps(
@@ -2367,20 +2974,17 @@ def generate_post_layernorm_relu_propagation_heatmaps(
     run_dir: str | Path,
     output: str | Path,
     save_png: bool = False,
+    layout: GridLayout | None = None,
 ) -> list[Path]:
-    plt.rcParams.update(PLOT_STYLE)
-
     run_path = Path(run_dir)
-    output_path = Path(output)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
     payload = read_json(run_path / "activation_propagation.json")
-    _plot_post_layernorm_relu_propagation_heatmaps(payload, output_path)
-    outputs = [output_path]
-    if save_png:
-        png_path = output_path.with_suffix(".png")
-        _plot_post_layernorm_relu_propagation_heatmaps(payload, png_path)
-        outputs.append(png_path)
-    return outputs
+    return export_figure(
+        lambda: _plot_post_layernorm_relu_propagation_heatmaps(payload, layout=layout),
+        output,
+        save_png=save_png,
+        style=REPORT04_PLOT_STYLE,
+        profile=REPORT04_PUBLICATION_PROFILE,
+    )
 
 
 def generate_post_layernorm_relu_zero_product_heatmaps(
@@ -2388,20 +2992,17 @@ def generate_post_layernorm_relu_zero_product_heatmaps(
     run_dir: str | Path,
     output: str | Path,
     save_png: bool = False,
+    layout: GridLayout | None = None,
 ) -> list[Path]:
-    plt.rcParams.update(PLOT_STYLE)
-
     run_path = Path(run_dir)
-    output_path = Path(output)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
     payload = read_json(run_path / "activation_propagation.json")
-    _plot_post_layernorm_relu_zero_product_heatmaps(payload, output_path)
-    outputs = [output_path]
-    if save_png:
-        png_path = output_path.with_suffix(".png")
-        _plot_post_layernorm_relu_zero_product_heatmaps(payload, png_path)
-        outputs.append(png_path)
-    return outputs
+    return export_figure(
+        lambda: _plot_post_layernorm_relu_zero_product_heatmaps(payload, layout=layout),
+        output,
+        save_png=save_png,
+        style=REPORT04_PLOT_STYLE,
+        profile=REPORT04_PUBLICATION_PROFILE,
+    )
 
 
 def generate_fixed_step_sweep_summary(

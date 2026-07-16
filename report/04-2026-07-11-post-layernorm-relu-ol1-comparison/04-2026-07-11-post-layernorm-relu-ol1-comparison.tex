@@ -122,13 +122,11 @@ z_{s,l}=100\,\frac{\sum_{b,t,j}\mathbf{1}[A^{(s,l)}_{btj}=0]}{\sum_{b,t,j}1}.
 \]
 The comparison is direct equality to floating-point zero on the captured forward tensor; it is not a histogram-bin estimate and does not count merely small values. Counters cover all 692,224 tokens in the deterministic validation cache, all coordinates, and all six layers. Reported site aggregates pool their integer hit and element counts.
 
-\begin{landscape}
 \begin{figure}[p]
 \centering
-\includegraphics[width=0.96\linewidth]{../../figures/87-pythia-14m-minipile-three-relu-architecture-compute-map.pdf}
+\includegraphics[width=0.94\textwidth]{../../figures/87-pythia-14m-minipile-three-relu-architecture-compute-map.pdf}
 \caption{The Pythia parallel-residual block, explicit tensor and matrix dimensions for QKV, $W_1$, and $W_2$, and the products controlled by each ReLU gate. The displayed $R_{\mathrm{block}}$ and $R_{\mathrm{model}}$ values are maxima at $z_a=z_m=z_h=1$, not observed speedups.}
 \end{figure}
-\end{landscape}
 
 \textbf{Pythia-family scaling.} At the all-zero gate ceiling, the same definitions simplify to
 \[
@@ -223,13 +221,11 @@ The propagation path answers precisely where skip opportunities exist.
 \caption{Logical exact-zero product percentages for QKV, valid-pair QK, valid-pair PV, attention output, MLP-up, and MLP-down matmuls. A linear-layer product is counted as avoidable when its activation input is exactly zero; an attention-core product is zero when either multiplicand is exactly zero. Future causal-mask pairs are excluded. QKV, MLP-up, and MLP-down inherit large opportunities from their immediately upstream gates, whereas subsequent dense sums leave essentially none.}
 \end{figure}
 
-\begin{landscape}
 \begin{figure}[p]
 \centering
-\includegraphics[width=0.92\linewidth]{../../figures/85-pythia-14m-minipile-post-layernorm-relu-zero-propagation-heatmaps.pdf}
+\includegraphics[width=0.98\textwidth]{../../figures/85-pythia-14m-minipile-post-layernorm-relu-zero-propagation-heatmaps.pdf}
 \caption{Exact-zero activation propagation for Three-ReLU AdamW, OR, L1N, and OL1. Each percentage is computed across all 692,224 validation tokens, all coordinates at that named interface, and the indicated layer. The large page is intentional: it preserves per-layer labels and makes the immediate densification after QKV, MLP-up, MLP-down, and residual addition visible.}
 \end{figure}
-\end{landscape}
 
 Across the four Three-ReLU checkpoints, dense downstream activation boundaries contain only about $10^{-7}$\pct{} to $1.7\times10^{-5}$\pct{} exact-zero mass, and valid attention probabilities contain none. The heatmaps therefore reject a ``zeros cascade through the layer'' interpretation. Sparsity is local and consumable only at the matmul immediately following each gate; the hidden MLP ReLU creates a second independent mask.
 

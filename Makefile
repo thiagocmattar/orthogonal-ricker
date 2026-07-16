@@ -1,6 +1,6 @@
 PYTHON ?= python
 
-.PHONY: install test check smoke baseline prepare-minipile calibrate-pythia-14m pretrain-pythia-14m-full-10min pressure-smoke-ricker-naive pressure-smoke-l1-naive pressure-smoke-orthogonal-ricker pressure-smoke-orthogonal-l1 pressure-short-ricker-naive pressure-short-l1-naive pressure-short-orthogonal-ricker pressure-short-orthogonal-l1 pressure-short-all plots
+.PHONY: install test check smoke baseline prepare-minipile calibrate-pythia-14m pretrain-pythia-14m-full-10min pressure-smoke-ricker-naive pressure-smoke-l1-naive pressure-smoke-orthogonal-ricker pressure-smoke-orthogonal-l1 pressure-short-ricker-naive pressure-short-l1-naive pressure-short-orthogonal-ricker pressure-short-orthogonal-l1 pressure-short-all plots plot-report04
 
 install:
 	$(PYTHON) -m pip install -e .
@@ -59,3 +59,6 @@ pressure-short-all: pressure-short-ricker-naive pressure-short-l1-naive pressure
 
 plots:
 	$(PYTHON) -m paper_exp.cli plots --results results --figures figures --png
+
+plot-report04:
+	$(PYTHON) -m paper_exp.cli plot-report04 --results results --figures figures --png
