@@ -98,6 +98,62 @@ def test_activation_capture_hooks_post_relu_attention_and_mlp_inputs() -> None:
     assert capture.site_metadata[1].downstream_operator.endswith("mlp.dense_h_to_4h")
 
 
+def test_activation_capture_hooks_exact_post_qkv_gate_outputs_for_pressure() -> None:
+    model = _TinyPythiaLikePostQkvReluModel(qk_placement="pre_rope", layer_count=6)
+    query = torch.tensor([[[[-1.0, 2.0], [3.0, -4.0]]]], requires_grad=True)
+    key = torch.tensor([[[[5.0, -6.0], [-7.0, 8.0]]]], requires_grad=True)
+    value = torch.tensor([[[[-9.0, 10.0], [11.0, -12.0]]]], requires_grad=True)
+    sites = ["query_gate_outputs", "key_gate_outputs", "value_gate_outputs"]
+
+    with ActivationCapture(model, sites, torch=torch) as capture:
+        outputs = model(query, key, value)
+
+    assert len(capture.activations) == 18
+    for index, layer in enumerate(model.gpt_neox.layers):
+        attention = layer.attention
+        captured_query = capture.activations[f"query_gate_outputs.layer_{index}"]
+        captured_key = capture.activations[f"key_gate_outputs.layer_{index}"]
+        captured_value = capture.activations[f"value_gate_outputs.layer_{index}"]
+        assert captured_query.data_ptr() == attention.last_query_gate_output.data_ptr()
+        assert captured_key.data_ptr() == attention.last_key_gate_output.data_ptr()
+        assert captured_value.data_ptr() == attention.last_value_gate_output.data_ptr()
+
+    assert torch.equal(outputs[0], query.relu())
+    assert torch.equal(outputs[1], key.relu())
+    assert torch.equal(outputs[2], value.relu())
+
+    captured_pressure = activation_l1_pressure(torch, capture.activations)
+    expected_pressure = torch.stack(
+        [tensor.float().abs().mean() for tensor in capture.activations.values()]
+    ).mean()
+    assert torch.equal(captured_pressure, expected_pressure)
+    captured_pressure.backward()
+    assert query.grad is not None
+    assert key.grad is not None
+    assert value.grad is not None
+
+
+def test_post_qkv_gate_metadata_reflects_qk_placement() -> None:
+    value = torch.ones((1, 2, 3, 4))
+    sites = ["query_gate_outputs", "key_gate_outputs", "value_gate_outputs"]
+
+    for placement, qk_downstream in (("pre_rope", "partial RoPE"), ("post_rope", "QK matmul")):
+        model = _TinyPythiaLikePostQkvReluModel(qk_placement=placement)
+        with ActivationCapture(model, sites, torch=torch) as capture:
+            model(value, value, value)
+
+        metadata = {site.name.split(".layer_", 1)[0]: site for site in capture.site_metadata}
+        assert metadata["query_gate_outputs"].module_path.endswith("attention.query_relu")
+        assert metadata["key_gate_outputs"].module_path.endswith("attention.key_relu")
+        assert metadata["value_gate_outputs"].module_path.endswith("attention.value_relu")
+        assert metadata["query_gate_outputs"].shape == "[batch, heads, tokens, head_width]"
+        assert metadata["key_gate_outputs"].shape == "[batch, heads, tokens, head_width]"
+        assert metadata["value_gate_outputs"].shape == "[batch, heads, tokens, head_width]"
+        assert metadata["query_gate_outputs"].downstream_operator.endswith(qk_downstream)
+        assert metadata["key_gate_outputs"].downstream_operator.endswith(qk_downstream)
+        assert metadata["value_gate_outputs"].downstream_operator.endswith("PV matmul")
+
+
 def test_activation_capture_clips_post_relu_attention_input_before_projection() -> None:
     model = _TinyPythiaLikePostLayernormReluModel()
     value = torch.tensor([[[0.001, 2.0]]])
@@ -134,6 +190,17 @@ def test_activation_capture_clips_attention_output_tuple() -> None:
 
 def test_all_sites_alias_preserves_mlp_only_pressure_scope() -> None:
     assert resolve_site_aliases(["all_sites"]) == {"mlp_hiddens"}
+
+
+def test_post_qkv_gate_aliases_resolve_without_broadening_existing_aliases() -> None:
+    assert resolve_site_aliases(
+        ["query_gate_outputs", "key_gate_outputs", "value_gate_outputs"]
+    ) == {"query_gate_outputs", "key_gate_outputs", "value_gate_outputs"}
+    assert resolve_site_aliases(["attention_inputs", "mlp_inputs", "mlp_hiddens"]) == {
+        "attention_inputs",
+        "mlp_inputs",
+        "mlp_hiddens",
+    }
 
 
 def test_clipping_produces_exact_zeros_and_near_zero_metrics() -> None:
@@ -288,6 +355,63 @@ class _TinyPythiaLikePostLayernormReluBlock(torch.nn.Module):
         value = self.attention.query_key_value(value)
         value = self.mlp_input_relu(self.post_attention_layernorm(value))
         return self.mlp.dense_h_to_4h(value)
+
+
+class _TinyPythiaLikePostQkvReluModel(torch.nn.Module):
+    def __init__(self, *, qk_placement: str, layer_count: int = 1) -> None:
+        super().__init__()
+        self.gpt_neox = SimpleNamespace(
+            layers=torch.nn.ModuleList(
+                [_TinyPythiaLikePostQkvReluBlock(qk_placement=qk_placement) for _ in range(layer_count)]
+            )
+        )
+
+    def forward(
+        self,
+        query: torch.Tensor,
+        key: torch.Tensor,
+        value: torch.Tensor,
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        for layer in self.gpt_neox.layers:
+            query, key, value = layer(query, key, value)
+        return query, key, value
+
+
+class _TinyPythiaLikePostQkvReluBlock(torch.nn.Module):
+    def __init__(self, *, qk_placement: str) -> None:
+        super().__init__()
+        self.attention = _TinyPostQkvReluAttention(qk_placement=qk_placement)
+
+    def forward(
+        self,
+        query: torch.Tensor,
+        key: torch.Tensor,
+        value: torch.Tensor,
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        return self.attention(query, key, value)
+
+
+class _TinyPostQkvReluAttention(torch.nn.Module):
+    def __init__(self, *, qk_placement: str) -> None:
+        super().__init__()
+        self.qk_relu_placement = qk_placement
+        self.query_relu = torch.nn.ReLU()
+        self.key_relu = torch.nn.ReLU()
+        self.value_relu = torch.nn.ReLU()
+        self.last_query_gate_output: torch.Tensor | None = None
+        self.last_key_gate_output: torch.Tensor | None = None
+        self.last_value_gate_output: torch.Tensor | None = None
+
+    def forward(
+        self,
+        query: torch.Tensor,
+        key: torch.Tensor,
+        value: torch.Tensor,
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        self.last_query_gate_output = self.query_relu(query)
+        self.last_key_gate_output = self.key_relu(key)
+        self.last_value_gate_output = self.value_relu(value)
+        return self.last_query_gate_output, self.last_key_gate_output, self.last_value_gate_output
 
 
 class _RecordingIdentity(torch.nn.Module):

@@ -116,3 +116,90 @@ def test_optional_post_layernorm_relu_must_be_boolean() -> None:
 
     with pytest.raises(ConfigError, match="post_layernorm_relu"):
         validate_config(config, allow_todos=False)
+
+
+@pytest.mark.parametrize("placement", ["pre_rope", "post_rope"])
+def test_post_qkv_relu_accepts_both_qk_placements(placement: str) -> None:
+    config = _post_qkv_config(
+        {
+            "enabled": True,
+            "query": True,
+            "key": True,
+            "value": True,
+            "qk_placement": placement,
+        }
+    )
+
+    validate_config(config, allow_todos=False)
+
+
+@pytest.mark.parametrize(
+    ("post_qkv_relu", "message"),
+    [
+        (True, "must be a mapping"),
+        (
+            {"enabled": True, "query": True, "key": True, "value": True},
+            "qk_placement",
+        ),
+        (
+            {
+                "enabled": True,
+                "query": True,
+                "key": True,
+                "value": True,
+                "qk_placement": "between_rope",
+            },
+            "qk_placement",
+        ),
+        (
+            {
+                "enabled": True,
+                "query": "yes",
+                "key": True,
+                "value": True,
+                "qk_placement": "pre_rope",
+            },
+            "query",
+        ),
+    ],
+)
+def test_post_qkv_relu_rejects_invalid_mappings(
+    post_qkv_relu: object,
+    message: str,
+) -> None:
+    config = _post_qkv_config(post_qkv_relu)
+
+    with pytest.raises(ConfigError, match=message):
+        validate_config(config, allow_todos=False)
+
+
+def test_disabled_post_qkv_relu_rejects_a_qk_placement() -> None:
+    config = _post_qkv_config(
+        {
+            "enabled": False,
+            "query": False,
+            "key": False,
+            "value": False,
+            "qk_placement": "pre_rope",
+        }
+    )
+
+    with pytest.raises(ConfigError, match="must be omitted"):
+        validate_config(config, allow_todos=False)
+
+
+def _post_qkv_config(post_qkv_relu: object) -> dict[str, object]:
+    return {
+        "experiment_name": "post_qkv_relu_test",
+        "model": {
+            "provider": "huggingface",
+            "name": "pythia-14m-random",
+            "architecture": "EleutherAI/pythia-14m-deduped",
+            "initialization": "random",
+            "post_qkv_relu": post_qkv_relu,
+        },
+        "data": {"name": "JeanKaddour/minipile", "split": "train"},
+        "evaluation": {"metric": "training_loss"},
+        "run": {"seed": 0, "max_examples": 1},
+        "output": {"dir": "results"},
+    }

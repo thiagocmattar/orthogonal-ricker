@@ -33,7 +33,7 @@ measurement but does not dispatch the command.
 | `utils.py` | JSON/JSONL helpers and environment, Git, GPU, package, and run provenance | Manifest contents and serialization |
 | `data.py` | Dataset loading, tokenization, cache metadata, and cache reuse checks | `data`, `tokenizer`, and `preprocessing` behavior |
 | `calibration.py` | Calibration and pretraining loops, validation, checkpoints, training events, and naive/orthogonal update routing | Optimizer or training-loop behavior |
-| `modeling.py` | Runtime model architecture modifications and checkpoint reconstruction | Post-LayerNorm ReLU behavior; treat as scientific code |
+| `modeling.py` | Runtime model architecture modifications and checkpoint reconstruction | Post-LayerNorm and post-QKV Q/K/V ReLU behavior; treat as scientific code |
 | `activations.py` | Named activation sites, hooks, captured tensors, and post-hoc clipping | Where a site is measured or modified |
 | `activation_pressure.py` | Pressure config parsing, L1/Ricker losses, gradient diagnostics, and Adam-step orthogonal correction | Pressure mathematics and metrics |
 | `clipping.py` | Checkpoint-based clipping sweeps and logical projection-skip proxies | Post-hoc clipping evaluation |

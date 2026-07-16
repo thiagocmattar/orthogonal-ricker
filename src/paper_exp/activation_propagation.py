@@ -16,6 +16,19 @@ ACTIVATION_STAGE_ORDER = [
     "residual_input",
     "attention_layernorm_raw",
     "attention_input_relu",
+    "query_projection_output",
+    "key_projection_output",
+    "value_projection_output",
+    "query_gate_input",
+    "key_gate_input",
+    "value_gate_input",
+    "query_gate_output",
+    "key_gate_output",
+    "value_gate_output",
+    "query_qk_input",
+    "key_qk_input",
+    "value_pv_input",
+    # Retained aliases keep the schema consumable by the Report 04 plotting code.
     "query_post_rope",
     "key_post_rope",
     "value",
@@ -43,9 +56,21 @@ ACTIVATION_STAGE_LABELS = {
     "residual_input": "H_l (block input)",
     "attention_layernorm_raw": "LN_attn(H_l), before ReLU",
     "attention_input_relu": "ReLU(LN_attn(H_l))",
-    "query_post_rope": "Q after RoPE",
-    "key_post_rope": "K after RoPE",
-    "value": "V",
+    "query_projection_output": "Q^0 from fused QKV projection, before gate/RoPE",
+    "key_projection_output": "K^0 from fused QKV projection, before gate/RoPE",
+    "value_projection_output": "V^0 from fused QKV projection, before gate",
+    "query_gate_input": "Input to query ReLU (placement-dependent)",
+    "key_gate_input": "Input to key ReLU (placement-dependent)",
+    "value_gate_input": "V^0 input to value ReLU",
+    "query_gate_output": "Output of query ReLU (placement-dependent)",
+    "key_gate_output": "Output of key ReLU (placement-dependent)",
+    "value_gate_output": "Output of value ReLU",
+    "query_qk_input": "Actual Q operand of QK^T",
+    "key_qk_input": "Actual K operand of QK^T",
+    "value_pv_input": "Actual V operand of PV",
+    "query_post_rope": "Legacy alias: actual Q operand of QK^T",
+    "key_post_rope": "Legacy alias: actual K operand of QK^T",
+    "value": "Legacy alias: actual V operand of PV",
     "attention_probabilities": "P = softmax(masked QK^T)",
     "attention_context": "C = PV",
     "attention_output": "O = C W_o + b_o",
@@ -166,6 +191,16 @@ def run_activation_propagation(
         "activation operand for QK and PV, is exactly zero. Bias additions, reductions, and realized kernel "
         "speedups are excluded. QK and PV totals include only key positions at or before each query position."
     )
+    rope_survival_definition = (
+        "For PRE-RoPE Q/K gates only, compare each exact-zero gate-output coordinate with the "
+        "corresponding actual QK operand after RoPE. Preservation is input-zero/output-zero; "
+        "repopulation is input-zero/output-nonzero; creation is input-nonzero/output-zero. "
+        "Preservation and repopulation fractions condition on input zeros; creation conditions "
+        "on input nonzeros. "
+        "Rotary and pass-through coordinates are reported separately. All-zero rotary pairs use "
+        "the paired first-half/second-half coordinates mixed by GPT-NeoX rotate_half. POST-RoPE "
+        "and absent-gate checkpoints report these placement-specific metrics as unavailable."
+    )
     manifest = build_manifest(
         config=config,
         config_path=config_path,
@@ -186,6 +221,7 @@ def run_activation_propagation(
         "future_causal_positions_excluded": True,
         "exact_zero_definition": exact_zero_definition,
         "matmul_zero_product_definition": matmul_definition,
+        "rope_zero_survival_definition": rope_survival_definition,
         "eval_batches": eval_batches,
         "batch_size": batch_size,
         "validation_sequences": validation_sequences,
@@ -195,7 +231,7 @@ def run_activation_propagation(
     }
 
     payload = {
-        "schema_version": 1,
+        "schema_version": 2,
         "validation_batches": results[0]["batches"] if results else 0,
         "validation_sequences": validation_sequences,
         "validation_tokens": validation_token_count,
@@ -207,6 +243,7 @@ def run_activation_propagation(
         "future_causal_positions_excluded": True,
         "exact_zero_definition": exact_zero_definition,
         "matmul_zero_product_definition": matmul_definition,
+        "rope_zero_survival_definition": rope_survival_definition,
         "activation_stage_order": ACTIVATION_STAGE_ORDER,
         "activation_stage_labels": ACTIVATION_STAGE_LABELS,
         "matmul_stage_order": MATMUL_STAGE_ORDER,
@@ -245,6 +282,7 @@ def _measure_one_run(
     if not bool(getattr(model.config, "use_parallel_residual", False)):
         raise ValueError("This diagnostic currently describes the Pythia parallel-residual block only.")
 
+    post_qkv_relu = _post_qkv_relu_metadata(layers)
     accumulator = _PropagationAccumulator(torch)
     batches = 0
     method_started = time.perf_counter()
@@ -271,10 +309,15 @@ def _measure_one_run(
         "source_checkpoint": str(checkpoint_path),
         "num_layers": len(layers),
         "use_parallel_residual": True,
+        "post_qkv_relu": post_qkv_relu,
         "batches": batches,
         "wall_seconds": time.perf_counter() - method_started,
-        "activations": accumulator.rows("activations", ACTIVATION_STAGE_ORDER),
-        "matmuls": accumulator.rows("matmuls", MATMUL_STAGE_ORDER),
+        "activations": accumulator.rows(
+            "activations", ACTIVATION_STAGE_ORDER, num_layers=len(layers)
+        ),
+        "matmuls": accumulator.rows("matmuls", MATMUL_STAGE_ORDER, num_layers=len(layers)),
+        "rope_zero_survival": accumulator.rope_survival_rows(num_layers=len(layers)),
+        "rope_all_zero_pairs": accumulator.rope_pair_rows(num_layers=len(layers)),
     }
 
     del model
@@ -283,11 +326,80 @@ def _measure_one_run(
     return method_result
 
 
+def _post_qkv_relu_metadata(layers: list[Any]) -> dict[str, Any]:
+    per_layer = []
+    for layer_index, layer in enumerate(layers):
+        attention = layer.attention
+        row = {
+            "layer": layer_index,
+            "query": getattr(attention, "query_relu", None) is not None,
+            "key": getattr(attention, "key_relu", None) is not None,
+            "value": getattr(attention, "value_relu", None) is not None,
+            "qk_placement": getattr(attention, "qk_relu_placement", None),
+            "rotary_dim": int(attention.rotary_ndims),
+            "head_width": int(attention.head_size),
+        }
+        per_layer.append(row)
+
+    signatures = {
+        (row["query"], row["key"], row["value"], row["qk_placement"])
+        for row in per_layer
+    }
+    if len(signatures) != 1:
+        raise ValueError("Post-QKV ReLU gate presence and placement must match across all layers.")
+    query, key, value, placement = next(iter(signatures))
+    if (query or key) and placement not in {"pre_rope", "post_rope"}:
+        raise ValueError("Q/K ReLU gates require qk_placement pre_rope or post_rope.")
+    return {
+        "enabled": bool(query or key or value),
+        "query": query,
+        "key": key,
+        "value": value,
+        "qk_placement": placement,
+        "layers": per_layer,
+    }
+
+
+def _unavailable_rope_survival_row(
+    layer: int,
+    operand: str,
+    region: str,
+    *,
+    reason: str,
+) -> dict[str, Any]:
+    return {
+        "layer": layer,
+        "operand": operand,
+        "region": region,
+        "available": False,
+        "unavailable_reason": reason,
+        "input_zero_count": None,
+        "output_zero_count": None,
+        "preserved_zero_count": None,
+        "repopulated_zero_count": None,
+        "created_zero_count": None,
+        "total": None,
+        "input_exact_zero_fraction": None,
+        "output_exact_zero_fraction": None,
+        "zero_preservation_fraction": None,
+        "zero_repopulation_fraction": None,
+        "zero_creation_fraction": None,
+    }
+
+
 class _PropagationAccumulator:
     def __init__(self, torch: Any):
         self.torch = torch
         self.activations: dict[tuple[int, str], list[int]] = {}
         self.matmuls: dict[tuple[int, str], list[int]] = {}
+        self.unavailable: dict[str, dict[tuple[int, str], str]] = {
+            "activations": {},
+            "matmuls": {},
+        }
+        self.gate_metadata: dict[int, dict[str, Any]] = {}
+        self.pending_gate_outputs: dict[tuple[int, str], Any] = {}
+        self.rope_survival: dict[tuple[int, str, str], list[int]] = {}
+        self.rope_pairs: dict[tuple[int, str], list[int]] = {}
 
     def add_activation(self, name: str, layer: int, value: Any) -> None:
         self.add_counts("activations", name, layer, *_exact_zero_counts(value, torch=self.torch))
@@ -301,27 +413,274 @@ class _PropagationAccumulator:
         )
 
     def add_counts(self, kind: str, name: str, layer: int, zero_count: int, total: int) -> None:
+        if (int(layer), name) in self.unavailable[kind]:
+            raise ValueError(f"Cannot add counts for unavailable {kind} stage {name!r} in layer {layer}.")
         counts = getattr(self, kind)
         current = counts.setdefault((int(layer), name), [0, 0])
         current[0] += int(zero_count)
         current[1] += int(total)
 
-    def rows(self, kind: str, order: list[str]) -> list[dict[str, Any]]:
+    def mark_unavailable(self, kind: str, name: str, layer: int, reason: str) -> None:
+        key = (int(layer), name)
+        if key in getattr(self, kind):
+            raise ValueError(f"Cannot mark measured {kind} stage {name!r} unavailable in layer {layer}.")
+        self.unavailable[kind][key] = str(reason)
+
+    def set_gate_metadata(
+        self,
+        layer: int,
+        *,
+        qk_placement: str | None,
+        query: bool,
+        key: bool,
+        value: bool,
+        rotary_dim: int,
+        head_width: int,
+    ) -> None:
+        self.gate_metadata[int(layer)] = {
+            "qk_placement": qk_placement,
+            "query": bool(query),
+            "key": bool(key),
+            "value": bool(value),
+            "rotary_dim": int(rotary_dim),
+            "head_width": int(head_width),
+        }
+
+    def remember_gate_output(self, name: str, layer: int, value: Any) -> None:
+        self.pending_gate_outputs[(int(layer), name)] = value.detach()
+
+    def add_rope_survival_from_actual_operand(
+        self,
+        name: str,
+        layer: int,
+        actual_operand: Any,
+    ) -> None:
+        metadata = self.gate_metadata[int(layer)]
+        if metadata["qk_placement"] != "pre_rope" or not metadata[name]:
+            return
+        gate_output = self.pending_gate_outputs.pop((int(layer), name), None)
+        if gate_output is None:
+            raise RuntimeError(
+                f"Missing pending {name} gate output for PRE-RoPE survival measurement in layer {layer}."
+            )
+        output = actual_operand.detach()
+        if gate_output.shape != output.shape:
+            raise ValueError(
+                f"PRE-RoPE {name} tensors must have matching shapes, got "
+                f"{tuple(gate_output.shape)} and {tuple(output.shape)}."
+            )
+        rotary_dim = metadata["rotary_dim"]
+        head_width = metadata["head_width"]
+        if output.shape[-1] != head_width or not 0 <= rotary_dim <= head_width:
+            raise ValueError("Invalid rotary/head dimensions for PRE-RoPE survival measurement.")
+
+        for region, start, stop in (
+            ("rotary", 0, rotary_dim),
+            ("passthrough", rotary_dim, head_width),
+        ):
+            before = gate_output[..., start:stop]
+            after = output[..., start:stop]
+            before_zero = before == 0
+            after_zero = after == 0
+            counts = self.rope_survival.setdefault(
+                (int(layer), name, region), [0, 0, 0, 0, 0, 0]
+            )
+            batch_counts = self.torch.stack(
+                (
+                    self.torch.count_nonzero(before_zero),
+                    self.torch.count_nonzero(after_zero),
+                    self.torch.count_nonzero(before_zero & after_zero),
+                    self.torch.count_nonzero(before_zero & ~after_zero),
+                    self.torch.count_nonzero(~before_zero & after_zero),
+                )
+            ).cpu().tolist()
+            for index, count in enumerate(batch_counts):
+                counts[index] += int(count)
+            counts[5] += int(before.numel())
+
+        if rotary_dim:
+            if rotary_dim % 2:
+                raise ValueError("Rotary width must be even for rotary-pair accounting.")
+            half = rotary_dim // 2
+            rotary_zero = gate_output[..., :rotary_dim] == 0
+            all_zero_pairs = rotary_zero[..., :half] & rotary_zero[..., half:]
+            output_rotary_zero = output[..., :rotary_dim] == 0
+            output_all_zero_pairs = (
+                output_rotary_zero[..., :half] & output_rotary_zero[..., half:]
+            )
+            pair_counts = self.rope_pairs.setdefault((int(layer), name), [0, 0, 0])
+            batch_pair_counts = self.torch.stack(
+                (
+                    self.torch.count_nonzero(all_zero_pairs),
+                    self.torch.count_nonzero(output_all_zero_pairs),
+                )
+            ).cpu().tolist()
+            pair_counts[0] += int(batch_pair_counts[0])
+            pair_counts[1] += int(batch_pair_counts[1])
+            pair_counts[2] += int(all_zero_pairs.numel())
+
+    def rows(
+        self,
+        kind: str,
+        order: list[str],
+        *,
+        num_layers: int | None = None,
+    ) -> list[dict[str, Any]]:
         counts = getattr(self, kind)
         order_index = {name: index for index, name in enumerate(order)}
-        rows = []
-        for (layer, name), (zero_count, total) in sorted(
-            counts.items(), key=lambda item: (item[0][0], order_index[item[0][1]])
-        ):
+        unavailable = self.unavailable[kind]
+        if num_layers is None:
+            keys = set(counts) | set(unavailable)
+        else:
+            keys = {(layer, name) for layer in range(num_layers) for name in order}
+        rows: list[dict[str, Any]] = []
+        for layer, name in sorted(keys, key=lambda key: (key[0], order_index[key[1]])):
+            key = (layer, name)
+            if key in unavailable:
+                rows.append(
+                    {
+                        "name": name,
+                        "layer": layer,
+                        "available": False,
+                        "unavailable_reason": unavailable[key],
+                        "zero_count": None,
+                        "total": None,
+                        "exact_zero_fraction": None,
+                    }
+                )
+                continue
+            if key not in counts:
+                raise RuntimeError(f"Missing required {kind} stage {name!r} in layer {layer}.")
+            zero_count, total = counts[key]
             rows.append(
                 {
                     "name": name,
                     "layer": layer,
+                    "available": True,
                     "zero_count": zero_count,
                     "total": total,
                     "exact_zero_fraction": zero_count / total if total else None,
                 }
             )
+        return rows
+
+    def rope_survival_rows(self, *, num_layers: int) -> list[dict[str, Any]]:
+        rows: list[dict[str, Any]] = []
+        for layer in range(num_layers):
+            metadata = self.gate_metadata[layer]
+            for name in ("query", "key"):
+                for region in ("rotary", "passthrough"):
+                    key = (layer, name, region)
+                    if metadata["qk_placement"] != "pre_rope" or not metadata[name]:
+                        rows.append(
+                            _unavailable_rope_survival_row(
+                                layer,
+                                name,
+                                region,
+                                reason=(
+                                    "gate_absent"
+                                    if not metadata[name]
+                                    else "qk_gate_is_post_rope"
+                                ),
+                            )
+                        )
+                        continue
+                    if key not in self.rope_survival:
+                        raise RuntimeError(
+                            f"Missing PRE-RoPE survival counts for {name} {region} in layer {layer}."
+                        )
+                    before_zero, after_zero, preserved, repopulated, created, total = (
+                        self.rope_survival[key]
+                    )
+                    before_nonzero = total - before_zero
+                    rows.append(
+                        {
+                            "layer": layer,
+                            "operand": name,
+                            "region": region,
+                            "available": True,
+                            "input_zero_count": before_zero,
+                            "output_zero_count": after_zero,
+                            "preserved_zero_count": preserved,
+                            "repopulated_zero_count": repopulated,
+                            "created_zero_count": created,
+                            "total": total,
+                            "input_exact_zero_fraction": before_zero / total if total else None,
+                            "output_exact_zero_fraction": after_zero / total if total else None,
+                            "zero_preservation_fraction": (
+                                preserved / before_zero if before_zero else None
+                            ),
+                            "zero_repopulation_fraction": (
+                                repopulated / before_zero if before_zero else None
+                            ),
+                            "zero_creation_fraction": (
+                                created / before_nonzero if before_nonzero else None
+                            ),
+                        }
+                    )
+        return rows
+
+    def rope_pair_rows(self, *, num_layers: int) -> list[dict[str, Any]]:
+        rows: list[dict[str, Any]] = []
+        for layer in range(num_layers):
+            metadata = self.gate_metadata[layer]
+            for name in ("query", "key"):
+                key = (layer, name)
+                if metadata["qk_placement"] != "pre_rope" or not metadata[name]:
+                    rows.append(
+                        {
+                            "layer": layer,
+                            "operand": name,
+                            "available": False,
+                            "unavailable_reason": (
+                                "gate_absent"
+                                if not metadata[name]
+                                else "qk_gate_is_post_rope"
+                            ),
+                            "input_all_zero_pair_count": None,
+                            "output_all_zero_pair_count": None,
+                            "pair_total": None,
+                            "input_all_zero_pair_fraction": None,
+                            "output_all_zero_pair_fraction": None,
+                        }
+                    )
+                    continue
+                if metadata["rotary_dim"] == 0:
+                    rows.append(
+                        {
+                            "layer": layer,
+                            "operand": name,
+                            "available": False,
+                            "unavailable_reason": "no_rotary_coordinates",
+                            "input_all_zero_pair_count": None,
+                            "output_all_zero_pair_count": None,
+                            "pair_total": None,
+                            "input_all_zero_pair_fraction": None,
+                            "output_all_zero_pair_fraction": None,
+                        }
+                    )
+                    continue
+                if key not in self.rope_pairs:
+                    raise RuntimeError(
+                        f"Missing PRE-RoPE all-zero-pair counts for {name} in layer {layer}."
+                    )
+                input_pairs, output_pairs, pair_total = self.rope_pairs[key]
+                rows.append(
+                    {
+                        "layer": layer,
+                        "operand": name,
+                        "available": True,
+                        "input_all_zero_pair_count": input_pairs,
+                        "output_all_zero_pair_count": output_pairs,
+                        "pair_total": pair_total,
+                        "input_all_zero_pair_fraction": (
+                            input_pairs / pair_total if pair_total else None
+                        ),
+                        "output_all_zero_pair_fraction": (
+                            output_pairs / pair_total if pair_total else None
+                        ),
+                    }
+                )
         return rows
 
 
@@ -341,6 +700,65 @@ def _capture_model_propagation(
             if attention_relu is None or mlp_relu is None:
                 raise ValueError(
                     "Activation propagation requires checkpoints configured with model.post_layernorm_relu: true."
+                )
+
+            attention = layer.attention
+            query_relu = getattr(attention, "query_relu", None)
+            key_relu = getattr(attention, "key_relu", None)
+            value_relu = getattr(attention, "value_relu", None)
+            qk_placement = getattr(attention, "qk_relu_placement", None)
+            if (query_relu is not None or key_relu is not None) and qk_placement not in {
+                "pre_rope",
+                "post_rope",
+            }:
+                raise ValueError(
+                    f"Layer {layer_index} has Q/K ReLU modules but no valid qk_relu_placement."
+                )
+            head_width = int(attention.head_size)
+            rotary_dim = int(attention.rotary_ndims)
+            accumulator.set_gate_metadata(
+                layer_index,
+                qk_placement=qk_placement,
+                query=query_relu is not None,
+                key=key_relu is not None,
+                value=value_relu is not None,
+                rotary_dim=rotary_dim,
+                head_width=head_width,
+            )
+
+            for gate_name, gate_module in (
+                ("query", query_relu),
+                ("key", key_relu),
+                ("value", value_relu),
+            ):
+                input_stage = f"{gate_name}_gate_input"
+                output_stage = f"{gate_name}_gate_output"
+                if gate_module is None:
+                    accumulator.mark_unavailable(
+                        "activations", input_stage, layer_index, "post_qkv_gate_absent"
+                    )
+                    accumulator.mark_unavailable(
+                        "activations", output_stage, layer_index, "post_qkv_gate_absent"
+                    )
+                    continue
+                handles.append(
+                    gate_module.register_forward_pre_hook(
+                        _activation_pre_hook(accumulator, input_stage, layer_index)
+                    )
+                )
+                handles.append(
+                    gate_module.register_forward_hook(
+                        _gate_output_hook(
+                            accumulator,
+                            output_stage,
+                            gate_name,
+                            layer_index,
+                            remember_for_rope=(
+                                gate_name in {"query", "key"}
+                                and qk_placement == "pre_rope"
+                            ),
+                        )
+                    )
                 )
 
             handles.append(
@@ -397,6 +815,13 @@ def _capture_model_propagation(
             handles.append(
                 layer.attention.query_key_value.register_forward_pre_hook(
                     _linear_pre_hook(accumulator, "qkv_projection", layer_index)
+                )
+            )
+            handles.append(
+                layer.attention.query_key_value.register_forward_hook(
+                    _qkv_projection_output_hook(
+                        accumulator, layer_index, attention=layer.attention
+                    )
                 )
             )
             handles.append(
@@ -459,9 +884,20 @@ def _patched_eager_attention(
             **kwargs,
         )
         layer_index = int(module.layer_idx)
-        accumulator.add_activation("query_post_rope", layer_index, query)
-        accumulator.add_activation("key_post_rope", layer_index, key)
-        accumulator.add_activation("value", layer_index, value)
+        for stage, legacy_stage, operand in (
+            ("query_qk_input", "query_post_rope", query),
+            ("key_qk_input", "key_post_rope", key),
+            ("value_pv_input", "value", value),
+        ):
+            zero_count, total = _exact_zero_counts(operand, torch=torch)
+            accumulator.add_counts(
+                "activations", stage, layer_index, zero_count, total
+            )
+            accumulator.add_counts(
+                "activations", legacy_stage, layer_index, zero_count, total
+            )
+        accumulator.add_rope_survival_from_actual_operand("query", layer_index, query)
+        accumulator.add_rope_survival_from_actual_operand("key", layer_index, key)
         zero_count, total = _valid_causal_exact_zero_counts(probabilities, torch=torch)
         accumulator.add_counts(
             "activations", "attention_probabilities", layer_index, zero_count, total
@@ -506,6 +942,53 @@ def _activation_output_hook(
         accumulator.add_activation(name, layer, output)
 
     return hook
+
+
+def _gate_output_hook(
+    accumulator: _PropagationAccumulator,
+    stage_name: str,
+    gate_name: str,
+    layer: int,
+    *,
+    remember_for_rope: bool,
+) -> Any:
+    def hook(_module: Any, _inputs: tuple[Any, ...], output: Any) -> None:
+        accumulator.add_activation(stage_name, layer, output)
+        if remember_for_rope:
+            accumulator.remember_gate_output(gate_name, layer, output)
+
+    return hook
+
+
+def _qkv_projection_output_hook(
+    accumulator: _PropagationAccumulator, layer: int, *, attention: Any
+) -> Any:
+    def hook(_module: Any, _inputs: tuple[Any, ...], output: Any) -> None:
+        query, key, value = _split_fused_qkv_projection(
+            output,
+            num_heads=int(attention.config.num_attention_heads),
+            head_width=int(attention.head_size),
+        )
+        accumulator.add_activation("query_projection_output", layer, query)
+        accumulator.add_activation("key_projection_output", layer, key)
+        accumulator.add_activation("value_projection_output", layer, value)
+
+    return hook
+
+
+def _split_fused_qkv_projection(
+    value: Any, *, num_heads: int, head_width: int
+) -> tuple[Any, Any, Any]:
+    """Reproduce GPT-NeoX's per-head fused-QKV layout without changing execution."""
+    expected_width = 3 * num_heads * head_width
+    if value.ndim != 3 or int(value.shape[-1]) != expected_width:
+        raise ValueError(
+            "Unexpected fused GPT-NeoX QKV projection shape: "
+            f"expected last width {expected_width}, got {tuple(value.shape)}."
+        )
+    hidden_shape = (*value.shape[:-1], num_heads, 3 * head_width)
+    fused_by_head = value.view(hidden_shape).transpose(1, 2)
+    return fused_by_head.chunk(3, dim=-1)
 
 
 def _attention_output_hook(accumulator: _PropagationAccumulator, layer: int) -> Any:

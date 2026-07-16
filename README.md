@@ -66,6 +66,7 @@ Current notes:
 - `docs/humans/01-pythia-14m-architecture.md`: Pythia-14M architecture, block equations, pseudocode, and activation-pressure hook sites.
 - `docs/humans/02-fixed-step-pressure-screen.md`: fixed-step Pythia-14M MiniPile pressure screen, metrics table, figures, and interpretation boundary.
 - `docs/humans/03-research-agenda-to-publication.md`: internal research agenda that separates observations, hypotheses, candidate claims, and publication-stage evidence requirements.
+- `docs/humans/04-attention-sparsification-paths.md`: selected post-QKV Q/K/V ReLU placement experiment, implementation contract, launch matrix, diagnostics, and deferred probability-threshold hypothesis.
 
 ## Model Initialization
 

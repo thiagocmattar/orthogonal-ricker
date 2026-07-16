@@ -8,6 +8,9 @@ SUPPORTED_SITE_ALIASES = {
     "mlp_hiddens",
     "attention_inputs",
     "mlp_inputs",
+    "query_gate_outputs",
+    "key_gate_outputs",
+    "value_gate_outputs",
     "residual_streams",
     "attention_outputs",
 }
@@ -59,6 +62,24 @@ class ActivationCapture:
             self._register_pythia_attention_inputs()
         if "mlp_inputs" in resolved:
             self._register_pythia_mlp_inputs()
+        if "query_gate_outputs" in resolved:
+            self._register_pythia_attention_gate_outputs(
+                alias="query_gate_outputs",
+                module_name="query_relu",
+                role="query_gate_output",
+            )
+        if "key_gate_outputs" in resolved:
+            self._register_pythia_attention_gate_outputs(
+                alias="key_gate_outputs",
+                module_name="key_relu",
+                role="key_gate_output",
+            )
+        if "value_gate_outputs" in resolved:
+            self._register_pythia_attention_gate_outputs(
+                alias="value_gate_outputs",
+                module_name="value_relu",
+                role="value_gate_output",
+            )
         if "residual_streams" in resolved:
             self._register_pythia_residual_streams()
         if "attention_outputs" in resolved:
@@ -142,6 +163,44 @@ class ActivationCapture:
                 )
             )
             self._handles.append(capture_module.register_forward_hook(self._make_hook(name, "mlp_inputs")))
+
+    def _register_pythia_attention_gate_outputs(
+        self,
+        *,
+        alias: str,
+        module_name: str,
+        role: str,
+    ) -> None:
+        layers = getattr(getattr(self.model, "gpt_neox", None), "layers", None)
+        if layers is None:
+            raise ValueError(f"{alias} capture currently supports GPTNeoX/Pythia models only.")
+
+        for index, layer in enumerate(layers):
+            attention = getattr(layer, "attention", None)
+            capture_module = getattr(attention, module_name, None)
+            if capture_module is None:
+                raise ValueError(f"Could not resolve {module_name} module for layer {index}.")
+
+            if alias == "value_gate_outputs":
+                downstream_operator = f"gpt_neox.layers.{index}.attention PV matmul"
+            else:
+                placement = _qk_relu_placement(self.model, attention)
+                if placement == "pre_rope":
+                    downstream_operator = f"gpt_neox.layers.{index}.attention partial RoPE"
+                else:
+                    downstream_operator = f"gpt_neox.layers.{index}.attention QK matmul"
+
+            name = f"{alias}.layer_{index}"
+            self.site_metadata.append(
+                ActivationSite(
+                    name=name,
+                    module_path=f"gpt_neox.layers.{index}.attention.{module_name}",
+                    role=role,
+                    shape="[batch, heads, tokens, head_width]",
+                    downstream_operator=downstream_operator,
+                )
+            )
+            self._handles.append(capture_module.register_forward_hook(self._make_hook(name, alias)))
 
     def _register_pythia_residual_streams(self) -> None:
         layers = getattr(getattr(self.model, "gpt_neox", None), "layers", None)
@@ -244,6 +303,21 @@ def activation_exact_zero_counts_by_alias(activations: dict[str, Any]) -> dict[s
         counts[alias][0] += int((detached == 0).sum().item())
         counts[alias][1] += detached.numel()
     return {alias: (values[0], values[1]) for alias, values in counts.items()}
+
+
+def _qk_relu_placement(model: Any, attention: Any) -> str:
+    placement = getattr(attention, "qk_relu_placement", None)
+    if placement is None:
+        model_config = getattr(model, "config", None)
+        post_qkv_relu = getattr(model_config, "post_qkv_relu", None)
+        if isinstance(post_qkv_relu, dict):
+            placement = post_qkv_relu.get("qk_placement")
+    if placement not in {"pre_rope", "post_rope"}:
+        raise ValueError(
+            "Could not resolve qk_placement for post-QKV ReLU capture; "
+            "expected attention.qk_relu_placement to be 'pre_rope' or 'post_rope'."
+        )
+    return placement
 
 
 def _first_tensor(value: Any) -> Any:

@@ -235,6 +235,16 @@ Exact-zero propagation diagnostic:
 - Across all six major block matmuls (QKV, valid-causal QK, valid-causal PV, attention output, W1, and W2) at sequence length 2,048, config `106` measures full-validation logical zero-product fractions of 19.71% for config `98`, 28.42% for config `105`, 28.66% for config `103`, 22.70% for config `104`, and 21.48% for config `99`. The smaller totals relative to projection-only ceiling utilization occur because QK, PV, and the attention-output input are effectively dense.
 - Config `102` generated `figures/85-pythia-14m-minipile-post-layernorm-relu-zero-propagation-heatmaps.pdf`; that existing figure does not yet include RN.
 
+Selected post-QKV ReLU placement experiment:
+
+- Configs `107` through `112` retain the existing Three-ReLU architecture and add distinct Q, K, and V ReLU modules after the fused QKV projection is reshaped and split. The fused QKV linear layer and its initialization remain unchanged.
+- PRE applies Q/K ReLU before standard partial RoPE; POST applies Q/K ReLU after RoPE and immediately before QK. V is ReLU-gated after the split and before PV in both arms.
+- The six-run grid is PRE/POST crossed with AdamW, OR, and OL1. AdamW is monitor-only. OR inherits weight 1, `c = sigma = 0.05`, and step budget 0.5. OL1 inherits weight 5 and step budget 0.5.
+- Pressure targets only `query_gate_outputs`, `key_gate_outputs`, and `value_gate_outputs`. The existing attention-input, MLP-input, and MLP-hidden ReLUs remain active but are excluded from this screen's pressure scalar so that pressure versus same-placement AdamW isolates the new attention-core sites.
+- Config `113` is the planned full-validation propagation diagnostic over the six new checkpoints plus contextual configs `98`, `103`, and `99`. It must distinguish Q/K gate-output zeros from the actual QK operands after RoPE and count V as the actual PV operand.
+- Plain ReLU on softmax P is not part of this experiment because valid P is nonnegative and `ReLU(P) = P`; L1 on a normalized probability row is also constant. A learnable positive-threshold shifted ReLU remains a later `TODO:`.
+- Full design, implementation, execution, and result-handoff contract: `docs/humans/04-attention-sparsification-paths.md`.
+
 ## Expected Scale Ladders
 
 TODO: after the Pythia-14M MiniPile random-init baseline is stable and calibrated, consider scaling within the Pythia family up to 160M if memory and runtime measurements justify it. Do not add scale-up configs until the 14M path is reproducible.

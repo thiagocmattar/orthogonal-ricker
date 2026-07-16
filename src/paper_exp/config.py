@@ -80,6 +80,8 @@ def validate_config(config: Mapping[str, Any], *, allow_todos: bool = True) -> N
     if post_layernorm_relu is not None and not isinstance(post_layernorm_relu, bool):
         raise ConfigError("Config field model.post_layernorm_relu must be a boolean when provided.")
 
+    _validate_post_qkv_relu(config.get("model", {}).get("post_qkv_relu"))
+
     if not allow_todos:
         todos = list(find_todo_values(config))
         if todos:
@@ -100,6 +102,40 @@ def find_todo_values(value: Any, prefix: str = "") -> list[tuple[str, str]]:
             child_prefix = f"{prefix}[{index}]"
             found.extend(find_todo_values(child, child_prefix))
     return found
+
+
+def _validate_post_qkv_relu(value: Any) -> None:
+    if value is None:
+        return
+    if not isinstance(value, Mapping):
+        raise ConfigError("Config field model.post_qkv_relu must be a mapping when provided.")
+
+    boolean_fields = ("enabled", "query", "key", "value")
+    for field in boolean_fields:
+        if field not in value:
+            raise ConfigError(f"Missing required config field: model.post_qkv_relu.{field}")
+        if not isinstance(value[field], bool):
+            raise ConfigError(f"Config field model.post_qkv_relu.{field} must be a boolean.")
+
+    enabled = value["enabled"]
+    placement = value.get("qk_placement")
+    if not enabled:
+        if placement is not None:
+            raise ConfigError(
+                "Config field model.post_qkv_relu.qk_placement must be omitted when post-QKV ReLU is disabled."
+            )
+        if any(value[field] for field in ("query", "key", "value")):
+            raise ConfigError(
+                "Config fields model.post_qkv_relu.query/key/value must be false when post-QKV ReLU is disabled."
+            )
+        return
+
+    if placement not in {"pre_rope", "post_rope"}:
+        raise ConfigError(
+            "Config field model.post_qkv_relu.qk_placement must be 'pre_rope' or 'post_rope'."
+        )
+    if not any(value[field] for field in ("query", "key", "value")):
+        raise ConfigError("Configured model.post_qkv_relu is enabled, but no Q/K/V gate is enabled.")
 
 
 def _get_required(config: Mapping[str, Any], field_path: tuple[str, ...]) -> Any:

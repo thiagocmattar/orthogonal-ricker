@@ -63,7 +63,7 @@ copy its architecture fields into a stock-Pythia run accidentally.
 | Fields or section | Primary owner | Meaning |
 | --- | --- | --- |
 | `experiment_name`, `model`, `data`, `evaluation`, `run`, `output` | `config.py` validates the shared minimum; each workflow consumes its subset | Common experiment identity and run envelope |
-| `model.architecture`, `model.revision`, `model.initialization`, `model.hidden_act`, `model.post_layernorm_relu` | `calibration.py`, `modeling.py` | Architecture construction and explicit scientific modifications |
+| `model.architecture`, `model.revision`, `model.initialization`, `model.hidden_act`, `model.post_layernorm_relu`, `model.post_qkv_relu` | `calibration.py`, `modeling.py` | Architecture construction and explicit scientific modifications |
 | `data`, `tokenizer`, `preprocessing` | `data.py` | Dataset/tokenizer identity, token cache shape, and cache reuse |
 | `training`, `validation`, `checkpoint` | `calibration.py` | Optimizer loop, evaluation schedule, and final checkpoint policy |
 | `activation_pressure` | `activation_pressure.py`, `activations.py`, `calibration.py` | Method, sites, weight, Ricker parameters, step budget, and logged thresholds |
@@ -100,3 +100,21 @@ Required fields:
 - `output.dir`
 
 Use `TODO:` placeholders until the paper-specific model, dataset, metric, or method is known.
+
+## Post-QKV ReLU Architecture
+
+Configs `107` through `112` add separate parameter-free Q, K, and V ReLUs after the fused QKV projection is reshaped and split. The fused projection remains unchanged. Configure the placement explicitly:
+
+```yaml
+model:
+  hidden_act: relu
+  post_layernorm_relu: true
+  post_qkv_relu:
+    enabled: true
+    query: true
+    key: true
+    value: true
+    qk_placement: pre_rope  # or post_rope
+```
+
+`pre_rope` applies the Q/K gates before standard partial RoPE. `post_rope` applies them after RoPE and immediately before QK. V is gated after the split and before PV in both cases. The pressure aliases are `query_gate_outputs`, `key_gate_outputs`, and `value_gate_outputs`. See `docs/humans/04-attention-sparsification-paths.md` for the selected six-run contract.

@@ -15,7 +15,7 @@ from paper_exp.activation_pressure import pressure_loss
 from paper_exp.activations import ActivationCapture
 from paper_exp.config import validate_config
 from paper_exp.data import metadata_matches_config, tokenized_cache_dir, validation_metadata_path
-from paper_exp.modeling import apply_post_layernorm_relu
+from paper_exp.modeling import apply_post_layernorm_relu, apply_post_qkv_relu
 from paper_exp.run import RunHandle, complete_run, run_lifecycle
 from paper_exp.utils import read_json, write_jsonl
 
@@ -373,6 +373,9 @@ def _run_started_calibration(
     model_manifest["post_layernorm_relu"] = bool(
         getattr(getattr(model, "config", None), "post_layernorm_relu", False)
     )
+    post_qkv_relu = getattr(getattr(model, "config", None), "post_qkv_relu", None)
+    if post_qkv_relu is not None:
+        model_manifest["post_qkv_relu"] = dict(post_qkv_relu)
     manifest_updates["model"] = model_manifest
     manifest_updates["validation"] = validation_config
     manifest_updates["checkpoint"] = checkpoint_metadata
@@ -598,6 +601,7 @@ def _build_random_model(
     architecture.torch_dtype = torch.float32
     model = auto_model.from_config(architecture)
     apply_post_layernorm_relu(model, torch=torch)
+    apply_post_qkv_relu(model, torch=torch)
     return model.to(device=device, dtype=torch.float32)
 
 
@@ -611,6 +615,10 @@ def _apply_model_architecture_overrides(architecture: Any, model_config: dict[st
     post_layernorm_relu = model_config.get("post_layernorm_relu")
     if post_layernorm_relu is not None:
         architecture.post_layernorm_relu = post_layernorm_relu
+
+    post_qkv_relu = model_config.get("post_qkv_relu")
+    if post_qkv_relu is not None:
+        architecture.post_qkv_relu = dict(post_qkv_relu)
 
 
 def _autocast_context(torch: Any, device: Any, dtype: Any) -> Any:
