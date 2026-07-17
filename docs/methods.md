@@ -100,6 +100,7 @@ Activation pressure implementation:
 - Orthogonal methods: `orthogonal_ricker` and `orthogonal_l1` compute task gradients and pressure gradients separately; AdamW steps on task gradients only; then a memoryless pressure correction is applied in AdamW step space.
 - Orthogonal projection fires only when the pressure update direction conflicts with the AdamW task update direction. The trust budget caps the final pressure/task update ratio.
 - Post-hoc clipping sweeps load a saved checkpoint and evaluate validation loss versus achieved exact-zero fraction for configured thresholds or quantiles.
+- `clip-sweep --measure-zero-products` additionally counts exact logical zero products in QKV, valid-causal QK, valid-causal PV, the attention output projection, W1, and W2. The block fraction uses those six operations as its denominator; the model fraction adds the dense LM head to the denominator. These are potentially avoidable logical products, not measured kernel speedups. For PRE-RoPE gates, Q/K zeros are counted only after standard RoPE, at the operands actually used by QK. The counter is scoped to uncached, unpadded causal validation and forces eager attention, so clipping loss deltas must use the same sweep's threshold-zero row as reference.
 - RMS-normalized post-hoc clipping uses `threshold = multiplier * RMS(A)` per captured activation tensor and forward pass. For the current `mlp_hiddens` site, `A` is one layer's MLP hidden activation tensor for the current validation batch.
 
 Early method smoke evidence:

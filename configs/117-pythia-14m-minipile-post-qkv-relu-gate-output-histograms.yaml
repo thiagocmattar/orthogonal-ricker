@@ -1,0 +1,59 @@
+experiment_name: pythia_14m_minipile_post_qkv_relu_gate_output_histograms
+model:
+  provider: huggingface
+  name: pythia-14m-random-post-qkv-relu-diagnostics
+  architecture: EleutherAI/pythia-14m-deduped
+  revision: main
+  initialization: random
+data:
+  name: JeanKaddour/minipile
+  revision: main
+  split: validation
+  text_column: text
+  max_documents: 500
+evaluation:
+  metric: activation_histogram
+run:
+  seed: 0
+  max_examples: 500
+tokenizer:
+  name: EleutherAI/pythia-14m-deduped
+  revision: main
+preprocessing:
+  output_dir: data/tokenized
+  cache_id: 03-pythia-14m-minipile-random-full-10min
+  block_size: 2048
+  append_eos: true
+  overwrite: false
+validation:
+  enabled: true
+  split: validation
+  max_documents: 500
+  eval_batches: null
+  batch_size: 4
+activation_histograms:
+  sites:
+    - query_gate_outputs
+    - key_gate_outputs
+    - value_gate_outputs
+  bins: 180
+  range_min: 0.0
+  range_max: 4.0
+  thresholds:
+    - 0.0
+  plot_title: Report 05 Post-QKV Query, Key, and Value Gate-Output Densities
+  selected_runs:
+    - label: Six-ReLU PRE AdamW
+      config_id: 107-pythia-14m-minipile-post-qkv-relu-qk-pre-rope-adamw-full-pass
+    - label: Six-ReLU PRE OR
+      config_id: 108-pythia-14m-minipile-post-qkv-relu-qk-pre-rope-orthogonal-ricker-full-pass-w1-c0p05-s0p05
+    - label: Six-ReLU PRE OL1
+      config_id: 109-pythia-14m-minipile-post-qkv-relu-qk-pre-rope-orthogonal-l1-full-pass-w5
+    - label: Six-ReLU POST AdamW
+      config_id: 110-pythia-14m-minipile-post-qkv-relu-qk-post-rope-adamw-full-pass
+    - label: Six-ReLU POST OR
+      config_id: 111-pythia-14m-minipile-post-qkv-relu-qk-post-rope-orthogonal-ricker-full-pass-w1-c0p05-s0p05
+    - label: Six-ReLU POST OL1
+      config_id: 112-pythia-14m-minipile-post-qkv-relu-qk-post-rope-orthogonal-l1-full-pass-w5
+output:
+  dir: results

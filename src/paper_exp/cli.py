@@ -117,6 +117,14 @@ def build_parser() -> argparse.ArgumentParser:
     clip_sweep.add_argument("--sites", default="", help="Comma-separated activation sites to clip for this sweep.")
     clip_sweep.add_argument("--experiment-suffix", default="", help="Optional suffix for the clipping sweep result folder.")
     clip_sweep.add_argument("--eval-batches", type=int, default=None)
+    clip_sweep.add_argument(
+        "--measure-zero-products",
+        action="store_true",
+        help=(
+            "Count exact logical zero products in QKV, QK, PV, attention output, W1, and W2; "
+            "includes the LM head only in the model-level denominator."
+        ),
+    )
     clip_sweep.add_argument("--seed", type=int, default=0)
 
     write_sweep = subparsers.add_parser(
@@ -284,6 +292,7 @@ def main(argv: list[str] | None = None) -> int:
                 sites=_parse_str_list(args.sites) or None,
                 experiment_suffix=args.experiment_suffix or None,
                 eval_batches=args.eval_batches,
+                measure_zero_products=args.measure_zero_products,
                 seed=args.seed,
             )
             print(f"Clipping sweep written to {run_dir}")

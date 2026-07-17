@@ -15,7 +15,11 @@ from paper_exp.activations import activation_exact_zero_counts
 from paper_exp.activations import activation_exact_zero_counts_by_alias
 from paper_exp.activations import clip_activation_tensor
 from paper_exp.activations import resolve_site_aliases
+from paper_exp.clipping import _LogicalZeroProductAccumulator
+from paper_exp.clipping import _probability_value_zero_product_counts
+from paper_exp.clipping import _qk_zero_product_counts
 from paper_exp.clipping import pythia_projection_skip_proxies
+from paper_exp.cli import build_parser
 
 
 def test_pressure_functions_are_finite() -> None:
@@ -257,6 +261,58 @@ def test_pythia_projection_skip_proxies_use_projection_mac_weights() -> None:
     assert proxies["eligible_projection_skip_fraction"] == 5.5 / 11.0
     assert proxies["block_linear_skip_fraction"] == 5.5 / 12.0
     assert pythia_projection_skip_proxies({"mlp_hiddens": 0.75}) == {}
+
+
+def test_logical_zero_product_summary_includes_dense_lm_head_denominator() -> None:
+    accumulator = _LogicalZeroProductAccumulator()
+    zero_counts = (1, 2, 3, 4, 5, 6)
+    for name, zero_count in zip(accumulator.zero_counts, zero_counts, strict=True):
+        accumulator.add(name, zero_count, 100)
+
+    model = SimpleNamespace(
+        get_output_embeddings=lambda: SimpleNamespace(
+            weight=SimpleNamespace(shape=(3, 2))
+        )
+    )
+    summary = accumulator.summary(model=model, total_tokens=4)
+
+    assert summary["block_zero_product_count"] == 21
+    assert summary["block_matmul_product_count"] == 600
+    assert summary["lm_head_matmul_product_count"] == 24
+    assert summary["model_matmul_product_count"] == 624
+    assert summary["potentially_avoidable_block_matmul_fraction"] == 21 / 600
+    assert summary["potentially_avoidable_model_matmul_fraction"] == 21 / 624
+
+
+def test_attention_zero_product_counts_use_valid_causal_pairs_and_union() -> None:
+    query = torch.tensor([[[[0.0, 1.0], [1.0, 1.0]]]])
+    key = torch.tensor([[[[1.0, 0.0], [0.0, 1.0]]]])
+    qk_zero, qk_total = _qk_zero_product_counts(query, key, torch=torch)
+
+    # Valid pairs are (q0, k0), (q1, k0), and (q1, k1), each with width 2.
+    assert qk_total == 6
+    assert qk_zero == 4
+
+    probabilities = torch.tensor([[[[1.0, 0.0], [0.25, 0.75]]]])
+    value = torch.tensor([[[[0.0, 2.0], [3.0, 0.0]]]])
+    pv_zero, pv_total = _probability_value_zero_product_counts(
+        probabilities,
+        value,
+        torch=torch,
+        query_chunk_size=1,
+    )
+
+    # The invalid future P[0, 1] entry is excluded rather than credited as a zero.
+    assert pv_total == 6
+    assert pv_zero == 3
+
+
+def test_clip_sweep_cli_can_request_actual_zero_product_measurement() -> None:
+    args = build_parser().parse_args(
+        ["clip-sweep", "--run-dir", "checkpoint", "--measure-zero-products"]
+    )
+
+    assert args.measure_zero_products is True
 
 
 def test_rms_threshold_clipping_uses_current_activation_scale() -> None:

@@ -104,7 +104,7 @@ the legacy `run.write_run_artifacts`.
 | `prepare-data` | `data.prepare_tokenized_data` | `data`, `tokenizer`, `preprocessing`, optional `validation` | `tokens.int32.bin` and `metadata.json` under the token cache; cache paths are recorded in the run |
 | `calibrate` | `calibration.run_calibration` | `model`, `data`, `preprocessing`, `training`, `validation`, `checkpoint`, optional `activation_pressure` | Lifecycle launch snapshot; `events.jsonl`; optional `checkpoints/final/`; terminal manifest last |
 | `pretrain` | `calibration.run_calibration(..., mode="pretrain")` | Same as `calibrate` | Same lifecycle as `calibrate`; `predictions.jsonl` currently contains event history |
-| `clip-sweep` | `clipping.run_clipping_sweep` | Saved source-run config plus `activation_clipping`; thresholds/sites are normally CLI arguments | `clipping_frontier.jsonl` and the common envelope |
+| `clip-sweep` | `clipping.run_clipping_sweep` | Saved source-run config plus `activation_clipping`; thresholds/sites are normally CLI arguments; `--measure-zero-products` enables actual-operand QKV/QK/PV/WO/W1/W2 counters | `clipping_frontier.jsonl` and the common envelope |
 | `activation-histograms` | `activation_histograms.run_activation_histograms` | `activation_histograms`, `validation`, and cache/model fields | `activation_histograms.json` and the common envelope |
 | `weight-histograms` | `weight_histograms.run_weight_histograms` | `weight_histograms` and source-run references | `weight_histograms.json` and the common envelope |
 | `activation-propagation` | `activation_propagation.run_activation_propagation` | `activation_propagation`, `validation`, and cache/model fields | `activation_propagation.json` and the common envelope |

@@ -54,7 +54,7 @@ MATMUL_STAGE_ORDER = [
 
 ACTIVATION_STAGE_LABELS = {
     "residual_input": "H_l (block input)",
-    "attention_layernorm_raw": "LN_attn(H_l), before ReLU",
+    "attention_layernorm_raw": "LN_attn(H_l), before optional ReLU",
     "attention_input_relu": "ReLU(LN_attn(H_l))",
     "query_projection_output": "Q^0 from fused QKV projection, before gate/RoPE",
     "key_projection_output": "K^0 from fused QKV projection, before gate/RoPE",
@@ -74,7 +74,7 @@ ACTIVATION_STAGE_LABELS = {
     "attention_probabilities": "P = softmax(masked QK^T)",
     "attention_context": "C = PV",
     "attention_output": "O = C W_o + b_o",
-    "mlp_layernorm_raw": "LN_mlp(H_l), before ReLU",
+    "mlp_layernorm_raw": "LN_mlp(H_l), before optional ReLU",
     "mlp_input_relu": "ReLU(LN_mlp(H_l))",
     "mlp_w1_preactivation": "U = X_mlp W_1 + b_1",
     "mlp_hidden_relu": "A = ReLU(U)",
@@ -697,10 +697,7 @@ def _capture_model_propagation(
         for layer_index, layer in enumerate(model.gpt_neox.layers):
             attention_relu = getattr(layer, "attention_input_relu", None)
             mlp_relu = getattr(layer, "mlp_input_relu", None)
-            if attention_relu is None or mlp_relu is None:
-                raise ValueError(
-                    "Activation propagation requires checkpoints configured with model.post_layernorm_relu: true."
-                )
+            hidden_relu = str(getattr(model.config, "hidden_act", "")).lower() == "relu"
 
             attention = layer.attention
             query_relu = getattr(attention, "query_relu", None)
@@ -771,26 +768,68 @@ def _capture_model_propagation(
                     _activation_output_hook(accumulator, "residual_output", layer_index)
                 )
             )
-            handles.append(
-                attention_relu.register_forward_pre_hook(
-                    _activation_pre_hook(accumulator, "attention_layernorm_raw", layer_index)
+            if attention_relu is None:
+                accumulator.mark_unavailable(
+                    "activations",
+                    "attention_input_relu",
+                    layer_index,
+                    "post_layernorm_relu_absent",
                 )
-            )
-            handles.append(
-                attention_relu.register_forward_hook(
-                    _activation_output_hook(accumulator, "attention_input_relu", layer_index)
+                handles.append(
+                    layer.input_layernorm.register_forward_hook(
+                        _activation_output_hook(
+                            accumulator, "attention_layernorm_raw", layer_index
+                        )
+                    )
                 )
-            )
-            handles.append(
-                mlp_relu.register_forward_pre_hook(
-                    _activation_pre_hook(accumulator, "mlp_layernorm_raw", layer_index)
+            else:
+                # The architecture invokes this explicit ReLU from a LayerNorm
+                # output hook. Its pre-hook is therefore the only placement-safe
+                # way to capture the raw LayerNorm tensor before rectification.
+                handles.append(
+                    attention_relu.register_forward_pre_hook(
+                        _activation_pre_hook(
+                            accumulator, "attention_layernorm_raw", layer_index
+                        )
+                    )
                 )
-            )
-            handles.append(
-                mlp_relu.register_forward_hook(
-                    _activation_output_hook(accumulator, "mlp_input_relu", layer_index)
+                handles.append(
+                    attention_relu.register_forward_hook(
+                        _activation_output_hook(
+                            accumulator, "attention_input_relu", layer_index
+                        )
+                    )
                 )
-            )
+
+            if mlp_relu is None:
+                accumulator.mark_unavailable(
+                    "activations",
+                    "mlp_input_relu",
+                    layer_index,
+                    "post_layernorm_relu_absent",
+                )
+                handles.append(
+                    layer.post_attention_layernorm.register_forward_hook(
+                        _activation_output_hook(
+                            accumulator, "mlp_layernorm_raw", layer_index
+                        )
+                    )
+                )
+            else:
+                handles.append(
+                    mlp_relu.register_forward_pre_hook(
+                        _activation_pre_hook(
+                            accumulator, "mlp_layernorm_raw", layer_index
+                        )
+                    )
+                )
+                handles.append(
+                    mlp_relu.register_forward_hook(
+                        _activation_output_hook(
+                            accumulator, "mlp_input_relu", layer_index
+                        )
+                    )
+                )
             handles.append(
                 layer.attention.register_forward_hook(
                     _attention_output_hook(accumulator, layer_index)
@@ -801,11 +840,21 @@ def _capture_model_propagation(
                     _activation_output_hook(accumulator, "mlp_w1_preactivation", layer_index)
                 )
             )
-            handles.append(
-                layer.mlp.act.register_forward_hook(
-                    _activation_output_hook(accumulator, "mlp_hidden_relu", layer_index)
+            if hidden_relu:
+                handles.append(
+                    layer.mlp.act.register_forward_hook(
+                        _activation_output_hook(
+                            accumulator, "mlp_hidden_relu", layer_index
+                        )
+                    )
                 )
-            )
+            else:
+                accumulator.mark_unavailable(
+                    "activations",
+                    "mlp_hidden_relu",
+                    layer_index,
+                    "mlp_hidden_relu_absent",
+                )
             handles.append(
                 layer.mlp.dense_4h_to_h.register_forward_hook(
                     _activation_output_hook(accumulator, "mlp_output", layer_index)

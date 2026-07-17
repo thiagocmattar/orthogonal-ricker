@@ -10,6 +10,7 @@ from paper_exp.activation_propagation import (
     MATMUL_STAGE_ORDER,
     _PropagationAccumulator,
     _capture_model_propagation,
+    _exact_zero_counts,
     _linear_zero_product_counts,
     _patched_eager_attention,
     _probability_value_zero_product_counts,
@@ -342,3 +343,113 @@ def test_real_gpt_neox_diagnostic_preserves_gate_placement_and_legacy_na(
             row["available"] is True
             for row in accumulator.rope_survival_rows(num_layers=1)
         )
+
+
+@pytest.mark.parametrize(
+    ("hidden_act", "hidden_relu_available"),
+    (("gelu", False), ("relu", True)),
+)
+def test_real_gpt_neox_diagnostic_supports_stock_and_mlp_relu_checkpoints(
+    hidden_act: str,
+    hidden_relu_available: bool,
+) -> None:
+    from transformers import GPTNeoXConfig, GPTNeoXForCausalLM
+    from transformers.models.gpt_neox import modeling_gpt_neox
+
+    architecture = GPTNeoXConfig(
+        vocab_size=32,
+        hidden_size=8,
+        intermediate_size=16,
+        num_hidden_layers=1,
+        num_attention_heads=2,
+        max_position_embeddings=16,
+        rotary_pct=0.5,
+        hidden_act=hidden_act,
+        hidden_dropout=0.0,
+        attention_dropout=0.0,
+        use_cache=False,
+        use_parallel_residual=True,
+    )
+    model = GPTNeoXForCausalLM(architecture)
+    model.eval()
+    layer = model.gpt_neox.layers[0]
+    observed_inputs: dict[str, torch.Tensor] = {}
+
+    def record_input(name: str):
+        def hook(_module, inputs):
+            observed_inputs[name] = inputs[0].detach().clone()
+
+        return hook
+
+    recorder_handles = [
+        layer.attention.query_key_value.register_forward_pre_hook(
+            record_input("qkv_projection")
+        ),
+        layer.mlp.dense_h_to_4h.register_forward_pre_hook(record_input("mlp_w1")),
+        layer.mlp.dense_4h_to_h.register_forward_pre_hook(record_input("mlp_w2")),
+    ]
+    accumulator = _PropagationAccumulator(torch)
+    try:
+        with _capture_model_propagation(
+            model,
+            accumulator=accumulator,
+            modeling_gpt_neox=modeling_gpt_neox,
+            torch=torch,
+        ):
+            with torch.no_grad():
+                model.gpt_neox(input_ids=torch.tensor([[1, 2, 3]]), use_cache=False)
+    finally:
+        for handle in recorder_handles:
+            handle.remove()
+
+    activations = accumulator.rows(
+        "activations", ACTIVATION_STAGE_ORDER, num_layers=1
+    )
+    matmuls = accumulator.rows("matmuls", MATMUL_STAGE_ORDER, num_layers=1)
+    activations_by_name = {row["name"]: row for row in activations}
+    matmuls_by_name = {row["name"]: row for row in matmuls}
+
+    for name in ("attention_layernorm_raw", "mlp_layernorm_raw"):
+        assert activations_by_name[name]["available"] is True
+    for name in ("attention_input_relu", "mlp_input_relu"):
+        assert activations_by_name[name] == {
+            "name": name,
+            "layer": 0,
+            "available": False,
+            "unavailable_reason": "post_layernorm_relu_absent",
+            "zero_count": None,
+            "total": None,
+            "exact_zero_fraction": None,
+        }
+
+    hidden_row = activations_by_name["mlp_hidden_relu"]
+    assert hidden_row["available"] is hidden_relu_available
+    if hidden_relu_available:
+        expected_zero_count, expected_total = _exact_zero_counts(
+            observed_inputs["mlp_w2"], torch=torch
+        )
+        assert hidden_row["zero_count"] == expected_zero_count
+        assert hidden_row["total"] == expected_total
+    else:
+        assert hidden_row["unavailable_reason"] == "mlp_hidden_relu_absent"
+        assert hidden_row["zero_count"] is None
+
+    output_widths = {
+        "qkv_projection": int(layer.attention.query_key_value.out_features),
+        "mlp_w1": int(layer.mlp.dense_h_to_4h.out_features),
+        "mlp_w2": int(layer.mlp.dense_4h_to_h.out_features),
+    }
+    for name, output_width in output_widths.items():
+        expected_zero_count, expected_total = _linear_zero_product_counts(
+            observed_inputs[name],
+            output_features=output_width,
+            torch=torch,
+        )
+        assert matmuls_by_name[name]["available"] is True
+        assert matmuls_by_name[name]["zero_count"] == expected_zero_count
+        assert matmuls_by_name[name]["total"] == expected_total
+
+    for name in ("query_qk_input", "key_qk_input", "value_pv_input"):
+        assert activations_by_name[name]["available"] is True
+    for name in ("qk_scores", "probability_value", "attention_output_projection"):
+        assert matmuls_by_name[name]["available"] is True
