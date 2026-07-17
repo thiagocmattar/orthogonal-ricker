@@ -1,0 +1,302 @@
+\documentclass[10pt]{article}
+
+\usepackage[margin=0.72in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{enumitem}
+\usepackage{pdflscape}
+\usepackage{placeins}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue!55!black,
+  urlcolor=blue!55!black
+}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.38em}
+\setlist[itemize]{leftmargin=1.3em, itemsep=0.10em, topsep=0.12em}
+\setlist[enumerate]{leftmargin=1.5em, itemsep=0.14em, topsep=0.14em}
+\captionsetup{font=small, labelfont=bf}
+
+\newcommand{\code}[1]{\texttt{#1}}
+\newcommand{\pct}{\%}
+\newcommand{\tightsection}[1]{\section{#1}\vspace{-0.35em}}
+
+\title{Post-QKV ReLU Placement in Pythia-14M:\\Quality, Exact Zeros, and Logical Compute}
+\author{Thiago Mattar\\\href{mailto:thiagocmattar@gmail.com}{thiagocmattar@gmail.com}}
+\date{2026-07-17}
+
+\begin{document}
+\maketitle
+\vspace{-1.35em}
+
+\begin{quote}
+\begin{itemize}[leftmargin=1.2em]
+\item \textbf{Best tested post-QKV no-pressure placement.} PRE-RoPE Q/K gates plus a V gate raise model-wide zero-product opportunity from 5.90\pct{} for Three-ReLU AdamW to 11.53\pct{}, for only +0.0156 validation loss.
+\item \textbf{Best tested post-QKV pressured tradeoff.} POST-RoPE OR reaches 16.48\pct{} model-wide opportunity for +0.0366 loss versus its AdamW architecture control. POST-RoPE OL1 reaches 17.82\pct{} for +0.0740.
+\item \textbf{Largest sparsity is not the best tradeoff.} PRE-RoPE OR and OL1 reach about 22.7\pct{} model-wide opportunity, but cost +0.486 and +0.524 validation loss versus PRE AdamW.
+\item \textbf{Clipping headroom is concentrated in POST.} Among the tested thresholds and under a shared +0.05 within-sweep validation-loss budget, POST gains 1.12--1.20 percentage points of $R_{\rm model}$; every other tested architecture/method gains at most 0.60 points.
+\item \textbf{RoPE matters.} PRE gate zeros are not automatically QK zeros: RoPE reduces AdamW Q/K zero rates from 8.85/15.12\pct{} at the gates to 6.83/12.78\pct{} at the actual QK operands.
+\item \textbf{Execution remains dense.} All percentages are exact logical zero products. Dense PyTorch does not skip them, so observed tokens/s is not a sparse-kernel speedup.
+\item \textbf{Recommendation.} Keep PRE AdamW and POST OR as the next controls; tune cost-weighted Q/K/V pressure, test pair-aware PRE gates, and benchmark only after a zero-aware kernel exists.
+\end{itemize}
+\end{quote}
+
+\tightsection{Question and Matched Design}
+
+The test asks where post-QKV ReLUs should sit and whether OR or OL1 can exploit them without erasing attention quality. Every run is random-initialized Pythia-14M pretraining over the same MiniPile token-cache pass: 22,762 optimizer steps, 1,491,730,432 training tokens, seed 0, bf16, one RTX 5070 Ti Laptop GPU, and full validation on 692,224 tokens.
+
+The control ladder is:
+\begin{itemize}
+\item \textbf{Stock:} GELU only in the MLP hidden path.
+\item \textbf{One-ReLU:} ReLU only at \code{mlp\_hiddens}.
+\item \textbf{Three-ReLU:} ReLU at \code{attention\_inputs}, \code{mlp\_inputs}, and \code{mlp\_hiddens}.
+\item \textbf{Six-ReLU PRE:} Three-ReLU plus separate Q/K ReLUs before RoPE and a V ReLU before PV.
+\item \textbf{Six-ReLU POST:} Three-ReLU plus separate Q/K ReLUs after RoPE and a V ReLU before PV.
+\end{itemize}
+The final model LayerNorm is unchanged in every case.
+
+The figure generator pins exact run IDs in \code{REPORT05\_PINNED\_RUN\_IDS} rather than selecting newer siblings. Config 50 is clean; included legacy configs 77, 79, 81, 98, 99, and 103 have coherent artifact envelopes but record \code{git\_dirty: true}. Configs 107--112 were launched from clean commit \code{f00a5cd}.
+
+OR is orthogonal Ricker pressure; OL1 is orthogonal L1 pressure. They target only the gates introduced by each architecture: $h$ for One-ReLU; $a,m,h$ for Three-ReLU; and Q/K/V for PRE and POST. The original three gates remain active but unpressured in both Six-ReLU families. All architectures contain 14,067,712 trainable parameters; ReLUs and these pressure rules add no parameters.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{../../figures/91-pythia-14m-minipile-relu-architecture-ladder.pdf}
+\caption{One Pythia-14M parallel-residual block for each ReLU architecture. QKV maps $128\rightarrow384$, $W_1$ maps $128\rightarrow512$, and $W_2$ maps $512\rightarrow128$. Magenta gates create exact zeros; blue boxes are learned projections.}
+\label{fig:architecture}
+\end{figure}
+
+For one block, with $d=128$, four heads, and head width $d_h=32$,
+\begin{align*}
+a_l &= \operatorname{ReLU}(\operatorname{LN}^{\rm att}_l(H_l)),
+& [Q_l^0,K_l^0,V_l^0] &= a_lW_{{\rm qkv},l}+b_{{\rm qkv},l},\\
+S_l &= Q_lK_l^\top/\sqrt{d_h},
+& P_l &= \operatorname{softmax}(\operatorname{causal\_mask}(S_l)),\\
+C_l &= P_lV_l,
+& O_l &= C_lW_{o,l}+b_{o,l},\\
+m_l &= \operatorname{ReLU}(\operatorname{LN}^{\rm mlp}_l(H_l)),
+& h_l &= \operatorname{ReLU}(m_lW_{1,l}+b_{1,l}),\\
+M_l &= h_lW_{2,l}+b_{2,l},
+& H_{l+1} &= H_l+O_l+M_l.
+\end{align*}
+One-ReLU omits the first two displayed ReLUs; stock also replaces the hidden ReLU with GELU. PRE uses $Q=\operatorname{RoPE}(\operatorname{ReLU}(Q^0))$ and $K=\operatorname{RoPE}(\operatorname{ReLU}(K^0))$. POST uses $Q=\operatorname{ReLU}(\operatorname{RoPE}(Q^0))$ and likewise for K. Both use $V=\operatorname{ReLU}(V^0)$. Plain ReLU is not useful after softmax because valid $P$ entries are positive; learnable probability thresholding remains a separate TODO.
+
+For $T=2{,}048$, $Q,K,V\in\mathbb{R}^{T\times4\times32}$, $S,P\in\mathbb{R}^{4\times T\times T}$, and the concatenated context $C\in\mathbb{R}^{T\times128}$.
+
+\tightsection{Training Endpoints}
+
+\begin{table}[H]
+\centering
+\caption{Matched one-pass endpoints. The Parameters column lists nondefault pressure settings and sites: $w$ is pressure weight, $c$ is the Ricker zero-crossing radius/shape parameter, $\sigma$ is its Gaussian-envelope width, $b$ is the Adam-step budget, and $a,m,h$ are attention input, MLP input, and MLP hidden. Every row has 14,067,712 trainable parameters.}
+\label{tab:endpoints}
+\scriptsize
+\setlength{\tabcolsep}{3.8pt}
+\begin{tabularx}{\textwidth}{rllXrrr}
+\toprule
+Config & Architecture & Name & Parameters & Val. loss & Time (h) & Tokens/s \\
+\midrule
+50  & Stock (GELU) & AdamW & --- & 4.8317 & 3.010 & 137,648 \\
+77  & One-ReLU & AdamW & --- & 4.8404 & 2.897 & 143,021 \\
+79  & One-ReLU & OR & $w=1,c=\sigma=.05,b=.5;\ h$ & 4.8087 & 4.018 & 103,131 \\
+81  & One-ReLU & OL1 & $w=5,b=.5;\ h$ & 4.7981 & 3.788 & 109,379 \\
+98  & Three-ReLU & AdamW & --- & 4.9564 & 3.449 & 120,139 \\
+103 & Three-ReLU & OR & $w=1,c=\sigma=.05,b=.5;\ a,m,h$ & 5.0091 & 4.404 & 94,086 \\
+99  & Three-ReLU & OL1 & $w=5,b=.5;\ a,m,h$ & 5.1706 & 4.318 & 95,971 \\
+107 & Six-ReLU PRE & AdamW & --- & 4.9720 & 3.389 & 122,279 \\
+108 & Six-ReLU PRE & OR & $w=1,c=\sigma=.05,b=.5;\ Q,K,V$ & 5.4577 & 4.477 & 92,566 \\
+109 & Six-ReLU PRE & OL1 & $w=5,b=.5;\ Q,K,V$ & 5.4962 & 4.035 & 102,701 \\
+110 & Six-ReLU POST & AdamW & --- & 5.0991 & 3.455 & 119,932 \\
+111 & Six-ReLU POST & OR & $w=1,c=\sigma=.05,b=.5;\ Q,K,V$ & 5.1358 & 4.212 & 98,389 \\
+112 & Six-ReLU POST & OL1 & $w=5,b=.5;\ Q,K,V$ & 5.1731 & 4.087 & 101,399 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+The AdamW architecture comparison isolates placement. One-ReLU is essentially loss-neutral versus stock (+0.0087). Three-ReLU costs +0.1247. Adding PRE gates to Three-ReLU costs only another +0.0156, whereas POST costs +0.1427. Within architectures, One-ReLU OR/OL1 improve the single-run endpoint; Three-ReLU OR has a modest +0.0527 cost; PRE pressure is expensive; POST OR remains close to its control.
+
+Training throughput follows dense execution and method overhead. One-ReLU AdamW happens to be faster than stock, while additional gates and the extra pressure-gradient work reduce throughput elsewhere. PyTorch does not automatically turn scalar ReLU zeros into skipped dense matmul work, so these timings should not be interpreted as sparsity speedups.
+
+\begin{figure}[p]
+\centering
+\includegraphics[width=\textwidth]{../../figures/92-pythia-14m-minipile-relu-architecture-learning-curves.pdf}
+\caption{Full-validation learning curves. Stock GELU AdamW is repeated as the common reference; every point evaluates the complete 692,224-token validation set. These are single runs without uncertainty bands.}
+\label{fig:learning}
+\end{figure}
+\clearpage
+
+\tightsection{Exact Zeros and Logical Products}
+
+An activation coordinate is exactly zero only when its computed floating-point value satisfies $x=0$; no tolerance or histogram bin is used. Counts pool all 338 complete sequences, all six layers, and all feature/head coordinates. The final 1,444 cache tokens that do not form a complete 2,048-token block are excluded.
+
+For operation $o\in\{\mathrm{QKV},\mathrm{QK},\mathrm{PV},W_o,W_1,W_2\}$, a logical product is zero when its activation operand is zero; for QK and PV, either operand may be zero. Only valid causal QK/PV pairs are counted. Define
+\begin{align*}
+R_{\rm block}
+&=\frac{\sum_{l,o}Z^{\rm prod}_{l,o}}{\sum_{l,o}N^{\rm prod}_{l,o}},\\
+R_{\rm model}
+&=\frac{\sum_{l,o}Z^{\rm prod}_{l,o}}
+{\sum_{l,o}N^{\rm prod}_{l,o}+N_{\rm tok}d|\mathcal V|},
+\qquad |\mathcal V|=50{,}304.
+\end{align*}
+The pooled block denominator is 1,905,886,494,720 products; the dense LM head adds 4,457,169,420,288. Thus $R_{\rm model}=0.299524R_{\rm block}$ here. No head sparsity is credited, and neither fraction is measured latency.
+
+\begin{landscape}
+\begin{table}[H]
+\centering
+\caption{Full-validation exact-zero outcomes. $z_a,z_m,z_h$ are pooled rates at the attention-input, MLP-input, and MLP-hidden ReLU outputs; $z_Q^g,z_K^g,z_V$ are post-QKV gate-output rates. An em dash means that gate does not exist. $R_{\rm block}$ and $R_{\rm model}$ use actual matmul operands, so PRE Q/K are counted after RoPE.}
+\label{tab:zeros}
+\scriptsize
+\setlength{\tabcolsep}{3.5pt}
+\begin{tabular}{rllrrrrrrrrr}
+\toprule
+Cfg. & Architecture & Method & Val. loss & $z_a$ & $z_m$ & $z_h$ & $z_Q^g$ & $z_K^g$ & $z_V$ & $R_{\rm block}$ & $R_{\rm model}$ \\
+\midrule
+50  & Stock & AdamW & 4.8317 & --- & --- & --- & --- & --- & --- & 0.00\pct{} & 0.00\pct{} \\
+77  & One & AdamW & 4.8404 & --- & --- & 52.06\pct{} & --- & --- & --- & 7.44\pct{} & 2.23\pct{} \\
+79  & One & OR & 4.8087 & --- & --- & 93.21\pct{} & --- & --- & --- & 13.31\pct{} & 3.99\pct{} \\
+81  & One & OL1 & 4.7981 & --- & --- & 93.57\pct{} & --- & --- & --- & 13.36\pct{} & 4.00\pct{} \\
+98  & Three & AdamW & 4.9564 & 49.54\pct{} & 50.14\pct{} & 50.72\pct{} & --- & --- & --- & 19.71\pct{} & 5.90\pct{} \\
+103 & Three & OR & 5.0091 & 72.74\pct{} & 71.00\pct{} & 75.15\pct{} & --- & --- & --- & 28.66\pct{} & 8.59\pct{} \\
+99  & Three & OL1 & 5.1706 & 83.07\pct{} & 39.25\pct{} & 48.87\pct{} & --- & --- & --- & 21.48\pct{} & 6.43\pct{} \\
+107 & PRE & AdamW & 4.9720 & 48.90\pct{} & 50.09\pct{} & 50.74\pct{} & 8.85\pct{} & 15.12\pct{} & 47.77\pct{} & 38.48\pct{} & 11.53\pct{} \\
+108 & PRE & OR & 5.4577 & 48.29\pct{} & 49.75\pct{} & 51.02\pct{} & 90.62\pct{} & 92.21\pct{} & 94.32\pct{} & 76.03\pct{} & 22.77\pct{} \\
+109 & PRE & OL1 & 5.4962 & 47.50\pct{} & 48.68\pct{} & 51.17\pct{} & 100.00\pct{} & 100.00\pct{} & 94.28\pct{} & 75.73\pct{} & 22.68\pct{} \\
+110 & POST & AdamW & 5.0991 & 48.52\pct{} & 50.06\pct{} & 50.11\pct{} & 15.68\pct{} & 23.18\pct{} & 49.24\pct{} & 43.12\pct{} & 12.91\pct{} \\
+111 & POST & OR & 5.1358 & 48.56\pct{} & 49.82\pct{} & 50.19\pct{} & 64.13\pct{} & 65.77\pct{} & 50.39\pct{} & 55.03\pct{} & 16.48\pct{} \\
+112 & POST & OL1 & 5.1731 & 48.54\pct{} & 49.72\pct{} & 50.37\pct{} & 81.21\pct{} & 81.39\pct{} & 51.33\pct{} & 59.50\pct{} & 17.82\pct{} \\
+\bottomrule
+\end{tabular}
+\end{table}
+\end{landscape}
+
+The table separates sparsity from quality. PRE OR/OL1 nearly eliminate Q/K/V operands and maximize logical opportunity, but their loss increase is large. POST pressure produces less extreme attention sparsity and a substantially better quality tradeoff. One-ReLU pressure is inexpensive in quality and reaches 4.00\pct{}, near the W2-only theoretical $R_{\rm model}$ ceiling of 4.278\pct{}.
+
+RoPE changes the PRE mask before QK:
+\begin{center}
+\begin{tabular}{lrrrr}
+\toprule
+PRE method & $z_Q^g$ & $z_Q^{QK}$ & $z_K^g$ & $z_K^{QK}$ \\
+\midrule
+AdamW & 8.85\pct{} & 6.83\pct{} & 15.12\pct{} & 12.78\pct{} \\
+OR & 90.62\pct{} & 88.36\pct{} & 92.21\pct{} & 90.58\pct{} \\
+OL1 & 100.00\pct{} & 100.00\pct{} & 100.00\pct{} & 100.00\pct{} \\
+\bottomrule
+\end{tabular}
+\end{center}
+An isolated zero in a rotary pair can be repopulated by its paired coordinate. An all-zero pair stays zero; the non-rotary coordinates also pass through unchanged. POST gates operate on the final QK operands, so their gate and operand rates coincide.
+
+\tightsection{Where Exact Zeros Persist}
+
+The following four figures use the same computation order. Each architecture is a 1$\times$3 comparison of AdamW, OR, and OL1; columns L0--L5 are layer-specific and ``All'' pools integer counts. The compact labels make the densification boundaries visible without overflowing heatmap cells.
+
+\begin{figure}[p]
+\centering
+\includegraphics[width=\textwidth]{../../figures/93-pythia-14m-minipile-one-relu-zero-propagation.pdf}
+\caption{One-ReLU propagation. The hidden ReLU creates zeros immediately before $W_2$; the dense $W_2$ sum and parallel residual do not preserve that mask.}
+\end{figure}
+
+\begin{figure}[p]
+\centering
+\includegraphics[width=\textwidth]{../../figures/94-pythia-14m-minipile-three-relu-zero-propagation.pdf}
+\caption{Three-ReLU propagation. Attention-input and MLP-input zeros expose QKV and $W_1$ products, but the corresponding projection outputs become dense; the hidden ReLU creates a separate $W_2$ mask.}
+\end{figure}
+
+\begin{figure}[p]
+\centering
+\includegraphics[width=\textwidth]{../../figures/95-pythia-14m-minipile-six-relu-pre-zero-propagation.pdf}
+\caption{Six-ReLU PRE propagation. Q/K gates act before RoPE, so the gate and actual QK-operand rows differ. V zeros enter PV directly; when they cover every contributing value coordinate they also yield exact-zero context entries before $W_o$.}
+\end{figure}
+
+\begin{figure}[p]
+\centering
+\includegraphics[width=\textwidth]{../../figures/96-pythia-14m-minipile-six-relu-post-zero-propagation.pdf}
+\caption{Six-ReLU POST propagation. Q/K gates directly define the QK operands; the V gate defines the sparse side of PV. Softmax $P$ remains positive on valid positions, while context, output projection, and residual stream are effectively dense.}
+\end{figure}
+\clearpage
+
+The mechanism is usually local. A zero before a linear projection removes one input--weight product for every output coordinate, but the output coordinate sums the remaining dense inputs. POST Q/K gates directly define QK operands; PRE gates do so only where their zeros survive RoPE. V gates expose PV products even though $P$ stays positive. PV can also preserve substantial exact-zero context---33.02\pct{} for PRE OR and 24.08\pct{} for PRE OL1---before $W_o$ makes its output effectively dense.
+
+\tightsection{Activation and Weight Distributions}
+
+Exact-zero atoms are already reported in Table~\ref{tab:zeros}; the activation curves below show density conditional on $x\neq0$. Weight curves pool the six final-checkpoint matrices. Q/K/V consumers have no single learned downstream matrix: Q and K enter QK, while V is multiplied by $P$.
+
+\begin{figure}[p]
+\centering
+\includegraphics[width=\textwidth]{../../figures/97-pythia-14m-minipile-one-relu-activation-weight-densities.pdf}
+\caption{One-ReLU activation and downstream learned-weight densities. OR and OL1 strongly change the surviving MLP-hidden distribution while the learned matrices remain dense.}
+\end{figure}
+
+\begin{figure}[p]
+\centering
+\includegraphics[width=\textwidth]{../../figures/98-pythia-14m-minipile-three-relu-activation-weight-densities.pdf}
+\caption{Three-ReLU activation and downstream learned-weight densities at the QKV, $W_1$, and $W_2$ interfaces.}
+\end{figure}
+
+\begin{figure}[p]
+\centering
+\includegraphics[width=\textwidth]{../../figures/99-pythia-14m-minipile-six-relu-pre-activation-weight-densities.pdf}
+\caption{Six-ReLU PRE activation and weight densities. The Q/K/V panels show the nonzero tail at the new gates; exact-zero mass is intentionally not converted into a density spike. PRE OL1 leaves no nonzero Q values and only two nonzero K values, so its Q curve is absent and its K tail is not distributionally meaningful.}
+\end{figure}
+
+\begin{figure}[p]
+\centering
+\includegraphics[width=\textwidth]{../../figures/100-pythia-14m-minipile-six-relu-post-activation-weight-densities.pdf}
+\caption{Six-ReLU POST activation and weight densities. Shared method identities make the placement-dependent change in the surviving Q/K tail directly comparable with PRE.}
+\end{figure}
+\clearpage
+
+The distribution shift follows the pressure scope. Where nonzero Q/K/V values remain, their conditional distributions and QKV weights separate by method; $W_1$ and $W_2$ curves largely overlap, consistent with $a,m,h$ remaining unpressured. One- and Three-ReLU pressure instead changes the surviving MLP/input distributions and their downstream matrices more visibly.
+
+\tightsection{Post-Hoc Clipping Frontiers}
+
+Post-hoc clipping replaces values with zero when $|x|\leq t$ for $t\in\{0,.001,.003,.01,.03,.05,.075,.1,.15,.2,.3\}$. Every sweep evaluates the full validation cache. Loss change is measured from threshold zero within the same sweep; this is required because direct QK/PV counting forces eager attention. Site-specific curves isolate sensitivity. Joint curves clip every ReLU gate present in the architecture and count the resulting actual logical products.
+
+\begin{figure}[p]
+\centering
+\includegraphics[width=\textwidth]{../../figures/101-pythia-14m-minipile-relu-architecture-site-clipping-frontiers.pdf}
+\caption{Site-specific clipping frontiers with one architecture per row. All panels share axes; gray cells mark gates absent from an architecture. Exact-zero percentage is measured at the clipped site, and loss change is relative to that run's threshold-zero point.}
+\label{fig:site-frontiers}
+\end{figure}
+
+\begin{figure}[p]
+\centering
+\includegraphics[width=\textwidth]{../../figures/102-pythia-14m-minipile-relu-architecture-model-compute-frontiers.pdf}
+\caption{Joint clipping versus potentially avoidable model matmul products. The numerator directly counts QKV, valid-causal QK, valid-causal PV, $W_o$, $W_1$, and $W_2$ zero products; the denominator also includes the dense LM head. Stars mark threshold zero, whose x-coordinate is already nonzero when the trained ReLU gates create exact zeros.}
+\label{fig:model-frontiers}
+\end{figure}
+\clearpage
+
+\textbf{Frontier readout.} At the best tested joint threshold under a shared $\Delta\mathcal{L}_{\rm val}\leq0.05$ budget, $R_{\rm model}$ rises from 2.23 to 2.55\pct{} for One-ReLU AdamW, 5.90 to 6.28\pct{} for Three-ReLU AdamW, 11.53 to 11.91\pct{} for PRE AdamW, and 12.91 to 14.11\pct{} for POST AdamW. POST retains the clearest headroom across methods: OR rises from 16.48 to 17.60\pct{} and OL1 from 17.82 to 18.98\pct{}, whereas every non-POST gain is at most 0.60 points. PRE OR and OL1 both end near 23.28\pct{} because their Q/K gates are already nearly saturated. Site isolation favors nonuniform thresholds: at $t=.075$, POST V rises from 49--51\pct{} to 66--69\pct{} exact zeros within the same loss budget, while Q/K tolerate $t=.3$ with little loss. This supports per-site learned thresholds over one global cutoff.
+
+\tightsection{Conclusions and Next Test}
+
+\begin{itemize}
+\item \textbf{PRE is the stronger architecture control.} Relative to Three-ReLU AdamW, it almost doubles $R_{\rm model}$ with little additional loss. It is the cleanest evidence that post-QKV gating can open QK/PV sparsification paths.
+\item \textbf{POST is the stronger pressured control.} OR adds 3.57 percentage points of model-wide opportunity for +0.0366 loss; OL1 adds 4.91 points for +0.0740. Both avoid PRE pressure's much larger loss cost in this one-seed test.
+\item \textbf{PRE pressure is too aggressive at the inherited setting.} OR/OL1 drive Q/K/V toward 90--100\pct{} zeros and roughly 22.7\pct{} model-wide opportunity, but lose about half a validation-loss point. This setting should be tuned, not declared ineffective.
+\item \textbf{Placement changes what the zero means.} PRE gates are upstream of RoPE and need pair-level survival accounting. POST gates act on the final QK operands. V is already a direct PV sparsity interface in both cases.
+\item \textbf{Dense timing answers a different question.} Gate and pressure overhead is visible, but no run measures sparse-kernel acceleration. Logical opportunity must be validated with an execution format that consumes it.
+\item \textbf{Scope is limited.} All comparisons are one seed, one model size, one token pass, and full-sequence training attention; they provide mechanism evidence, not uncertainty-qualified final estimates.
+\end{itemize}
+
+Recommended next steps, in order:
+\begin{enumerate}
+\item \textbf{Tune the Q/K/V budget.} Sweep smaller OR/OL1 weights and step budgets for PRE and POST, using $R_{\rm model}$ rather than mean gate sparsity as the target. Keep PRE AdamW and POST OR as fixed references.
+\item \textbf{Separate QK from PV.} Run Q/K-only, V-only, and Q/K/V gates. This tests whether PRE's loss comes from near-erasing attention scores, values, or both.
+\item \textbf{Make PRE pair-aware.} Gate rotary coordinate pairs together so RoPE cannot repopulate an isolated scalar zero. Compare pair sparsity, QK products, and loss with the scalar PRE gate.
+\item \textbf{Use clipping to initialize learnable thresholds.} Learn one nonnegative threshold per layer/site under a global product budget. Keep probability $P$ as a later threshold-and-renormalize TODO rather than applying plain ReLU after softmax.
+\item \textbf{Measure execution.} Implement or reuse zero-aware QK/PV and projection kernels, then report latency, memory traffic, and energy alongside logical products.
+\item \textbf{Add uncertainty before scale-up.} Repeat the surviving controls across seeds at 14M, then retest rather than extrapolate their zero rates to larger Pythia models.
+\end{enumerate}
+
+The immediate recommendation is therefore: \textbf{retain PRE AdamW as the architecture result and POST OR as the pressure result; next run a lower-pressure Q/K-only versus V-only matrix, with pair-aware PRE gating as the main architectural follow-up.}
+
+\end{document}

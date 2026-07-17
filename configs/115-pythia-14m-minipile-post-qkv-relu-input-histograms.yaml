@@ -36,8 +36,8 @@ activation_histograms:
     - attention_inputs
     - mlp_inputs
   bins: 180
-  range_min: -4.0
-  range_max: 4.0
+  range_min: -8.0
+  range_max: 8.0
   thresholds:
     - 0.0
   plot_title: Report 05 Attention and MLP Input Activation Densities

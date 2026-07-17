@@ -2,6 +2,16 @@
 
 This folder is used for internal discussion reports. Keep report source and final PDFs trackable; keep run logs and LaTeX auxiliary files ignored.
 
+## Report Index
+
+| Report | Topic | PDF |
+| --- | --- | --- |
+| `01` | Initial status update | `01-2026-06-29-status-update/01-2026-06-29-status-update.pdf` |
+| `02` | Method candidate review | `02-2026-07-05-status-update/02-2026-07-05-status-update.pdf` |
+| `03` | ReLU site-scope comparison | `03-2026-07-09-relu-site-scope-comparison/03-2026-07-09-relu-site-scope-comparison.pdf` |
+| `04` | Post-LayerNorm Three-ReLU comparison | `04-2026-07-11-post-layernorm-relu-ol1-comparison/04-2026-07-11-post-layernorm-relu-ol1-comparison.pdf` |
+| `05` | Post-QKV ReLU placement comparison | `05-2026-07-17-post-qkv-relu-placement-comparison/05-2026-07-17-post-qkv-relu-placement-comparison.pdf` |
+
 ## Naming
 
 Use one numbered folder per report:

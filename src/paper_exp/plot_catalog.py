@@ -1,4 +1,4 @@
-"""Searchable metadata for the Report 04 paper-figure suite.
+"""Searchable metadata for the Report 04 and Report 05 paper-figure suites.
 
 The catalog describes figure ownership and saved-input requirements only.  It
 does not select runs, load artifacts, or render figures.
@@ -121,6 +121,74 @@ REPORT04_FIGURES = (
 )
 
 
+REPORT05_FIGURES = (
+    PlotCatalogEntry(
+        91,
+        "91-pythia-14m-minipile-relu-architecture-ladder.pdf",
+        "architecture_diagram",
+        (),
+        "generate_report05_architecture_schematic",
+        True,
+    ),
+    PlotCatalogEntry(
+        92,
+        "92-pythia-14m-minipile-relu-architecture-learning-curves.pdf",
+        "learning_curves",
+        ("events.jsonl",),
+        "generate_report05_learning_curves",
+        True,
+    ),
+    *(
+        PlotCatalogEntry(
+            number,
+            f"{number}-pythia-14m-minipile-{slug}-zero-propagation.pdf",
+            f"{architecture_id}_activation_propagation_heatmap",
+            ("activation_propagation.json",),
+            f"generate_report05_{architecture_id}_propagation",
+            True,
+        )
+        for number, architecture_id, slug in (
+            (93, "one_relu", "one-relu"),
+            (94, "three_relu", "three-relu"),
+            (95, "six_relu_pre", "six-relu-pre"),
+            (96, "six_relu_post", "six-relu-post"),
+        )
+    ),
+    *(
+        PlotCatalogEntry(
+            number,
+            f"{number}-pythia-14m-minipile-{slug}-activation-weight-densities.pdf",
+            f"{architecture_id}_activation_weight_density",
+            ("activation_histograms.json", "checkpoints/final/model.safetensors"),
+            f"generate_report05_{architecture_id}_distributions",
+            True,
+        )
+        for number, architecture_id, slug in (
+            (97, "one_relu", "one-relu"),
+            (98, "three_relu", "three-relu"),
+            (99, "six_relu_pre", "six-relu-pre"),
+            (100, "six_relu_post", "six-relu-post"),
+        )
+    ),
+    PlotCatalogEntry(
+        101,
+        "101-pythia-14m-minipile-relu-architecture-site-clipping-frontiers.pdf",
+        "site_clipping_frontier",
+        ("clipping_frontier.jsonl",),
+        "generate_report05_site_clipping_frontiers",
+        True,
+    ),
+    PlotCatalogEntry(
+        102,
+        "102-pythia-14m-minipile-relu-architecture-model-compute-frontiers.pdf",
+        "logical_compute_frontier",
+        ("clipping_frontier.jsonl",),
+        "generate_report05_model_compute_frontiers",
+        True,
+    ),
+)
+
+
 def list_report04_figures(*, embedded_only: bool = False) -> tuple[PlotCatalogEntry, ...]:
     """Return Report 04 entries in stable figure-number order."""
 
@@ -148,6 +216,42 @@ def report04_catalog_rows(*, embedded_only: bool = False) -> tuple[str, ...]:
 
     rows = []
     for entry in list_report04_figures(embedded_only=embedded_only):
+        artifacts = ", ".join(entry.required_artifact_kinds) or "none"
+        report_status = "embedded" if entry.embedded_in_report else "generated only"
+        rows.append(
+            f"{entry.number} | {entry.plot_type} | {entry.filename} | "
+            f"artifacts: {artifacts} | wrapper: {entry.public_wrapper} | {report_status}"
+        )
+    return tuple(rows)
+
+
+def list_report05_figures(*, embedded_only: bool = False) -> tuple[PlotCatalogEntry, ...]:
+    """Return Report 05 entries in stable figure-number order."""
+
+    if not embedded_only:
+        return REPORT05_FIGURES
+    return tuple(entry for entry in REPORT05_FIGURES if entry.embedded_in_report)
+
+
+def get_report05_figure(identifier: int | str) -> PlotCatalogEntry:
+    """Look up a Report 05 figure by number, filename, type, or wrapper."""
+
+    for entry in REPORT05_FIGURES:
+        if identifier in {
+            entry.number,
+            entry.filename,
+            entry.plot_type,
+            entry.public_wrapper,
+        }:
+            return entry
+    raise KeyError(f"Unknown Report 05 figure: {identifier!r}")
+
+
+def report05_catalog_rows(*, embedded_only: bool = False) -> tuple[str, ...]:
+    """Return deterministic, human-readable Report 05 catalog rows."""
+
+    rows = []
+    for entry in list_report05_figures(embedded_only=embedded_only):
         artifacts = ", ".join(entry.required_artifact_kinds) or "none"
         report_status = "embedded" if entry.embedded_in_report else "generated only"
         rows.append(

@@ -37,12 +37,14 @@ from paper_exp.plot_common import (
     _trimmed_decimal_tick,
 )
 from paper_exp.plot_api import (
+    DOUBLE_COLUMN_WIDTH_INCHES,
     REPORT04_PUBLICATION_PROFILE,
     GridLayout,
+    PublicationProfile,
     export_figure,
     publish_staged_outputs,
 )
-from paper_exp.plot_catalog import REPORT04_FIGURES
+from paper_exp.plot_catalog import REPORT04_FIGURES, REPORT05_FIGURES
 from paper_exp.plot_report04 import (
     POST_LAYERNORM_RELU_PROPAGATION_EXPERIMENT,
     PROPAGATION_ACTIVATION_ROWS,
@@ -80,6 +82,35 @@ from paper_exp.plot_report04 import (
     _plot_report04_pythia_family_compute_ceiling,
     _plot_report04_site_clipping_frontiers,
     _plot_report04_three_relu_architecture,
+)
+from paper_exp.plot_report05 import (
+    REPORT05_ARCHITECTURE_FAMILIES,
+    REPORT05_GATE_HISTOGRAM_EXPERIMENT,
+    REPORT05_INPUT_HISTOGRAM_EXPERIMENT,
+    REPORT05_MLP_HISTOGRAM_EXPERIMENT,
+    REPORT05_PINNED_RUN_IDS,
+    REPORT05_PROPAGATION_EXPERIMENT,
+    REPORT05_TRAINING_RUNS,
+    _plot_report05_architecture_schematic,
+    _plot_report05_validation_learning_curves,
+)
+from paper_exp.plot_report05_clipping import (
+    REPORT05_ACTIVE_CLIPPING_SITES,
+    _plot_report05_model_matmul_frontiers,
+    _plot_report05_site_clipping_frontiers,
+    _reduce_report05_model_matmul_frontiers,
+    _reduce_report05_site_clipping_frontiers,
+)
+from paper_exp.plot_report05_diagnostics import (
+    REPORT05_HEATMAP_PROFILE,
+    _plot_report05_one_relu_distributions,
+    _plot_report05_one_relu_propagation_heatmaps,
+    _plot_report05_six_relu_post_distributions,
+    _plot_report05_six_relu_post_propagation_heatmaps,
+    _plot_report05_six_relu_pre_distributions,
+    _plot_report05_six_relu_pre_propagation_heatmaps,
+    _plot_report05_three_relu_distributions,
+    _plot_report05_three_relu_propagation_heatmaps,
 )
 from paper_exp.plot_style import (
     ADAMW_COLOR,
@@ -1472,6 +1503,356 @@ def _generate_known_paper_figures(results_path: Path, figures_path: Path, *, sav
 
 class Report04InputError(RuntimeError):
     """Raised when the strict Report 04 suite cannot resolve every input."""
+
+
+class Report05InputError(RuntimeError):
+    """Raised when the strict Report 05 suite cannot resolve every input."""
+
+
+_REPORT05_METHODS = ("AdamW", "OR", "OL1")
+_REPORT05_STANDARD_PROFILE = PublicationProfile(
+    width_inches=DOUBLE_COLUMN_WIDTH_INCHES,
+    max_height_inches=8.8,
+    min_text_points=8.0,
+)
+_REPORT05_THREE_RELU_SITE_SUFFIX = {
+    "attention_inputs": "report04-attention-inputs",
+    "mlp_inputs": "report04-mlp-inputs",
+    "mlp_hiddens": "report04-mlp-hiddens",
+}
+_REPORT05_SIX_RELU_SITE_SUFFIX = {
+    "attention_inputs": "r05s-a",
+    "mlp_inputs": "r05s-m",
+    "mlp_hiddens": "r05s-h",
+    "query_gate_outputs": "r05s-q",
+    "key_gate_outputs": "r05s-k",
+    "value_gate_outputs": "r05s-v",
+}
+
+
+def generate_report05_figures(
+    results_dir: str | Path,
+    figures_dir: str | Path,
+    save_png: bool = False,
+    strict: bool = True,
+) -> list[Path]:
+    """Generate the complete Report 05 suite from its pinned training cohort.
+
+    Strict mode resolves every saved input before rendering and publishes the
+    staged suite atomically. ``strict=False`` is an explicit exploratory mode:
+    it renders only complete figure families and does not weaken the exact-run
+    selection used by any family that is present.
+    """
+
+    if not strict:
+        return _generate_report05_figures_in_place(
+            results_dir,
+            figures_dir,
+            save_png=save_png,
+            strict=False,
+        )
+
+    figures_path = Path(figures_dir)
+    figures_path.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(
+        prefix=".report05-stage-",
+        dir=figures_path.parent,
+    ) as staging_directory:
+        staged_outputs = _generate_report05_figures_in_place(
+            results_dir,
+            staging_directory,
+            save_png=save_png,
+            strict=True,
+        )
+        figures_path.mkdir(parents=True, exist_ok=True)
+        final_outputs = [figures_path / path.name for path in staged_outputs]
+        publish_staged_outputs(dict(zip(final_outputs, staged_outputs, strict=True)))
+    return final_outputs
+
+
+def _generate_report05_figures_in_place(
+    results_dir: str | Path,
+    figures_dir: str | Path,
+    *,
+    save_png: bool,
+    strict: bool,
+) -> list[Path]:
+    results_path = Path(results_dir)
+    figures_path = Path(figures_dir)
+
+    training_events = _pinned_report05_training_runs(results_path, "events.jsonl")
+    training_checkpoints = _pinned_report05_training_runs(
+        results_path,
+        "checkpoints/final/model.safetensors",
+    )
+    propagation_run = _latest_run_with(
+        results_path / REPORT05_PROPAGATION_EXPERIMENT,
+        "activation_propagation.json",
+        require_complete_run=True,
+    )
+    histogram_runs = {
+        "inputs": _latest_run_with(
+            results_path / REPORT05_INPUT_HISTOGRAM_EXPERIMENT,
+            "activation_histograms.json",
+            require_complete_run=True,
+        ),
+        "mlp_hiddens": _latest_run_with(
+            results_path / REPORT05_MLP_HISTOGRAM_EXPERIMENT,
+            "activation_histograms.json",
+            require_complete_run=True,
+        ),
+        "gates": _latest_run_with(
+            results_path / REPORT05_GATE_HISTOGRAM_EXPERIMENT,
+            "activation_histograms.json",
+            require_complete_run=True,
+        ),
+    }
+    site_clipping_runs = _report05_site_clipping_runs(results_path)
+    joint_clipping_runs = _report05_joint_clipping_runs(results_path)
+
+    issues = _report05_input_issues(
+        training_events=training_events,
+        training_checkpoints=training_checkpoints,
+        propagation_run=propagation_run,
+        histogram_runs=histogram_runs,
+        site_clipping_runs=site_clipping_runs,
+        joint_clipping_runs=joint_clipping_runs,
+    )
+    if strict and issues:
+        details = "\n".join(f"- {issue}" for issue in issues)
+        raise Report05InputError(
+            "Report 05 input preflight failed; no figures were generated:\n"
+            f"{details}\n"
+            "Use --allow-partial to generate only complete figure families."
+        )
+
+    outputs: list[Path] = []
+
+    def output(number: int) -> Path:
+        entry = next(entry for entry in REPORT05_FIGURES if entry.number == number)
+        return figures_path / entry.filename
+
+    outputs.extend(
+        generate_report05_architecture_schematic(
+            output=output(91),
+            save_png=save_png,
+        )
+    )
+
+    training_complete = len(training_events) == len(REPORT05_TRAINING_RUNS)
+    checkpoints_complete = len(training_checkpoints) == len(REPORT05_TRAINING_RUNS)
+    histograms_complete = all(histogram_runs.values())
+    site_clipping_complete = _report05_site_clipping_complete(site_clipping_runs)
+    joint_clipping_complete = _report05_joint_clipping_complete(joint_clipping_runs)
+
+    if training_complete:
+        outputs.extend(
+            generate_report05_learning_curves(
+                runs=training_events,
+                output=output(92),
+                save_png=save_png,
+            )
+        )
+
+    if propagation_run is not None:
+        propagation_generators = (
+            (93, generate_report05_one_relu_propagation),
+            (94, generate_report05_three_relu_propagation),
+            (95, generate_report05_six_relu_pre_propagation),
+            (96, generate_report05_six_relu_post_propagation),
+        )
+        for number, generator in propagation_generators:
+            outputs.extend(
+                generator(
+                    run_dir=propagation_run,
+                    output=output(number),
+                    save_png=save_png,
+                )
+            )
+
+    if histograms_complete and checkpoints_complete:
+        distribution_generators = (
+            (97, generate_report05_one_relu_distributions),
+            (98, generate_report05_three_relu_distributions),
+            (99, generate_report05_six_relu_pre_distributions),
+            (100, generate_report05_six_relu_post_distributions),
+        )
+        for number, generator in distribution_generators:
+            outputs.extend(
+                generator(
+                    histogram_runs=histogram_runs,
+                    runs=training_checkpoints,
+                    output=output(number),
+                    save_png=save_png,
+                )
+            )
+
+    if site_clipping_complete:
+        outputs.extend(
+            generate_report05_site_clipping_frontiers(
+                site_runs=site_clipping_runs,
+                output=output(101),
+                save_png=save_png,
+            )
+        )
+
+    if joint_clipping_complete:
+        outputs.extend(
+            generate_report05_model_compute_frontiers(
+                joint_runs=joint_clipping_runs,
+                output=output(102),
+                save_png=save_png,
+            )
+        )
+
+    return outputs
+
+
+def _pinned_report05_training_runs(
+    results_path: Path,
+    artifact_name: str,
+) -> list[tuple[str, Path]]:
+    """Resolve only the declared Report 05 run IDs, never a newer sibling."""
+
+    selected: list[tuple[str, Path]] = []
+    for label, experiment_id in REPORT05_TRAINING_RUNS:
+        run_id = REPORT05_PINNED_RUN_IDS[experiment_id]
+        run_dir = results_path / experiment_id / run_id
+        if (run_dir / artifact_name).is_file() and _has_coherent_terminal_manifest(run_dir):
+            selected.append((label, run_dir))
+    return selected
+
+
+def _report05_architecture_runs() -> dict[str, tuple[tuple[str, str], ...]]:
+    return {
+        architecture_id: tuple(
+            (method, experiment_id)
+            for method, (_label, experiment_id) in zip(
+                _REPORT05_METHODS,
+                family_runs,
+                strict=True,
+            )
+        )
+        for architecture_id, _architecture_label, family_runs in REPORT05_ARCHITECTURE_FAMILIES
+    }
+
+
+def _report05_site_clipping_runs(
+    results_path: Path,
+) -> dict[str, dict[str, list[tuple[str, Path]]]]:
+    selected: dict[str, dict[str, list[tuple[str, Path]]]] = {}
+    for architecture_id, method_runs in _report05_architecture_runs().items():
+        selected[architecture_id] = {}
+        for site in REPORT05_ACTIVE_CLIPPING_SITES[architecture_id]:
+            experiments: list[tuple[str, str]] = []
+            for method, experiment_id in method_runs:
+                if architecture_id == "one_relu":
+                    suffix = "report05-exact-joint"
+                elif architecture_id == "three_relu":
+                    suffix = _REPORT05_THREE_RELU_SITE_SUFFIX[site]
+                else:
+                    suffix = _REPORT05_SIX_RELU_SITE_SUFFIX[site]
+                experiments.append(
+                    (method, f"{experiment_id}-clipping-sweep-{suffix}")
+                )
+            selected[architecture_id][site] = _latest_labeled_runs(
+                results_path,
+                experiments,
+                "clipping_frontier.jsonl",
+                require_complete_run=True,
+            )
+    return selected
+
+
+def _report05_joint_clipping_runs(
+    results_path: Path,
+) -> dict[str, list[tuple[str, Path]]]:
+    return {
+        architecture_id: _latest_labeled_runs(
+            results_path,
+            [
+                (
+                    method,
+                    f"{experiment_id}-clipping-sweep-report05-exact-joint",
+                )
+                for method, experiment_id in method_runs
+            ],
+            "clipping_frontier.jsonl",
+            require_complete_run=True,
+        )
+        for architecture_id, method_runs in _report05_architecture_runs().items()
+    }
+
+
+def _report05_site_clipping_complete(
+    runs: dict[str, dict[str, list[tuple[str, Path]]]],
+) -> bool:
+    return all(
+        len(runs.get(architecture_id, {}).get(site, [])) == len(_REPORT05_METHODS)
+        for architecture_id, sites in REPORT05_ACTIVE_CLIPPING_SITES.items()
+        for site in sites
+    )
+
+
+def _report05_joint_clipping_complete(
+    runs: dict[str, list[tuple[str, Path]]],
+) -> bool:
+    return all(
+        len(runs.get(architecture_id, [])) == len(_REPORT05_METHODS)
+        for architecture_id in _report05_architecture_runs()
+    )
+
+
+def _report05_input_issues(
+    *,
+    training_events: list[tuple[str, Path]],
+    training_checkpoints: list[tuple[str, Path]],
+    propagation_run: Path | None,
+    histogram_runs: dict[str, Path | None],
+    site_clipping_runs: dict[str, dict[str, list[tuple[str, Path]]]],
+    joint_clipping_runs: dict[str, list[tuple[str, Path]]],
+) -> list[str]:
+    issues: list[str] = []
+    for role, selected in (
+        ("training events", training_events),
+        ("final checkpoints", training_checkpoints),
+    ):
+        selected_labels = {label for label, _run in selected}
+        missing = [
+            f"{label} ({experiment_id}/{REPORT05_PINNED_RUN_IDS[experiment_id]})"
+            for label, experiment_id in REPORT05_TRAINING_RUNS
+            if label not in selected_labels
+        ]
+        if missing:
+            issues.append(f"{role}: missing " + ", ".join(missing))
+    if propagation_run is None:
+        issues.append(
+            f"activation propagation: missing completed {REPORT05_PROPAGATION_EXPERIMENT}"
+        )
+    for role, run in histogram_runs.items():
+        if run is None:
+            issues.append(f"activation histograms ({role}): missing completed diagnostic run")
+    for architecture_id, sites in REPORT05_ACTIVE_CLIPPING_SITES.items():
+        for site in sites:
+            selected_methods = {
+                method
+                for method, _run in site_clipping_runs.get(architecture_id, {}).get(site, [])
+            }
+            missing = [method for method in _REPORT05_METHODS if method not in selected_methods]
+            if missing:
+                issues.append(
+                    f"site clipping {architecture_id}/{site}: missing " + ", ".join(missing)
+                )
+    for architecture_id in _report05_architecture_runs():
+        selected_methods = {
+            method for method, _run in joint_clipping_runs.get(architecture_id, [])
+        }
+        missing = [method for method in _REPORT05_METHODS if method not in selected_methods]
+        if missing:
+            issues.append(
+                f"exact joint clipping {architecture_id}: missing " + ", ".join(missing)
+            )
+    return issues
 
 
 def generate_report04_figures(
@@ -2966,6 +3347,235 @@ def generate_report04_pythia_family_compute_ceiling(
         save_png=save_png,
         style=REPORT04_PLOT_STYLE,
         profile=REPORT04_PUBLICATION_PROFILE,
+    )
+
+
+def generate_report05_architecture_schematic(
+    *,
+    output: str | Path,
+    save_png: bool = False,
+) -> list[Path]:
+    """Export the four-case Pythia-14M ReLU architecture ladder."""
+
+    return export_figure(
+        _plot_report05_architecture_schematic,
+        output,
+        save_png=save_png,
+        style=REPORT04_PLOT_STYLE,
+        profile=_REPORT05_STANDARD_PROFILE,
+    )
+
+
+def generate_report05_learning_curves(
+    *,
+    runs: list[tuple[str, str | Path]],
+    output: str | Path,
+    save_png: bool = False,
+) -> list[Path]:
+    series = _load_event_series(runs)
+    if len(series) != len(REPORT05_TRAINING_RUNS):
+        raise ValueError("Report 05 learning curves require all 13 pinned training runs.")
+    return export_figure(
+        lambda: _plot_report05_validation_learning_curves(series),
+        output,
+        save_png=save_png,
+        style=REPORT04_PLOT_STYLE,
+        profile=_REPORT05_STANDARD_PROFILE,
+    )
+
+
+def _generate_report05_propagation(
+    *,
+    run_dir: str | Path,
+    output: str | Path,
+    save_png: bool,
+    renderer: Any,
+) -> list[Path]:
+    payload = read_json(Path(run_dir) / "activation_propagation.json")
+    return export_figure(
+        lambda: renderer(payload),
+        output,
+        save_png=save_png,
+        style=REPORT04_PLOT_STYLE,
+        profile=REPORT05_HEATMAP_PROFILE,
+    )
+
+
+def generate_report05_one_relu_propagation(
+    *, run_dir: str | Path, output: str | Path, save_png: bool = False
+) -> list[Path]:
+    return _generate_report05_propagation(
+        run_dir=run_dir,
+        output=output,
+        save_png=save_png,
+        renderer=_plot_report05_one_relu_propagation_heatmaps,
+    )
+
+
+def generate_report05_three_relu_propagation(
+    *, run_dir: str | Path, output: str | Path, save_png: bool = False
+) -> list[Path]:
+    return _generate_report05_propagation(
+        run_dir=run_dir,
+        output=output,
+        save_png=save_png,
+        renderer=_plot_report05_three_relu_propagation_heatmaps,
+    )
+
+
+def generate_report05_six_relu_pre_propagation(
+    *, run_dir: str | Path, output: str | Path, save_png: bool = False
+) -> list[Path]:
+    return _generate_report05_propagation(
+        run_dir=run_dir,
+        output=output,
+        save_png=save_png,
+        renderer=_plot_report05_six_relu_pre_propagation_heatmaps,
+    )
+
+
+def generate_report05_six_relu_post_propagation(
+    *, run_dir: str | Path, output: str | Path, save_png: bool = False
+) -> list[Path]:
+    return _generate_report05_propagation(
+        run_dir=run_dir,
+        output=output,
+        save_png=save_png,
+        renderer=_plot_report05_six_relu_post_propagation_heatmaps,
+    )
+
+
+def _generate_report05_distributions(
+    *,
+    histogram_runs: dict[str, str | Path | None],
+    runs: list[tuple[str, str | Path]],
+    output: str | Path,
+    save_png: bool,
+    renderer: Any,
+) -> list[Path]:
+    payloads = {
+        role: read_json(Path(run_dir) / "activation_histograms.json")
+        for role, run_dir in histogram_runs.items()
+        if run_dir is not None
+    }
+    if len(payloads) != 3:
+        raise ValueError("Report 05 distributions require input, MLP-hidden, and gate histograms.")
+    weight_series = _load_report04_parameter_series(runs)
+    if len(weight_series) != len(REPORT05_TRAINING_RUNS):
+        raise ValueError("Report 05 distributions require all 13 pinned final checkpoints.")
+    return export_figure(
+        lambda: renderer(payloads, weight_series),
+        output,
+        save_png=save_png,
+        style=REPORT04_PLOT_STYLE,
+        profile=_REPORT05_STANDARD_PROFILE,
+    )
+
+
+def generate_report05_one_relu_distributions(
+    *,
+    histogram_runs: dict[str, str | Path | None],
+    runs: list[tuple[str, str | Path]],
+    output: str | Path,
+    save_png: bool = False,
+) -> list[Path]:
+    return _generate_report05_distributions(
+        histogram_runs=histogram_runs,
+        runs=runs,
+        output=output,
+        save_png=save_png,
+        renderer=_plot_report05_one_relu_distributions,
+    )
+
+
+def generate_report05_three_relu_distributions(
+    *,
+    histogram_runs: dict[str, str | Path | None],
+    runs: list[tuple[str, str | Path]],
+    output: str | Path,
+    save_png: bool = False,
+) -> list[Path]:
+    return _generate_report05_distributions(
+        histogram_runs=histogram_runs,
+        runs=runs,
+        output=output,
+        save_png=save_png,
+        renderer=_plot_report05_three_relu_distributions,
+    )
+
+
+def generate_report05_six_relu_pre_distributions(
+    *,
+    histogram_runs: dict[str, str | Path | None],
+    runs: list[tuple[str, str | Path]],
+    output: str | Path,
+    save_png: bool = False,
+) -> list[Path]:
+    return _generate_report05_distributions(
+        histogram_runs=histogram_runs,
+        runs=runs,
+        output=output,
+        save_png=save_png,
+        renderer=_plot_report05_six_relu_pre_distributions,
+    )
+
+
+def generate_report05_six_relu_post_distributions(
+    *,
+    histogram_runs: dict[str, str | Path | None],
+    runs: list[tuple[str, str | Path]],
+    output: str | Path,
+    save_png: bool = False,
+) -> list[Path]:
+    return _generate_report05_distributions(
+        histogram_runs=histogram_runs,
+        runs=runs,
+        output=output,
+        save_png=save_png,
+        renderer=_plot_report05_six_relu_post_distributions,
+    )
+
+
+def generate_report05_site_clipping_frontiers(
+    *,
+    site_runs: dict[str, dict[str, list[tuple[str, str | Path]]]],
+    output: str | Path,
+    save_png: bool = False,
+) -> list[Path]:
+    site_sweeps = {
+        architecture_id: {
+            site: _load_clipping_series(runs)
+            for site, runs in architecture_runs.items()
+        }
+        for architecture_id, architecture_runs in site_runs.items()
+    }
+    reduced = _reduce_report05_site_clipping_frontiers(site_sweeps)
+    return export_figure(
+        lambda: _plot_report05_site_clipping_frontiers(reduced),
+        output,
+        save_png=save_png,
+        style=REPORT04_PLOT_STYLE,
+        profile=_REPORT05_STANDARD_PROFILE,
+    )
+
+
+def generate_report05_model_compute_frontiers(
+    *,
+    joint_runs: dict[str, list[tuple[str, str | Path]]],
+    output: str | Path,
+    save_png: bool = False,
+) -> list[Path]:
+    joint_sweeps = {
+        architecture_id: _load_clipping_series(runs)
+        for architecture_id, runs in joint_runs.items()
+    }
+    reduced = _reduce_report05_model_matmul_frontiers(joint_sweeps)
+    return export_figure(
+        lambda: _plot_report05_model_matmul_frontiers(reduced),
+        output,
+        save_png=save_png,
+        style=REPORT04_PLOT_STYLE,
+        profile=_REPORT05_STANDARD_PROFILE,
     )
 
 

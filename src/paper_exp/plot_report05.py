@@ -98,6 +98,68 @@ REPORT05_TRAINING_RUNS = (
         for run in family_runs
     ),
 )
+REPORT05_PINNED_RUN_IDS = {
+    "50-pythia-14m-minipile-adamw-full-pass": "001-20260629-161507-ef4ddaed",
+    "77-pythia-14m-minipile-relu-adamw-full-pass": "004-20260705-144930-dd498fa9",
+    "79-pythia-14m-minipile-relu-orthogonal-ricker-full-pass-w1-c0p05-s0p05": (
+        "001-20260705-232549-d0737405"
+    ),
+    "81-pythia-14m-minipile-relu-orthogonal-l1-full-pass-w5": (
+        "001-20260707-015527-fe1ee962"
+    ),
+    "98-pythia-14m-minipile-post-layernorm-relu-adamw-full-pass": (
+        "001-20260710-135015-5802fe11"
+    ),
+    "103-pythia-14m-minipile-post-layernorm-relu-orthogonal-ricker-full-pass-w1-c0p05-s0p05": (
+        "001-20260711-132226-055ae84b"
+    ),
+    "99-pythia-14m-minipile-post-layernorm-relu-orthogonal-l1-full-pass-w5": (
+        "001-20260710-171732-f48a0bcc"
+    ),
+    "107-pythia-14m-minipile-post-qkv-relu-qk-pre-rope-adamw-full-pass": (
+        "001-20260716-110737-3a2e785c"
+    ),
+    "108-pythia-14m-minipile-post-qkv-relu-qk-pre-rope-orthogonal-ricker-full-pass-w1-c0p05-s0p05": (
+        "001-20260716-175845-bee05387"
+    ),
+    "109-pythia-14m-minipile-post-qkv-relu-qk-pre-rope-orthogonal-l1-full-pass-w5": (
+        "001-20260717-024030-35516363"
+    ),
+    "110-pythia-14m-minipile-post-qkv-relu-qk-post-rope-adamw-full-pass": (
+        "001-20260716-143107-dd964d74"
+    ),
+    "111-pythia-14m-minipile-post-qkv-relu-qk-post-rope-orthogonal-ricker-full-pass-w1-c0p05-s0p05": (
+        "001-20260716-222739-974927ab"
+    ),
+    "112-pythia-14m-minipile-post-qkv-relu-qk-post-rope-orthogonal-l1-full-pass-w5": (
+        "001-20260717-064252-89acf88a"
+    ),
+}
+REPORT05_PROPAGATION_EXPERIMENT = (
+    "114-pythia-14m-minipile-report05-relu-architecture-ladder-activation-propagation"
+)
+REPORT05_INPUT_HISTOGRAM_EXPERIMENT = (
+    "115-pythia-14m-minipile-post-qkv-relu-input-histograms"
+)
+REPORT05_MLP_HISTOGRAM_EXPERIMENT = (
+    "116-pythia-14m-minipile-post-qkv-relu-mlp-hidden-histograms"
+)
+REPORT05_GATE_HISTOGRAM_EXPERIMENT = (
+    "117-pythia-14m-minipile-post-qkv-relu-gate-output-histograms"
+)
+REPORT05_HIDDEN_SIZE = 128
+REPORT05_VOCAB_SIZE = 50_304
+REPORT05_ZERO_SITE_STAGES = {
+    "z_a": "attention_input_relu",
+    "z_m": "mlp_input_relu",
+    "z_h": "mlp_hidden_relu",
+    "z_q_gate": "query_gate_output",
+    "z_k_gate": "key_gate_output",
+    "z_v_gate": "value_gate_output",
+    "z_q": "query_qk_input",
+    "z_k": "key_qk_input",
+    "z_v": "value_pv_input",
+}
 REPORT05_ENDPOINT_TABLE_COLUMNS = (
     "Architecture",
     "Method",
@@ -249,6 +311,101 @@ def _report05_endpoint_table(
     )
 
 
+def _report05_propagation_rows(
+    payload: dict[str, Any],
+    *,
+    validation_losses: dict[str, float] | None = None,
+) -> tuple[dict[str, Any], ...]:
+    """Pool exact-zero sites and direct logical products for the fixed cohort.
+
+    ``z_q``, ``z_k``, and ``z_v`` refer to the actual operands entering QK or
+    PV. For PRE-RoPE gates this intentionally measures Q/K after RoPE.
+    Unavailable gates remain ``None`` rather than being reported as zero.
+    """
+
+    methods = payload.get("methods")
+    if not isinstance(methods, list):
+        raise ValueError("Report 05 propagation payload has no methods list.")
+    by_config: dict[str, dict[str, Any]] = {}
+    for method in methods:
+        if not isinstance(method, dict):
+            continue
+        config_id = str(method.get("config_id", ""))
+        if config_id in by_config:
+            raise ValueError(f"Duplicate Report 05 propagation method: {config_id}")
+        by_config[config_id] = method
+
+    required_ids = [experiment_id for _label, experiment_id in REPORT05_TRAINING_RUNS]
+    missing = [config_id for config_id in required_ids if config_id not in by_config]
+    if missing:
+        raise ValueError(
+            "Report 05 propagation payload is missing: " + ", ".join(missing)
+        )
+
+    validation_tokens = int(payload.get("validation_tokens", 0))
+    if validation_tokens <= 0:
+        raise ValueError("Report 05 propagation payload has no validation tokens.")
+
+    rows: list[dict[str, Any]] = []
+    family_by_config = {
+        REPORT05_STOCK_RUN[1]: ("stock", "Stock (GELU)", "AdamW"),
+        **{
+            config_id: (family_id, family_label, method_name)
+            for family_id, family_label, family_runs in REPORT05_ARCHITECTURE_FAMILIES
+            for method_name, (_label, config_id) in zip(
+                REPORT05_METHOD_ORDER, family_runs, strict=True
+            )
+        },
+    }
+    for config_id in required_ids:
+        method = by_config[config_id]
+        architecture_id, architecture, method_name = family_by_config[config_id]
+        activation_rows = method.get("activations", [])
+        matmul_rows = [
+            row
+            for row in method.get("matmuls", [])
+            if isinstance(row, dict) and bool(row.get("available", True))
+        ]
+        block_zero_count = sum(int(row["zero_count"]) for row in matmul_rows)
+        block_product_count = sum(int(row["total"]) for row in matmul_rows)
+        if block_product_count <= 0:
+            raise ValueError(f"No matmul products for Report 05 method {config_id}.")
+        model_product_count = block_product_count + (
+            validation_tokens * REPORT05_HIDDEN_SIZE * REPORT05_VOCAB_SIZE
+        )
+        row: dict[str, Any] = {
+            "config_id": config_id,
+            "config": int(config_id.split("-", 1)[0]),
+            "label": str(method.get("label", config_id)),
+            "architecture_id": architecture_id,
+            "architecture": architecture,
+            "method": method_name,
+            "validation_loss": (
+                float(validation_losses[config_id])
+                if validation_losses is not None and config_id in validation_losses
+                else None
+            ),
+            "r_block": block_zero_count / block_product_count,
+            "r_model": block_zero_count / model_product_count,
+            "block_zero_product_count": block_zero_count,
+            "block_product_count": block_product_count,
+            "model_product_count": model_product_count,
+        }
+        for alias, stage in REPORT05_ZERO_SITE_STAGES.items():
+            selected = [
+                item
+                for item in activation_rows
+                if isinstance(item, dict)
+                and item.get("name") == stage
+                and bool(item.get("available", True))
+            ]
+            total = sum(int(item["total"]) for item in selected)
+            zero_count = sum(int(item["zero_count"]) for item in selected)
+            row[alias] = zero_count / total if total else None
+        rows.append(row)
+    return tuple(rows)
+
+
 def _plot_report05_architecture_schematic() -> Figure:
     """Render Figure 91: four Pythia-14M parallel-residual gate paths."""
 
@@ -260,28 +417,28 @@ def _plot_report05_architecture_schematic() -> Figure:
     cases = (
         {
             "title": "(a) One-ReLU (MLP hidden)",
-            "pressure": r"pressure: $h$",
+            "pressure": r"OR/OL1 targets: $h$",
             "post_ln_relu": False,
             "qkv_stage": "split Q,K,V\nRoPE(Q,K)",
             "qkv_gate": False,
         },
         {
             "title": "(b) Three-ReLU",
-            "pressure": r"pressure: $a,m,h$",
+            "pressure": r"OR/OL1 targets: $a,m,h$",
             "post_ln_relu": True,
             "qkv_stage": "split Q,K,V\nRoPE(Q,K)",
             "qkv_gate": False,
         },
         {
             "title": "(c) Six-ReLU PRE",
-            "pressure": r"pressure: $q,k,v$ only",
+            "pressure": r"OR/OL1 targets: $q,k,v$ only",
             "post_ln_relu": True,
             "qkv_stage": "split -> ReLU(Q,K,V)\nRoPE(Q,K)",
             "qkv_gate": True,
         },
         {
             "title": "(d) Six-ReLU POST",
-            "pressure": r"pressure: $q,k,v$ only",
+            "pressure": r"OR/OL1 targets: $q,k,v$ only",
             "post_ln_relu": True,
             "qkv_stage": "split -> RoPE(Q,K)\nReLU(Q,K); ReLU(V)",
             "qkv_gate": True,
@@ -291,7 +448,7 @@ def _plot_report05_architecture_schematic() -> Figure:
         _draw_report05_architecture_case(ax, **case)
 
     fig.suptitle(
-        "Pythia-14M Gate Paths Across the Post-QKV Control Ladder",
+        "Pythia-14M ReLU Architecture Ladder",
         x=0.5,
         y=0.982,
         fontsize=11.0,
@@ -588,10 +745,10 @@ def _plot_report05_validation_learning_curves(
         sharey=True,
     )
     panel_pressure_labels = (
-        r"pressure sites: $h$",
-        r"pressure sites: $a,m,h$",
-        r"pressure sites: $q,k,v$ only",
-        r"pressure sites: $q,k,v$ only",
+        r"OR/OL1 targets: $h$",
+        r"OR/OL1 targets: $a,m,h$",
+        r"OR/OL1 targets: $q,k,v$ only",
+        r"OR/OL1 targets: $q,k,v$ only",
     )
     all_losses: list[float] = [
         float(point["validation_loss"])

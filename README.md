@@ -18,7 +18,7 @@ See [`docs/code_map.md`](docs/code_map.md) for module ownership, CLI-to-artifact
 routes, config ownership, and surgical recipes for adding methods, activation
 sites, diagnostics, and paper figures. See [`configs/README.md`](configs/README.md)
 before creating or promoting an experiment config. See
-[`docs/plotting.md`](docs/plotting.md) for the Report 04 visual contract,
+[`docs/plotting.md`](docs/plotting.md) for the Report 04/05 visual contracts,
 plotting-module boundaries, and the parity checks required for figure changes.
 
 ## Install
@@ -50,6 +50,7 @@ make pressure-short-all  # four short full-MiniPile pressure checks
 make baseline  # blocked until the pretraining budget is chosen
 make plots     # regenerate figures from saved results
 make plot-report04  # strict Report 04 suite + deterministic input provenance
+make plot-report05  # strict Report 05 architecture-comparison suite
 ```
 
 `make check` reports warnings for incomplete run directories and reused figure
@@ -199,6 +200,20 @@ figures: figures/79-pythia-14m-minipile-post-layernorm-relu-learning-diagnostics
 This one-seed test applies ReLU after both branch LayerNorms in every transformer block, keeps the MLP-hidden ReLU, and leaves the final LayerNorm unchanged. Pressure is applied only to `attention_inputs`, `mlp_inputs`, and `mlp_hiddens`. The tested settings are OR weight 1 with `c = sigma = 0.05` and step budget 0.5, L1N weight 5, and OL1 weight 5 with step budget 0.5.
 
 Config `102` compares AdamW, OR, L1N, and OL1 by counting exact zeros at every attention, MLP, and residual boundary and the corresponding logical zero-input products in QKV, QK, PV, attention output, W1, and W2 matmuls. It covers all 692,224 evaluated validation tokens and excludes future causal-mask entries from attention-core denominators.
+
+Post-QKV ReLU placement comparison:
+
+```text
+training configs: configs 107 through 112, compared with the pinned Stock, One-ReLU, and Three-ReLU controls
+validation diagnostics: configs 114 through 117 plus full-cache site-specific and exact-joint clipping sweeps
+report: report/05-2026-07-17-post-qkv-relu-placement-comparison/
+figures: figures 91 through 102
+```
+
+The strict Report 05 suite compares One-ReLU, Three-ReLU, Six-ReLU PRE-RoPE,
+and Six-ReLU POST-RoPE architectures under AdamW, OR, and OL1. Regenerate it
+with `make plot-report05`; see `docs/plotting.md` for the pinned cohort and
+saved-artifact contract.
 
 ## Known TODOs
 

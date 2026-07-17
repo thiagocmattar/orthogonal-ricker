@@ -11,11 +11,12 @@ from paper_exp.clipping import run_clipping_sweep
 from paper_exp.config import ConfigError, load_config
 from paper_exp.data import prepare_tokenized_data
 from paper_exp.integrity import check_repository
-from paper_exp.plot_catalog import report04_catalog_rows
+from paper_exp.plot_catalog import report04_catalog_rows, report05_catalog_rows
 from paper_exp.plots import (
     generate_clipping_frontier,
     generate_plots,
     generate_report04_figures,
+    generate_report05_figures,
     generate_run_diagnostics,
 )
 from paper_exp.run import run_baseline, run_smoke
@@ -70,14 +71,33 @@ def build_parser() -> argparse.ArgumentParser:
         help="Use the completed RN comparison cohort from configs 105 and 106.",
     )
 
+    plot_report05 = subparsers.add_parser(
+        "plot-report05",
+        help="Regenerate the complete Report 05 ReLU-architecture comparison suite.",
+    )
+    plot_report05.add_argument("--results", default="results")
+    plot_report05.add_argument("--figures", default="figures")
+    plot_report05.add_argument("--png", action="store_true", help="Also save PNG copies.")
+    plot_report05.add_argument(
+        "--allow-partial",
+        action="store_true",
+        help="Generate complete figure families and skip missing Report 05 inputs.",
+    )
+
     plot_catalog = subparsers.add_parser(
         "plot-catalog",
         help="List the Report 04 figure suite and its saved-input requirements.",
     )
     plot_catalog.add_argument(
+        "--report",
+        choices=("04", "05"),
+        default="04",
+        help="Report figure catalog to list (default: 04).",
+    )
+    plot_catalog.add_argument(
         "--embedded-only",
         action="store_true",
-        help="Show only figures embedded in the current Report 04 PDF.",
+        help="Show only figures embedded in the selected report PDF.",
     )
 
     check = subparsers.add_parser(
@@ -239,8 +259,20 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"Wrote {output}")
             return 0
 
+        if args.command == "plot-report05":
+            outputs = generate_report05_figures(
+                results_dir=args.results,
+                figures_dir=args.figures,
+                save_png=args.png,
+                strict=not args.allow_partial,
+            )
+            for output in outputs:
+                print(f"Wrote {output}")
+            return 0
+
         if args.command == "plot-catalog":
-            for row in report04_catalog_rows(embedded_only=args.embedded_only):
+            catalog_rows = report05_catalog_rows if args.report == "05" else report04_catalog_rows
+            for row in catalog_rows(embedded_only=args.embedded_only):
                 print(row)
             return 0
 

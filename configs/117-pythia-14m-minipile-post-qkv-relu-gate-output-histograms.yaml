@@ -36,9 +36,9 @@ activation_histograms:
     - query_gate_outputs
     - key_gate_outputs
     - value_gate_outputs
-  bins: 180
+  bins: 1440
   range_min: 0.0
-  range_max: 4.0
+  range_max: 128.0
   thresholds:
     - 0.0
   plot_title: Report 05 Post-QKV Query, Key, and Value Gate-Output Densities

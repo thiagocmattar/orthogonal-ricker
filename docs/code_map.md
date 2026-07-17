@@ -43,10 +43,13 @@ measurement but does not dispatch the command.
 | `sweeps.py` | The fixed-step pressure matrix, generated configs, and sequential sweep runners | Existing fixed-step sweep composition |
 | `plots.py` | Stable plotting facade, procedural dispatch, result selection, public wrappers, and legacy figure families | CLI compatibility, figure dependencies, output names, or a family not yet extracted |
 | `plot_api.py` | Count-derived panel grids, scoped one-build PDF/PNG export, and publication-profile validation | Shared final-size layout/export behavior that does not change scientific content |
-| `plot_catalog.py` | Metadata-only Report 04 figure index | Figure numbers, filenames, saved-input kinds, wrapper names, or report embedding status |
+| `plot_catalog.py` | Metadata-only Report 04/05 figure indexes | Figure numbers, filenames, saved-input kinds, wrapper names, or report embedding status |
 | `plot_style.py` | Shared paper rc parameters, palettes, method colors/markers, and export defaults | Typography, semantic series styling, or repository-wide presentation behavior |
 | `plot_common.py` | Small pure helpers with callers in multiple plotting families | Shared histogram normalization (including zero-atom separation), formatting, and finite-value handling |
 | `plot_report04.py` | Report 04 cohorts, reductions, compute accounting, checkpoint preparation, and renderers for figures `79` through `90` | Post-LayerNorm ReLU report figures or their scientific presentation |
+| `plot_report05.py` | Report 05 pinned cohort, endpoint reductions, architecture schematic, and learning curves | Training-cohort identity or figures `91`--`92` |
+| `plot_report05_diagnostics.py` | Report 05 propagation and activation/weight-distribution reductions and renderers | Figures `93`--`100` |
+| `plot_report05_clipping.py` | Report 05 site and direct logical-product clipping reductions and renderers | Figures `101`--`102` |
 | `eval.py` | Tiny harness-only prediction metrics | Smoke-test metrics |
 
 Focused tests live in `tests/test_config.py`, `tests/test_activation_pressure.py`,
@@ -57,7 +60,9 @@ mechanics and catalog metadata are covered by `tests/test_plot_api.py`,
 `tests/test_plot_catalog.py`, and `tests/test_plot_catalog_cli.py`. Report 04
 suite dispatch, CLI preflight, and selected numerical helpers are locked by
 `tests/test_report04_contract.py`, `tests/test_plot_report04_cli.py`, and
-`tests/test_report04_math.py`; launch/terminal transitions are covered by
+`tests/test_report04_math.py`. Report 05 catalog, selection, CLI, diagnostics,
+and clipping contracts live in the corresponding `test_*report05*` modules;
+launch/terminal transitions are covered by
 `tests/test_run_lifecycle.py` and `tests/test_calibration_lifecycle.py`.
 
 ## Run Lifecycle: First Tranche
@@ -113,7 +118,8 @@ the legacy `run.write_run_artifacts`.
 | `run-pressure-sweep-clipping` | `sweeps.run_pressure_fixed_step_clipping_sweeps` | Completed sweep configs plus CLI clipping arguments | Standard clipping-sweep artifacts |
 | `plots` | `plots.generate_plots` | No live config; consumes saved result artifacts and the dispatch in `plots.py` | Numbered PDFs and optional PNGs |
 | `plot-report04` | `plots.generate_report04_figures` | No live config; resolves every declared Report 04 cohort before rendering | Figures `79` through `90`, optional PNGs, and strict-run `report04-provenance.json`; explicit `--allow-partial` exploration mode omits provenance |
-| `plot-catalog` | `plot_catalog.report04_catalog_rows` | No config or result reads | Deterministic Report 04 figure metadata on stdout |
+| `plot-report05` | `plots.generate_report05_figures` | No live config; pins training runs and resolves diagnostics `114`--`117` plus declared clipping sweeps | Figures `91` through `102`; strict staged promotion, optional PNGs, and explicit `--allow-partial` exploration mode |
+| `plot-catalog` | `plot_catalog.report04_catalog_rows` or `report05_catalog_rows` | No config or result reads | Deterministic figure metadata on stdout; `--report 04` is the backward-compatible default |
 | `check` | `integrity.check_repository` | No config; reads repository indexes and artifact envelopes | Findings only; never writes repository files |
 | `plot-run` | `plots.generate_run_diagnostics` | No live config; consumes one run | Requested PDF and optional PNG |
 | `plot-clipping-frontier` | `plots.generate_clipping_frontier` | No live config; consumes one clipping run | Requested PDF and optional PNG |

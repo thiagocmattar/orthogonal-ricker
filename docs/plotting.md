@@ -5,7 +5,7 @@ general chart framework: each figure family keeps its scientific cohort,
 reductions, axes, and captions explicit, while proven presentation conventions
 are shared.
 
-Report 04 is the current visual baseline:
+Report 04 is the typography and compute-accounting baseline:
 
 ```text
 report/04-2026-07-11-post-layernorm-relu-ol1-comparison/
@@ -16,16 +16,22 @@ Figures `81` and `84` are generated Report 04 diagnostics but are not embedded
 in the current PDF. All twelve outputs remain part of the regeneration
 contract.
 
+Report 05 is the current architecture-comparison suite; its strict figure
+contract is documented below.
+
 ## Module Ownership
 
 | Module | Owns |
 | --- | --- |
 | `plots.py` | Stable CLI/import facade, batch dispatch, run selection, public `generate_*` wrappers, and legacy figure families not yet extracted |
 | `plot_api.py` | Final-size `GridLayout`, count-derived panel grids, one-build PDF/PNG export, and publication-profile validation |
-| `plot_catalog.py` | Searchable Report 04 figure type, filename, wrapper, input-kind, and report-embedding metadata |
+| `plot_catalog.py` | Searchable Report 04/05 figure type, filename, wrapper, input-kind, and report-embedding metadata |
 | `plot_style.py` | Scoped rc parameters, colorblind-safe palettes, stable method IDs/styles, and export defaults |
 | `plot_common.py` | Small presentation-neutral helpers already used by multiple figure families |
 | `plot_report04.py` | Report 04 cohorts, compute-accounting constants, pure reductions, checkpoint preparation, and explicit renderers for figures `79` through `90` |
+| `plot_report05.py` | Report 05 pinned training cohort, endpoint reductions, architecture schematic, and learning-curve renderer |
+| `plot_report05_diagnostics.py` | Report 05 exact-zero propagation and activation/weight-distribution reductions and renderers |
+| `plot_report05_clipping.py` | Report 05 site-specific and direct model-product clipping reductions and renderers |
 
 Existing callers should continue to import from `paper_exp.plots`. The facade
 re-exports Report 04 constants and the public `generate_*` wrappers used by the
@@ -59,6 +65,7 @@ figures:
 ```bash
 python -m paper_exp.cli plot-catalog
 python -m paper_exp.cli plot-catalog --embedded-only
+python -m paper_exp.cli plot-catalog --report 05
 ```
 
 Each deterministic row names the plot type, output file, required saved
@@ -127,6 +134,41 @@ The sidecar is generated and ignored by default. Deliberately select it for a
 release only after reviewing the figure suite and its input hashes; use
 `git add -f figures/report04-provenance.json` when that release decision is
 made.
+
+## Report 05 Figure Suite
+
+Report 05 compares One-ReLU, Three-ReLU, Six-ReLU PRE-RoPE, and Six-ReLU
+POST-RoPE architectures under AdamW, OR, and OL1. Figures `91` through `102`
+are regenerated together with:
+
+```bash
+python -m paper_exp.cli plot-report05 --results results --figures figures --png
+```
+
+The strict default pins all 13 training/checkpoint inputs through
+`REPORT05_PINNED_RUN_IDS`, requires diagnostics `114` through `117`, and
+requires each declared clipping frontier. One-ReLU uses its exact-joint sweep
+for its single active MLP-hidden site; Three-ReLU reuses the full-validation
+Report 04 per-site sweeps; both Six-ReLU families use the short, Windows-safe
+`r05s-{a,m,h,q,k,v}` suffixes. Every architecture uses
+`report05-exact-joint` for the direct logical-product frontier. Strict output
+is rendered in a sibling staging directory and atomically promoted only after
+all 12 figures succeed. Use `--allow-partial` only for exploratory generation
+while diagnostics are incomplete.
+
+| Figures | Content | Saved input |
+| --- | --- | --- |
+| `91` | Four-case Pythia-14M architecture ladder | Architecture constants only |
+| `92` | Full-validation learning curves | Pinned training `events.jsonl` |
+| `93`--`96` | Per-architecture exact-zero propagation | Diagnostic `114` |
+| `97`--`100` | Per-architecture activation and final-weight densities | Diagnostics `115`--`117` and pinned checkpoints |
+| `101` | Shared-axis site-specific clipping frontiers | Declared per-site clipping sweeps |
+| `102` | Shared-axis potentially avoidable model-product frontiers | Exact-joint clipping sweeps |
+
+The compact propagation heatmaps use a dedicated publication profile with a
+5.3-point minimum for in-cell annotations. All other Report 05 figures use
+the standard 8-point minimum. PDF and optional PNG are exported from the same
+validated Matplotlib figure object.
 
 ## Data Path
 

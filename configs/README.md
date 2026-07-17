@@ -48,15 +48,23 @@ the same kind and architecture; do not assemble one from unrelated examples.
 | Random-initialized pretraining | `03-pythia-14m-minipile-random-full-10min.yaml` | `training`, `validation`, `checkpoint` |
 | Naive pressure pretraining | `104-pythia-14m-minipile-post-layernorm-relu-l1-naive-full-pass-w5.yaml` | `activation_pressure.method: l1_naive` |
 | Adam-step orthogonal pressure pretraining | `103-pythia-14m-minipile-post-layernorm-relu-orthogonal-ricker-full-pass-w1-c0p05-s0p05.yaml` | `activation_pressure.method: orthogonal_ricker` plus `step_budget` |
-| Activation histogram diagnostic | `100-pythia-14m-minipile-post-layernorm-relu-input-histograms.yaml` | `activation_histograms` |
+| Activation histogram diagnostic | `115-pythia-14m-minipile-post-qkv-relu-input-histograms.yaml` | `activation_histograms` |
 | Weight histogram diagnostic | `61-pythia-14m-minipile-full-pass-high-pressure-weight-histograms.yaml` | `weight_histograms` |
-| Exact-zero/zero-product propagation diagnostic | `102-pythia-14m-minipile-post-layernorm-relu-activation-propagation.yaml` | `activation_propagation` |
+| Exact-zero/zero-product propagation diagnostic | `114-pythia-14m-minipile-report05-relu-architecture-ladder-activation-propagation.yaml` | `activation_propagation` |
 | Fixed-step pressure sweep | `12-pythia-14m-minipile-adamw-fixed-2048.yaml` and adjacent generated configs | `sweep`; matrix source is `src/paper_exp/sweeps.py` |
 | Post-hoc clipping sweep | Source training run's saved `config.yaml`; settings are normally CLI arguments | Optional `activation_clipping` plus `--thresholds`, `--quantiles`, `--rms-multipliers`, and `--sites` |
 
 The Report 04 training and diagnostic configs (`98` through `104`) are useful
 references for that specific Three-ReLU architecture and comparison. Do not
 copy its architecture fields into a stock-Pythia run accidentally.
+
+Report 05 uses training configs `107` through `112` and diagnostic configs
+`114` through `117`. Config `114` pools exact-zero propagation across the
+Stock, One-ReLU, Three-ReLU, PRE-RoPE, and POST-RoPE ladder. Configs `115`,
+`116`, and `117` measure branch-input, MLP-hidden, and post-QKV gate-output
+distributions, respectively. Config `113` is the earlier placement-only
+propagation diagnostic and is not an input to the strict Report 05 figure
+suite.
 
 ## Field Ownership
 

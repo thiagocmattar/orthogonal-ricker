@@ -21,21 +21,33 @@ exist. Check both this directory and the paper map before assigning the next
 number. Do not reuse a prefix for a different filename or leave competing
 canonical variants under the same prefix.
 
-The current visual baseline is Report 04 and figures `79` through `90`:
+The current architecture-comparison suite is Report 05 and figures `91`
+through `102`:
 
 ```text
-report/04-2026-07-11-post-layernorm-relu-ol1-comparison/
-figures/79-*.pdf through figures/90-*.pdf
+report/05-2026-07-17-post-qkv-relu-placement-comparison/
+figures/91-*.pdf through figures/102-*.pdf
 ```
 
-Preserve their typography, color language, information density, panel spacing,
-and compute-accounting clarity when extending the plotting package. A new
-figure may differ when its scientific content requires it, but should remain
-visually coherent with this family.
+Report 04 remains the typography and compute-accounting reference. Preserve
+its color language, information density, panel spacing, and compute-accounting
+clarity when extending the plotting package. A new figure may differ when its
+scientific content requires it, but should remain visually coherent with this
+family.
 
 ## Regeneration Workflow
 
-Regenerate the complete Report 04 visual baseline through its strict preflight:
+Regenerate the complete Report 05 architecture-comparison suite through its
+strict preflight:
+
+```bash
+make plot-report05
+```
+
+This requires every declared Report 05 input and atomically promotes the 12
+figures only after the full suite succeeds.
+
+Regenerate the Report 04 visual baseline through its own strict preflight:
 
 ```bash
 make plot-report04

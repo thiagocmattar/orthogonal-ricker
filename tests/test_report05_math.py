@@ -36,6 +36,14 @@ def test_report05_cohort_constants_pin_the_four_architecture_families() -> None:
     assert len(
         {experiment_id for _label, experiment_id in plot_report05.REPORT05_TRAINING_RUNS}
     ) == 13
+    assert set(plot_report05.REPORT05_PINNED_RUN_IDS) == {
+        experiment_id
+        for _label, experiment_id in plot_report05.REPORT05_TRAINING_RUNS
+    }
+    assert all(
+        run_id.startswith(("001-", "004-"))
+        for run_id in plot_report05.REPORT05_PINNED_RUN_IDS.values()
+    )
 
 
 def test_report05_endpoint_rows_are_ordered_numeric_and_relative_to_stock() -> None:
@@ -91,6 +99,60 @@ def test_report05_validation_point_reduction_sorts_and_drops_nonfinite_rows() ->
 
     assert [point["tokens_seen"] for point in points] == [100, 200]
     assert [point["validation_loss"] for point in points] == [5.0, 4.0]
+
+
+def test_report05_propagation_rows_pool_counts_and_use_actual_qk_operands() -> None:
+    methods = []
+    for index, (_label, config_id) in enumerate(plot_report05.REPORT05_TRAINING_RUNS):
+        activations = []
+        for stage in plot_report05.REPORT05_ZERO_SITE_STAGES.values():
+            available = index > 0 and stage == "mlp_hidden_relu"
+            if config_id.startswith("107-") and stage in {
+                "query_qk_input",
+                "key_qk_input",
+                "value_pv_input",
+            }:
+                available = True
+            activations.append(
+                {
+                    "name": stage,
+                    "available": available,
+                    "zero_count": 3 if available else None,
+                    "total": 10 if available else None,
+                }
+            )
+        methods.append(
+            {
+                "config_id": config_id,
+                "label": config_id,
+                "activations": activations,
+                "matmuls": [
+                    {"available": True, "zero_count": index, "total": 100},
+                    {"available": True, "zero_count": index + 1, "total": 100},
+                ],
+            }
+        )
+    payload = {"validation_tokens": 2, "methods": methods}
+
+    rows = plot_report05._report05_propagation_rows(payload)
+
+    assert len(rows) == 13
+    assert rows[0]["z_h"] is None
+    assert rows[1]["z_h"] == pytest.approx(0.3)
+    pre_row = next(row for row in rows if row["config"] == 107)
+    assert pre_row["z_q"] == pytest.approx(0.3)
+    assert pre_row["z_k"] == pytest.approx(0.3)
+    assert pre_row["z_v"] == pytest.approx(0.3)
+    assert pre_row["r_block"] == pytest.approx((7 + 8) / 200)
+    expected_model_total = 200 + 2 * 128 * 50_304
+    assert pre_row["r_model"] == pytest.approx(15 / expected_model_total)
+
+
+def test_report05_propagation_rows_reject_missing_method() -> None:
+    with pytest.raises(ValueError, match="missing"):
+        plot_report05._report05_propagation_rows(
+            {"validation_tokens": 1, "methods": []}
+        )
 
 
 def test_report05_architecture_schematic_is_publication_sized_and_explicit() -> None:
