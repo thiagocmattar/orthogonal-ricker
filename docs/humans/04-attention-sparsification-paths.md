@@ -4,7 +4,7 @@ Date: 2026-07-16
 
 Purpose: specify the next Pythia-14M MiniPile architecture experiment well enough that a fresh agent can implement, test, launch, diagnose, and report it without relying on prior conversation.
 
-Status: selected next experiment; not yet implemented or run. Every result described as expected or hypothesized below is a hypothesis, not an observation.
+Status: the original PRE/POST ordinary-ReLU experiment is complete. Section 15 specifies the selected fixed symmetric-threshold POST follow-up. Every follow-up outcome remains a hypothesis until its runs complete.
 
 Related repository documents:
 
@@ -815,3 +815,52 @@ This remains a one-seed planning screen unless repeated. Logical zero products a
 - Post-hoc Q/K/V clipping frontiers, unless needed to interpret the six endpoints.
 - Multi-seed confirmation and larger Pythia models.
 - Sparse QK/PV/W_O kernel implementation and speed measurement.
+
+## 15. Fixed Symmetric-Threshold POST Follow-up
+
+The next two-run test keeps the existing POST topology but replaces only the three Q/K/V ReLU modules with
+
+$$
+s_{\kappa}(x)
+=
+\begin{cases}
+x, & |x|\geq\kappa,\\
+0, & |x|<\kappa,
+\end{cases}
+\qquad \kappa=0.1.
+$$
+
+This is a signed hard magnitude threshold: negative and positive survivors are preserved, equality survives, and zero means direct floating-point equality. It is not an ordinary ReLU, an RMS-normalized threshold, or a straight-through estimator. The attention-input, MLP-input, and MLP-hidden gates remain ordinary ReLUs.
+
+The tested path in every layer is
+
+$$
+(Q^{\rm raw},K^{\rm raw},V^{\rm raw})=\operatorname{split}(W_{QKV}A_l+b_{QKV}),
+$$
+
+$$
+(Q^{\rm rope},K^{\rm rope})=\operatorname{RoPE}(Q^{\rm raw},K^{\rm raw}),
+$$
+
+$$
+Q^g=s_{0.1}(Q^{\rm rope}),\qquad
+K^g=s_{0.1}(K^{\rm rope}),\qquad
+V^g=s_{0.1}(V^{\rm raw}),
+$$
+
+followed by the unchanged QK, causal softmax, PV, and output-projection computations.
+
+| Config | Method | Pressure scope | Fixed settings |
+| --- | --- | --- | --- |
+| `118` | AdamW monitor-only | none | POST Q/K/V $s_{0.1}$ |
+| `119` | OR | Q/K/V gate outputs only | weight 1, $c=\sigma=0.05$, step budget 0.5 |
+
+The primary question is whether signed magnitude thresholding preserves quality better than the matched ordinary POST ReLU while creating useful exact-zero Q/K/V operands. Compare config `118` with ordinary POST AdamW config `110`, and config `119` with ordinary POST OR config `111` and fixed-threshold config `118`.
+
+Interpret OR carefully. With $c=\sigma=0.05$, the inward Ricker basin ends at $\sqrt{3}c\approx0.0866<\kappa$. Values masked by $s_{0.1}$ have zero gate gradient; surviving values begin outside that basin. The approved OR run is therefore a matched interaction control and may polarize survivors rather than directly move them across the threshold.
+
+The later diagnostic should report the standard validation-loss, exact-zero, $R_{\rm block}$, and $R_{\rm model}$ table. To test the symmetry/energy rationale directly, also report Q/K/V pre-gate negative and positive mass, $\Pr(|x|<0.1)$, and retained squared-energy fraction.
+
+- `TODO:` test learnable $\kappa$.
+- `TODO:` add the matched OL1 run.
+- `TODO:` design the full-validation propagation/distribution config after configs `118` and `119` complete; do not mutate pinned Report 05 diagnostics.

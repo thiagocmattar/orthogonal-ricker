@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+import math
 from pathlib import Path
 import re
 from typing import Any
@@ -128,6 +129,10 @@ def _validate_post_qkv_relu(value: Any) -> None:
             raise ConfigError(
                 "Config fields model.post_qkv_relu.query/key/value must be false when post-QKV ReLU is disabled."
             )
+        if "gate_type" in value or "kappa" in value:
+            raise ConfigError(
+                "Config fields model.post_qkv_relu.gate_type/kappa must be omitted when post-QKV ReLU is disabled."
+            )
         return
 
     if placement not in {"pre_rope", "post_rope"}:
@@ -136,6 +141,33 @@ def _validate_post_qkv_relu(value: Any) -> None:
         )
     if not any(value[field] for field in ("query", "key", "value")):
         raise ConfigError("Configured model.post_qkv_relu is enabled, but no Q/K/V gate is enabled.")
+
+    gate_type = value.get("gate_type", "relu")
+    if gate_type not in {"relu", "symmetric_threshold"}:
+        raise ConfigError(
+            "Config field model.post_qkv_relu.gate_type must be 'relu' or 'symmetric_threshold'."
+        )
+    if gate_type == "relu":
+        if "kappa" in value:
+            raise ConfigError(
+                "Config field model.post_qkv_relu.kappa must be omitted for ordinary ReLU gates."
+            )
+        return
+
+    if "kappa" not in value:
+        raise ConfigError(
+            "Missing required config field: model.post_qkv_relu.kappa for symmetric-threshold gates."
+        )
+    kappa = value["kappa"]
+    if (
+        isinstance(kappa, bool)
+        or not isinstance(kappa, (int, float))
+        or not math.isfinite(float(kappa))
+        or float(kappa) < 0.0
+    ):
+        raise ConfigError(
+            "Config field model.post_qkv_relu.kappa must be a finite non-negative number."
+        )
 
 
 def _get_required(config: Mapping[str, Any], field_path: tuple[str, ...]) -> Any:

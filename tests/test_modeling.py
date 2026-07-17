@@ -7,7 +7,12 @@ import pytest
 import torch
 
 from paper_exp.calibration import _apply_model_architecture_overrides
-from paper_exp.modeling import apply_post_layernorm_relu, apply_post_qkv_relu, load_checkpoint_model
+from paper_exp.modeling import (
+    FixedSymmetricThreshold,
+    apply_post_layernorm_relu,
+    apply_post_qkv_relu,
+    load_checkpoint_model,
+)
 
 
 def test_post_layernorm_relu_is_applied_to_both_block_paths_only() -> None:
@@ -215,6 +220,40 @@ def test_post_qkv_relu_keeps_fused_projection_and_is_idempotent() -> None:
     assert not hasattr(attention, "value_projection")
 
 
+def test_fixed_symmetric_threshold_preserves_sign_boundary_and_gradients() -> None:
+    gate = FixedSymmetricThreshold(0.1)
+    value = torch.tensor(
+        [-0.2, -0.1, -0.099, 0.0, 0.099, 0.1, 0.2],
+        requires_grad=True,
+    )
+
+    output = gate(value)
+    assert torch.equal(
+        output,
+        torch.tensor([-0.2, -0.1, 0.0, 0.0, 0.0, 0.1, 0.2]),
+    )
+
+    output.sum().backward()
+    assert torch.equal(value.grad, torch.tensor([1.0, 1.0, 0.0, 0.0, 0.0, 1.0, 1.0]))
+
+
+def test_post_qkv_symmetric_threshold_constructs_three_signed_gates() -> None:
+    model = _TinyPostQKVModel(
+        placement="post_rope",
+        gate_type="symmetric_threshold",
+        kappa=0.1,
+    )
+
+    apply_post_qkv_relu(model, torch=torch)
+    attention = model.gpt_neox.layers[0].attention
+
+    for name in ("query", "key", "value"):
+        gate = getattr(attention, f"{name}_relu")
+        assert isinstance(gate, FixedSymmetricThreshold)
+        assert gate.kappa == pytest.approx(0.1)
+        assert torch.equal(gate(torch.tensor([-0.2, -0.01, 0.2])), torch.tensor([-0.2, 0.0, 0.2]))
+
+
 def test_disabled_post_qkv_relu_leaves_stock_forward_and_gradients_unchanged() -> None:
     model = _TinyDisabledPostQKVModel()
     value = torch.tensor([[[1.0, -2.0]]], requires_grad=True)
@@ -248,10 +287,37 @@ def test_checkpoint_loader_reconstructs_post_qkv_relu_placement() -> None:
     assert isinstance(attention.value_relu, torch.nn.ReLU)
 
 
-@pytest.mark.parametrize("placement", ["pre_rope", "post_rope"])
+def test_checkpoint_loader_reconstructs_post_qkv_symmetric_threshold() -> None:
+    model = _TinyPostQKVModel(
+        placement="post_rope",
+        gate_type="symmetric_threshold",
+        kappa=0.1,
+    )
+    auto_model = _FakeAutoModel(model)
+
+    loaded = load_checkpoint_model(auto_model, "checkpoints/final", torch=torch)
+    attention = loaded.gpt_neox.layers[0].attention
+
+    assert attention.qk_relu_placement == "post_rope"
+    assert isinstance(attention.query_relu, FixedSymmetricThreshold)
+    assert isinstance(attention.key_relu, FixedSymmetricThreshold)
+    assert isinstance(attention.value_relu, FixedSymmetricThreshold)
+    assert attention.query_relu.kappa == pytest.approx(0.1)
+
+
+@pytest.mark.parametrize(
+    ("placement", "gate_type", "kappa"),
+    [
+        ("pre_rope", "relu", None),
+        ("post_rope", "relu", None),
+        ("post_rope", "symmetric_threshold", 0.1),
+    ],
+)
 def test_real_gpt_neox_checkpoint_round_trip_preserves_gates_and_cache(
     tmp_path: Path,
     placement: str,
+    gate_type: str,
+    kappa: float | None,
 ) -> None:
     from transformers import GPTNeoXConfig, GPTNeoXForCausalLM
 
@@ -273,7 +339,10 @@ def test_real_gpt_neox_checkpoint_round_trip_preserves_gates_and_cache(
         "key": True,
         "value": True,
         "qk_placement": placement,
+        "gate_type": gate_type,
     }
+    if kappa is not None:
+        architecture.post_qkv_relu["kappa"] = kappa
     model = GPTNeoXForCausalLM(architecture)
     apply_post_qkv_relu(model, torch=torch)
     model.save_pretrained(tmp_path, safe_serialization=True)
@@ -283,9 +352,12 @@ def test_real_gpt_neox_checkpoint_round_trip_preserves_gates_and_cache(
     assert len(loaded.gpt_neox.layers) == 2
     for layer in loaded.gpt_neox.layers:
         assert layer.attention.qk_relu_placement == placement
-        assert isinstance(layer.attention.query_relu, torch.nn.ReLU)
-        assert isinstance(layer.attention.key_relu, torch.nn.ReLU)
-        assert isinstance(layer.attention.value_relu, torch.nn.ReLU)
+        expected_gate = FixedSymmetricThreshold if kappa is not None else torch.nn.ReLU
+        assert isinstance(layer.attention.query_relu, expected_gate)
+        assert isinstance(layer.attention.key_relu, expected_gate)
+        assert isinstance(layer.attention.value_relu, expected_gate)
+        if kappa is not None:
+            assert layer.attention.query_relu.kappa == pytest.approx(kappa)
 
     input_ids = torch.tensor([[1, 2, 3]])
     first = loaded(input_ids=input_ids, use_cache=True)
@@ -336,16 +408,27 @@ class _TinyGPTNeoXLayer(torch.nn.Module):
 
 
 class _TinyPostQKVModel(torch.nn.Module):
-    def __init__(self, *, placement: str) -> None:
+    def __init__(
+        self,
+        *,
+        placement: str,
+        gate_type: str | None = None,
+        kappa: float | None = None,
+    ) -> None:
         super().__init__()
+        post_qkv_relu: dict[str, object] = {
+            "enabled": True,
+            "query": True,
+            "key": True,
+            "value": True,
+            "qk_placement": placement,
+        }
+        if gate_type is not None:
+            post_qkv_relu["gate_type"] = gate_type
+        if kappa is not None:
+            post_qkv_relu["kappa"] = kappa
         self.config = SimpleNamespace(
-            post_qkv_relu={
-                "enabled": True,
-                "query": True,
-                "key": True,
-                "value": True,
-                "qk_placement": placement,
-            }
+            post_qkv_relu=post_qkv_relu
         )
         self.gpt_neox = SimpleNamespace(
             layers=torch.nn.ModuleList([_TinyPostQKVLayer()]),

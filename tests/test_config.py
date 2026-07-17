@@ -133,6 +133,50 @@ def test_post_qkv_relu_accepts_both_qk_placements(placement: str) -> None:
     validate_config(config, allow_todos=False)
 
 
+def test_post_qkv_relu_accepts_fixed_symmetric_threshold() -> None:
+    config = _post_qkv_config(
+        {
+            "enabled": True,
+            "query": True,
+            "key": True,
+            "value": True,
+            "qk_placement": "post_rope",
+            "gate_type": "symmetric_threshold",
+            "kappa": 0.1,
+        }
+    )
+
+    validate_config(config, allow_todos=False)
+
+
+@pytest.mark.parametrize(
+    ("extra", "message"),
+    [
+        ({"gate_type": "unknown"}, "gate_type"),
+        ({"gate_type": "symmetric_threshold"}, "kappa"),
+        ({"gate_type": "symmetric_threshold", "kappa": -0.1}, "non-negative"),
+        ({"gate_type": "symmetric_threshold", "kappa": float("inf")}, "finite"),
+        ({"gate_type": "symmetric_threshold", "kappa": True}, "finite"),
+        ({"gate_type": "relu", "kappa": 0.1}, "must be omitted"),
+    ],
+)
+def test_post_qkv_relu_rejects_invalid_gate_configuration(
+    extra: dict[str, object],
+    message: str,
+) -> None:
+    post_qkv_relu: dict[str, object] = {
+        "enabled": True,
+        "query": True,
+        "key": True,
+        "value": True,
+        "qk_placement": "post_rope",
+    }
+    post_qkv_relu.update(extra)
+
+    with pytest.raises(ConfigError, match=message):
+        validate_config(_post_qkv_config(post_qkv_relu), allow_todos=False)
+
+
 @pytest.mark.parametrize(
     ("post_qkv_relu", "message"),
     [

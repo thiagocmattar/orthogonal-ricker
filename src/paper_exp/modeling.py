@@ -5,6 +5,22 @@ from pathlib import Path
 from types import MethodType
 from typing import Any
 
+import torch
+
+
+class FixedSymmetricThreshold(torch.nn.Module):
+    """Keep signed values at or beyond a fixed magnitude threshold."""
+
+    def __init__(self, kappa: float) -> None:
+        super().__init__()
+        self.kappa = float(kappa)
+
+    def forward(self, value: Any) -> Any:
+        return value.masked_fill(value.detach().abs() < self.kappa, 0.0)
+
+    def extra_repr(self) -> str:
+        return f"kappa={self.kappa:g}"
+
 
 def apply_post_layernorm_relu(model: Any, *, torch: Any) -> Any:
     """Apply configured ReLUs after each GPT-NeoX block LayerNorm."""
@@ -37,7 +53,7 @@ def apply_post_layernorm_relu(model: Any, *, torch: Any) -> Any:
 
 
 def apply_post_qkv_relu(model: Any, *, torch: Any) -> Any:
-    """Apply configured Q/K/V ReLUs inside each GPT-NeoX attention path."""
+    """Apply configured Q/K/V gates inside each GPT-NeoX attention path."""
     config = getattr(model, "config", None)
     gate_config = _post_qkv_relu_config(getattr(config, "post_qkv_relu", None))
     if gate_config is None or not gate_config["enabled"]:
@@ -65,11 +81,11 @@ def apply_post_qkv_relu(model: Any, *, torch: Any) -> Any:
 
     for attention in attentions:
         if gate_config["query"]:
-            attention.query_relu = torch.nn.ReLU()
+            attention.query_relu = _post_qkv_gate(gate_config, torch=torch)
         if gate_config["key"]:
-            attention.key_relu = torch.nn.ReLU()
+            attention.key_relu = _post_qkv_gate(gate_config, torch=torch)
         if gate_config["value"]:
-            attention.value_relu = torch.nn.ReLU()
+            attention.value_relu = _post_qkv_gate(gate_config, torch=torch)
         attention.qk_relu_placement = gate_config["qk_placement"]
         attention.forward = MethodType(_post_qkv_relu_attention_forward, attention)
 
@@ -183,7 +199,38 @@ def _post_qkv_relu_config(value: Any) -> dict[str, Any] | None:
             raise ValueError("Model config post_qkv_relu.qk_placement must be omitted when disabled.")
         if any(value[field] for field in ("query", "key", "value")):
             raise ValueError("Model config post_qkv_relu Q/K/V gates must be false when disabled.")
+        if "gate_type" in value or "kappa" in value:
+            raise ValueError("Model config post_qkv_relu gate_type/kappa must be omitted when disabled.")
         return dict(value)
     if not any(value[field] for field in ("query", "key", "value")):
         raise ValueError("Model config post_qkv_relu is enabled, but no Q/K/V gate is enabled.")
-    return dict(value)
+
+    gate_type = value.get("gate_type", "relu")
+    if gate_type not in {"relu", "symmetric_threshold"}:
+        raise ValueError("Model config post_qkv_relu.gate_type must be 'relu' or 'symmetric_threshold'.")
+    if gate_type == "relu":
+        if "kappa" in value:
+            raise ValueError("Model config post_qkv_relu.kappa must be omitted for ordinary ReLU gates.")
+    else:
+        if "kappa" not in value:
+            raise ValueError("Model config post_qkv_relu.kappa is required for symmetric-threshold gates.")
+        kappa = value["kappa"]
+        if (
+            isinstance(kappa, bool)
+            or not isinstance(kappa, (int, float))
+            or not torch.isfinite(torch.tensor(float(kappa))).item()
+            or float(kappa) < 0.0
+        ):
+            raise ValueError("Model config post_qkv_relu.kappa must be a finite non-negative number.")
+
+    normalized = dict(value)
+    normalized["gate_type"] = gate_type
+    if "kappa" in normalized:
+        normalized["kappa"] = float(normalized["kappa"])
+    return normalized
+
+
+def _post_qkv_gate(gate_config: Mapping[str, Any], *, torch: Any) -> Any:
+    if gate_config["gate_type"] == "relu":
+        return torch.nn.ReLU()
+    return FixedSymmetricThreshold(gate_config["kappa"])

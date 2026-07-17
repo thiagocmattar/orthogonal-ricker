@@ -246,6 +246,13 @@ Selected post-QKV ReLU placement experiment:
 - Plain ReLU on softmax P is not part of this experiment because valid P is nonnegative and `ReLU(P) = P`; L1 on a normalized probability row is also constant. A learnable positive-threshold shifted ReLU remains a later `TODO:`.
 - Full design, implementation, execution, and result-handoff contract: `docs/humans/04-attention-sparsification-paths.md`.
 
+Fixed symmetric-threshold POST follow-up:
+
+- Configs `118` and `119` retain the three ordinary branch ReLUs and POST Q/K/V gate locations, but the Q/K/V gates use $s_{0.1}(x)=x$ when $|x|\geq0.1$ and exact zero otherwise. The absolute threshold is fixed, parameter-free, and not RMS-normalized.
+- Config `118` is monitor-only AdamW. Config `119` uses OR weight 1, $c=\sigma=0.05$, and step budget 0.5 on `query_gate_outputs`, `key_gate_outputs`, and `value_gate_outputs` only.
+- This OR point is a matched control, not a guaranteed sparsifier: its inward Ricker basin ends at $\sqrt{3}c\approx0.0866$, below $\kappa=0.1$. Masked values receive zero gate gradient, while every surviving gate output starts in the Ricker score's outward-gradient region.
+- `TODO:` evaluate learnable $\kappa$ and OL1 only after the fixed AdamW/OR pair is interpreted.
+
 ## Expected Scale Ladders
 
 TODO: after the Pythia-14M MiniPile random-init baseline is stable and calibrated, consider scaling within the Pythia family up to 160M if memory and runtime measurements justify it. Do not add scale-up configs until the 14M path is reproducible.

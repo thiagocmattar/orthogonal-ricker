@@ -126,3 +126,12 @@ model:
 ```
 
 `pre_rope` applies the Q/K gates before standard partial RoPE. `post_rope` applies them after RoPE and immediately before QK. V is gated after the split and before PV in both cases. The pressure aliases are `query_gate_outputs`, `key_gate_outputs`, and `value_gate_outputs`. See `docs/humans/04-attention-sparsification-paths.md` for the selected six-run contract.
+
+Configs `118` and `119` keep the POST placement but replace only the Q/K/V ReLUs with the fixed signed gate
+
+```yaml
+    gate_type: symmetric_threshold
+    kappa: 0.1
+```
+
+This gate returns the original signed value when `abs(x) >= kappa` and exact zero otherwise. Equality survives. Omitting `gate_type` retains the historical ordinary-ReLU behavior. The attention-input, MLP-input, and MLP-hidden gates remain ordinary ReLUs. Config `118` is monitor-only AdamW; config `119` is OR on the Q/K/V gate outputs only.
