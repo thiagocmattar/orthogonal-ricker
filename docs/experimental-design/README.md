@@ -20,7 +20,7 @@ work.
   Configs `121--122` remain accepted engineering controls.
 - Last completed run: `001-20260718-181755-c71b5faf`, result path
   `results/127-s1-b0-p14m-a6post-adamw-lr3em5-s0/001-20260718-181755-c71b5faf`.
-- Config `128` is the ready combined selection-partition endpoint diagnostic
+- Config `128` is the active combined selection-partition endpoint diagnostic
   over the five exact canonical anchor run ids.
 - S1 must never use a global rank cutoff. Complete matched method panels from
   viable families advance to the 8,192-step rung under the frozen policy in
