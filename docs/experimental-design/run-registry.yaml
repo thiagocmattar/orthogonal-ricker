@@ -75,6 +75,8 @@ field_order:
   - propagation_result_path
   - r_block
   - r_model
+  - r_block_max
+  - r_model_max
   - u_arch
   - z_a
   - z_m
@@ -317,10 +319,26 @@ records:
     pytorch_version: 2.11.0+cu128
     cuda_version: "12.8"
     gpu_driver_version: "572.84"
+    propagation_result_path: results/128-s1-b0-p14m-architecture-anchors-selection-propagation/001-20260718-184159-f73e2c80/activation_propagation.json
+    r_block: 1.3270561641836952e-08
+    r_model: 3.9748486495100235e-09
+    r_block_max: 0.0
+    r_model_max: 0.0
+    u_arch: null
+    z_a: null
+    z_m: null
+    z_h: null
+    z_q_gate: null
+    z_k_gate: null
+    z_v_gate: null
+    z_q_qk: 8.365564179002193e-09
+    z_k_qk: 1.6731128358004385e-08
+    z_v_pv: 8.365564179002193e-09
+    z_context_wo: 1.6731128358004385e-08
     failure_type: null
     failure_message: null
     reviewed_at: 2026-07-18T17:13:55.9631521Z
-    notes: Completed from clean launch commit c59e5e0 with 42 train and 10 complete-selection validation events. Final model SHA-256 is 6d822bcd204069d8ae042c5e58fec02fca5814d25e860ef191ee785aa029b5e7; optimizer state was intentionally not saved. Selection propagation endpoints remain pending the combined numbered diagnostic.
+    notes: Completed from clean launch commit c59e5e0 with 42 train and 10 complete-selection validation events. Final model SHA-256 is 6d822bcd204069d8ae042c5e58fec02fca5814d25e860ef191ee785aa029b5e7; optimizer state was intentionally not saved. Complete-selection propagation endpoints are attached from canonical diagnostic config 128; A0 has no active-gate compute ceiling, and its tiny nonzero direct-product rate comes from incidental exact zeros in dense operands.
   - design_id: S1-B0-ARCH-A1H-LR3EM5-S0
     config_id: 124-s1-b0-p14m-a1h-adamw-lr3em5-s0
     run_id: 001-20260718-171535-c9b88552
@@ -357,10 +375,26 @@ records:
     pytorch_version: 2.11.0+cu128
     cuda_version: "12.8"
     gpu_driver_version: "572.84"
+    propagation_result_path: results/128-s1-b0-p14m-architecture-anchors-selection-propagation/001-20260718-184159-f73e2c80/activation_propagation.json
+    r_block: 0.06932718982671798
+    r_model: 0.020765141242274538
+    r_block_max: 0.14281729428172943
+    r_model_max: 0.04277717436711505
+    u_arch: 0.4854257334546561
+    z_a: null
+    z_m: null
+    z_h: 0.4854257064953185
+    z_q_gate: null
+    z_k_gate: null
+    z_v_gate: null
+    z_q_qk: 0.0
+    z_k_qk: 1.2548346268503289e-08
+    z_v_pv: 0.0
+    z_context_wo: 8.365564179002193e-09
     failure_type: null
     failure_message: null
     reviewed_at: 2026-07-18T17:33:12.5895765Z
-    notes: Completed from clean launch commit 1f1f51c with 42 train and 10 complete-selection validation events. Final model SHA-256 is 85c65877841114235077d0931a8c4650e98de2b7dfed963055b2a711448802fd; optimizer state was intentionally not saved. Final selection loss is 0.06039 lower than A0. Selection propagation endpoints remain pending the combined numbered diagnostic.
+    notes: Completed from clean launch commit 1f1f51c with 42 train and 10 complete-selection validation events. Final model SHA-256 is 85c65877841114235077d0931a8c4650e98de2b7dfed963055b2a711448802fd; optimizer state was intentionally not saved. Final selection loss is 0.06039 lower than A0. Complete-selection propagation endpoints are attached from canonical diagnostic config 128.
   - design_id: S1-B0-ARCH-A3-LR3EM5-S0
     config_id: 125-s1-b0-p14m-a3-adamw-lr3em5-s0
     run_id: 001-20260718-173453-33ecfcac
@@ -397,10 +431,26 @@ records:
     pytorch_version: 2.11.0+cu128
     cuda_version: "12.8"
     gpu_driver_version: "572.84"
+    propagation_result_path: results/128-s1-b0-p14m-architecture-anchors-selection-propagation/001-20260718-184159-f73e2c80/activation_propagation.json
+    r_block: 0.19354769207989106
+    r_model: 0.057972134355953664
+    r_block_max: 0.3927475592747559
+    r_model_max: 0.11763722950956639
+    u_arch: 0.49280431541648395
+    z_a: 0.5112091783891645
+    z_m: 0.5117946716777065
+    z_h: 0.4600102472723576
+    z_q_gate: null
+    z_k_gate: null
+    z_v_gate: null
+    z_q_qk: 8.365564179002193e-09
+    z_k_qk: 8.365564179002193e-09
+    z_v_pv: 1.2548346268503289e-08
+    z_context_wo: 8.365564179002193e-09
     failure_type: null
     failure_message: null
     reviewed_at: 2026-07-18T17:53:32.3724054Z
-    notes: Completed from clean launch commit 774c942 with 42 train and 10 complete-selection validation events. Final model SHA-256 is 09af12c8ba2998a554223ce4f42ddacd9aa64bcc76a445c5128752129d871db6; optimizer state was intentionally not saved. Final selection loss is 0.02435 above A1-H and 0.03603 below A0. Late gradient norms were noisier but finite, with monotonically improving validation endpoints. Selection propagation endpoints remain pending the combined numbered diagnostic.
+    notes: Completed from clean launch commit 774c942 with 42 train and 10 complete-selection validation events. Final model SHA-256 is 09af12c8ba2998a554223ce4f42ddacd9aa64bcc76a445c5128752129d871db6; optimizer state was intentionally not saved. Final selection loss is 0.02435 above A1-H and 0.03603 below A0. Late gradient norms were noisier but finite, with monotonically improving validation endpoints. Complete-selection propagation endpoints are attached from canonical diagnostic config 128.
   - design_id: S1-B0-ARCH-A6PRE-LR3EM5-S0
     config_id: 126-s1-b0-p14m-a6pre-adamw-lr3em5-s0
     run_id: 001-20260718-175512-d98db007
@@ -437,10 +487,26 @@ records:
     pytorch_version: 2.11.0+cu128
     cuda_version: "12.8"
     gpu_driver_version: "572.84"
+    propagation_result_path: results/128-s1-b0-p14m-architecture-anchors-selection-propagation/001-20260718-184159-f73e2c80/activation_propagation.json
+    r_block: 0.4079368576105902
+    r_model: 0.12218678540679805
+    r_block_max: 1.0
+    r_model_max: 0.2995237697384911
+    u_arch: 0.4079368576105902
+    z_a: 0.5100242296854655
+    z_m: 0.5114772612588447
+    z_h: 0.45866759827262477
+    z_q_gate: 0.1595509177760074
+    z_k_gate: 0.2868046844214724
+    z_v_gate: 0.4346044565501966
+    z_q_qk: 0.12064899896320544
+    z_k_qk: 0.24323001242520517
+    z_v_pv: 0.4346044565501966
+    z_context_wo: 0.010253437778405976
     failure_type: null
     failure_message: null
     reviewed_at: 2026-07-18T18:16:22.5665487Z
-    notes: Completed from clean launch commit 29ba861 with 42 train and 10 complete-selection validation events. Final model SHA-256 is 84e73133242c198634ec65bd906b0f3c6795191af8005a62d522c8c115191ee6; optimizer state was intentionally not saved. Final loss is 0.00335 above A3, but the A5-QK-PRE matched parent is still absent. Throughput is 12.81% below A3 under the custom attention path. Selection propagation endpoints remain pending the combined numbered diagnostic.
+    notes: Completed from clean launch commit 29ba861 with 42 train and 10 complete-selection validation events. Final model SHA-256 is 84e73133242c198634ec65bd906b0f3c6795191af8005a62d522c8c115191ee6; optimizer state was intentionally not saved. Final loss is 0.00335 above A3, but the A5-QK-PRE matched parent is still absent. Throughput is 12.81% below A3 under the custom attention path. Complete-selection propagation endpoints are attached from canonical diagnostic config 128.
   - design_id: S1-B0-ARCH-A6POST-LR3EM5-S0
     config_id: 127-s1-b0-p14m-a6post-adamw-lr3em5-s0
     run_id: 001-20260718-181755-c71b5faf
@@ -477,7 +543,65 @@ records:
     pytorch_version: 2.11.0+cu128
     cuda_version: "12.8"
     gpu_driver_version: "572.84"
+    propagation_result_path: results/128-s1-b0-p14m-architecture-anchors-selection-propagation/001-20260718-184159-f73e2c80/activation_propagation.json
+    r_block: 0.4554717968259799
+    r_model: 0.1364246295948816
+    r_block_max: 1.0
+    r_model_max: 0.2995237697384911
+    u_arch: 0.45547179682597994
+    z_a: 0.5099639892578125
+    z_m: 0.5108985649911981
+    z_h: 0.4591905621060154
+    z_q_gate: 0.22610156996208325
+    z_k_gate: 0.3497337081976104
+    z_v_gate: 0.436139654694942
+    z_q_qk: 0.22610156996208325
+    z_k_qk: 0.3497337081976104
+    z_v_pv: 0.436139654694942
+    z_context_wo: 0.010230068574871933
     failure_type: null
     failure_message: null
     reviewed_at: 2026-07-18T18:39:17.2452853Z
-    notes: Completed from clean launch commit fcce814 with 42 train and 10 complete-selection validation events. Final model SHA-256 is c8be20cf71edebbf8246fdedb9597b7e537a21611c59a3b7363e085ac0991ddd; optimizer state was intentionally not saved. Final loss is 0.01603 above A6-PRE and 0.01938 above A3, but the A5-QK-POST matched parent is absent. Throughput is 14.56% below A3 under the custom attention path. Selection propagation endpoints remain pending the combined numbered diagnostic.
+    notes: Completed from clean launch commit fcce814 with 42 train and 10 complete-selection validation events. Final model SHA-256 is c8be20cf71edebbf8246fdedb9597b7e537a21611c59a3b7363e085ac0991ddd; optimizer state was intentionally not saved. Final loss is 0.01603 above A6-PRE and 0.01938 above A3, but the A5-QK-POST matched parent is absent. Throughput is 14.56% below A3 under the custom attention path. Complete-selection propagation endpoints are attached from canonical diagnostic config 128.
+  - design_id: S1-B0-DIAG-ARCH-ANCHORS-SELECTION-S0
+    config_id: 128-s1-b0-p14m-architecture-anchors-selection-propagation
+    run_id: 001-20260718-184159-f73e2c80
+    attempt: 1
+    mode: activation-propagation
+    result_path: results/128-s1-b0-p14m-architecture-anchors-selection-propagation/001-20260718-184159-f73e2c80
+    log_path: run-logs/128-s1-b0-p14m-architecture-anchors-selection-propagation-attempt1.log
+    lifecycle_status: statusless_complete
+    evidence_status: valid
+    canonical: true
+    started_at: 2026-07-18T18:41:59.278455Z
+    finished_at: 2026-07-18T18:42:20.958521Z
+    git_commit: f0a936317b7331e791b1740c834b8f4008734c66
+    git_dirty: false
+    completed_steps: 0
+    tokens_seen: 0
+    model_initialization_seed: 0
+    data_order_seed: 0
+    training_schedule_scheme: null
+    training_schedule_hash: null
+    effective_tokens_per_update: null
+    validation_partition: selection
+    validation_partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
+    validation_tokens: 311296
+    validation_loss: null
+    wall_hours: 0.006022240638897832
+    tokens_per_second: 71793.13838157813
+    peak_gpu_mb: 672.9775390625
+    execution_backend: local
+    cloud_provider: null
+    gpu_type: NVIDIA GeForce RTX 5070 Ti Laptop GPU
+    gpu_count: 1
+    python_version: 3.12.10
+    pytorch_version: 2.11.0+cu128
+    cuda_version: "12.8"
+    gpu_driver_version: "572.84"
+    token_cache_sha256: 22bb7c27864f0e5941548c572d6c75b1b5ba6a4c13e4cd26f40f4de546c5cc19
+    propagation_result_path: results/128-s1-b0-p14m-architecture-anchors-selection-propagation/001-20260718-184159-f73e2c80/activation_propagation.json
+    failure_type: null
+    failure_message: null
+    reviewed_at: 2026-07-18T18:45:45.145249Z
+    notes: Canonical statusless-complete schema-v3 diagnostic over the five exact canonical source runs for configs 123--127. It evaluated all 152 complete 2048-token sequences in the named selection partition (311296 tokens), explicitly excluded 443 trailing cache tokens, and emitted pooled exact-zero counts, per-operation direct zero-product counts, architecture ceilings, and U_arch. All five source manifests were completed and shared the pinned partition and token-cache identities.

@@ -268,6 +268,12 @@ A concise handoff must state:
 - the next eligible cell and its matched-control dependency;
 - current Git SHA and dirty-tree status.
 
+During a local launch set, check and report on a milestone cadence rather than
+at every 100 steps. The default is one update about every 4--5 minutes, plus
+run completion or failure. Each update states the current config, step and
+latest loss, followed by the global launch-set view: completed/total runs,
+runs remaining, and ETC for both the current run and the full set.
+
 The receiving agent independently verifies process state and manifests. A chat
 message is not sufficient evidence that a run completed.
 

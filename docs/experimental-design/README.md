@@ -16,12 +16,15 @@ work.
 - The five central B0 anchors, configs `123--127`, completed and passed
   terminal review. Their final selection losses are `7.04913` (A0),
   `6.98875` (A1-H), `7.01310` (A3), `7.01645` (A6-PRE), and `7.03248`
-  (A6-POST). The combined selection-partition endpoint diagnostic is next.
-  Configs `121--122` remain accepted engineering controls.
-- Last completed run: `001-20260718-181755-c71b5faf`, result path
-  `results/127-s1-b0-p14m-a6post-adamw-lr3em5-s0/001-20260718-181755-c71b5faf`.
-- Config `128` is the active combined selection-partition endpoint diagnostic
-  over the five exact canonical anchor run ids.
+  (A6-POST). Config `128`, the combined selection-partition endpoint
+  diagnostic, also completed and passed artifact review. Configs `121--122`
+  remain accepted engineering controls.
+- Last completed run: `001-20260718-184159-f73e2c80`, result path
+  `results/128-s1-b0-p14m-architecture-anchors-selection-propagation/001-20260718-184159-f73e2c80`.
+- No config is active. B0 has completed `5 / 22` scientific cells; 17 remain,
+  of which 15 are executable and two post-PV context cells remain blocked.
+  The declared S1 core has completed `5 / 134` cells (`5 / 132` executable).
+  Diagnostic configs do not count as scientific cells.
 - S1 must never use a global rank cutoff. Complete matched method panels from
   viable families advance to the 8,192-step rung under the frozen policy in
   `06-s1-budget-backtest.md`.
@@ -45,6 +48,27 @@ Planned rows are not evidence that a cell ran. Only terminal manifests and run
 registry rows explicitly marked as valid are campaign evidence.
 
 ## Latest Completed Launch Set
+
+The first S1-B0 architecture-anchor set completed locally on 2026-07-18.
+All five runs used 2,048 matched steps and the complete selection partition.
+The consolidated endpoint evidence and handoff are in
+[`07-s1-b0-anchor-results.md`](07-s1-b0-anchor-results.md).
+
+| Config | Architecture | Validation loss | Wall (h) | Tokens/s |
+| --- | --- | ---: | ---: | ---: |
+| `123` | A0 | 7.04913 | 0.292 | 127,771 |
+| `124` | A1-H | 6.98875 | 0.277 | 134,502 |
+| `125` | A3 | 7.01310 | 0.300 | 124,482 |
+| `126` | A6-PRE | 7.01645 | 0.344 | 108,541 |
+| `127` | A6-POST | 7.03248 | 0.351 | 106,357 |
+
+The next recommended launch set is the five missing ordinary architecture
+parents A4-Q, A4-K, A4-V, A5-QK-PRE, and A5-QK-POST. It has not been launched.
+All five use the custom attention path. The measured A6 runtime implies about
+1 h 55 min--2 h 05 min after the first run launches, or about 2 h 20 min from
+the current unmaterialized state through diagnostic and handoff.
+
+## Latest Completed Engineering Launch Set
 
 `E0.1`, completed locally on 2026-07-18, validates the campaign's data,
 schedule, seed, and provenance contract. Validation loss is plumbing-only and
@@ -87,11 +111,13 @@ must not be used to rank methods.
 6. [`06-s1-budget-backtest.md`](06-s1-budget-backtest.md) records the historical
    short-run rank-survival veto and the S1 budget decision required before a
    scientific launch.
-7. [`validation-partitions.yaml`](validation-partitions.yaml) freezes the
+7. [`07-s1-b0-anchor-results.md`](07-s1-b0-anchor-results.md) consolidates the
+   first scientific launch set, endpoint diagnostic, caveats, and handoff.
+8. [`validation-partitions.yaml`](validation-partitions.yaml) freezes the
    document-disjoint selection and confirmation source-document lists.
-8. [`config-registry.yaml`](config-registry.yaml) is the config-level source of
+9. [`config-registry.yaml`](config-registry.yaml) is the config-level source of
    truth for materialized campaign cells.
-9. [`run-registry.yaml`](run-registry.yaml) records every run attempt. It is
+10. [`run-registry.yaml`](run-registry.yaml) records every run attempt. It is
    intentionally separate because one immutable config can have more than one
    infrastructure attempt.
 

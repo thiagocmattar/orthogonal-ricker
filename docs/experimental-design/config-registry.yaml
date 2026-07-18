@@ -471,8 +471,8 @@ records:
     ricker_sigma: null
     step_budget: null
     matched_control_id: null
-    config_status: active
+    config_status: closed
     decision_status: control
     release_tier: history
-    canonical_run_id: null
-    notes: Combined complete-selection propagation diagnostic pinned to the exact canonical run ids for configs 123--127. It emits pooled z-sites, direct per-operation zero products, R_block, R_model, topology ceilings, and U_arch.
+    canonical_run_id: 001-20260718-184159-f73e2c80
+    notes: Combined complete-selection propagation diagnostic pinned to the exact canonical run ids for configs 123--127. Run 001-20260718-184159-f73e2c80 completed over 311296 validation tokens and passed terminal artifact review. It emits pooled z-sites, direct per-operation zero products, R_block, R_model, topology ceilings, and U_arch.
