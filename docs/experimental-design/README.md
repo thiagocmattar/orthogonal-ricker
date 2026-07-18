@@ -20,6 +20,10 @@ work.
   controls.
 - Last completed run: `001-20260718-165523-9f3b9b91`, result path
   `results/123-s1-b0-p14m-a0-adamw-lr3em5-s0/001-20260718-165523-9f3b9b91`.
+- Active run: `001-20260718-171535-c9b88552`, started
+  `2026-07-18T17:15:35Z`, result path
+  `results/124-s1-b0-p14m-a1h-adamw-lr3em5-s0/001-20260718-171535-c9b88552`,
+  expected terminal window `2026-07-18T17:32--17:36Z`.
 - S1 must never use a global rank cutoff. Complete matched method panels from
   viable families advance to the 8,192-step rung under the frozen policy in
   `06-s1-budget-backtest.md`.
