@@ -22,7 +22,7 @@ block_summary:
     planned_cells: 22
     materialized_cells: 10
     completed_cells: 5
-    status: ready
+    status: active
     note: central anchors and the A4-Q/A4-K/A4-V/A5-QK-PRE/A5-QK-POST ordinary architecture parents are materialized; two post-PV context cells remain dependency-gated
   - block: S1-B1
     planned_cells: 36
@@ -518,7 +518,7 @@ records:
     ricker_sigma: null
     step_budget: null
     matched_control_id: S1-B0-ARCH-A3-LR3EM5-S0
-    config_status: ready
+    config_status: active
     decision_status: control
     release_tier: history
     canonical_run_id: null

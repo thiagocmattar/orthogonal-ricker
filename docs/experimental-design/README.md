@@ -23,7 +23,8 @@ work.
   `results/128-s1-b0-p14m-architecture-anchors-selection-propagation/001-20260718-184159-f73e2c80`.
 - Configs `129--133` materialize the next ordinary architecture-parent set:
   A4-Q, A4-K, A4-V, A5-QK-PRE, and A5-QK-POST. They passed preflight and are
-  ready for sequential local launch; none is active yet.
+  ready for sequential local launch. Config `129` (A4-Q) is active pending
+  local launch; configs `130--133` remain queued.
 - No config is active. B0 has completed `5 / 22` scientific cells; 17 remain,
   of which 15 are executable and two post-PV context cells remain blocked.
   The declared S1 core has completed `5 / 134` cells (`5 / 132` executable).
