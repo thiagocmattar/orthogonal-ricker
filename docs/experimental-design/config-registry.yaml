@@ -21,8 +21,8 @@ block_summary:
   - block: S1-B0
     planned_cells: 22
     materialized_cells: 5
-    completed_cells: 4
-    status: active
+    completed_cells: 5
+    status: ready
     note: central A0/A1-H/A3/A6-PRE/A6-POST anchors are materialized; two post-PV context cells remain dependency-gated
   - block: S1-B1
     planned_cells: 36
@@ -424,8 +424,8 @@ records:
     ricker_sigma: null
     step_budget: null
     matched_control_id: S1-B0-ARCH-A5QKPOST-LR3EM5-S0
-    config_status: active
+    config_status: closed
     decision_status: control
     release_tier: history
-    canonical_run_id: null
-    notes: Six-ReLU POST-RoPE AdamW architecture control; no pressure. Its direct parent will be materialized later in B0. S1 is feasibility/within-stratum only.
+    canonical_run_id: 001-20260718-181755-c71b5faf
+    notes: Six-ReLU POST-RoPE AdamW architecture control; no pressure. Run 001-20260718-181755-c71b5faf completed 2048 steps and passed terminal review at selection loss 7.03248. Its direct parent will be materialized later in B0, so the direct architecture delta remains unavailable. S1 is feasibility/within-stratum only.

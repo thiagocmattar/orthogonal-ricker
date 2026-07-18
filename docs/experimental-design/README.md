@@ -13,17 +13,13 @@ work.
   is restricted to feasibility/collapse and within-stratum comparisons; the B0
   endpoint diagnostic is accepted.
 - Next config prefix: `128`.
-- Configs `123--126` completed and passed terminal review. Their final
-  selection losses are `7.04913` (A0), `6.98875` (A1-H), `7.01310` (A3),
-  and `7.01645` (A6-PRE). Config `127`
-  (`S1-B0-ARCH-A6POST-LR3EM5-S0`) is active pending local launch. Configs
-  `121--122` are accepted engineering controls.
-- Last completed run: `001-20260718-175512-d98db007`, result path
-  `results/126-s1-b0-p14m-a6pre-adamw-lr3em5-s0/001-20260718-175512-d98db007`.
-- Active run: `001-20260718-181755-c71b5faf`, started
-  `2026-07-18T18:17:55Z`, result path
-  `results/127-s1-b0-p14m-a6post-adamw-lr3em5-s0/001-20260718-181755-c71b5faf`,
-  expected terminal window `2026-07-18T18:38--18:40Z`.
+- The five central B0 anchors, configs `123--127`, completed and passed
+  terminal review. Their final selection losses are `7.04913` (A0),
+  `6.98875` (A1-H), `7.01310` (A3), `7.01645` (A6-PRE), and `7.03248`
+  (A6-POST). The combined selection-partition endpoint diagnostic is next.
+  Configs `121--122` remain accepted engineering controls.
+- Last completed run: `001-20260718-181755-c71b5faf`, result path
+  `results/127-s1-b0-p14m-a6post-adamw-lr3em5-s0/001-20260718-181755-c71b5faf`.
 - S1 must never use a global rank cutoff. Complete matched method panels from
   viable families advance to the 8,192-step rung under the frozen policy in
   `06-s1-budget-backtest.md`.
