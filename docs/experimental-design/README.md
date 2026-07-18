@@ -19,24 +19,20 @@ work.
   (A6-POST). Config `128`, the combined selection-partition endpoint
   diagnostic, also completed and passed artifact review. Configs `121--122`
   remain accepted engineering controls.
-- Last completed run: config `129` A4-Q, run
-  `002-20260718-190411-3c1c6719`, result path
-  `results/129-s1-b0-p14m-a4q-adamw-lr3em5-s0/002-20260718-190411-3c1c6719`,
-  selection loss `7.02126`.
-- Active run: config `130` A4-K, run `001-20260718-192601-b1795544`,
-  started `2026-07-18T19:26:01Z`, result path
-  `results/130-s1-b0-p14m-a4k-adamw-lr3em5-s0/001-20260718-192601-b1795544`.
-  Expected terminal window is `2026-07-18T19:45--19:47Z`.
+- Last completed run: config `130` A4-K, run
+  `001-20260718-192601-b1795544`, result path
+  `results/130-s1-b0-p14m-a4k-adamw-lr3em5-s0/001-20260718-192601-b1795544`,
+  selection loss `7.02441`.
 - Config `129` attempt 1, run `001-20260718-190208-c6152824`, is an invalid
   infrastructure-only partial: sandbox process containment ended it before
   the first training event. Retry 2 completed from the same immutable config.
 - Configs `129--133` materialize the next ordinary architecture-parent set:
   A4-Q, A4-K, A4-V, A5-QK-PRE, and A5-QK-POST. They passed preflight and are
-  ready for sequential local launch. Config `129` (A4-Q) completed; config
-  `130` (A4-K) is running; configs `131--133` remain queued.
-- B0 has completed `6 / 22` scientific cells; 16 remain, of which 14 are
+  ready for sequential local launch. Configs `129--130` completed; config
+  `131` (A4-V) is active pending local launch; configs `132--133` remain queued.
+- B0 has completed `7 / 22` scientific cells; 15 remain, of which 13 are
   executable and two post-PV context cells remain blocked. The declared S1
-  core has completed `6 / 134` cells (`6 / 132` executable).
+  core has completed `7 / 134` cells (`7 / 132` executable).
   Diagnostic configs do not count as scientific cells.
 - S1 must never use a global rank cutoff. Complete matched method panels from
   viable families advance to the 8,192-step rung under the frozen policy in
