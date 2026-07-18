@@ -15,8 +15,8 @@ block_summary:
   - block: E0-CONTRACT
     planned_cells: 2
     materialized_cells: 2
-    completed_cells: 1
-    status: active
+    completed_cells: 2
+    status: completed
     note: document-disjoint validation, independent seeds, schedule hash, and initialization hash
   - block: S1-B0
     planned_cells: 22
@@ -189,8 +189,8 @@ records:
     ricker_sigma: null
     step_budget: null
     matched_control_id: E0-CONTRACT-A0-I0-D0-ST128
-    config_status: active
+    config_status: closed
     decision_status: control
     release_tier: history
-    canonical_run_id: null
-    notes: Same schedule and validation as config 121; only model initialization seed changes. Local pretraining is the active launch.
+    canonical_run_id: 001-20260718-145419-e88ac5f4
+    notes: Same schedule and validation as config 121; only model initialization seed changes. Pretraining run 001-20260718-145419-e88ac5f4 completed and passed terminal review; the initialization hash differs while schedule and validation hashes match config 121.

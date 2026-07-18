@@ -9,12 +9,11 @@ work.
 
 - Campaign id: `pythia-sparsity-scaling-v1`.
 - Planning date: 2026-07-18.
-- Current phase: E0.1 local execution. Both validation partitions are
-  materialized and verified; config `121` is complete, config `122` is active,
-  and the S1 budget decision remains blocked.
+- Current phase: E0.1 complete. Both validation partitions and both seed-contract
+  controls passed terminal review; the S1 budget decision remains blocked.
 - Next config prefix: `123`.
-- Config `121` is the accepted local engineering control; matched config `122`
-  is the active seed-decoupling launch.
+- No campaign run is active. Configs `121--122` are accepted engineering
+  controls; config prefix `123` remains unallocated.
 - S1 scientific launch is blocked pending the budget decision in
   `06-s1-budget-backtest.md`; E0 engineering contract pilots may run.
 - Configs `1` through `120` and their existing results remain historical
@@ -33,8 +32,32 @@ work.
   blocked until cache portability, environment locking, exact resume, artifact
   verification, and local/cloud parity gates pass.
 
-This is a design and orchestration document, not evidence that any planned cell
-has run.
+Planned rows are not evidence that a cell ran. Only terminal manifests and run
+registry rows explicitly marked as valid are campaign evidence.
+
+## Latest Completed Launch Set
+
+`E0.1`, completed locally on 2026-07-18, validates the campaign's data,
+schedule, seed, and provenance contract. Validation loss is plumbing-only and
+must not be used to rank methods.
+
+| Config | Canonical pretrain run | Init/data seeds | Steps | Validation loss | Wall (s) | Tokens/s | Peak GPU (MiB) |
+| --- | --- | --- | ---: | ---: | ---: | ---: | ---: |
+| `121` | `004-20260718-145119-0106c58b` | `0 / 0` | 128 | 10.109134 | 66.80 | 125,955 | 5,996 |
+| `122` | `001-20260718-145419-e88ac5f4` | `1 / 0` | 128 | 10.097261 | 67.71 | 124,290 | 5,996 |
+
+- Both runs reached 8,388,608 tokens and share schedule hash
+  `9d9f708a79511390da9559b88e06e797aa216149af709c841923c56f926e1120`
+  and selection-partition hash
+  `ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47`.
+- Their initialization hashes differ as required: config `121` has
+  `df48838c379b4b28ddebdf3cb5ce003e46f5fcd6f50f40e1549446a2fbc998ed`;
+  config `122` has
+  `d118172cbe98a14ad42acd78942f1914083e9559dada9bd225585fb2f130aa07`.
+- Prepare-data run `003-20260718-144833-a9e5ac30` materialized and verified
+  document-disjoint 250/250 partitions. Selection has 311,739 tokens;
+  confirmation has 381,929. The two preceding empty sandbox-lock attempts are
+  retained as invalid partial attempts in `run-registry.yaml`.
 
 ## Documents
 

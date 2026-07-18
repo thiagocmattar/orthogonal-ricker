@@ -248,28 +248,28 @@ records:
     mode: pretrain
     result_path: results/122-e0-p14m-contract-a0-i1-d0-st128/001-20260718-145419-e88ac5f4
     log_path: run-logs/122-e0-p14m-contract-a0-i1-d0-st128-pretrain-attempt1.log
-    lifecycle_status: running
-    evidence_status: unreviewed
-    canonical: false
+    lifecycle_status: completed
+    evidence_status: valid
+    canonical: true
     started_at: 2026-07-18T14:54:20.001669Z
-    finished_at: null
+    finished_at: 2026-07-18T14:55:30.237150Z
     git_commit: 2b779eb3fd4c85f457771a04d593eb6b65280919
     git_dirty: false
-    completed_steps: null
-    tokens_seen: null
+    completed_steps: 128
+    tokens_seen: 8388608
     model_initialization_seed: 1
     data_order_seed: 0
     training_schedule_scheme: random_contiguous_blocks_with_replacement_v1
     training_schedule_hash: 9d9f708a79511390da9559b88e06e797aa216149af709c841923c56f926e1120
-    initial_parameter_sha256: null
+    initial_parameter_sha256: d118172cbe98a14ad42acd78942f1914083e9559dada9bd225585fb2f130aa07
     effective_tokens_per_update: 65536
     validation_partition: selection
     validation_partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
-    validation_tokens: 311739
-    validation_loss: null
-    wall_hours: null
-    tokens_per_second: null
-    peak_gpu_mb: null
+    validation_tokens: 311296
+    validation_loss: 10.097260525352077
+    wall_hours: 0.01880704633333759
+    tokens_per_second: 124290.20829478551
+    peak_gpu_mb: 5996.47119140625
     execution_backend: local
     gpu_type: NVIDIA GeForce RTX 5070 Ti Laptop GPU
     python_version: 3.12.10
@@ -279,5 +279,5 @@ records:
     token_cache_sha256: da82a2ea2e0080c7fd681c7a93b07d3d9ff3d5357a8640895a82d536a1eaf97c
     failure_type: null
     failure_message: null
-    reviewed_at: 2026-07-18T14:54:22Z
-    notes: Running config 122 from a clean committed tree; terminal metrics and seed-decoupling checks pending.
+    reviewed_at: 2026-07-18T14:55:58.2924240Z
+    notes: Completed from a clean launch commit with 12 durable events. Final model SHA-256 is 9254770c1a9fa7efbe8b170a2f57f2538a5c868d3259c11c81d2325e4ac784fd; optimizer SHA-256 is df149caf720fa67bdf228e116e1541cd723bc356f788995eac365053a0a768fe. The initialization hash differs from config 121 while schedule and validation hashes match. Validation loss is plumbing-only and not selection evidence.
