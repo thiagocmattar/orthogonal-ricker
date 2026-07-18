@@ -1,6 +1,6 @@
 schema_version: 1
 campaign_id: pythia-sparsity-scaling-v1
-next_config_prefix: 134
+next_config_prefix: 135
 core_design_cells: 134
 core_executable_cells_without_context_gate: 132
 maximum_design_cells: 184
@@ -711,3 +711,50 @@ records:
     release_tier: history
     canonical_run_id: 001-20260718-203020-55473d96
     notes: Q/K POST-RoPE AdamW architecture control; no pressure. Run 001-20260718-203020-55473d96 completed 2048 steps and passed terminal review at selection loss 7.03064, 0.01754 above its matched Three-ReLU A3 control. It is the direct parent of A6-POST config 127. S1 is feasibility/within-stratum only.
+  - design_id: S1-B0-DIAG-ATTN-PARENTS-SELECTION-S0
+    config_id: 134-s1-b0-p14m-attention-parents-selection-propagation
+    config_path: configs/134-s1-b0-p14m-attention-parents-selection-propagation.yaml
+    phase: S1
+    block: S1-B0-DIAGNOSTIC
+    comparison_id: S1-B0-ARCH
+    pair_id: S1-B0-ARCH-ATTN-PARENT-ENDPOINTS
+    promotion_family: null
+    kind: diagnostic
+    model_size: 14M
+    steps: 0
+    tokens: 311296
+    model_initialization_seed: 0
+    data_order_seed: 0
+    training_schedule_scheme: null
+    training_schedule_hash: null
+    effective_tokens_per_update: null
+    validation_partition: selection
+    validation_partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
+    architecture_id: mixed_attention_parent_cohort
+    gate_family: mixed
+    gate_sites: [a, m, h, q, k, v]
+    qk_placement: mixed
+    kappa_mode: fixed
+    kappa: 0.0
+    kappa_init: null
+    kappa_scope: all_active_gates
+    threshold_scale: absolute
+    surrogate: null
+    temperature: null
+    threshold_learning_rate: null
+    optimizer_recipe: null
+    model_learning_rate: null
+    micro_batch_size: null
+    gradient_accumulation_steps: null
+    pressure_method: none
+    pressure_sites: []
+    pressure_weight: 0.0
+    ricker_c: null
+    ricker_sigma: null
+    step_budget: null
+    matched_control_id: null
+    config_status: ready
+    decision_status: control
+    release_tier: history
+    canonical_run_id: null
+    notes: Combined complete-selection propagation diagnostic pinned to the exact canonical run ids for configs 129--133; launch after a clean config commit and close only after artifact review.

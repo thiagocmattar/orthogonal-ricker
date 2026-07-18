@@ -1,0 +1,61 @@
+experiment_name: s1_b0_pythia_14m_attention_parents_selection_propagation
+sweep:
+  name: pythia_sparsity_scaling_v1_s1_b0
+  role: attention_parent_selection_endpoint_diagnostic
+  design_id: S1-B0-DIAG-ATTN-PARENTS-SELECTION-S0
+  notes: Complete frozen selection-partition exact-zero and logical-product diagnostic for the five B0 attention architecture parents.
+model:
+  provider: huggingface
+  name: pythia-14m-random-s1-b0-attention-parent-propagation
+  architecture: EleutherAI/pythia-14m-deduped
+  revision: 7386d9a4ae45aef494a6e704910394def3037fc5
+  initialization: random
+data:
+  name: JeanKaddour/minipile
+  revision: 18ad1b0c701eaa0de03d3cecfdd769cbc70ffbd0
+  split: validation
+  text_column: text
+  max_documents: 500
+evaluation:
+  metric: activation_propagation
+run:
+  seed: 0
+  max_examples: 500
+tokenizer:
+  name: EleutherAI/pythia-14m-deduped
+  revision: 7386d9a4ae45aef494a6e704910394def3037fc5
+preprocessing:
+  output_dir: data/tokenized
+  cache_id: 03-pythia-14m-minipile-random-full-10min
+  block_size: 2048
+  append_eos: true
+  overwrite: false
+validation:
+  enabled: true
+  split: validation
+  max_documents: 500
+  partition: selection
+  partition_scheme: shuffled_source_documents_half_v1
+  partition_seed: 20260718
+  partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
+  eval_batches: null
+  batch_size: 4
+activation_propagation:
+  selected_runs:
+    - label: A4-Q AdamW
+      config_id: 129-s1-b0-p14m-a4q-adamw-lr3em5-s0
+      run_id: 002-20260718-190411-3c1c6719
+    - label: A4-K AdamW
+      config_id: 130-s1-b0-p14m-a4k-adamw-lr3em5-s0
+      run_id: 001-20260718-192601-b1795544
+    - label: A4-V AdamW
+      config_id: 131-s1-b0-p14m-a4v-adamw-lr3em5-s0
+      run_id: 001-20260718-194713-d1dc3486
+    - label: A5-QK-PRE AdamW
+      config_id: 132-s1-b0-p14m-a5qkpre-adamw-lr3em5-s0
+      run_id: 001-20260718-200813-81b1dd63
+    - label: A5-QK-POST AdamW
+      config_id: 133-s1-b0-p14m-a5qkpost-adamw-lr3em5-s0
+      run_id: 001-20260718-203020-55473d96
+output:
+  dir: results
