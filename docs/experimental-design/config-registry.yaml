@@ -1,6 +1,6 @@
 schema_version: 1
 campaign_id: pythia-sparsity-scaling-v1
-next_config_prefix: 135
+next_config_prefix: 145
 core_design_cells: 134
 core_executable_cells_without_context_gate: 132
 maximum_design_cells: 184
@@ -20,10 +20,10 @@ block_summary:
     note: document-disjoint validation, independent seeds, schedule hash, and initialization hash
   - block: S1-B0
     planned_cells: 22
-    materialized_cells: 10
+    materialized_cells: 20
     completed_cells: 10
     status: ready
-    note: central anchors and the A4-Q/A4-K/A4-V/A5-QK-PRE/A5-QK-POST ordinary architecture parents are materialized; two post-PV context cells remain dependency-gated
+    note: all 20 executable B0 cells are materialized, comprising 10 central/ordinary architecture controls and 10 model-LR flanks; two post-PV context cells remain dependency-gated
   - block: S1-B1
     planned_cells: 36
     materialized_cells: 0
@@ -758,3 +758,473 @@ records:
     release_tier: history
     canonical_run_id: 001-20260718-205354-8821b592
     notes: Combined complete-selection propagation diagnostic pinned to the exact canonical run ids for configs 129--133. Run 001-20260718-205354-8821b592 evaluated 311296 tokens and passed terminal artifact review; it emits pooled z-sites, direct per-operation zero products, R_block, R_model, topology ceilings, RoPE survival, and U_arch.
+  - design_id: S1-B0-LR-A0-LR1EM5-S0
+    config_id: 135-s1-b0-p14m-a0-adamw-lr1em5-s0
+    config_path: configs/135-s1-b0-p14m-a0-adamw-lr1em5-s0.yaml
+    phase: S1
+    block: S1-B0
+    comparison_id: S1-B0-LR
+    pair_id: S1-B0-LR-A0
+    promotion_family: A0
+    kind: scientific
+    model_size: 14M
+    steps: 2048
+    tokens: 134217728
+    model_initialization_seed: 0
+    data_order_seed: 0
+    training_schedule_scheme: random_contiguous_blocks_with_replacement_v1
+    training_schedule_hash: db4fa092d7092d29edc3bf1e2005af69f4a92b8bf6e6d88cbb6a166e12be02fc
+    effective_tokens_per_update: 65536
+    validation_partition: selection
+    validation_partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
+    architecture_id: A0
+    gate_family: none
+    gate_sites: []
+    qk_placement: null
+    kappa_mode: null
+    kappa: null
+    kappa_init: null
+    kappa_scope: null
+    threshold_scale: null
+    surrogate: null
+    temperature: null
+    threshold_learning_rate: null
+    optimizer_recipe: harness_adamw
+    model_learning_rate: 1.0e-05
+    micro_batch_size: 4
+    gradient_accumulation_steps: 8
+    pressure_method: none
+    pressure_sites: [mlp_hiddens]
+    pressure_weight: 0.0
+    ricker_c: null
+    ricker_sigma: null
+    step_budget: null
+    matched_control_id: S1-B0-ARCH-A0-LR3EM5-S0
+    config_status: ready
+    decision_status: control
+    release_tier: history
+    canonical_run_id: null
+    notes: A0 AdamW model-learning-rate flank at 1.0e-05, matched to S1-B0-ARCH-A0-LR3EM5-S0; no pressure. S1 is feasibility/within-stratum only.
+  - design_id: S1-B0-LR-A1H-LR1EM5-S0
+    config_id: 136-s1-b0-p14m-a1h-adamw-lr1em5-s0
+    config_path: configs/136-s1-b0-p14m-a1h-adamw-lr1em5-s0.yaml
+    phase: S1
+    block: S1-B0
+    comparison_id: S1-B0-LR
+    pair_id: S1-B0-LR-A1H
+    promotion_family: A1H
+    kind: scientific
+    model_size: 14M
+    steps: 2048
+    tokens: 134217728
+    model_initialization_seed: 0
+    data_order_seed: 0
+    training_schedule_scheme: random_contiguous_blocks_with_replacement_v1
+    training_schedule_hash: db4fa092d7092d29edc3bf1e2005af69f4a92b8bf6e6d88cbb6a166e12be02fc
+    effective_tokens_per_update: 65536
+    validation_partition: selection
+    validation_partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
+    architecture_id: A1-H
+    gate_family: gplus
+    gate_sites: [h]
+    qk_placement: null
+    kappa_mode: fixed
+    kappa: 0.0
+    kappa_init: null
+    kappa_scope: all_active_gates
+    threshold_scale: absolute
+    surrogate: null
+    temperature: null
+    threshold_learning_rate: null
+    optimizer_recipe: harness_adamw
+    model_learning_rate: 1.0e-05
+    micro_batch_size: 4
+    gradient_accumulation_steps: 8
+    pressure_method: none
+    pressure_sites: [mlp_hiddens]
+    pressure_weight: 0.0
+    ricker_c: null
+    ricker_sigma: null
+    step_budget: null
+    matched_control_id: S1-B0-ARCH-A1H-LR3EM5-S0
+    config_status: ready
+    decision_status: control
+    release_tier: history
+    canonical_run_id: null
+    notes: A1H AdamW model-learning-rate flank at 1.0e-05, matched to S1-B0-ARCH-A1H-LR3EM5-S0; no pressure. S1 is feasibility/within-stratum only.
+  - design_id: S1-B0-LR-A3-LR1EM5-S0
+    config_id: 137-s1-b0-p14m-a3-adamw-lr1em5-s0
+    config_path: configs/137-s1-b0-p14m-a3-adamw-lr1em5-s0.yaml
+    phase: S1
+    block: S1-B0
+    comparison_id: S1-B0-LR
+    pair_id: S1-B0-LR-A3
+    promotion_family: A3
+    kind: scientific
+    model_size: 14M
+    steps: 2048
+    tokens: 134217728
+    model_initialization_seed: 0
+    data_order_seed: 0
+    training_schedule_scheme: random_contiguous_blocks_with_replacement_v1
+    training_schedule_hash: db4fa092d7092d29edc3bf1e2005af69f4a92b8bf6e6d88cbb6a166e12be02fc
+    effective_tokens_per_update: 65536
+    validation_partition: selection
+    validation_partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
+    architecture_id: A3
+    gate_family: gplus
+    gate_sites: [a, m, h]
+    qk_placement: null
+    kappa_mode: fixed
+    kappa: 0.0
+    kappa_init: null
+    kappa_scope: all_active_gates
+    threshold_scale: absolute
+    surrogate: null
+    temperature: null
+    threshold_learning_rate: null
+    optimizer_recipe: harness_adamw
+    model_learning_rate: 1.0e-05
+    micro_batch_size: 4
+    gradient_accumulation_steps: 8
+    pressure_method: none
+    pressure_sites: [attention_inputs, mlp_inputs, mlp_hiddens]
+    pressure_weight: 0.0
+    ricker_c: null
+    ricker_sigma: null
+    step_budget: null
+    matched_control_id: S1-B0-ARCH-A3-LR3EM5-S0
+    config_status: ready
+    decision_status: control
+    release_tier: history
+    canonical_run_id: null
+    notes: A3 AdamW model-learning-rate flank at 1.0e-05, matched to S1-B0-ARCH-A3-LR3EM5-S0; no pressure. S1 is feasibility/within-stratum only.
+  - design_id: S1-B0-LR-A6PRE-LR1EM5-S0
+    config_id: 138-s1-b0-p14m-a6pre-adamw-lr1em5-s0
+    config_path: configs/138-s1-b0-p14m-a6pre-adamw-lr1em5-s0.yaml
+    phase: S1
+    block: S1-B0
+    comparison_id: S1-B0-LR
+    pair_id: S1-B0-LR-A6PRE
+    promotion_family: A6PRE
+    kind: scientific
+    model_size: 14M
+    steps: 2048
+    tokens: 134217728
+    model_initialization_seed: 0
+    data_order_seed: 0
+    training_schedule_scheme: random_contiguous_blocks_with_replacement_v1
+    training_schedule_hash: db4fa092d7092d29edc3bf1e2005af69f4a92b8bf6e6d88cbb6a166e12be02fc
+    effective_tokens_per_update: 65536
+    validation_partition: selection
+    validation_partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
+    architecture_id: A6-PRE
+    gate_family: gplus
+    gate_sites: [a, m, h, q, k, v]
+    qk_placement: pre_rope
+    kappa_mode: fixed
+    kappa: 0.0
+    kappa_init: null
+    kappa_scope: all_active_gates
+    threshold_scale: absolute
+    surrogate: null
+    temperature: null
+    threshold_learning_rate: null
+    optimizer_recipe: harness_adamw
+    model_learning_rate: 1.0e-05
+    micro_batch_size: 4
+    gradient_accumulation_steps: 8
+    pressure_method: none
+    pressure_sites: [attention_inputs, mlp_inputs, mlp_hiddens, query_gate_outputs, key_gate_outputs, value_gate_outputs]
+    pressure_weight: 0.0
+    ricker_c: null
+    ricker_sigma: null
+    step_budget: null
+    matched_control_id: S1-B0-ARCH-A6PRE-LR3EM5-S0
+    config_status: ready
+    decision_status: control
+    release_tier: history
+    canonical_run_id: null
+    notes: A6PRE AdamW model-learning-rate flank at 1.0e-05, matched to S1-B0-ARCH-A6PRE-LR3EM5-S0; no pressure. S1 is feasibility/within-stratum only.
+  - design_id: S1-B0-LR-A6POST-LR1EM5-S0
+    config_id: 139-s1-b0-p14m-a6post-adamw-lr1em5-s0
+    config_path: configs/139-s1-b0-p14m-a6post-adamw-lr1em5-s0.yaml
+    phase: S1
+    block: S1-B0
+    comparison_id: S1-B0-LR
+    pair_id: S1-B0-LR-A6POST
+    promotion_family: A6POST
+    kind: scientific
+    model_size: 14M
+    steps: 2048
+    tokens: 134217728
+    model_initialization_seed: 0
+    data_order_seed: 0
+    training_schedule_scheme: random_contiguous_blocks_with_replacement_v1
+    training_schedule_hash: db4fa092d7092d29edc3bf1e2005af69f4a92b8bf6e6d88cbb6a166e12be02fc
+    effective_tokens_per_update: 65536
+    validation_partition: selection
+    validation_partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
+    architecture_id: A6-POST
+    gate_family: gplus
+    gate_sites: [a, m, h, q, k, v]
+    qk_placement: post_rope
+    kappa_mode: fixed
+    kappa: 0.0
+    kappa_init: null
+    kappa_scope: all_active_gates
+    threshold_scale: absolute
+    surrogate: null
+    temperature: null
+    threshold_learning_rate: null
+    optimizer_recipe: harness_adamw
+    model_learning_rate: 1.0e-05
+    micro_batch_size: 4
+    gradient_accumulation_steps: 8
+    pressure_method: none
+    pressure_sites: [attention_inputs, mlp_inputs, mlp_hiddens, query_gate_outputs, key_gate_outputs, value_gate_outputs]
+    pressure_weight: 0.0
+    ricker_c: null
+    ricker_sigma: null
+    step_budget: null
+    matched_control_id: S1-B0-ARCH-A6POST-LR3EM5-S0
+    config_status: ready
+    decision_status: control
+    release_tier: history
+    canonical_run_id: null
+    notes: A6POST AdamW model-learning-rate flank at 1.0e-05, matched to S1-B0-ARCH-A6POST-LR3EM5-S0; no pressure. S1 is feasibility/within-stratum only.
+  - design_id: S1-B0-LR-A0-LR1EM4-S0
+    config_id: 140-s1-b0-p14m-a0-adamw-lr1em4-s0
+    config_path: configs/140-s1-b0-p14m-a0-adamw-lr1em4-s0.yaml
+    phase: S1
+    block: S1-B0
+    comparison_id: S1-B0-LR
+    pair_id: S1-B0-LR-A0
+    promotion_family: A0
+    kind: scientific
+    model_size: 14M
+    steps: 2048
+    tokens: 134217728
+    model_initialization_seed: 0
+    data_order_seed: 0
+    training_schedule_scheme: random_contiguous_blocks_with_replacement_v1
+    training_schedule_hash: db4fa092d7092d29edc3bf1e2005af69f4a92b8bf6e6d88cbb6a166e12be02fc
+    effective_tokens_per_update: 65536
+    validation_partition: selection
+    validation_partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
+    architecture_id: A0
+    gate_family: none
+    gate_sites: []
+    qk_placement: null
+    kappa_mode: null
+    kappa: null
+    kappa_init: null
+    kappa_scope: null
+    threshold_scale: null
+    surrogate: null
+    temperature: null
+    threshold_learning_rate: null
+    optimizer_recipe: harness_adamw
+    model_learning_rate: 1.0e-04
+    micro_batch_size: 4
+    gradient_accumulation_steps: 8
+    pressure_method: none
+    pressure_sites: [mlp_hiddens]
+    pressure_weight: 0.0
+    ricker_c: null
+    ricker_sigma: null
+    step_budget: null
+    matched_control_id: S1-B0-ARCH-A0-LR3EM5-S0
+    config_status: ready
+    decision_status: control
+    release_tier: history
+    canonical_run_id: null
+    notes: A0 AdamW model-learning-rate flank at 1.0e-04, matched to S1-B0-ARCH-A0-LR3EM5-S0; no pressure. S1 is feasibility/within-stratum only.
+  - design_id: S1-B0-LR-A1H-LR1EM4-S0
+    config_id: 141-s1-b0-p14m-a1h-adamw-lr1em4-s0
+    config_path: configs/141-s1-b0-p14m-a1h-adamw-lr1em4-s0.yaml
+    phase: S1
+    block: S1-B0
+    comparison_id: S1-B0-LR
+    pair_id: S1-B0-LR-A1H
+    promotion_family: A1H
+    kind: scientific
+    model_size: 14M
+    steps: 2048
+    tokens: 134217728
+    model_initialization_seed: 0
+    data_order_seed: 0
+    training_schedule_scheme: random_contiguous_blocks_with_replacement_v1
+    training_schedule_hash: db4fa092d7092d29edc3bf1e2005af69f4a92b8bf6e6d88cbb6a166e12be02fc
+    effective_tokens_per_update: 65536
+    validation_partition: selection
+    validation_partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
+    architecture_id: A1-H
+    gate_family: gplus
+    gate_sites: [h]
+    qk_placement: null
+    kappa_mode: fixed
+    kappa: 0.0
+    kappa_init: null
+    kappa_scope: all_active_gates
+    threshold_scale: absolute
+    surrogate: null
+    temperature: null
+    threshold_learning_rate: null
+    optimizer_recipe: harness_adamw
+    model_learning_rate: 1.0e-04
+    micro_batch_size: 4
+    gradient_accumulation_steps: 8
+    pressure_method: none
+    pressure_sites: [mlp_hiddens]
+    pressure_weight: 0.0
+    ricker_c: null
+    ricker_sigma: null
+    step_budget: null
+    matched_control_id: S1-B0-ARCH-A1H-LR3EM5-S0
+    config_status: ready
+    decision_status: control
+    release_tier: history
+    canonical_run_id: null
+    notes: A1H AdamW model-learning-rate flank at 1.0e-04, matched to S1-B0-ARCH-A1H-LR3EM5-S0; no pressure. S1 is feasibility/within-stratum only.
+  - design_id: S1-B0-LR-A3-LR1EM4-S0
+    config_id: 142-s1-b0-p14m-a3-adamw-lr1em4-s0
+    config_path: configs/142-s1-b0-p14m-a3-adamw-lr1em4-s0.yaml
+    phase: S1
+    block: S1-B0
+    comparison_id: S1-B0-LR
+    pair_id: S1-B0-LR-A3
+    promotion_family: A3
+    kind: scientific
+    model_size: 14M
+    steps: 2048
+    tokens: 134217728
+    model_initialization_seed: 0
+    data_order_seed: 0
+    training_schedule_scheme: random_contiguous_blocks_with_replacement_v1
+    training_schedule_hash: db4fa092d7092d29edc3bf1e2005af69f4a92b8bf6e6d88cbb6a166e12be02fc
+    effective_tokens_per_update: 65536
+    validation_partition: selection
+    validation_partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
+    architecture_id: A3
+    gate_family: gplus
+    gate_sites: [a, m, h]
+    qk_placement: null
+    kappa_mode: fixed
+    kappa: 0.0
+    kappa_init: null
+    kappa_scope: all_active_gates
+    threshold_scale: absolute
+    surrogate: null
+    temperature: null
+    threshold_learning_rate: null
+    optimizer_recipe: harness_adamw
+    model_learning_rate: 1.0e-04
+    micro_batch_size: 4
+    gradient_accumulation_steps: 8
+    pressure_method: none
+    pressure_sites: [attention_inputs, mlp_inputs, mlp_hiddens]
+    pressure_weight: 0.0
+    ricker_c: null
+    ricker_sigma: null
+    step_budget: null
+    matched_control_id: S1-B0-ARCH-A3-LR3EM5-S0
+    config_status: ready
+    decision_status: control
+    release_tier: history
+    canonical_run_id: null
+    notes: A3 AdamW model-learning-rate flank at 1.0e-04, matched to S1-B0-ARCH-A3-LR3EM5-S0; no pressure. S1 is feasibility/within-stratum only.
+  - design_id: S1-B0-LR-A6PRE-LR1EM4-S0
+    config_id: 143-s1-b0-p14m-a6pre-adamw-lr1em4-s0
+    config_path: configs/143-s1-b0-p14m-a6pre-adamw-lr1em4-s0.yaml
+    phase: S1
+    block: S1-B0
+    comparison_id: S1-B0-LR
+    pair_id: S1-B0-LR-A6PRE
+    promotion_family: A6PRE
+    kind: scientific
+    model_size: 14M
+    steps: 2048
+    tokens: 134217728
+    model_initialization_seed: 0
+    data_order_seed: 0
+    training_schedule_scheme: random_contiguous_blocks_with_replacement_v1
+    training_schedule_hash: db4fa092d7092d29edc3bf1e2005af69f4a92b8bf6e6d88cbb6a166e12be02fc
+    effective_tokens_per_update: 65536
+    validation_partition: selection
+    validation_partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
+    architecture_id: A6-PRE
+    gate_family: gplus
+    gate_sites: [a, m, h, q, k, v]
+    qk_placement: pre_rope
+    kappa_mode: fixed
+    kappa: 0.0
+    kappa_init: null
+    kappa_scope: all_active_gates
+    threshold_scale: absolute
+    surrogate: null
+    temperature: null
+    threshold_learning_rate: null
+    optimizer_recipe: harness_adamw
+    model_learning_rate: 1.0e-04
+    micro_batch_size: 4
+    gradient_accumulation_steps: 8
+    pressure_method: none
+    pressure_sites: [attention_inputs, mlp_inputs, mlp_hiddens, query_gate_outputs, key_gate_outputs, value_gate_outputs]
+    pressure_weight: 0.0
+    ricker_c: null
+    ricker_sigma: null
+    step_budget: null
+    matched_control_id: S1-B0-ARCH-A6PRE-LR3EM5-S0
+    config_status: ready
+    decision_status: control
+    release_tier: history
+    canonical_run_id: null
+    notes: A6PRE AdamW model-learning-rate flank at 1.0e-04, matched to S1-B0-ARCH-A6PRE-LR3EM5-S0; no pressure. S1 is feasibility/within-stratum only.
+  - design_id: S1-B0-LR-A6POST-LR1EM4-S0
+    config_id: 144-s1-b0-p14m-a6post-adamw-lr1em4-s0
+    config_path: configs/144-s1-b0-p14m-a6post-adamw-lr1em4-s0.yaml
+    phase: S1
+    block: S1-B0
+    comparison_id: S1-B0-LR
+    pair_id: S1-B0-LR-A6POST
+    promotion_family: A6POST
+    kind: scientific
+    model_size: 14M
+    steps: 2048
+    tokens: 134217728
+    model_initialization_seed: 0
+    data_order_seed: 0
+    training_schedule_scheme: random_contiguous_blocks_with_replacement_v1
+    training_schedule_hash: db4fa092d7092d29edc3bf1e2005af69f4a92b8bf6e6d88cbb6a166e12be02fc
+    effective_tokens_per_update: 65536
+    validation_partition: selection
+    validation_partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
+    architecture_id: A6-POST
+    gate_family: gplus
+    gate_sites: [a, m, h, q, k, v]
+    qk_placement: post_rope
+    kappa_mode: fixed
+    kappa: 0.0
+    kappa_init: null
+    kappa_scope: all_active_gates
+    threshold_scale: absolute
+    surrogate: null
+    temperature: null
+    threshold_learning_rate: null
+    optimizer_recipe: harness_adamw
+    model_learning_rate: 1.0e-04
+    micro_batch_size: 4
+    gradient_accumulation_steps: 8
+    pressure_method: none
+    pressure_sites: [attention_inputs, mlp_inputs, mlp_hiddens, query_gate_outputs, key_gate_outputs, value_gate_outputs]
+    pressure_weight: 0.0
+    ricker_c: null
+    ricker_sigma: null
+    step_budget: null
+    matched_control_id: S1-B0-ARCH-A6POST-LR3EM5-S0
+    config_status: ready
+    decision_status: control
+    release_tier: history
+    canonical_run_id: null
+    notes: A6POST AdamW model-learning-rate flank at 1.0e-04, matched to S1-B0-ARCH-A6POST-LR3EM5-S0; no pressure. S1 is feasibility/within-stratum only.
