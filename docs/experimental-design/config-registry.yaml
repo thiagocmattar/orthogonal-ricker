@@ -5,7 +5,7 @@ core_design_cells: 134
 core_executable_cells_without_context_gate: 132
 maximum_design_cells: 184
 maximum_executable_cells_without_context_gate: 182
-s1_launch_gate: blocked_pending_budget_decision
+s1_launch_gate: approved_2048_feasibility_within_stratum
 historical_config_range:
   first: 1
   last: 120

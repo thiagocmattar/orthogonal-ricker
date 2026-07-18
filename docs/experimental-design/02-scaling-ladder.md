@@ -20,7 +20,7 @@ MiniPile cache and sequence length. Released Pythia weights are never loaded.
 | Rung | Model | Steps | Training tokens | Selection use |
 | --- | --- | ---: | ---: | --- |
 | E0 | 14M | 128 | 8,388,608 | Engineering only; no scientific ranking |
-| S1 | 14M | 2,048 | 134,217,728 | Broad discovery screen |
+| S1 | 14M | 2,048 | 134,217,728 | Feasibility/collapse and within-stratum screen |
 | S2 | 14M | 8,192 | 536,870,912 | Rank-survival and token-scaling screen |
 | S3 | 14M | 22,762 | 1,491,730,432 | Frozen one-cache-pass-equivalent confirmation |
 | S4 | 31M/70M/160M/410M | 2,048 | 134,217,728 | Per-scale LR and feasibility calibration |

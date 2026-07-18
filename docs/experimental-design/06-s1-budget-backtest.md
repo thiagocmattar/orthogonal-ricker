@@ -3,9 +3,20 @@
 ## Status
 
 The predeclared rank-survival check failed for global selection at approximately
-2,048 steps. No S1 scientific cell should launch until the campaign records one
-of the budget decisions below. E0 engineering pilots may proceed because they
-are not ranked by validation loss.
+2,048 steps. On 2026-07-18, the campaign approved option 1: S1 remains a
+2,048-step feasibility/collapse and within-stratum screen only. S1 must not
+produce a global rank cutoff.
+
+Operationally:
+
+- exclude only invalid, incomplete, nonfinite, or universally collapsed runs
+  under the predeclared rules;
+- compare Pareto behavior within matched architecture/method strata, without a
+  global top-k ordering;
+- preserve AdamW and complete matched RN/OR and L1N/OL1 panels for every viable
+  family into the 8,192-step S2 rung;
+- treat S1 validation loss and sparsity endpoints as screening evidence, not as
+  final method rankings or paper confirmation.
 
 ## Evidence
 
@@ -54,9 +65,10 @@ cover only the final 8,192-token training microbatch, site definitions differ
 by architecture, and no step-2,000 checkpoint exists for full-validation
 `R_block`, `R_model`, or `U_arch`.
 
-## Decision Required Before S1
+## Decision Record
 
-Choose and register exactly one:
+The selected policy is option 1 below. Options 2 and 3 remain documented as
+rejected alternatives for this campaign revision:
 
 1. Keep 2,048 steps as a feasibility/collapse and within-stratum screen only.
    Never use a global rank cutoff; preserve AdamW and matched RN/OR and
@@ -67,6 +79,8 @@ Choose and register exactly one:
 3. Merge discovery with the 8,192-step rung. This gives the strongest historical
    rank proxy (`rho = 0.975`) but approximately quadruples the planned S1
    training work.
+
+This decision was frozen before any S1 scientific endpoint was observed.
 
 The historical analysis is one-seed and spans multiple repository commits.
 Its purpose is to veto unsupported selection behavior, not to estimate final

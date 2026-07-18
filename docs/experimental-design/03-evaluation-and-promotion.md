@@ -169,6 +169,12 @@ not silently added to the ATG baseline.
 Promotion is Pareto-based in validation loss and `R_model`; there is no single
 loss/sparsity ratio.
 
+For S1 specifically, promotion is feasibility/collapse and within-stratum only.
+Do not create a global ranking or top-k cutoff from 2,048-step endpoints.
+Preserve AdamW and complete matched RN/OR and L1N/OL1 panels for each viable
+family into S2, where the 8,192-step endpoint supplies the first cross-family
+ranking evidence.
+
 1. Exclude invalid artifacts, nonfinite runs, universal gate collapse as
    operationalized below, and runs that did not reach their planned token
    budget from the primary ranking. Keep them in the registry as outcomes.

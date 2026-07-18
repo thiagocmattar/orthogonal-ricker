@@ -9,13 +9,15 @@ work.
 
 - Campaign id: `pythia-sparsity-scaling-v1`.
 - Planning date: 2026-07-18.
-- Current phase: E0.1 complete. Both validation partitions and both seed-contract
-  controls passed terminal review; the S1 budget decision remains blocked.
+- Current phase: E0.1 complete and S1 option 1 approved. The 2,048-step screen
+  is restricted to feasibility/collapse and within-stratum comparisons; B0
+  endpoint-diagnostic preparation is active.
 - Next config prefix: `123`.
 - No campaign run is active. Configs `121--122` are accepted engineering
   controls; config prefix `123` remains unallocated.
-- S1 scientific launch is blocked pending the budget decision in
-  `06-s1-budget-backtest.md`; E0 engineering contract pilots may run.
+- S1 must never use a global rank cutoff. Complete matched method panels from
+  viable families advance to the 8,192-step rung under the frozen policy in
+  `06-s1-budget-backtest.md`.
 - Configs `1` through `120` and their existing results remain historical
   evidence. They must not be renamed, rewritten, or moved.
 - The primary discovery design contains 134 predeclared 2,048-step cells. Two

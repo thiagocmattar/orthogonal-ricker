@@ -298,10 +298,10 @@ Complete these before the affected block launches:
    validation hashes.
 7. `TODO:` add dynamic architecture metadata and compute ceilings to the new plotting
    path; do not reuse Report 05's hard-coded `d=128` assumptions for scale plots.
-8. The historical budget backtest is complete and rejects 2,048 steps as a
-   global rank selector (`rho=0.206` in the architecture/method stress cohort).
-   S1 scientific launch is blocked until the campaign chooses the conservative
-   feasibility-only rule or raises the budget. See `06-s1-budget-backtest.md`.
+8. The historical budget backtest rejects 2,048 steps as a global rank selector
+   (`rho=0.206` in the architecture/method stress cohort). The campaign approved
+   the conservative feasibility/collapse and within-stratum rule on 2026-07-18;
+   global top-k pruning is prohibited. See `06-s1-budget-backtest.md`.
 
 ## 9. Materialization Order
 
