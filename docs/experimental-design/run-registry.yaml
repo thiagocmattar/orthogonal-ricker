@@ -368,15 +368,15 @@ records:
     mode: pretrain
     result_path: results/125-s1-b0-p14m-a3-adamw-lr3em5-s0/001-20260718-173453-33ecfcac
     log_path: run-logs/125-s1-b0-p14m-a3-adamw-lr3em5-s0-pretrain-attempt1.log
-    lifecycle_status: running
-    evidence_status: unreviewed
-    canonical: false
+    lifecycle_status: completed
+    evidence_status: valid
+    canonical: true
     started_at: 2026-07-18T17:34:53.916831Z
-    finished_at: null
+    finished_at: 2026-07-18T17:52:54.345630Z
     git_commit: 774c94262ee97f5d037225feb3988adce7de83f4
     git_dirty: false
-    completed_steps: 0
-    tokens_seen: 0
+    completed_steps: 2048
+    tokens_seen: 134217728
     model_initialization_seed: 0
     data_order_seed: 0
     training_schedule_scheme: random_contiguous_blocks_with_replacement_v1
@@ -385,10 +385,10 @@ records:
     validation_partition: selection
     validation_partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
     validation_tokens: 311296
-    validation_loss: null
-    wall_hours: null
-    tokens_per_second: null
-    peak_gpu_mb: null
+    validation_loss: 7.013099130831267
+    wall_hours: 0.2995225386111027
+    tokens_per_second: 124481.54961381335
+    peak_gpu_mb: 5996.47119140625
     execution_backend: local
     cloud_provider: null
     gpu_type: NVIDIA GeForce RTX 5070 Ti Laptop GPU
@@ -399,5 +399,5 @@ records:
     gpu_driver_version: "572.84"
     failure_type: null
     failure_message: null
-    reviewed_at: null
-    notes: Three-ReLU architecture anchor launched from a clean commit as PID 44600. Stderr is in run-logs/125-s1-b0-p14m-a3-adamw-lr3em5-s0-pretrain-attempt1-stderr.log. Expected terminal window is 2026-07-18T17:51--17:55Z.
+    reviewed_at: 2026-07-18T17:53:32.3724054Z
+    notes: Completed from clean launch commit 774c942 with 42 train and 10 complete-selection validation events. Final model SHA-256 is 09af12c8ba2998a554223ce4f42ddacd9aa64bcc76a445c5128752129d871db6; optimizer state was intentionally not saved. Final selection loss is 0.02435 above A1-H and 0.03603 below A0. Late gradient norms were noisier but finite, with monotonically improving validation endpoints. Selection propagation endpoints remain pending the combined numbered diagnostic.
