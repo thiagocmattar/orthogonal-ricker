@@ -1327,3 +1327,43 @@ records:
     failure_message: null
     reviewed_at: 2026-07-18T23:28:12.4237700Z
     notes: Completed from clean launch commit b1f8bbf with 42 train and 10 complete-selection validation events. Final model SHA-256 is f926a6da30fae28d1e80b524a63ccd089e7dd0d705d3e9d948689fdc096ef95d; optimizer state was intentionally not saved. Final selection loss is 1.11401 below the matched A1-H LR3EM5 control at the fixed 2048-step budget; S1 supports within-stratum feasibility comparisons only.
+  - design_id: S1-B0-LR-A3-LR1EM4-S0
+    config_id: 142-s1-b0-p14m-a3-adamw-lr1em4-s0
+    run_id: 001-20260718-232919-f14b6c84
+    attempt: 1
+    mode: pretrain
+    result_path: results/142-s1-b0-p14m-a3-adamw-lr1em4-s0/001-20260718-232919-f14b6c84
+    log_path: run-logs/142-s1-b0-p14m-a3-adamw-lr1em4-s0-pretrain-attempt1.log
+    lifecycle_status: running
+    evidence_status: unreviewed
+    canonical: false
+    started_at: 2026-07-18T23:29:19.752454Z
+    finished_at: null
+    git_commit: 8e2f6e8d74117998b597e7f52bc7e07264812889
+    git_dirty: false
+    completed_steps: 0
+    tokens_seen: 0
+    model_initialization_seed: 0
+    data_order_seed: 0
+    training_schedule_scheme: random_contiguous_blocks_with_replacement_v1
+    training_schedule_hash: db4fa092d7092d29edc3bf1e2005af69f4a92b8bf6e6d88cbb6a166e12be02fc
+    effective_tokens_per_update: 65536
+    validation_partition: selection
+    validation_partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
+    validation_tokens: 311296
+    validation_loss: null
+    wall_hours: null
+    tokens_per_second: null
+    peak_gpu_mb: null
+    execution_backend: local
+    cloud_provider: null
+    gpu_type: NVIDIA GeForce RTX 5070 Ti Laptop GPU
+    gpu_count: 1
+    python_version: 3.12.10
+    pytorch_version: 2.11.0+cu128
+    cuda_version: "12.8"
+    gpu_driver_version: "572.84"
+    failure_type: null
+    failure_message: null
+    reviewed_at: null
+    notes: Launched outside sandbox process containment from clean commit 8e2f6e8 with PID 57588. Standard error is recorded at run-logs/142-s1-b0-p14m-a3-adamw-lr1em4-s0-pretrain-attempt1-stderr.log; expected terminal window is 2026-07-18T23:47--23:49Z.
