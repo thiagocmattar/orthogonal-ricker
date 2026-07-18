@@ -23,15 +23,19 @@ work.
   `001-20260718-194713-d1dc3486`, result path
   `results/131-s1-b0-p14m-a4v-adamw-lr3em5-s0/001-20260718-194713-d1dc3486`,
   selection loss `7.01615`.
+- Active run: config `132` A5-QK-PRE, run `001-20260718-200813-81b1dd63`,
+  started `2026-07-18T20:08:13Z`, result path
+  `results/132-s1-b0-p14m-a5qkpre-adamw-lr3em5-s0/001-20260718-200813-81b1dd63`.
+  Expected terminal window is `2026-07-18T20:27--20:29Z`.
 - Config `131` attempt 2 was an accidental duplicate created during a handoff
-  race. It was terminated after step 1 and is invalid; attempt 1 continues.
+  race. It was terminated after step 1 and is invalid; attempt 1 completed.
 - Config `129` attempt 1, run `001-20260718-190208-c6152824`, is an invalid
   infrastructure-only partial: sandbox process containment ended it before
   the first training event. Retry 2 completed from the same immutable config.
 - Configs `129--133` materialize the next ordinary architecture-parent set:
   A4-Q, A4-K, A4-V, A5-QK-PRE, and A5-QK-POST. They passed preflight and are
   ready for sequential local launch. Configs `129--131` completed; config
-  `132` (A5-QK-PRE) is active pending local launch; config `133` remains queued.
+  `132` (A5-QK-PRE) is running; config `133` remains queued.
 - B0 has completed `8 / 22` scientific cells; 14 remain, of which 12 are
   executable and two post-PV context cells remain blocked. The declared S1
   core has completed `8 / 134` cells (`8 / 132` executable).
