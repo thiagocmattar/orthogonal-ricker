@@ -25,8 +25,9 @@ work.
   selection loss `5.91768`.
 - Config `134`, run `001-20260718-205354-8821b592`, completed the pooled
   exact-zero diagnostic over canonical configs `129--133`.
-- Config `143` (A6-PRE, LR `1e-4`) is active pending local launch. Config
-  `144` is queued in the same LR-flank set.
+- Config `143` (A6-PRE, LR `1e-4`), run
+  `001-20260718-234920-d1bc5ad6`, is active locally. Config `144` is queued in
+  the same LR-flank set.
 - Config `133` attempt 2 was an accidental duplicate created during a handoff
   race. It was terminated after step 1 and is invalid; attempt 1 completed.
 - Config `131` attempt 2 was an accidental duplicate created during a handoff
