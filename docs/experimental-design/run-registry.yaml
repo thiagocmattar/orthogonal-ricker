@@ -201,3 +201,43 @@ records:
     failure_message: null
     reviewed_at: 2026-07-18T14:49:37.5178176Z
     notes: Selection and confirmation caches are document-disjoint 250/250. Selection has 311739 tokens (SHA-256 22bb7c27864f0e5941548c572d6c75b1b5ba6a4c13e4cd26f40f4de546c5cc19); confirmation has 381929 tokens (SHA-256 ee777ebdb8672b676ecfc05b2e7024c2f9446f8a9e46ac22b78e8a6c36f0890b). The Python command completed successfully; the PowerShell log wrapper returned nonzero because offline cache notices arrived on stderr.
+  - design_id: E0-CONTRACT-A0-I0-D0-ST128
+    config_id: 121-e0-p14m-contract-a0-i0-d0-st128
+    run_id: 004-20260718-145119-0106c58b
+    attempt: 4
+    mode: pretrain
+    result_path: results/121-e0-p14m-contract-a0-i0-d0-st128/004-20260718-145119-0106c58b
+    log_path: run-logs/121-e0-p14m-contract-a0-i0-d0-st128-pretrain-attempt4.log
+    lifecycle_status: running
+    evidence_status: unreviewed
+    canonical: false
+    started_at: 2026-07-18T14:51:19.144109Z
+    finished_at: null
+    git_commit: ecb695330ef4fc10a8c4d97c8c967f2b131df1f8
+    git_dirty: false
+    completed_steps: null
+    tokens_seen: null
+    model_initialization_seed: 0
+    data_order_seed: 0
+    training_schedule_scheme: random_contiguous_blocks_with_replacement_v1
+    training_schedule_hash: 9d9f708a79511390da9559b88e06e797aa216149af709c841923c56f926e1120
+    initial_parameter_sha256: null
+    effective_tokens_per_update: 65536
+    validation_partition: selection
+    validation_partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
+    validation_tokens: 311739
+    validation_loss: null
+    wall_hours: null
+    tokens_per_second: null
+    peak_gpu_mb: null
+    execution_backend: local
+    gpu_type: NVIDIA GeForce RTX 5070 Ti Laptop GPU
+    python_version: 3.12.10
+    pytorch_version: 2.11.0+cu128
+    cuda_version: "12.8"
+    gpu_driver_version: "572.84"
+    token_cache_sha256: da82a2ea2e0080c7fd681c7a93b07d3d9ff3d5357a8640895a82d536a1eaf97c
+    failure_type: null
+    failure_message: null
+    reviewed_at: 2026-07-18T14:51:22Z
+    notes: Running config 121 from a clean committed tree; terminal metrics and artifact checks pending.
