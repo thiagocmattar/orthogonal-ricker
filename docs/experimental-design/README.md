@@ -9,10 +9,12 @@ work.
 
 - Campaign id: `pythia-sparsity-scaling-v1`.
 - Planning date: 2026-07-18.
-- Current phase: E0.1 reproducibility contract implemented and awaiting local
-  execution; S1 budget decision remains blocked.
+- Current phase: E0.1 local execution. Both validation partitions are
+  materialized and verified; config `121` is active, config `122` is ready,
+  and the S1 budget decision remains blocked.
 - Next config prefix: `123`.
-- No campaign run is active; E0 configs `121--122` are materialized.
+- Config `121` is the active local engineering control; config `122` remains
+  queued behind its terminal review.
 - S1 scientific launch is blocked pending the budget decision in
   `06-s1-budget-backtest.md`; E0 engineering contract pilots may run.
 - Configs `1` through `120` and their existing results remain historical

@@ -95,4 +95,109 @@ field_order:
   - artifact_manifest_sha256
   - reviewed_at
   - notes
-records: []
+records:
+  - design_id: E0-CONTRACT-A0-I0-D0-ST128
+    config_id: 121-e0-p14m-contract-a0-i0-d0-st128
+    run_id: 001-20260718-143737-e8d649e3
+    attempt: 1
+    mode: prepare-data
+    result_path: results/121-e0-p14m-contract-a0-i0-d0-st128/001-20260718-143737-e8d649e3
+    log_path: run-logs/121-e0-p14m-contract-a0-i0-d0-st128-prepare-data.log
+    lifecycle_status: partial
+    evidence_status: invalid
+    canonical: false
+    started_at: 2026-07-18T14:37:37.7068944Z
+    finished_at: null
+    git_commit: ebf3fe3a121af34dd71382705065632e1fb40d13
+    git_dirty: false
+    completed_steps: 0
+    tokens_seen: 0
+    model_initialization_seed: 0
+    data_order_seed: 0
+    training_schedule_scheme: random_contiguous_blocks_with_replacement_v1
+    training_schedule_hash: 9d9f708a79511390da9559b88e06e797aa216149af709c841923c56f926e1120
+    effective_tokens_per_update: 65536
+    validation_partition: selection
+    validation_partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
+    execution_backend: local
+    gpu_type: NVIDIA GeForce RTX 5070 Ti Laptop GPU
+    python_version: 3.12.10
+    pytorch_version: 2.11.0+cu128
+    cuda_version: "12.8"
+    gpu_driver_version: "572.84"
+    failure_type: infrastructure_sandbox_cache_lock
+    failure_message: Hugging Face could read the pinned cache but could not create its cache lock file; the empty attempt was manually terminated.
+    reviewed_at: 2026-07-18T14:49:37.5178176Z
+    notes: No run artifacts were written; this is an infrastructure-only data-preparation attempt.
+  - design_id: E0-CONTRACT-A0-I0-D0-ST128
+    config_id: 121-e0-p14m-contract-a0-i0-d0-st128
+    run_id: 002-20260718-144138-6e131cc2
+    attempt: 2
+    mode: prepare-data
+    result_path: results/121-e0-p14m-contract-a0-i0-d0-st128/002-20260718-144138-6e131cc2
+    log_path: run-logs/121-e0-p14m-contract-a0-i0-d0-st128-prepare-data-attempt2.log
+    lifecycle_status: partial
+    evidence_status: invalid
+    canonical: false
+    started_at: 2026-07-18T14:41:38.2655389Z
+    finished_at: null
+    git_commit: ebf3fe3a121af34dd71382705065632e1fb40d13
+    git_dirty: false
+    completed_steps: 0
+    tokens_seen: 0
+    model_initialization_seed: 0
+    data_order_seed: 0
+    training_schedule_scheme: random_contiguous_blocks_with_replacement_v1
+    training_schedule_hash: 9d9f708a79511390da9559b88e06e797aa216149af709c841923c56f926e1120
+    effective_tokens_per_update: 65536
+    validation_partition: selection
+    validation_partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
+    execution_backend: local
+    gpu_type: NVIDIA GeForce RTX 5070 Ti Laptop GPU
+    python_version: 3.12.10
+    pytorch_version: 2.11.0+cu128
+    cuda_version: "12.8"
+    gpu_driver_version: "572.84"
+    failure_type: infrastructure_sandbox_cache_lock
+    failure_message: Offline mode removed network retries, but the sandbox still denied the Hugging Face cache lock; the empty attempt was manually terminated.
+    reviewed_at: 2026-07-18T14:49:37.5178176Z
+    notes: No run artifacts were written; retry 3 used the same immutable config with cache-lock permission.
+  - design_id: E0-CONTRACT-A0-I0-D0-ST128
+    config_id: 121-e0-p14m-contract-a0-i0-d0-st128
+    run_id: 003-20260718-144833-a9e5ac30
+    attempt: 3
+    mode: prepare-data
+    result_path: results/121-e0-p14m-contract-a0-i0-d0-st128/003-20260718-144833-a9e5ac30
+    log_path: run-logs/121-e0-p14m-contract-a0-i0-d0-st128-prepare-data-attempt3.log
+    lifecycle_status: statusless_complete
+    evidence_status: valid
+    canonical: false
+    started_at: 2026-07-18T14:48:33.4876389Z
+    finished_at: 2026-07-18T14:48:35.2210259Z
+    git_commit: ebf3fe3a121af34dd71382705065632e1fb40d13
+    git_dirty: false
+    completed_steps: 0
+    tokens_seen: 0
+    model_initialization_seed: 0
+    data_order_seed: 0
+    training_schedule_scheme: random_contiguous_blocks_with_replacement_v1
+    training_schedule_hash: 9d9f708a79511390da9559b88e06e797aa216149af709c841923c56f926e1120
+    effective_tokens_per_update: 65536
+    validation_partition: selection
+    validation_partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
+    validation_tokens: 311739
+    validation_loss: null
+    wall_hours: 0.000481
+    tokens_per_second: null
+    peak_gpu_mb: null
+    execution_backend: local
+    gpu_type: NVIDIA GeForce RTX 5070 Ti Laptop GPU
+    python_version: 3.12.10
+    pytorch_version: 2.11.0+cu128
+    cuda_version: "12.8"
+    gpu_driver_version: "572.84"
+    token_cache_sha256: da82a2ea2e0080c7fd681c7a93b07d3d9ff3d5357a8640895a82d536a1eaf97c
+    failure_type: null
+    failure_message: null
+    reviewed_at: 2026-07-18T14:49:37.5178176Z
+    notes: Selection and confirmation caches are document-disjoint 250/250. Selection has 311739 tokens (SHA-256 22bb7c27864f0e5941548c572d6c75b1b5ba6a4c13e4cd26f40f4de546c5cc19); confirmation has 381929 tokens (SHA-256 ee777ebdb8672b676ecfc05b2e7024c2f9446f8a9e46ac22b78e8a6c36f0890b). The Python command completed successfully; the PowerShell log wrapper returned nonzero because offline cache notices arrived on stderr.
