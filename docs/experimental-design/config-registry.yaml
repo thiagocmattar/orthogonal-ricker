@@ -15,7 +15,7 @@ block_summary:
   - block: E0-CONTRACT
     planned_cells: 2
     materialized_cells: 2
-    completed_cells: 0
+    completed_cells: 1
     status: active
     note: document-disjoint validation, independent seeds, schedule hash, and initialization hash
   - block: S1-B0
@@ -142,11 +142,11 @@ records:
     ricker_sigma: null
     step_budget: null
     matched_control_id: null
-    config_status: active
+    config_status: closed
     decision_status: control
     release_tier: history
-    canonical_run_id: null
-    notes: Engineering-only contract pilot; not selection evidence. Both validation partitions were materialized and verified by prepare-data run 003-20260718-144833-a9e5ac30; local pretraining is the active launch.
+    canonical_run_id: 004-20260718-145119-0106c58b
+    notes: Engineering-only contract pilot; not selection evidence. Both validation partitions were materialized and verified by prepare-data run 003-20260718-144833-a9e5ac30. Pretraining run 004-20260718-145119-0106c58b completed and passed terminal review.
   - design_id: E0-CONTRACT-A0-I1-D0-ST128
     config_id: 122-e0-p14m-contract-a0-i1-d0-st128
     config_path: configs/122-e0-p14m-contract-a0-i1-d0-st128.yaml
@@ -189,8 +189,8 @@ records:
     ricker_sigma: null
     step_budget: null
     matched_control_id: E0-CONTRACT-A0-I0-D0-ST128
-    config_status: ready
+    config_status: active
     decision_status: control
     release_tier: history
     canonical_run_id: null
-    notes: Same schedule and validation as config 121; only model initialization seed changes.
+    notes: Same schedule and validation as config 121; only model initialization seed changes. Local pretraining is the active launch.
