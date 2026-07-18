@@ -12,7 +12,7 @@ work.
 - Current phase: E0.1 complete and S1 option 1 approved. The 2,048-step screen
   is restricted to feasibility/collapse and within-stratum comparisons; the B0
   endpoint diagnostic is accepted.
-- Next config prefix: `128`.
+- Next config prefix: `129`.
 - The five central B0 anchors, configs `123--127`, completed and passed
   terminal review. Their final selection losses are `7.04913` (A0),
   `6.98875` (A1-H), `7.01310` (A3), `7.01645` (A6-PRE), and `7.03248`
@@ -20,6 +20,8 @@ work.
   Configs `121--122` remain accepted engineering controls.
 - Last completed run: `001-20260718-181755-c71b5faf`, result path
   `results/127-s1-b0-p14m-a6post-adamw-lr3em5-s0/001-20260718-181755-c71b5faf`.
+- Config `128` is the ready combined selection-partition endpoint diagnostic
+  over the five exact canonical anchor run ids.
 - S1 must never use a global rank cutoff. Complete matched method panels from
   viable families advance to the 8,192-step rung under the frozen policy in
   `06-s1-budget-backtest.md`.

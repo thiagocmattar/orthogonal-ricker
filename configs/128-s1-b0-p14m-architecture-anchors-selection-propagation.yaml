@@ -1,0 +1,61 @@
+experiment_name: s1_b0_pythia_14m_architecture_anchors_selection_propagation
+sweep:
+  name: pythia_sparsity_scaling_v1_s1_b0
+  role: architecture_anchor_selection_endpoint_diagnostic
+  design_id: S1-B0-DIAG-ARCH-ANCHORS-SELECTION-S0
+  notes: Complete frozen selection-partition exact-zero and logical-product diagnostic for the five central B0 architecture anchors.
+model:
+  provider: huggingface
+  name: pythia-14m-random-s1-b0-architecture-anchor-propagation
+  architecture: EleutherAI/pythia-14m-deduped
+  revision: 7386d9a4ae45aef494a6e704910394def3037fc5
+  initialization: random
+data:
+  name: JeanKaddour/minipile
+  revision: 18ad1b0c701eaa0de03d3cecfdd769cbc70ffbd0
+  split: validation
+  text_column: text
+  max_documents: 500
+evaluation:
+  metric: activation_propagation
+run:
+  seed: 0
+  max_examples: 500
+tokenizer:
+  name: EleutherAI/pythia-14m-deduped
+  revision: 7386d9a4ae45aef494a6e704910394def3037fc5
+preprocessing:
+  output_dir: data/tokenized
+  cache_id: 03-pythia-14m-minipile-random-full-10min
+  block_size: 2048
+  append_eos: true
+  overwrite: false
+validation:
+  enabled: true
+  split: validation
+  max_documents: 500
+  partition: selection
+  partition_scheme: shuffled_source_documents_half_v1
+  partition_seed: 20260718
+  partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
+  eval_batches: null
+  batch_size: 4
+activation_propagation:
+  selected_runs:
+    - label: A0 AdamW
+      config_id: 123-s1-b0-p14m-a0-adamw-lr3em5-s0
+      run_id: 001-20260718-165523-9f3b9b91
+    - label: A1-H AdamW
+      config_id: 124-s1-b0-p14m-a1h-adamw-lr3em5-s0
+      run_id: 001-20260718-171535-c9b88552
+    - label: A3 AdamW
+      config_id: 125-s1-b0-p14m-a3-adamw-lr3em5-s0
+      run_id: 001-20260718-173453-33ecfcac
+    - label: A6-PRE AdamW
+      config_id: 126-s1-b0-p14m-a6pre-adamw-lr3em5-s0
+      run_id: 001-20260718-175512-d98db007
+    - label: A6-POST AdamW
+      config_id: 127-s1-b0-p14m-a6post-adamw-lr3em5-s0
+      run_id: 001-20260718-181755-c71b5faf
+output:
+  dir: results
