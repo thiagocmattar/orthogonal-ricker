@@ -13,9 +13,9 @@ work.
   is restricted to feasibility/collapse and within-stratum comparisons; the B0
   endpoint diagnostic is accepted.
 - Next config prefix: `128`.
-- No campaign run is active. Configs `121--122` are accepted engineering
-  controls; B0 anchor configs `123--127` are materialized and ready for serial
-  local launch.
+- Config `123` (`S1-B0-ARCH-A0-LR3EM5-S0`) is the active local launch;
+  configs `124--127` are ready and queued for serial execution. Configs
+  `121--122` remain accepted engineering controls.
 - S1 must never use a global rank cutoff. Complete matched method panels from
   viable families advance to the 8,192-step rung under the frozen policy in
   `06-s1-budget-backtest.md`.
