@@ -852,15 +852,15 @@ records:
     mode: pretrain
     result_path: results/133-s1-b0-p14m-a5qkpost-adamw-lr3em5-s0/001-20260718-203020-55473d96
     log_path: run-logs/133-s1-b0-p14m-a5qkpost-adamw-lr3em5-s0-pretrain-attempt1.log
-    lifecycle_status: running
-    evidence_status: unreviewed
-    canonical: false
+    lifecycle_status: completed
+    evidence_status: valid
+    canonical: true
     started_at: 2026-07-18T20:30:20.986826Z
-    finished_at: null
+    finished_at: 2026-07-18T20:50:48.578229Z
     git_commit: f0158378e285e6b2e1a03ff785f1445fc5b81705
     git_dirty: false
-    completed_steps: 0
-    tokens_seen: 0
+    completed_steps: 2048
+    tokens_seen: 134217728
     model_initialization_seed: 0
     data_order_seed: 0
     training_schedule_scheme: random_contiguous_blocks_with_replacement_v1
@@ -869,10 +869,10 @@ records:
     validation_partition: selection
     validation_partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
     validation_tokens: 311296
-    validation_loss: null
-    wall_hours: null
-    tokens_per_second: null
-    peak_gpu_mb: null
+    validation_loss: 7.0306385567313745
+    wall_hours: 0.3403785600277802
+    tokens_per_second: 109539.30506327437
+    peak_gpu_mb: 6044.47119140625
     execution_backend: local
     cloud_provider: null
     gpu_type: NVIDIA GeForce RTX 5070 Ti Laptop GPU
@@ -883,8 +883,8 @@ records:
     gpu_driver_version: "572.84"
     failure_type: null
     failure_message: null
-    reviewed_at: null
-    notes: A5-QK-POST ordinary-ReLU AdamW architecture control launched outside sandbox process containment from clean commit f015837 as PID 35564. Stderr is in run-logs/133-s1-b0-p14m-a5qkpost-adamw-lr3em5-s0-pretrain-attempt1-stderr.log. Expected terminal window is 2026-07-18T20:50--20:52Z.
+    reviewed_at: 2026-07-18T20:51:23.3695138Z
+    notes: Completed from clean launch commit f015837 with 42 train and 10 complete-selection validation events. Final model SHA-256 is 00a52893fc733bd9a3159271b7accd89a8ff835d31694ef41a255d3d409f0b33; optimizer state was intentionally not saved. Final selection loss is 0.01754 above matched A3 and 0.00184 below its A6-POST child. Throughput is 12.00% below A3 under the custom attention path. Selection propagation endpoints remain pending the combined numbered diagnostic.
   - design_id: S1-B0-ARCH-A5QKPOST-LR3EM5-S0
     config_id: 133-s1-b0-p14m-a5qkpost-adamw-lr3em5-s0
     run_id: 002-20260718-203025-0a7597a7
