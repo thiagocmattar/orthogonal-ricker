@@ -812,15 +812,15 @@ records:
     mode: pretrain
     result_path: results/132-s1-b0-p14m-a5qkpre-adamw-lr3em5-s0/001-20260718-200813-81b1dd63
     log_path: run-logs/132-s1-b0-p14m-a5qkpre-adamw-lr3em5-s0-pretrain-attempt1.log
-    lifecycle_status: running
-    evidence_status: unreviewed
-    canonical: false
+    lifecycle_status: completed
+    evidence_status: valid
+    canonical: true
     started_at: 2026-07-18T20:08:13.659944Z
-    finished_at: null
+    finished_at: 2026-07-18T20:28:22.706239Z
     git_commit: 651aa0666d749527faafe0df484c7e6ccb0a7188
     git_dirty: false
-    completed_steps: 0
-    tokens_seen: 0
+    completed_steps: 2048
+    tokens_seen: 134217728
     model_initialization_seed: 0
     data_order_seed: 0
     training_schedule_scheme: random_contiguous_blocks_with_replacement_v1
@@ -829,10 +829,10 @@ records:
     validation_partition: selection
     validation_partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
     validation_tokens: 311296
-    validation_loss: null
-    wall_hours: null
-    tokens_per_second: null
-    peak_gpu_mb: null
+    validation_loss: 7.015856391505191
+    wall_hours: 0.33519052663889143
+    tokens_per_second: 111234.58239053671
+    peak_gpu_mb: 6020.47119140625
     execution_backend: local
     cloud_provider: null
     gpu_type: NVIDIA GeForce RTX 5070 Ti Laptop GPU
@@ -843,5 +843,5 @@ records:
     gpu_driver_version: "572.84"
     failure_type: null
     failure_message: null
-    reviewed_at: null
-    notes: A5-QK-PRE ordinary-ReLU AdamW architecture control launched outside sandbox process containment from clean commit 651aa06 as PID 37284. Stderr is in run-logs/132-s1-b0-p14m-a5qkpre-adamw-lr3em5-s0-pretrain-attempt1-stderr.log. Expected terminal window is 2026-07-18T20:27--20:29Z.
+    reviewed_at: 2026-07-18T20:28:47.5391046Z
+    notes: Completed from clean launch commit 651aa06 with 42 train and 10 complete-selection validation events. Final model SHA-256 is 7f9f69708674713aa860e399c18d741436a11dc4f450412a96a8a94ab1af23dd; optimizer state was intentionally not saved. Final selection loss is 0.00276 above matched A3, and throughput is 10.64% below A3 under the custom attention path. It is the direct matched parent of A6-PRE config 126; selection propagation endpoints remain pending the combined numbered diagnostic.
