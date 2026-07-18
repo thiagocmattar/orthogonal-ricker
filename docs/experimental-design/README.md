@@ -20,6 +20,10 @@ work.
   `121--122` are accepted engineering controls.
 - Last completed run: `001-20260718-175512-d98db007`, result path
   `results/126-s1-b0-p14m-a6pre-adamw-lr3em5-s0/001-20260718-175512-d98db007`.
+- Active run: `001-20260718-181755-c71b5faf`, started
+  `2026-07-18T18:17:55Z`, result path
+  `results/127-s1-b0-p14m-a6post-adamw-lr3em5-s0/001-20260718-181755-c71b5faf`,
+  expected terminal window `2026-07-18T18:38--18:40Z`.
 - S1 must never use a global rank cutoff. Complete matched method panels from
   viable families advance to the 8,192-step rung under the frozen policy in
   `06-s1-budget-backtest.md`.
