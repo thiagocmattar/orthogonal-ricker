@@ -9,17 +9,23 @@ import torch
 
 from paper_exp.activation_propagation import (
     ACTIVATION_STAGE_ORDER,
+    ENDPOINT_ZERO_STAGES,
     MATMUL_STAGE_ORDER,
     _PropagationAccumulator,
+    _architecture_metadata,
     _capture_model_propagation,
+    _endpoint_summary,
     _exact_zero_counts,
     _find_source_run,
     _linear_zero_product_counts,
     _patched_eager_attention,
+    _post_qkv_relu_metadata,
     _probability_value_zero_product_counts,
     _qk_zero_product_counts,
     _source_checkpoint,
     _split_fused_qkv_projection,
+    _validate_requested_validation_cache,
+    _validate_shared_validation_cache,
     _valid_causal_exact_zero_counts,
 )
 from paper_exp.modeling import apply_post_layernorm_relu, apply_post_qkv_relu
@@ -116,6 +122,171 @@ def test_incomplete_source_checkpoint_override_requires_explicit_opt_in(
 
     selected["allow_incomplete_source"] = True
     assert _source_checkpoint(selected, {"config_id": "failed-run"}) == checkpoint
+
+
+@pytest.mark.parametrize(
+    ("active_sites", "placement", "topology_id", "targetable_stages"),
+    (
+        (set(), None, "A0", set()),
+        ({"h"}, None, "A1-H", {"mlp_w2"}),
+        ({"a", "m", "h"}, None, "A3", {"qkv_projection", "mlp_w1", "mlp_w2"}),
+        (
+            {"a", "m", "h", "q", "k", "v"},
+            "pre_rope",
+            "A6-PRE",
+            set(MATMUL_STAGE_ORDER),
+        ),
+        (
+            {"a", "m", "h", "q", "k", "v"},
+            "post_rope",
+            "A6-POST",
+            set(MATMUL_STAGE_ORDER),
+        ),
+    ),
+)
+def test_dynamic_endpoint_summary_covers_campaign_anchor_topologies(
+    active_sites: set[str],
+    placement: str | None,
+    topology_id: str,
+    targetable_stages: set[str],
+) -> None:
+    model, layers, post_qkv = _fake_architecture(
+        active_sites=active_sites,
+        placement=placement,
+    )
+    architecture = _architecture_metadata(
+        model,
+        layers=layers,
+        post_qkv_relu=post_qkv,
+        block_size=4,
+        torch=torch,
+    )
+    sequences = 2
+    matmul_rows = []
+    for layer in range(architecture["num_layers"]):
+        for stage in MATMUL_STAGE_ORDER:
+            total = architecture["operation_products_per_sequence_per_layer"][stage] * sequences
+            matmul_rows.append(
+                {
+                    "name": stage,
+                    "layer": layer,
+                    "available": True,
+                    "zero_count": total // 2 if stage in targetable_stages else 0,
+                    "total": total,
+                }
+            )
+    activation_rows = _fake_endpoint_activation_rows(
+        active_sites, num_layers=architecture["num_layers"]
+    )
+
+    endpoint = _endpoint_summary(
+        architecture=architecture,
+        activation_rows=activation_rows,
+        matmul_rows=matmul_rows,
+        validation_tokens=sequences * architecture["sequence_length"],
+    )
+
+    block_total = sum(row["total"] for row in matmul_rows)
+    ceiling = sum(row["total"] for row in matmul_rows if row["name"] in targetable_stages)
+    model_total = (
+        block_total
+        + sequences
+        * architecture["sequence_length"]
+        * architecture["hidden_size"]
+        * architecture["vocab_size"]
+    )
+    assert architecture["topology_id"] == topology_id
+    assert architecture["intermediate_size"] == 24  # Deliberately not hard-coded as 4d.
+    assert set(endpoint["targetable_matmul_stages"]) == targetable_stages
+    assert endpoint["architecture_ceiling_zero_product_count"] == ceiling
+    assert endpoint["R_block_max"] == pytest.approx(ceiling / block_total)
+    assert endpoint["R_model_max"] == pytest.approx(ceiling / model_total)
+    if ceiling:
+        assert endpoint["U_arch"] == pytest.approx(0.5)
+    else:
+        assert endpoint["U_arch"] is None
+        assert endpoint["R_block"] == 0.0
+        assert endpoint["R_model"] == 0.0
+
+
+def test_named_partition_diagnostic_requires_the_complete_matching_cache() -> None:
+    validation = {
+        "partition": "selection",
+        "partition_scheme": "shuffled_source_documents_half_v1",
+        "partition_seed": 20260718,
+        "partition_hash": "a" * 64,
+        "max_documents": 500,
+        "eval_batches": None,
+    }
+    metadata = {
+        "partition": "selection",
+        "partition_scheme": "shuffled_source_documents_half_v1",
+        "partition_seed": 20260718,
+        "source_document_indices_sha256": "a" * 64,
+        "max_documents": 500,
+    }
+
+    _validate_requested_validation_cache(validation, metadata)
+
+    with pytest.raises(ValueError, match="complete partition"):
+        _validate_requested_validation_cache({**validation, "eval_batches": 2}, metadata)
+    with pytest.raises(ValueError, match="partition hash"):
+        _validate_requested_validation_cache(
+            {**validation, "partition_hash": "b" * 64}, metadata
+        )
+
+
+@pytest.mark.parametrize(
+    "field",
+    (
+        "partition",
+        "partition_scheme",
+        "partition_seed",
+        "source_document_indices_sha256",
+        "tokens_sha256",
+    ),
+)
+def test_shared_validation_cache_rejects_conflicting_optional_identity(
+    field: str,
+) -> None:
+    reference = {
+        "tokens_path": "selection/tokens.int32.bin",
+        "block_size": 2048,
+        "tokens": 311_739,
+        "partition": "selection",
+        "partition_scheme": "shuffled_source_documents_half_v1",
+        "partition_seed": 20260718,
+        "source_document_indices_sha256": "a" * 64,
+        "tokens_sha256": "b" * 64,
+    }
+    conflicting = {**reference, field: "different"}
+    manifests = [
+        {"config_id": "one", "tokenized_data": {"validation": reference}},
+        {"config_id": "two", "tokenized_data": {"validation": conflicting}},
+    ]
+
+    with pytest.raises(ValueError, match=field):
+        _validate_shared_validation_cache(manifests, reference)
+
+
+def test_shared_validation_cache_allows_missing_historical_optional_identity() -> None:
+    reference = {
+        "tokens_path": "validation/tokens.int32.bin",
+        "block_size": 2048,
+        "tokens": 692_224,
+        "tokens_sha256": "a" * 64,
+    }
+    historical = {
+        "tokens_path": reference["tokens_path"],
+        "block_size": reference["block_size"],
+        "tokens": reference["tokens"],
+    }
+    manifests = [
+        {"config_id": "new", "tokenized_data": {"validation": reference}},
+        {"config_id": "historical", "tokenized_data": {"validation": historical}},
+    ]
+
+    _validate_shared_validation_cache(manifests, reference)
 
 
 def test_split_fused_qkv_projection_preserves_gpt_neox_per_head_layout() -> None:
@@ -331,13 +502,29 @@ def test_real_gpt_neox_diagnostic_preserves_gate_placement_and_legacy_na(
     activations = accumulator.rows(
         "activations", ACTIVATION_STAGE_ORDER, num_layers=1
     )
-    accumulator.rows("matmuls", MATMUL_STAGE_ORDER, num_layers=1)
+    matmuls = accumulator.rows("matmuls", MATMUL_STAGE_ORDER, num_layers=1)
+    post_qkv = _post_qkv_relu_metadata(list(model.gpt_neox.layers))
+    architecture_metadata = _architecture_metadata(
+        model,
+        layers=list(model.gpt_neox.layers),
+        post_qkv_relu=post_qkv,
+        block_size=3,
+        torch=torch,
+    )
+    endpoint = _endpoint_summary(
+        architecture=architecture_metadata,
+        activation_rows=activations,
+        matmul_rows=matmuls,
+        validation_tokens=3,
+    )
     by_name = {row["name"]: row for row in activations}
     assert by_name["query_projection_output"]["available"] is True
     assert by_name["query_qk_input"]["available"] is True
     assert by_name["value_pv_input"]["available"] is True
 
     if placement is None:
+        assert architecture_metadata["topology_id"] == "A3"
+        assert 0.0 < endpoint["R_block_max"] < 1.0
         for name in (
             "query_gate_input",
             "key_gate_input",
@@ -354,6 +541,11 @@ def test_real_gpt_neox_diagnostic_preserves_gate_placement_and_legacy_na(
         )
         return
 
+    assert architecture_metadata["topology_id"] == (
+        "A6-PRE" if placement == "pre_rope" else "A6-POST"
+    )
+    assert endpoint["R_block_max"] == pytest.approx(1.0)
+    assert endpoint["R_model_max"] < 1.0
     assert by_name["query_gate_output"]["available"] is True
     assert by_name["key_gate_output"]["available"] is True
     assert by_name["value_gate_output"]["available"] is True
@@ -442,6 +634,20 @@ def test_real_gpt_neox_diagnostic_supports_stock_and_mlp_relu_checkpoints(
         "activations", ACTIVATION_STAGE_ORDER, num_layers=1
     )
     matmuls = accumulator.rows("matmuls", MATMUL_STAGE_ORDER, num_layers=1)
+    post_qkv = _post_qkv_relu_metadata(list(model.gpt_neox.layers))
+    architecture_metadata = _architecture_metadata(
+        model,
+        layers=list(model.gpt_neox.layers),
+        post_qkv_relu=post_qkv,
+        block_size=3,
+        torch=torch,
+    )
+    endpoint = _endpoint_summary(
+        architecture=architecture_metadata,
+        activation_rows=activations,
+        matmul_rows=matmuls,
+        validation_tokens=3,
+    )
     activations_by_name = {row["name"]: row for row in activations}
     matmuls_by_name = {row["name"]: row for row in matmuls}
 
@@ -460,13 +666,22 @@ def test_real_gpt_neox_diagnostic_supports_stock_and_mlp_relu_checkpoints(
 
     hidden_row = activations_by_name["mlp_hidden_relu"]
     assert hidden_row["available"] is hidden_relu_available
+    assert endpoint["zero_sites"]["z_h"]["available"] is hidden_relu_available
     if hidden_relu_available:
+        assert architecture_metadata["topology_id"] == "A1-H"
+        assert endpoint["targetable_matmul_stages"] == ["mlp_w2"]
+        assert endpoint["R_block_max"] > 0.0
         expected_zero_count, expected_total = _exact_zero_counts(
             observed_inputs["mlp_w2"], torch=torch
         )
         assert hidden_row["zero_count"] == expected_zero_count
         assert hidden_row["total"] == expected_total
     else:
+        assert architecture_metadata["topology_id"] == "A0"
+        assert endpoint["targetable_matmul_stages"] == []
+        assert endpoint["R_block_max"] == 0.0
+        assert endpoint["R_model_max"] == 0.0
+        assert endpoint["U_arch"] is None
         assert hidden_row["unavailable_reason"] == "mlp_hidden_relu_absent"
         assert hidden_row["zero_count"] is None
 
@@ -489,3 +704,77 @@ def test_real_gpt_neox_diagnostic_supports_stock_and_mlp_relu_checkpoints(
         assert activations_by_name[name]["available"] is True
     for name in ("qk_scores", "probability_value", "attention_output_projection"):
         assert matmuls_by_name[name]["available"] is True
+
+
+def _fake_architecture(
+    *, active_sites: set[str], placement: str | None
+) -> tuple[object, list[object], dict[str, object]]:
+    def linear(in_features: int, out_features: int) -> SimpleNamespace:
+        return SimpleNamespace(in_features=in_features, out_features=out_features)
+
+    layers = []
+    for _ in range(2):
+        attention = SimpleNamespace(
+            query_key_value=linear(8, 24),
+            dense=linear(8, 8),
+            config=SimpleNamespace(num_attention_heads=2),
+            head_size=4,
+        )
+        mlp = SimpleNamespace(
+            dense_h_to_4h=linear(8, 24),
+            dense_4h_to_h=linear(24, 8),
+            act=torch.nn.ReLU() if "h" in active_sites else torch.nn.GELU(),
+        )
+        layers.append(
+            SimpleNamespace(
+                attention=attention,
+                mlp=mlp,
+                attention_input_relu=torch.nn.ReLU() if "a" in active_sites else None,
+                mlp_input_relu=torch.nn.ReLU() if "m" in active_sites else None,
+            )
+        )
+
+    class FakeModel:
+        config = SimpleNamespace(hidden_act="relu" if "h" in active_sites else "gelu")
+
+        @staticmethod
+        def get_output_embeddings() -> SimpleNamespace:
+            return SimpleNamespace(weight=torch.empty(40, 8))
+
+    post_qkv = {
+        "enabled": bool(active_sites & {"q", "k", "v"}),
+        "query": "q" in active_sites,
+        "key": "k" in active_sites,
+        "value": "v" in active_sites,
+        "qk_placement": placement,
+        "layers": [],
+    }
+    return FakeModel(), layers, post_qkv
+
+
+def _fake_endpoint_activation_rows(
+    active_sites: set[str], *, num_layers: int
+) -> list[dict[str, object]]:
+    gated_stage_sites = {
+        "attention_input_relu": "a",
+        "mlp_input_relu": "m",
+        "mlp_hidden_relu": "h",
+        "query_gate_output": "q",
+        "key_gate_output": "k",
+        "value_gate_output": "v",
+    }
+    rows = []
+    for layer in range(num_layers):
+        for stage in ENDPOINT_ZERO_STAGES.values():
+            required_site = gated_stage_sites.get(stage)
+            available = required_site is None or required_site in active_sites
+            rows.append(
+                {
+                    "name": stage,
+                    "layer": layer,
+                    "available": available,
+                    "zero_count": 1 if available else None,
+                    "total": 4 if available else None,
+                }
+            )
+    return rows

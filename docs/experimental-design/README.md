@@ -10,11 +10,12 @@ work.
 - Campaign id: `pythia-sparsity-scaling-v1`.
 - Planning date: 2026-07-18.
 - Current phase: E0.1 complete and S1 option 1 approved. The 2,048-step screen
-  is restricted to feasibility/collapse and within-stratum comparisons; B0
-  endpoint-diagnostic preparation is active.
-- Next config prefix: `123`.
+  is restricted to feasibility/collapse and within-stratum comparisons; the B0
+  endpoint diagnostic is accepted.
+- Next config prefix: `128`.
 - No campaign run is active. Configs `121--122` are accepted engineering
-  controls; config prefix `123` remains unallocated.
+  controls; B0 anchor configs `123--127` are materialized and ready for serial
+  local launch.
 - S1 must never use a global rank cutoff. Complete matched method panels from
   viable families advance to the 8,192-step rung under the frozen policy in
   `06-s1-budget-backtest.md`.

@@ -28,6 +28,9 @@ Unless a row says otherwise:
 | Central model LR | `3.0e-5` |
 | AdamW recipe | Existing harness recipe: betas `(0.9, 0.999)`, epsilon `1e-8`, weight decay `0.01` |
 | Warmup | 100 steps, then the existing constant-LR behavior |
+| Training logging | Step 1, every 50 steps, and the final step |
+| Online selection validation | Complete frozen selection partition at step 1, every 250 steps, and the final step |
+| Checkpoint | Final model checkpoint; optimizer state is required only where separately specified |
 | Final selection validation | Frozen campaign selection partition; see Section 8 |
 | Endpoint diagnostics | Complete selection-partition exact-zero and direct logical-product summary for every valid cell |
 
@@ -70,6 +73,11 @@ Method codes are:
 - `OL1`: L1 pressure applied as an Adam-step orthogonal correction.
 - `RN`: naive Ricker activation pressure added to the training objective.
 - `OR`: Ricker pressure applied as an Adam-step orthogonal correction.
+
+Stable design ids and filenames normalize architecture tokens by removing
+internal hyphens: use `A1H`, `A5QKPRE`, `A5QKPOST`, `A6PRE`, and `A6POST`.
+The human-facing architecture ids remain `A1-H`, `A5-QK-PRE`,
+`A5-QK-POST`, `A6-PRE`, and `A6-POST`.
 
 ## 4. Architecture Codes
 

@@ -91,6 +91,27 @@ MATMUL_STAGE_LABELS = {
     "mlp_w2": "MLP contraction: A W_2",
 }
 
+ENDPOINT_ZERO_STAGES = {
+    "z_a": "attention_input_relu",
+    "z_m": "mlp_input_relu",
+    "z_h": "mlp_hidden_relu",
+    "z_q_gate": "query_gate_output",
+    "z_k_gate": "key_gate_output",
+    "z_v_gate": "value_gate_output",
+    "z_q_qk": "query_qk_input",
+    "z_k_qk": "key_qk_input",
+    "z_v_pv": "value_pv_input",
+    "z_context_wo": "attention_context",
+}
+
+_GATE_TO_TARGETABLE_MATMULS = {
+    "a": ("qkv_projection",),
+    "m": ("mlp_w1",),
+    "h": ("mlp_w2",),
+    "q_or_k": ("qk_scores",),
+    "v": ("probability_value", "attention_output_projection"),
+}
+
 
 def run_activation_propagation(
     config: dict[str, Any],
@@ -122,6 +143,7 @@ def run_activation_propagation(
         validation_metadata,
         selected_runs=selected_runs,
     )
+    _validate_requested_validation_cache(validation_config, validation_metadata)
     source_checkpoints = [
         _source_checkpoint(selected, manifest)
         for selected, manifest in zip(selected_runs, source_manifests, strict=True)
@@ -195,6 +217,12 @@ def run_activation_propagation(
         "activation_propagation/validation_tokens": validation_token_count,
         "activation_propagation/validation_cache_tokens": validation_cache_tokens,
         "activation_propagation/trailing_tokens_excluded": trailing_tokens_excluded,
+        "activation_propagation/validation_partition": validation_metadata.get(
+            "partition"
+        ),
+        "activation_propagation/validation_partition_hash": validation_metadata.get(
+            "source_document_indices_sha256"
+        ),
         "activation_propagation/wall_seconds": wall_seconds,
         "activation_propagation/tokens_per_second": (
             validation_token_count * len(results) / wall_seconds if wall_seconds > 0 else None
@@ -202,6 +230,29 @@ def run_activation_propagation(
         "activation_propagation/peak_gpu_memory_mb": _peak_gpu_memory_mb(torch, device),
         "activation_propagation/peak_gpu_reserved_mb": _peak_gpu_reserved_mb(torch, device),
     }
+    for result in results:
+        endpoint = result["endpoint"]
+        prefix = f"activation_propagation/endpoint/{result['config_id']}"
+        metrics.update(
+            {
+                f"{prefix}/R_block": endpoint["R_block"],
+                f"{prefix}/R_model": endpoint["R_model"],
+                f"{prefix}/R_block_max": endpoint["R_block_max"],
+                f"{prefix}/R_model_max": endpoint["R_model_max"],
+                f"{prefix}/U_arch": endpoint["U_arch"],
+            }
+        )
+    if len(results) == 1:
+        endpoint = results[0]["endpoint"]
+        metrics.update(
+            {
+                "activation_propagation/R_block": endpoint["R_block"],
+                "activation_propagation/R_model": endpoint["R_model"],
+                "activation_propagation/R_block_max": endpoint["R_block_max"],
+                "activation_propagation/R_model_max": endpoint["R_model_max"],
+                "activation_propagation/U_arch": endpoint["U_arch"],
+            }
+        )
 
     exact_zero_definition = (
         "An activation element is an exact zero iff its computed tensor value compares equal to numeric 0 "
@@ -213,6 +264,14 @@ def run_activation_propagation(
         "A zero product opportunity is one scalar multiplication whose activation-side operand, or either "
         "activation operand for QK and PV, is exactly zero. Bias additions, reductions, and realized kernel "
         "speedups are excluded. QK and PV totals include only key positions at or before each query position."
+    )
+    compute_endpoint_definition = (
+        "R_block is the pooled direct zero-product count across QKV, valid-causal QK, valid-causal PV, Wo, "
+        "W1, and W2 divided by all products in those block operations. R_model keeps that numerator and "
+        "adds the dense hidden-to-vocabulary LM head to the denominator. R_block_max and R_model_max replace "
+        "the numerator by the union of operations reachable when every runtime-detected gate output is zero; "
+        "Q/K share QK, while V reaches PV and Wo. U_arch is R_model/R_model_max and is undefined for a "
+        "zero-ceiling topology. These are logical scalar products, not measured kernel speedups."
     )
     rope_survival_definition = (
         "For PRE-RoPE Q/K gates only, compare each exact-zero gate-output coordinate with the "
@@ -245,6 +304,7 @@ def run_activation_propagation(
         "future_causal_positions_excluded": True,
         "exact_zero_definition": exact_zero_definition,
         "matmul_zero_product_definition": matmul_definition,
+        "compute_endpoint_definition": compute_endpoint_definition,
         "rope_zero_survival_definition": rope_survival_definition,
         "eval_batches": eval_batches,
         "batch_size": batch_size,
@@ -252,21 +312,34 @@ def run_activation_propagation(
         "validation_tokens": validation_token_count,
         "validation_cache_tokens": validation_cache_tokens,
         "trailing_tokens_excluded": trailing_tokens_excluded,
+        "validation_partition": validation_metadata.get("partition"),
+        "validation_partition_hash": validation_metadata.get(
+            "source_document_indices_sha256"
+        ),
+        "complete_named_partition": bool(validation_metadata.get("partition"))
+        and eval_batches is None,
     }
 
     payload = {
-        "schema_version": 2,
+        "schema_version": 3,
         "validation_batches": results[0]["batches"] if results else 0,
         "validation_sequences": validation_sequences,
         "validation_tokens": validation_token_count,
         "validation_cache_tokens": validation_cache_tokens,
         "trailing_tokens_excluded": trailing_tokens_excluded,
+        "validation_partition": validation_metadata.get("partition"),
+        "validation_partition_hash": validation_metadata.get(
+            "source_document_indices_sha256"
+        ),
+        "complete_named_partition": bool(validation_metadata.get("partition"))
+        and eval_batches is None,
         "block_size": block_size,
         "batch_size": batch_size,
         "attention_implementation": "eager",
         "future_causal_positions_excluded": True,
         "exact_zero_definition": exact_zero_definition,
         "matmul_zero_product_definition": matmul_definition,
+        "compute_endpoint_definition": compute_endpoint_definition,
         "rope_zero_survival_definition": rope_survival_definition,
         "activation_stage_order": ACTIVATION_STAGE_ORDER,
         "activation_stage_labels": ACTIVATION_STAGE_LABELS,
@@ -325,6 +398,26 @@ def _measure_one_run(
                     model.gpt_neox(input_ids=input_ids, use_cache=False)
                 batches += 1
 
+    activation_rows = accumulator.rows(
+        "activations", ACTIVATION_STAGE_ORDER, num_layers=len(layers)
+    )
+    matmul_rows = accumulator.rows(
+        "matmuls", MATMUL_STAGE_ORDER, num_layers=len(layers)
+    )
+    architecture = _architecture_metadata(
+        model,
+        layers=layers,
+        post_qkv_relu=post_qkv_relu,
+        block_size=block_size,
+        torch=torch,
+    )
+    endpoint = _endpoint_summary(
+        architecture=architecture,
+        activation_rows=activation_rows,
+        matmul_rows=matmul_rows,
+        validation_tokens=len(starts) * block_size,
+    )
+
     method_result = {
         "label": label,
         "config_id": source_manifest["config_id"],
@@ -335,12 +428,12 @@ def _measure_one_run(
         "num_layers": len(layers),
         "use_parallel_residual": True,
         "post_qkv_relu": post_qkv_relu,
+        "architecture": architecture,
+        "endpoint": endpoint,
         "batches": batches,
         "wall_seconds": time.perf_counter() - method_started,
-        "activations": accumulator.rows(
-            "activations", ACTIVATION_STAGE_ORDER, num_layers=len(layers)
-        ),
-        "matmuls": accumulator.rows("matmuls", MATMUL_STAGE_ORDER, num_layers=len(layers)),
+        "activations": activation_rows,
+        "matmuls": matmul_rows,
         "rope_zero_survival": accumulator.rope_survival_rows(num_layers=len(layers)),
         "rope_all_zero_pairs": accumulator.rope_pair_rows(num_layers=len(layers)),
     }
@@ -382,6 +475,279 @@ def _post_qkv_relu_metadata(layers: list[Any]) -> dict[str, Any]:
         "value": value,
         "qk_placement": placement,
         "layers": per_layer,
+    }
+
+
+def _architecture_metadata(
+    model: Any,
+    *,
+    layers: list[Any],
+    post_qkv_relu: dict[str, Any],
+    block_size: int,
+    torch: Any,
+) -> dict[str, Any]:
+    """Describe the measured GPT-NeoX topology from runtime modules and shapes."""
+
+    if block_size <= 0:
+        raise ValueError("Architecture accounting requires a positive sequence length.")
+
+    branch_signatures = {
+        (
+            getattr(layer, "attention_input_relu", None) is not None,
+            getattr(layer, "mlp_input_relu", None) is not None,
+            isinstance(layer.mlp.act, torch.nn.ReLU),
+        )
+        for layer in layers
+    }
+    if len(branch_signatures) != 1:
+        raise ValueError(
+            "Branch and MLP-hidden gate presence must match across all layers."
+        )
+    attention_input, mlp_input, mlp_hidden = next(iter(branch_signatures))
+
+    projection_signatures = {
+        (
+            int(layer.attention.query_key_value.in_features),
+            int(layer.attention.query_key_value.out_features),
+            int(layer.attention.dense.in_features),
+            int(layer.attention.dense.out_features),
+            int(layer.mlp.dense_h_to_4h.in_features),
+            int(layer.mlp.dense_h_to_4h.out_features),
+            int(layer.mlp.dense_4h_to_h.in_features),
+            int(layer.mlp.dense_4h_to_h.out_features),
+            int(layer.attention.config.num_attention_heads),
+            int(layer.attention.head_size),
+        )
+        for layer in layers
+    }
+    if len(projection_signatures) != 1:
+        raise ValueError("Projection dimensions must match across all layers.")
+    (
+        qkv_in,
+        qkv_out,
+        wo_in,
+        wo_out,
+        w1_in,
+        w1_out,
+        w2_in,
+        w2_out,
+        num_heads,
+        head_width,
+    ) = next(iter(projection_signatures))
+    if not (
+        qkv_in == wo_in == wo_out == w1_in == w2_out == num_heads * head_width
+        and qkv_out == 3 * qkv_in
+        and w1_out == w2_in
+    ):
+        raise ValueError(
+            "Activation propagation compute accounting requires standard GPT-NeoX "
+            "QKV, Wo, W1, and W2 projection shapes."
+        )
+
+    output_embeddings = model.get_output_embeddings()
+    if output_embeddings is None or not hasattr(output_embeddings, "weight"):
+        raise ValueError("Architecture accounting requires an output embedding weight.")
+    output_shape = tuple(int(value) for value in output_embeddings.weight.shape)
+    if len(output_shape) != 2 or output_shape[1] != qkv_in:
+        raise ValueError(
+            "Output embedding shape is incompatible with the transformer hidden width."
+        )
+    vocab_size, hidden_size = output_shape
+    intermediate_size = w1_out
+
+    active = {
+        "a": attention_input,
+        "m": mlp_input,
+        "h": mlp_hidden,
+        "q": bool(post_qkv_relu["query"]),
+        "k": bool(post_qkv_relu["key"]),
+        "v": bool(post_qkv_relu["value"]),
+    }
+    active_sites = [
+        site for site in ("a", "m", "h", "q", "k", "v") if active[site]
+    ]
+    placement = post_qkv_relu["qk_placement"] if active["q"] or active["k"] else None
+
+    attention_core_products = hidden_size * block_size * (block_size + 1) // 2
+    operation_products_per_sequence_per_layer = {
+        "qkv_projection": block_size * qkv_in * qkv_out,
+        "qk_scores": attention_core_products,
+        "probability_value": attention_core_products,
+        "attention_output_projection": block_size * wo_in * wo_out,
+        "mlp_w1": block_size * w1_in * w1_out,
+        "mlp_w2": block_size * w2_in * w2_out,
+    }
+    dense_products_per_sequence_per_layer = sum(
+        operation_products_per_sequence_per_layer.values()
+    )
+
+    return {
+        "topology_id": _topology_id(active, placement),
+        "active_gate_sites": active_sites,
+        "gate_presence": active,
+        "qk_gate_placement": placement,
+        "hidden_activation": str(getattr(model.config, "hidden_act", "")),
+        "num_layers": len(layers),
+        "hidden_size": hidden_size,
+        "intermediate_size": intermediate_size,
+        "vocab_size": vocab_size,
+        "num_attention_heads": num_heads,
+        "head_width": head_width,
+        "sequence_length": int(block_size),
+        "operation_products_per_sequence_per_layer": (
+            operation_products_per_sequence_per_layer
+        ),
+        "dense_products_per_sequence_per_layer": dense_products_per_sequence_per_layer,
+    }
+
+
+def _topology_id(active: dict[str, bool], placement: str | None) -> str:
+    sites = frozenset(site for site, enabled in active.items() if enabled)
+    fixed = {
+        frozenset(): "A0",
+        frozenset({"h"}): "A1-H",
+        frozenset({"a", "m", "h"}): "A3",
+        frozenset({"a", "m", "h", "v"}): "A4-V",
+    }
+    if sites in fixed:
+        return fixed[sites]
+    if sites == frozenset({"a", "m", "h", "q"}) and placement == "post_rope":
+        return "A4-Q"
+    if sites == frozenset({"a", "m", "h", "k"}) and placement == "post_rope":
+        return "A4-K"
+    if sites == frozenset({"a", "m", "h", "q", "k"}):
+        return "A5-QK-PRE" if placement == "pre_rope" else "A5-QK-POST"
+    if sites == frozenset({"a", "m", "h", "q", "k", "v"}):
+        return "A6-PRE" if placement == "pre_rope" else "A6-POST"
+    custom = "custom:" + ",".join(
+        site for site in ("a", "m", "h", "q", "k", "v") if site in sites
+    )
+    return f"{custom}@{placement}" if sites & {"q", "k"} else custom
+
+
+def _endpoint_summary(
+    *,
+    architecture: dict[str, Any],
+    activation_rows: list[dict[str, Any]],
+    matmul_rows: list[dict[str, Any]],
+    validation_tokens: int,
+) -> dict[str, Any]:
+    """Reduce direct integer counters to architecture-aware campaign endpoints."""
+
+    block_size = int(architecture["sequence_length"])
+    num_layers = int(architecture["num_layers"])
+    if validation_tokens <= 0 or validation_tokens % block_size:
+        raise ValueError(
+            "Endpoint accounting requires a positive whole number of fixed-length sequences."
+        )
+    sequences = validation_tokens // block_size
+
+    per_operation: dict[str, dict[str, Any]] = {}
+    for stage in MATMUL_STAGE_ORDER:
+        selected = [row for row in matmul_rows if row.get("name") == stage]
+        if len(selected) != num_layers or any(
+            not bool(row.get("available", True)) for row in selected
+        ):
+            raise ValueError(
+                f"Endpoint accounting requires one available {stage} row per layer."
+            )
+        zero_count = sum(int(row["zero_count"]) for row in selected)
+        total = sum(int(row["total"]) for row in selected)
+        expected = (
+            int(architecture["operation_products_per_sequence_per_layer"][stage])
+            * sequences
+            * num_layers
+        )
+        if total != expected:
+            raise ValueError(
+                f"Measured {stage} denominator {total} does not match dynamic architecture "
+                f"denominator {expected}."
+            )
+        per_operation[stage] = {
+            "zero_product_count": zero_count,
+            "product_count": total,
+            "zero_product_fraction": zero_count / total,
+        }
+
+    block_zero_count = sum(row["zero_product_count"] for row in per_operation.values())
+    block_product_count = sum(row["product_count"] for row in per_operation.values())
+    lm_head_product_count = (
+        int(validation_tokens)
+        * int(architecture["hidden_size"])
+        * int(architecture["vocab_size"])
+    )
+    model_product_count = block_product_count + lm_head_product_count
+
+    gates = architecture["gate_presence"]
+    targetable_stages: list[str] = []
+    for site in ("a", "m", "h"):
+        if gates[site]:
+            targetable_stages.extend(_GATE_TO_TARGETABLE_MATMULS[site])
+    if gates["q"] or gates["k"]:
+        targetable_stages.extend(_GATE_TO_TARGETABLE_MATMULS["q_or_k"])
+    if gates["v"]:
+        targetable_stages.extend(_GATE_TO_TARGETABLE_MATMULS["v"])
+    targetable_stages = [
+        stage for stage in MATMUL_STAGE_ORDER if stage in set(targetable_stages)
+    ]
+    ceiling_count = sum(
+        int(per_operation[stage]["product_count"]) for stage in targetable_stages
+    )
+    r_block = block_zero_count / block_product_count
+    r_model = block_zero_count / model_product_count
+    r_block_max = ceiling_count / block_product_count
+    r_model_max = ceiling_count / model_product_count
+
+    zero_sites = {
+        alias: _pooled_activation_stage(activation_rows, stage, num_layers=num_layers)
+        for alias, stage in ENDPOINT_ZERO_STAGES.items()
+    }
+    return {
+        "architecture_id": architecture["topology_id"],
+        "active_gate_sites": list(architecture["active_gate_sites"]),
+        "validation_sequences": sequences,
+        "validation_tokens": int(validation_tokens),
+        "R_block": r_block,
+        "R_model": r_model,
+        "R_block_max": r_block_max,
+        "R_model_max": r_model_max,
+        "U_arch": r_model / r_model_max if r_model_max > 0.0 else None,
+        "block_zero_product_count": block_zero_count,
+        "block_product_count": block_product_count,
+        "lm_head_product_count": lm_head_product_count,
+        "model_product_count": model_product_count,
+        "architecture_ceiling_zero_product_count": ceiling_count,
+        "targetable_matmul_stages": targetable_stages,
+        "per_operation": per_operation,
+        "zero_sites": zero_sites,
+    }
+
+
+def _pooled_activation_stage(
+    rows: list[dict[str, Any]], stage: str, *, num_layers: int
+) -> dict[str, Any]:
+    selected = [row for row in rows if row.get("name") == stage]
+    if len(selected) != num_layers:
+        raise ValueError(f"Expected one activation row for {stage} per layer.")
+    available = [bool(row.get("available", True)) for row in selected]
+    if not any(available):
+        return {
+            "stage": stage,
+            "available": False,
+            "zero_count": None,
+            "total": None,
+            "exact_zero_fraction": None,
+        }
+    if not all(available):
+        raise ValueError(f"Activation stage {stage} is available in only some layers.")
+    zero_count = sum(int(row["zero_count"]) for row in selected)
+    total = sum(int(row["total"]) for row in selected)
+    return {
+        "stage": stage,
+        "available": True,
+        "zero_count": zero_count,
+        "total": total,
+        "exact_zero_fraction": zero_count / total if total else None,
     }
 
 
@@ -1167,6 +1533,7 @@ def _validate_shared_validation_cache(
 ) -> None:
     reference_key = (reference["tokens_path"], reference["block_size"], reference["tokens"])
     selected = selected_runs or [{} for _ in source_manifests]
+    available_metadata = [reference]
     for manifest, selection in zip(source_manifests, selected, strict=True):
         candidate = (manifest.get("tokenized_data") or {}).get("validation")
         if candidate is None:
@@ -1176,6 +1543,64 @@ def _validate_shared_validation_cache(
         candidate_key = (candidate["tokens_path"], candidate["block_size"], candidate["tokens"])
         if candidate_key != reference_key:
             raise ValueError("Selected runs do not share the same validation token cache.")
+        available_metadata.append(candidate)
+
+    # Historical manifests do not necessarily carry partition or file hashes,
+    # so missing optional identity fields remain compatible. Any identities
+    # that are present must nevertheless agree across every selected source.
+    identity_fields = (
+        "partition",
+        "partition_scheme",
+        "partition_seed",
+        "source_document_indices_sha256",
+        "tokens_sha256",
+    )
+    for field in identity_fields:
+        observed = {
+            metadata[field]
+            for metadata in available_metadata
+            if metadata.get(field) is not None
+        }
+        if len(observed) > 1:
+            raise ValueError(
+                "Selected runs do not share the same validation token cache "
+                f"identity field {field}."
+            )
+
+
+def _validate_requested_validation_cache(
+    validation_config: dict[str, Any], metadata: dict[str, Any]
+) -> None:
+    """Bind campaign diagnostics to the complete named validation partition."""
+
+    requested_partition = validation_config.get("partition")
+    if requested_partition is None:
+        return
+    if metadata.get("partition") != requested_partition:
+        raise ValueError(
+            "Activation propagation validation partition does not match the source cache."
+        )
+    expected_fields = {
+        "partition_scheme": validation_config.get("partition_scheme"),
+        "partition_seed": validation_config.get("partition_seed"),
+        "max_documents": validation_config.get("max_documents"),
+    }
+    for field, expected in expected_fields.items():
+        if expected is not None and metadata.get(field) != expected:
+            raise ValueError(
+                f"Activation propagation validation {field} does not match the source cache."
+            )
+    requested_hash = validation_config.get("partition_hash")
+    realized_hash = metadata.get("source_document_indices_sha256")
+    if requested_hash is not None and realized_hash != requested_hash:
+        raise ValueError(
+            "Activation propagation validation partition hash does not match the source cache."
+        )
+    if validation_config.get("eval_batches") is not None:
+        raise ValueError(
+            "Named-partition activation propagation must evaluate the complete partition; "
+            "set validation.eval_batches to null."
+        )
 
 
 def _find_source_run(config: dict[str, Any], selected: dict[str, Any]) -> Path:
