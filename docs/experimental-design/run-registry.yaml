@@ -1214,15 +1214,15 @@ records:
     mode: pretrain
     result_path: results/139-s1-b0-p14m-a6post-adamw-lr1em5-s0/001-20260718-222908-79d618fa
     log_path: run-logs/139-s1-b0-p14m-a6post-adamw-lr1em5-s0-pretrain-attempt1.log
-    lifecycle_status: running
-    evidence_status: unreviewed
-    canonical: false
+    lifecycle_status: completed
+    evidence_status: valid
+    canonical: true
     started_at: 2026-07-18T22:29:08.267363Z
-    finished_at: null
+    finished_at: 2026-07-18T22:49:54.035957Z
     git_commit: 82053da589d24655b17a888c15a703bb25a6acfe
     git_dirty: false
-    completed_steps: 0
-    tokens_seen: 0
+    completed_steps: 2048
+    tokens_seen: 134217728
     model_initialization_seed: 0
     data_order_seed: 0
     training_schedule_scheme: random_contiguous_blocks_with_replacement_v1
@@ -1231,10 +1231,10 @@ records:
     validation_partition: selection
     validation_partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
     validation_tokens: 311296
-    validation_loss: null
-    wall_hours: null
-    tokens_per_second: null
-    peak_gpu_mb: null
+    validation_loss: 8.387434959411621
+    wall_hours: 0.3453896064166717
+    tokens_per_second: 107949.39625906592
+    peak_gpu_mb: 6056.47119140625
     execution_backend: local
     cloud_provider: null
     gpu_type: NVIDIA GeForce RTX 5070 Ti Laptop GPU
@@ -1245,5 +1245,5 @@ records:
     gpu_driver_version: "572.84"
     failure_type: null
     failure_message: null
-    reviewed_at: null
-    notes: Launched outside sandbox process containment from clean commit 82053da with PID 57212. Standard error is recorded at run-logs/139-s1-b0-p14m-a6post-adamw-lr1em5-s0-pretrain-attempt1-stderr.log; expected terminal window is 2026-07-18T22:49--22:51Z.
+    reviewed_at: 2026-07-18T22:51:33.6080288Z
+    notes: Completed from clean launch commit 82053da with 42 train and 10 complete-selection validation events. Final model SHA-256 is 46fb6a0442216b17569571729c7beb5c5c51946d7abb5f82b3b21f55cbb88f98; optimizer state was intentionally not saved. Final selection loss is 1.35496 above the matched A6-POST LR3EM5 control, consistent with severe undertraining at LR1EM5 over the fixed 2048-step budget.

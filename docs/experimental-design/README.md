@@ -19,15 +19,14 @@ work.
   (A6-POST). Config `128`, the combined selection-partition endpoint
   diagnostic, also completed and passed artifact review. Configs `121--122`
   remain accepted engineering controls.
-- Last completed run: config `138` A6-PRE at LR `1e-5`, run
-  `001-20260718-220621-c6efb587`, result path
-  `results/138-s1-b0-p14m-a6pre-adamw-lr1em5-s0/001-20260718-220621-c6efb587`,
-  selection loss `8.38739`.
+- Last completed run: config `139` A6-POST at LR `1e-5`, run
+  `001-20260718-222908-79d618fa`, result path
+  `results/139-s1-b0-p14m-a6post-adamw-lr1em5-s0/001-20260718-222908-79d618fa`,
+  selection loss `8.38743`.
 - Config `134`, run `001-20260718-205354-8821b592`, completed the pooled
   exact-zero diagnostic over canonical configs `129--133`.
-- Config `139` (A6-POST, LR `1e-5`), run
-  `001-20260718-222908-79d618fa`, is active locally. Configs `140--144` are
-  queued in the same LR-flank set.
+- Config `140` (A0, LR `1e-4`) is active pending local launch. Configs
+  `141--144` are queued in the same LR-flank set.
 - Config `133` attempt 2 was an accidental duplicate created during a handoff
   race. It was terminated after step 1 and is invalid; attempt 1 completed.
 - Config `131` attempt 2 was an accidental duplicate created during a handoff
@@ -41,9 +40,9 @@ work.
   in [`08-s1-b0-attention-parent-results.md`](08-s1-b0-attention-parent-results.md).
 - Configs `135--144` materialize all 10 executable B0 learning-rate flanks:
   A0, A1-H, A3, A6-PRE, and A6-POST at LR `1e-5` and `1e-4`.
-- B0 has completed `14 / 22` scientific cells; 8 remain, of which 6 are
+- B0 has completed `15 / 22` scientific cells; 7 remain, of which 5 are
   executable and two post-PV context cells remain blocked. The declared S1
-  core has completed `14 / 134` cells (`14 / 132` executable).
+  core has completed `15 / 134` cells (`15 / 132` executable).
   Diagnostic configs do not count as scientific cells.
 - S1 must never use a global rank cutoff. Complete matched method panels from
   viable families advance to the 8,192-step rung under the frozen policy in
