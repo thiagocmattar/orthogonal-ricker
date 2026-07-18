@@ -21,7 +21,7 @@ block_summary:
   - block: S1-B0
     planned_cells: 22
     materialized_cells: 5
-    completed_cells: 1
+    completed_cells: 2
     status: active
     note: central A0/A1-H/A3/A6-PRE/A6-POST anchors are materialized; two post-PV context cells remain dependency-gated
   - block: S1-B1
@@ -283,11 +283,11 @@ records:
     ricker_sigma: null
     step_budget: null
     matched_control_id: S1-B0-ARCH-A0-LR3EM5-S0
-    config_status: active
+    config_status: closed
     decision_status: control
     release_tier: history
-    canonical_run_id: null
-    notes: One-ReLU MLP-hidden AdamW architecture control; no pressure. S1 is feasibility/within-stratum only.
+    canonical_run_id: 001-20260718-171535-c9b88552
+    notes: One-ReLU MLP-hidden AdamW architecture control; no pressure. Run 001-20260718-171535-c9b88552 completed 2048 steps and passed terminal review at selection loss 6.98875. S1 is feasibility/within-stratum only.
   - design_id: S1-B0-ARCH-A3-LR3EM5-S0
     config_id: 125-s1-b0-p14m-a3-adamw-lr3em5-s0
     config_path: configs/125-s1-b0-p14m-a3-adamw-lr3em5-s0.yaml
@@ -330,7 +330,7 @@ records:
     ricker_sigma: null
     step_budget: null
     matched_control_id: S1-B0-ARCH-A1H-LR3EM5-S0
-    config_status: ready
+    config_status: active
     decision_status: control
     release_tier: history
     canonical_run_id: null
