@@ -1094,15 +1094,15 @@ records:
     mode: pretrain
     result_path: results/136-s1-b0-p14m-a1h-adamw-lr1em5-s0/001-20260718-212731-d350d541
     log_path: run-logs/136-s1-b0-p14m-a1h-adamw-lr1em5-s0-pretrain-attempt1.log
-    lifecycle_status: running
-    evidence_status: unreviewed
-    canonical: false
+    lifecycle_status: completed
+    evidence_status: valid
+    canonical: true
     started_at: 2026-07-18T21:27:31.584104Z
-    finished_at: null
+    finished_at: 2026-07-18T21:44:11.322898Z
     git_commit: 7becefdfa01cdf4e2278822df32568d6fef04758
     git_dirty: false
-    completed_steps: 0
-    tokens_seen: 0
+    completed_steps: 2048
+    tokens_seen: 134217728
     model_initialization_seed: 0
     data_order_seed: 0
     training_schedule_scheme: random_contiguous_blocks_with_replacement_v1
@@ -1111,10 +1111,10 @@ records:
     validation_partition: selection
     validation_partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
     validation_tokens: 311296
-    validation_loss: null
-    wall_hours: null
-    tokens_per_second: null
-    peak_gpu_mb: null
+    validation_loss: 8.386518854843942
+    wall_hours: 0.276924212111108
+    tokens_per_second: 134631.42835363033
+    peak_gpu_mb: 5948.47119140625
     execution_backend: local
     cloud_provider: null
     gpu_type: NVIDIA GeForce RTX 5070 Ti Laptop GPU
@@ -1125,5 +1125,5 @@ records:
     gpu_driver_version: "572.84"
     failure_type: null
     failure_message: null
-    reviewed_at: null
-    notes: A1-H AdamW LR1EM5 flank launched outside sandbox process containment from clean commit 7becefd as PID 46600. Stderr is in run-logs/136-s1-b0-p14m-a1h-adamw-lr1em5-s0-pretrain-attempt1-stderr.log. Expected terminal window is 2026-07-18T21:44--21:46Z.
+    reviewed_at: 2026-07-18T21:45:21.2789282Z
+    notes: Completed from clean launch commit 7becefd with 42 train and 10 complete-selection validation events. Final model SHA-256 is c62db11dfc9bd2ad64be7a0bc3021029a2ecc0ad2d372df004a5723e18f401e4; optimizer state was intentionally not saved. Final selection loss is 1.39777 above the matched A1-H LR3EM5 control, consistent with severe undertraining at LR1EM5 over the fixed 2048-step budget.
