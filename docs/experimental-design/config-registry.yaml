@@ -22,7 +22,7 @@ block_summary:
     planned_cells: 22
     materialized_cells: 20
     completed_cells: 10
-    status: ready
+    status: active
     note: all 20 executable B0 cells are materialized, comprising 10 central/ordinary architecture controls and 10 model-LR flanks; two post-PV context cells remain dependency-gated
   - block: S1-B1
     planned_cells: 36
@@ -800,7 +800,7 @@ records:
     ricker_sigma: null
     step_budget: null
     matched_control_id: S1-B0-ARCH-A0-LR3EM5-S0
-    config_status: ready
+    config_status: active
     decision_status: control
     release_tier: history
     canonical_run_id: null

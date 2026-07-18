@@ -12,7 +12,7 @@ work.
 - Current phase: E0.1 complete and S1 option 1 approved. The 2,048-step screen
   is restricted to feasibility/collapse and within-stratum comparisons; the B0
   endpoint diagnostic is accepted.
-- Next config prefix: `135`.
+- Next config prefix: `145`.
 - The five central B0 anchors, configs `123--127`, completed and passed
   terminal review. Their final selection losses are `7.04913` (A0),
   `6.98875` (A1-H), `7.01310` (A3), `7.01645` (A6-PRE), and `7.03248`
@@ -23,8 +23,10 @@ work.
   `001-20260718-203020-55473d96`, result path
   `results/133-s1-b0-p14m-a5qkpost-adamw-lr3em5-s0/001-20260718-203020-55473d96`,
   selection loss `7.03064`.
-- No run is active. Config `134`, run `001-20260718-205354-8821b592`, completed
-  the pooled exact-zero diagnostic over canonical configs `129--133`.
+- Config `134`, run `001-20260718-205354-8821b592`, completed the pooled
+  exact-zero diagnostic over canonical configs `129--133`.
+- Config `135` (A0, LR `1e-5`) is active pending local launch. Configs
+  `136--144` are queued in the same LR-flank set.
 - Config `133` attempt 2 was an accidental duplicate created during a handoff
   race. It was terminated after step 1 and is invalid; attempt 1 completed.
 - Config `131` attempt 2 was an accidental duplicate created during a handoff
@@ -36,6 +38,8 @@ work.
   A4-Q, A4-K, A4-V, A5-QK-PRE, and A5-QK-POST. They passed preflight and are
   complete and passed terminal review. Their matched results are consolidated
   in [`08-s1-b0-attention-parent-results.md`](08-s1-b0-attention-parent-results.md).
+- Configs `135--144` materialize all 10 executable B0 learning-rate flanks:
+  A0, A1-H, A3, A6-PRE, and A6-POST at LR `1e-5` and `1e-4`.
 - B0 has completed `10 / 22` scientific cells; 12 remain, of which 10 are
   executable and two post-PV context cells remain blocked. The declared S1
   core has completed `10 / 134` cells (`10 / 132` executable).
