@@ -27,6 +27,8 @@ work.
   started `2026-07-18T19:47:13Z`, result path
   `results/131-s1-b0-p14m-a4v-adamw-lr3em5-s0/001-20260718-194713-d1dc3486`.
   Expected terminal window is `2026-07-18T20:06--20:08Z`.
+- Config `131` attempt 2 was an accidental duplicate created during a handoff
+  race. It was terminated after step 1 and is invalid; attempt 1 continues.
 - Config `129` attempt 1, run `001-20260718-190208-c6152824`, is an invalid
   infrastructure-only partial: sandbox process containment ended it before
   the first training event. Retry 2 completed from the same immutable config.
