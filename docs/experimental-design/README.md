@@ -23,8 +23,8 @@ work.
   `001-20260718-203020-55473d96`, result path
   `results/133-s1-b0-p14m-a5qkpost-adamw-lr3em5-s0/001-20260718-203020-55473d96`,
   selection loss `7.03064`.
-- No training run is active. Config `134` is the ready pooled exact-zero
-  diagnostic over canonical configs `129--133`.
+- No run is active. Config `134`, run `001-20260718-205354-8821b592`, completed
+  the pooled exact-zero diagnostic over canonical configs `129--133`.
 - Config `133` attempt 2 was an accidental duplicate created during a handoff
   race. It was terminated after step 1 and is invalid; attempt 1 completed.
 - Config `131` attempt 2 was an accidental duplicate created during a handoff
@@ -34,7 +34,8 @@ work.
   the first training event. Retry 2 completed from the same immutable config.
 - Configs `129--133` materialize the next ordinary architecture-parent set:
   A4-Q, A4-K, A4-V, A5-QK-PRE, and A5-QK-POST. They passed preflight and are
-  complete and passed terminal review.
+  complete and passed terminal review. Their matched results are consolidated
+  in [`08-s1-b0-attention-parent-results.md`](08-s1-b0-attention-parent-results.md).
 - B0 has completed `10 / 22` scientific cells; 12 remain, of which 10 are
   executable and two post-PV context cells remain blocked. The declared S1
   core has completed `10 / 134` cells (`10 / 132` executable).
@@ -63,24 +64,24 @@ registry rows explicitly marked as valid are campaign evidence.
 
 ## Latest Completed Launch Set
 
-The first S1-B0 architecture-anchor set completed locally on 2026-07-18.
-All five runs used 2,048 matched steps and the complete selection partition.
-The consolidated endpoint evidence and handoff are in
-[`07-s1-b0-anchor-results.md`](07-s1-b0-anchor-results.md).
+The second S1-B0 architecture set completed locally on 2026-07-18. All five
+runs used 2,048 matched steps and the complete selection partition; diagnostic
+config `134` then measured their pooled exact-zero and logical-product
+endpoints. The consolidated evidence and handoff are in
+[`08-s1-b0-attention-parent-results.md`](08-s1-b0-attention-parent-results.md).
 
 | Config | Architecture | Validation loss | Wall (h) | Tokens/s |
 | --- | --- | ---: | ---: | ---: |
-| `123` | A0 | 7.04913 | 0.292 | 127,771 |
-| `124` | A1-H | 6.98875 | 0.277 | 134,502 |
-| `125` | A3 | 7.01310 | 0.300 | 124,482 |
-| `126` | A6-PRE | 7.01645 | 0.344 | 108,541 |
-| `127` | A6-POST | 7.03248 | 0.351 | 106,357 |
+| `129` | A4-Q | 7.02126 | 0.319 | 116,700 |
+| `130` | A4-K | 7.02441 | 0.325 | 114,792 |
+| `131` | A4-V | 7.01615 | 0.322 | 115,619 |
+| `132` | A5-QK-PRE | 7.01586 | 0.335 | 111,235 |
+| `133` | A5-QK-POST | 7.03064 | 0.340 | 109,539 |
 
-The next launch set is the five ordinary architecture parents A4-Q, A4-K,
-A4-V, A5-QK-PRE, and A5-QK-POST. It is materialized but has not been launched.
-All five use the custom attention path. The measured A6 runtime implies about
-1 h 55 min--2 h 05 min through the five per-run reviews after the first run
-launches, or about 2 h 05 min--2 h 15 min through diagnostic and handoff.
+The preceding central-anchor set is recorded in
+[`07-s1-b0-anchor-results.md`](07-s1-b0-anchor-results.md). B0 now has 10 of 22
+scientific cells complete. The next executable set is the predeclared learning-
+rate flank controls; the two post-PV context cells remain dependency-gated.
 
 ## Latest Completed Engineering Launch Set
 
@@ -127,11 +128,14 @@ must not be used to rank methods.
    scientific launch.
 7. [`07-s1-b0-anchor-results.md`](07-s1-b0-anchor-results.md) consolidates the
    first scientific launch set, endpoint diagnostic, caveats, and handoff.
-8. [`validation-partitions.yaml`](validation-partitions.yaml) freezes the
+8. [`08-s1-b0-attention-parent-results.md`](08-s1-b0-attention-parent-results.md)
+   consolidates the attention-parent controls, pooled endpoints, matched
+   parent-child contrasts, caveats, and next launch set.
+9. [`validation-partitions.yaml`](validation-partitions.yaml) freezes the
    document-disjoint selection and confirmation source-document lists.
-9. [`config-registry.yaml`](config-registry.yaml) is the config-level source of
+10. [`config-registry.yaml`](config-registry.yaml) is the config-level source of
    truth for materialized campaign cells.
-10. [`run-registry.yaml`](run-registry.yaml) records every run attempt. It is
+11. [`run-registry.yaml`](run-registry.yaml) records every run attempt. It is
    intentionally separate because one immutable config can have more than one
    infrastructure attempt.
 

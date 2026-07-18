@@ -753,8 +753,8 @@ records:
     ricker_sigma: null
     step_budget: null
     matched_control_id: null
-    config_status: ready
+    config_status: closed
     decision_status: control
     release_tier: history
-    canonical_run_id: null
-    notes: Combined complete-selection propagation diagnostic pinned to the exact canonical run ids for configs 129--133; launch after a clean config commit and close only after artifact review.
+    canonical_run_id: 001-20260718-205354-8821b592
+    notes: Combined complete-selection propagation diagnostic pinned to the exact canonical run ids for configs 129--133. Run 001-20260718-205354-8821b592 evaluated 311296 tokens and passed terminal artifact review; it emits pooled z-sites, direct per-operation zero products, R_block, R_model, topology ceilings, RoPE survival, and U_arch.

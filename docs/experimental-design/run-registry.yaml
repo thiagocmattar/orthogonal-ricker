@@ -681,10 +681,26 @@ records:
     pytorch_version: 2.11.0+cu128
     cuda_version: "12.8"
     gpu_driver_version: "572.84"
+    propagation_result_path: results/134-s1-b0-p14m-attention-parents-selection-propagation/001-20260718-205354-8821b592/activation_propagation.json
+    r_block: 0.25734199284019604
+    r_model: 0.0770800438075113
+    r_block_max: 0.6785216178521618
+    r_model_max: 0.20323335282813937
+    u_arch: 0.3792686718734235
+    z_a: 0.5113118907861542
+    z_m: 0.5117287133869372
+    z_h: 0.45966131749906036
+    z_q_gate: 0.2269416650136312
+    z_k_gate: null
+    z_v_gate: null
+    z_q_qk: 0.2269416650136312
+    z_k_qk: 8.365564179002193e-09
+    z_v_pv: 3.7645038805509866e-08
+    z_context_wo: 4.182782089501096e-09
     failure_type: null
     failure_message: null
     reviewed_at: 2026-07-18T19:24:05.0710554Z
-    notes: Completed from clean launch commit 6361267 with 42 train and 10 complete-selection validation events. Final model SHA-256 is ab7b04dee0c06ebd7112308f1a5a41ba065366a42b39fc3fecb5a061e9d19d27; optimizer state was intentionally not saved. Final selection loss is 0.00816 above matched A3, and throughput is 6.25% below A3 under the custom attention path. Selection propagation endpoints remain pending the combined numbered diagnostic.
+    notes: Completed from clean launch commit 6361267 with 42 train and 10 complete-selection validation events. Final model SHA-256 is ab7b04dee0c06ebd7112308f1a5a41ba065366a42b39fc3fecb5a061e9d19d27; optimizer state was intentionally not saved. Final selection loss is 0.00816 above matched A3, and throughput is 6.25% below A3 under the custom attention path. Complete-selection propagation endpoints are attached from canonical diagnostic config 134.
   - design_id: S1-B0-ARCH-A4K-LR3EM5-S0
     config_id: 130-s1-b0-p14m-a4k-adamw-lr3em5-s0
     run_id: 001-20260718-192601-b1795544
@@ -721,10 +737,26 @@ records:
     pytorch_version: 2.11.0+cu128
     cuda_version: "12.8"
     gpu_driver_version: "572.84"
+    propagation_result_path: results/134-s1-b0-p14m-attention-parents-selection-propagation/001-20260718-205354-8821b592/activation_propagation.json
+    r_block: 0.2766045806324448
+    r_model: 0.08284964671796428
+    r_block_max: 0.6785216178521618
+    r_model_max: 0.20323335282813937
+    u_arch: 0.4076577272630275
+    z_a: 0.5111938652239347
+    z_m: 0.511491432524564
+    z_h: 0.4589744241614091
+    z_q_gate: null
+    z_k_gate: 0.29194396002250805
+    z_v_gate: null
+    z_q_qk: 1.2548346268503289e-08
+    z_k_qk: 0.29194396002250805
+    z_v_pv: 8.365564179002193e-09
+    z_context_wo: 2.5096692537006578e-08
     failure_type: null
     failure_message: null
     reviewed_at: 2026-07-18T19:46:06.1349484Z
-    notes: Completed from clean launch commit 92ffa0a with 42 train and 10 complete-selection validation events. Final model SHA-256 is e5d187d854f943f448c7cb20d2eabed0a93b77ddcd75845dedbf02745ff83670; optimizer state was intentionally not saved. Final selection loss is 0.01131 above matched A3, and throughput is 7.78% below A3 under the custom attention path. Selection propagation endpoints remain pending the combined numbered diagnostic.
+    notes: Completed from clean launch commit 92ffa0a with 42 train and 10 complete-selection validation events. Final model SHA-256 is e5d187d854f943f448c7cb20d2eabed0a93b77ddcd75845dedbf02745ff83670; optimizer state was intentionally not saved. Final selection loss is 0.01131 above matched A3, and throughput is 7.78% below A3 under the custom attention path. Complete-selection propagation endpoints are attached from canonical diagnostic config 134.
   - design_id: S1-B0-ARCH-A4V-LR3EM5-S0
     config_id: 131-s1-b0-p14m-a4v-adamw-lr3em5-s0
     run_id: 001-20260718-194713-d1dc3486
@@ -761,10 +793,26 @@ records:
     pytorch_version: 2.11.0+cu128
     cuda_version: "12.8"
     gpu_driver_version: "572.84"
+    propagation_result_path: results/134-s1-b0-p14m-attention-parents-selection-propagation/001-20260718-205354-8821b592/activation_propagation.json
+    r_block: 0.3171772317716708
+    r_model: 0.09500212013546994
+    r_block_max: 0.7142259414225941
+    r_model_max: 0.21392764641991813
+    u_arch: 0.4440852864289942
+    z_a: 0.5104752799920869
+    z_m: 0.5119941736522474
+    z_h: 0.4595629572868347
+    z_q_gate: null
+    z_k_gate: null
+    z_v_gate: 0.43205636426022176
+    z_q_qk: 4.182782089501096e-09
+    z_k_qk: 8.365564179002193e-09
+    z_v_pv: 0.43205636426022176
+    z_context_wo: 0.007372483872530753
     failure_type: null
     failure_message: null
     reviewed_at: 2026-07-18T20:07:12.4679593Z
-    notes: Completed from clean launch commit 5693ee1 with 42 train and 10 complete-selection validation events. Final model SHA-256 is fa6190da0d1994867b687cfae9f42b763ea8fa5dc5dfca7af3afd00e369ef93c; optimizer state was intentionally not saved. Final selection loss is 0.00305 above matched A3, and throughput is 7.12% below A3 under the custom attention path. Selection propagation endpoints remain pending the combined numbered diagnostic.
+    notes: Completed from clean launch commit 5693ee1 with 42 train and 10 complete-selection validation events. Final model SHA-256 is fa6190da0d1994867b687cfae9f42b763ea8fa5dc5dfca7af3afd00e369ef93c; optimizer state was intentionally not saved. Final selection loss is 0.00305 above matched A3, and throughput is 7.12% below A3 under the custom attention path. Complete-selection propagation endpoints are attached from canonical diagnostic config 134.
   - design_id: S1-B0-ARCH-A4V-LR3EM5-S0
     config_id: 131-s1-b0-p14m-a4v-adamw-lr3em5-s0
     run_id: 002-20260718-194735-f3cb784b
@@ -841,10 +889,26 @@ records:
     pytorch_version: 2.11.0+cu128
     cuda_version: "12.8"
     gpu_driver_version: "572.84"
+    propagation_result_path: results/134-s1-b0-p14m-attention-parents-selection-propagation/001-20260718-205354-8821b592/activation_propagation.json
+    r_block: 0.28195255093981836
+    r_model: 0.08445149094487833
+    r_block_max: 0.6785216178521618
+    r_model_max: 0.20323335282813937
+    u_arch: 0.4155395252288792
+    z_a: 0.5106951186531469
+    z_m: 0.5111941287392064
+    z_h: 0.45996102220133733
+    z_q_gate: 0.15591986137523986
+    z_k_gate: 0.2721779932055557
+    z_v_gate: null
+    z_q_qk: 0.12303889425177324
+    z_k_qk: 0.23177268630579898
+    z_v_pv: 1.2548346268503289e-08
+    z_context_wo: 2.091391044750548e-08
     failure_type: null
     failure_message: null
     reviewed_at: 2026-07-18T20:28:47.5391046Z
-    notes: Completed from clean launch commit 651aa06 with 42 train and 10 complete-selection validation events. Final model SHA-256 is 7f9f69708674713aa860e399c18d741436a11dc4f450412a96a8a94ab1af23dd; optimizer state was intentionally not saved. Final selection loss is 0.00276 above matched A3, and throughput is 10.64% below A3 under the custom attention path. It is the direct matched parent of A6-PRE config 126; selection propagation endpoints remain pending the combined numbered diagnostic.
+    notes: Completed from clean launch commit 651aa06 with 42 train and 10 complete-selection validation events. Final model SHA-256 is 7f9f69708674713aa860e399c18d741436a11dc4f450412a96a8a94ab1af23dd; optimizer state was intentionally not saved. Final selection loss is 0.00276 above matched A3, and throughput is 10.64% below A3 under the custom attention path. It is the direct matched parent of A6-PRE config 126. Complete-selection propagation endpoints are attached from canonical diagnostic config 134.
   - design_id: S1-B0-ARCH-A5QKPOST-LR3EM5-S0
     config_id: 133-s1-b0-p14m-a5qkpost-adamw-lr3em5-s0
     run_id: 001-20260718-203020-55473d96
@@ -881,10 +945,26 @@ records:
     pytorch_version: 2.11.0+cu128
     cuda_version: "12.8"
     gpu_driver_version: "572.84"
+    propagation_result_path: results/134-s1-b0-p14m-attention-parents-selection-propagation/001-20260718-205354-8821b592/activation_propagation.json
+    r_block: 0.32944176274232206
+    r_model: 0.0986756386858739
+    r_block_max: 0.6785216178521618
+    r_model_max: 0.20323335282813937
+    u_arch: 0.48552876441160314
+    z_a: 0.5111306382898699
+    z_m: 0.5113502050700941
+    z_h: 0.45960165011255366
+    z_q_gate: 0.2309816511053788
+    z_k_gate: 0.3427994167595579
+    z_v_gate: null
+    z_q_qk: 0.2309816511053788
+    z_k_qk: 0.3427994167595579
+    z_v_pv: 2.5096692537006578e-08
+    z_context_wo: 4.182782089501096e-09
     failure_type: null
     failure_message: null
     reviewed_at: 2026-07-18T20:51:23.3695138Z
-    notes: Completed from clean launch commit f015837 with 42 train and 10 complete-selection validation events. Final model SHA-256 is 00a52893fc733bd9a3159271b7accd89a8ff835d31694ef41a255d3d409f0b33; optimizer state was intentionally not saved. Final selection loss is 0.01754 above matched A3 and 0.00184 below its A6-POST child. Throughput is 12.00% below A3 under the custom attention path. Selection propagation endpoints remain pending the combined numbered diagnostic.
+    notes: Completed from clean launch commit f015837 with 42 train and 10 complete-selection validation events. Final model SHA-256 is 00a52893fc733bd9a3159271b7accd89a8ff835d31694ef41a255d3d409f0b33; optimizer state was intentionally not saved. Final selection loss is 0.01754 above matched A3 and 0.00184 below its A6-POST child. Throughput is 12.00% below A3 under the custom attention path. Complete-selection propagation endpoints are attached from canonical diagnostic config 134.
   - design_id: S1-B0-ARCH-A5QKPOST-LR3EM5-S0
     config_id: 133-s1-b0-p14m-a5qkpost-adamw-lr3em5-s0
     run_id: 002-20260718-203025-0a7597a7
@@ -925,3 +1005,45 @@ records:
     failure_message: An automatic-continuation handoff race launched a second process after attempt 1 was already running; PID 52132 was manually terminated immediately after its first train and validation events.
     reviewed_at: 2026-07-18T20:31:05.4547620Z
     notes: Invalid one-step duplicate from the same clean config commit. It is excluded from scientific evidence. Both processes inherited the same attempt-1 log path before the race was detected; attempt 1 remains the intended run.
+  - design_id: S1-B0-DIAG-ATTN-PARENTS-SELECTION-S0
+    config_id: 134-s1-b0-p14m-attention-parents-selection-propagation
+    run_id: 001-20260718-205354-8821b592
+    attempt: 1
+    mode: activation-propagation
+    result_path: results/134-s1-b0-p14m-attention-parents-selection-propagation/001-20260718-205354-8821b592
+    log_path: run-logs/134-s1-b0-p14m-attention-parents-selection-propagation-attempt1.log
+    lifecycle_status: statusless_complete
+    evidence_status: valid
+    canonical: true
+    started_at: 2026-07-18T20:53:54.091998Z
+    finished_at: 2026-07-18T20:54:14.926998Z
+    git_commit: 2deea5496f6930f208522e5cb9625cfe835e08c1
+    git_dirty: false
+    completed_steps: 0
+    tokens_seen: 0
+    model_initialization_seed: 0
+    data_order_seed: 0
+    training_schedule_scheme: null
+    training_schedule_hash: null
+    effective_tokens_per_update: null
+    validation_partition: selection
+    validation_partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
+    validation_tokens: 311296
+    validation_loss: null
+    wall_hours: 0.00578763047221906
+    tokens_per_second: 74703.37949716828
+    peak_gpu_mb: 672.4892578125
+    execution_backend: local
+    cloud_provider: null
+    gpu_type: NVIDIA GeForce RTX 5070 Ti Laptop GPU
+    gpu_count: 1
+    python_version: 3.12.10
+    pytorch_version: 2.11.0+cu128
+    cuda_version: "12.8"
+    gpu_driver_version: "572.84"
+    token_cache_sha256: 22bb7c27864f0e5941548c572d6c75b1b5ba6a4c13e4cd26f40f4de546c5cc19
+    propagation_result_path: results/134-s1-b0-p14m-attention-parents-selection-propagation/001-20260718-205354-8821b592/activation_propagation.json
+    failure_type: null
+    failure_message: null
+    reviewed_at: 2026-07-18T20:57:16.4488333Z
+    notes: Canonical statusless-complete schema-v3 diagnostic over the five exact canonical source runs for configs 129--133. It evaluated all 152 complete 2048-token sequences in the named selection partition (311296 tokens), explicitly excluded 443 trailing cache tokens, and emitted pooled exact-zero counts, per-operation direct zero-product counts, architecture ceilings, U_arch, and PRE-RoPE zero-survival diagnostics. All five source manifests were completed and shared the pinned partition and token-cache identities.

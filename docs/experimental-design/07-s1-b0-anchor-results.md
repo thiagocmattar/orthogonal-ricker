@@ -1,5 +1,9 @@
 # S1-B0 Central Architecture Anchor Results
 
+Update: the previously missing A4/A5 parent controls are now complete. See
+[`08-s1-b0-attention-parent-results.md`](08-s1-b0-attention-parent-results.md)
+for their canonical endpoints and the direct A6-versus-A5 contrasts.
+
 ## 1. Status and Scope
 
 The first S1 launch set is complete: five Pythia-14M AdamW architecture
