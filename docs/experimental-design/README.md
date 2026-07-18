@@ -16,6 +16,12 @@ work.
 - Config `123` (`S1-B0-ARCH-A0-LR3EM5-S0`) is the active local launch;
   configs `124--127` are ready and queued for serial execution. Configs
   `121--122` remain accepted engineering controls.
+- Active run: `001-20260718-165523-9f3b9b91`, started
+  `2026-07-18T16:55:23Z`, result path
+  `results/123-s1-b0-p14m-a0-adamw-lr3em5-s0/001-20260718-165523-9f3b9b91`,
+  log path
+  `run-logs/123-s1-b0-p14m-a0-adamw-lr3em5-s0-pretrain-attempt1.log`,
+  expected terminal window `2026-07-18T17:12--17:16Z`.
 - S1 must never use a global rank cutoff. Complete matched method panels from
   viable families advance to the 8,192-step rung under the frozen policy in
   `06-s1-budget-backtest.md`.
