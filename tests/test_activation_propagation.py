@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -11,10 +13,12 @@ from paper_exp.activation_propagation import (
     _PropagationAccumulator,
     _capture_model_propagation,
     _exact_zero_counts,
+    _find_source_run,
     _linear_zero_product_counts,
     _patched_eager_attention,
     _probability_value_zero_product_counts,
     _qk_zero_product_counts,
+    _source_checkpoint,
     _split_fused_qkv_projection,
     _valid_causal_exact_zero_counts,
 )
@@ -80,6 +84,38 @@ def test_accumulator_emits_explicit_na_for_an_absent_gate() -> None:
             "exact_zero_fraction": None,
         }
     ]
+
+
+def test_explicit_source_run_pins_the_requested_run(tmp_path: Path) -> None:
+    config_id = "118-example"
+    experiment_dir = tmp_path / "results" / config_id
+    for run_id in ("001-first", "002-latest"):
+        run_dir = experiment_dir / run_id
+        run_dir.mkdir(parents=True)
+        (run_dir / "manifest.json").write_text(
+            json.dumps({"config_id": config_id, "run_id": run_id}),
+            encoding="utf-8",
+        )
+
+    selected = {"config_id": config_id, "run_id": "001-first"}
+
+    assert _find_source_run({"output": {"dir": str(tmp_path / "results")}}, selected) == (
+        experiment_dir / "001-first"
+    )
+
+
+def test_incomplete_source_checkpoint_override_requires_explicit_opt_in(
+    tmp_path: Path,
+) -> None:
+    checkpoint = tmp_path / "checkpoint"
+    checkpoint.mkdir()
+    selected = {"checkpoint_path": str(checkpoint)}
+
+    with pytest.raises(ValueError, match="allow_incomplete_source"):
+        _source_checkpoint(selected, {"config_id": "failed-run"})
+
+    selected["allow_incomplete_source"] = True
+    assert _source_checkpoint(selected, {"config_id": "failed-run"}) == checkpoint
 
 
 def test_split_fused_qkv_projection_preserves_gpt_neox_per_head_layout() -> None:

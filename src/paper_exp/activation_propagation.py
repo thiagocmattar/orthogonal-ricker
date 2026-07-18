@@ -105,12 +105,27 @@ def run_activation_propagation(
     selected_runs = propagation_config["selected_runs"]
 
     np.random.seed(int(config["run"]["seed"]))
-    source_runs = [_find_latest_source_run(config, item["config_id"]) for item in selected_runs]
+    source_runs = [_find_source_run(config, item) for item in selected_runs]
     source_manifests = [read_json(path / "manifest.json") for path in source_runs]
-    validation_metadata = source_manifests[0]["tokenized_data"]["validation"]
+    validation_metadata = next(
+        (
+            (manifest.get("tokenized_data") or {}).get("validation")
+            for manifest in source_manifests
+            if (manifest.get("tokenized_data") or {}).get("validation") is not None
+        ),
+        None,
+    )
     if validation_metadata is None:
-        raise ValueError("Source run has no validation token cache in manifest.")
-    _validate_shared_validation_cache(source_manifests, validation_metadata)
+        raise ValueError("Selected source runs have no validation token cache in their manifests.")
+    _validate_shared_validation_cache(
+        source_manifests,
+        validation_metadata,
+        selected_runs=selected_runs,
+    )
+    source_checkpoints = [
+        _source_checkpoint(selected, manifest)
+        for selected, manifest in zip(selected_runs, source_manifests, strict=True)
+    ]
 
     validation_tokens = np.memmap(validation_metadata["tokens_path"], dtype=np.int32, mode="r")
     block_size = int(validation_metadata["block_size"])
@@ -134,12 +149,20 @@ def run_activation_propagation(
     results: list[dict[str, Any]] = []
     started = time.perf_counter()
 
-    for selected, source_run in zip(selected_runs, source_runs, strict=True):
+    for selected, source_run, source_manifest, source_checkpoint in zip(
+        selected_runs,
+        source_runs,
+        source_manifests,
+        source_checkpoints,
+        strict=True,
+    ):
         print(f"Measuring activation propagation for {selected['label']} from {source_run}", flush=True)
         results.append(
             _measure_one_run(
                 label=str(selected["label"]),
                 source_run=source_run,
+                source_manifest=source_manifest,
+                checkpoint_path=source_checkpoint,
                 auto_model=auto_model,
                 modeling_gpt_neox=modeling_gpt_neox,
                 torch=torch,
@@ -211,8 +234,9 @@ def run_activation_propagation(
         result_path=output_dir,
     )
     manifest["source_runs"] = [str(path) for path in source_runs]
-    manifest["source_checkpoints"] = [
-        str(Path(source_manifest["checkpoint"]["path"])) for source_manifest in source_manifests
+    manifest["source_checkpoints"] = [str(path) for path in source_checkpoints]
+    manifest["source_manifest_statuses"] = [
+        source_manifest.get("status") for source_manifest in source_manifests
     ]
     manifest["tokenized_data"] = {"validation": validation_metadata}
     manifest["activation_propagation"] = {
@@ -259,6 +283,8 @@ def _measure_one_run(
     *,
     label: str,
     source_run: Path,
+    source_manifest: dict[str, Any],
+    checkpoint_path: Path,
     auto_model: Any,
     modeling_gpt_neox: Any,
     torch: Any,
@@ -270,8 +296,6 @@ def _measure_one_run(
     device: Any,
     dtype: Any,
 ) -> dict[str, Any]:
-    source_manifest = read_json(source_run / "manifest.json")
-    checkpoint_path = Path(source_manifest["checkpoint"]["path"])
     model = load_checkpoint_model(auto_model, checkpoint_path, torch=torch)
     model.to(device=device, dtype=torch.float32)
     model.eval()
@@ -307,6 +331,7 @@ def _measure_one_run(
         "run_id": source_manifest["run_id"],
         "source_run": str(source_run),
         "source_checkpoint": str(checkpoint_path),
+        "source_manifest_status": source_manifest.get("status"),
         "num_layers": len(layers),
         "use_parallel_residual": True,
         "post_qkv_relu": post_qkv_relu,
@@ -1135,16 +1160,56 @@ def _probability_value_zero_product_counts(
 
 
 def _validate_shared_validation_cache(
-    source_manifests: list[dict[str, Any]], reference: dict[str, Any]
+    source_manifests: list[dict[str, Any]],
+    reference: dict[str, Any],
+    *,
+    selected_runs: list[dict[str, Any]] | None = None,
 ) -> None:
     reference_key = (reference["tokens_path"], reference["block_size"], reference["tokens"])
-    for manifest in source_manifests[1:]:
-        candidate = manifest["tokenized_data"]["validation"]
+    selected = selected_runs or [{} for _ in source_manifests]
+    for manifest, selection in zip(source_manifests, selected, strict=True):
+        candidate = (manifest.get("tokenized_data") or {}).get("validation")
         if candidate is None:
+            if bool(selection.get("allow_incomplete_source", False)):
+                continue
             raise ValueError(f"Source run {manifest['config_id']} has no validation token cache.")
         candidate_key = (candidate["tokens_path"], candidate["block_size"], candidate["tokens"])
         if candidate_key != reference_key:
             raise ValueError("Selected runs do not share the same validation token cache.")
+
+
+def _find_source_run(config: dict[str, Any], selected: dict[str, Any]) -> Path:
+    config_id = str(selected["config_id"])
+    run_id = selected.get("run_id")
+    if run_id is None:
+        return _find_latest_source_run(config, config_id)
+
+    run_dir = Path(config["output"]["dir"]) / config_id / str(run_id)
+    if not run_dir.is_dir() or not (run_dir / "manifest.json").is_file():
+        raise FileNotFoundError(f"Missing explicitly selected source run: {run_dir}")
+    return run_dir
+
+
+def _source_checkpoint(selected: dict[str, Any], manifest: dict[str, Any]) -> Path:
+    override = selected.get("checkpoint_path")
+    if override is not None:
+        if not bool(selected.get("allow_incomplete_source", False)):
+            raise ValueError(
+                "activation_propagation checkpoint_path overrides require "
+                "allow_incomplete_source: true."
+            )
+        checkpoint_path = Path(str(override))
+    else:
+        checkpoint = manifest.get("checkpoint") or {}
+        checkpoint_path = Path(str(checkpoint.get("path", "")))
+        if not bool(checkpoint.get("saved")):
+            raise ValueError(
+                f"Source run {manifest.get('config_id')} has no saved checkpoint in its manifest."
+            )
+
+    if not checkpoint_path.is_dir():
+        raise FileNotFoundError(f"Missing source checkpoint: {checkpoint_path}")
+    return checkpoint_path
 
 
 def _find_latest_source_run(config: dict[str, Any], config_id: str) -> Path:

@@ -252,6 +252,8 @@ Fixed symmetric-threshold POST follow-up:
 - Config `118` is monitor-only AdamW. Config `119` uses OR weight 1, $c=\sigma=0.05$, and step budget 0.5 on `query_gate_outputs`, `key_gate_outputs`, and `value_gate_outputs` only.
 - This OR point is a matched control, not a guaranteed sparsifier: its inward Ricker basin ends at $\sqrt{3}c\approx0.0866$, below $\kappa=0.1$. Masked values receive zero gate gradient, while every surviving gate output starts in the Ricker score's outward-gradient region.
 - `TODO:` evaluate learnable $\kappa$ and OL1 only after the fixed AdamW/OR pair is interpreted.
+- Config `118` completed at validation loss 4.9829. Config `119` reached 5.0122 after all planned steps, but its source run remains terminally failed because Windows rejected the final 261-character predictions temporary path; use its checkpoint-derived measurements only when explicitly labeled provisional.
+- Config `120` is the pinned 692,224-token propagation comparison. Fixed-sReLU AdamW reached $R_{\mathrm{block}}=40.48\%$ and $R_{\mathrm{model}}=12.12\%$; provisional fixed-sReLU OR reached 20.34% and 6.09%, confirming the predicted outward-pressure incompatibility at this $(c,\kappa)$ pair.
 
 ## Expected Scale Ladders
 

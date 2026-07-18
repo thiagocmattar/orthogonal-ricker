@@ -1,0 +1,51 @@
+experiment_name: pythia_14m_post_srelu_comparison_activation_propagation
+model:
+  provider: huggingface
+  name: pythia-14m-post-srelu-comparison-propagation
+  architecture: EleutherAI/pythia-14m-deduped
+  revision: main
+  initialization: random
+data:
+  name: JeanKaddour/minipile
+  revision: main
+  split: validation
+  text_column: text
+  max_documents: 500
+evaluation:
+  metric: activation_propagation
+run:
+  seed: 0
+  max_examples: 500
+tokenizer:
+  name: EleutherAI/pythia-14m-deduped
+  revision: main
+preprocessing:
+  output_dir: data/tokenized
+  cache_id: 03-pythia-14m-minipile-random-full-10min
+  block_size: 2048
+  append_eos: true
+  overwrite: false
+validation:
+  enabled: true
+  split: validation
+  max_documents: 500
+  eval_batches: null
+  batch_size: 4
+activation_propagation:
+  selected_runs:
+    - label: Ordinary POST AdamW
+      config_id: 110-pythia-14m-minipile-post-qkv-relu-qk-post-rope-adamw-full-pass
+      run_id: 001-20260716-143107-dd964d74
+    - label: Ordinary POST OR
+      config_id: 111-pythia-14m-minipile-post-qkv-relu-qk-post-rope-orthogonal-ricker-full-pass-w1-c0p05-s0p05
+      run_id: 001-20260716-222739-974927ab
+    - label: Fixed-sReLU POST AdamW
+      config_id: 118-pythia-14m-minipile-post-qkv-srelu-k0p1-qk-post-rope-adamw-full-pass
+      run_id: 001-20260717-211157-e6f8dda0
+    - label: Fixed-sReLU POST OR
+      config_id: 119-pythia-14m-minipile-post-qkv-srelu-k0p1-qk-post-rope-orthogonal-ricker-full-pass-w1-c0p05-s0p05
+      run_id: 001-20260718-002702-ebfeb045
+      checkpoint_path: results/119-pythia-14m-minipile-post-qkv-srelu-k0p1-qk-post-rope-orthogonal-ricker-full-pass-w1-c0p05-s0p05/001-20260718-002702-ebfeb045/checkpoints/final
+      allow_incomplete_source: true
+output:
+  dir: results

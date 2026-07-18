@@ -135,3 +135,5 @@ Configs `118` and `119` keep the POST placement but replace only the Q/K/V ReLUs
 ```
 
 This gate returns the original signed value when `abs(x) >= kappa` and exact zero otherwise. Equality survives. Omitting `gate_type` retains the historical ordinary-ReLU behavior. The attention-input, MLP-input, and MLP-hidden gates remain ordinary ReLUs. Config `118` is monitor-only AdamW; config `119` is OR on the Q/K/V gate outputs only.
+
+Config `120` pins the ordinary-POST and fixed-threshold checkpoints for full-validation propagation. An exceptional source whose terminal envelope is incomplete must be explicit: set its exact `run_id`, its durable `checkpoint_path`, and `allow_incomplete_source: true`. The diagnostic records the source manifest status and does not repair or promote the source run.
