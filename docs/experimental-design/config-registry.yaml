@@ -1,6 +1,6 @@
 schema_version: 1
 campaign_id: pythia-sparsity-scaling-v1
-next_config_prefix: 129
+next_config_prefix: 134
 core_design_cells: 134
 core_executable_cells_without_context_gate: 132
 maximum_design_cells: 184
@@ -20,10 +20,10 @@ block_summary:
     note: document-disjoint validation, independent seeds, schedule hash, and initialization hash
   - block: S1-B0
     planned_cells: 22
-    materialized_cells: 5
+    materialized_cells: 10
     completed_cells: 5
     status: ready
-    note: central A0/A1-H/A3/A6-PRE/A6-POST anchors are materialized; two post-PV context cells remain dependency-gated
+    note: central anchors and the A4-Q/A4-K/A4-V/A5-QK-PRE/A5-QK-POST ordinary architecture parents are materialized; two post-PV context cells remain dependency-gated
   - block: S1-B1
     planned_cells: 36
     materialized_cells: 0
@@ -476,3 +476,238 @@ records:
     release_tier: history
     canonical_run_id: 001-20260718-184159-f73e2c80
     notes: Combined complete-selection propagation diagnostic pinned to the exact canonical run ids for configs 123--127. Run 001-20260718-184159-f73e2c80 completed over 311296 validation tokens and passed terminal artifact review. It emits pooled z-sites, direct per-operation zero products, R_block, R_model, topology ceilings, and U_arch.
+  - design_id: S1-B0-ARCH-A4Q-LR3EM5-S0
+    config_id: 129-s1-b0-p14m-a4q-adamw-lr3em5-s0
+    config_path: configs/129-s1-b0-p14m-a4q-adamw-lr3em5-s0.yaml
+    phase: S1
+    block: S1-B0
+    comparison_id: S1-B0-ARCH
+    pair_id: S1-B0-ARCH-A4Q-VS-A3
+    promotion_family: A4Q
+    kind: scientific
+    model_size: 14M
+    steps: 2048
+    tokens: 134217728
+    model_initialization_seed: 0
+    data_order_seed: 0
+    training_schedule_scheme: random_contiguous_blocks_with_replacement_v1
+    training_schedule_hash: db4fa092d7092d29edc3bf1e2005af69f4a92b8bf6e6d88cbb6a166e12be02fc
+    effective_tokens_per_update: 65536
+    validation_partition: selection
+    validation_partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
+    architecture_id: A4-Q
+    gate_family: gplus
+    gate_sites: [a, m, h, q]
+    qk_placement: post_rope
+    kappa_mode: fixed
+    kappa: 0.0
+    kappa_init: null
+    kappa_scope: all_active_gates
+    threshold_scale: absolute
+    surrogate: null
+    temperature: null
+    threshold_learning_rate: null
+    optimizer_recipe: harness_adamw
+    model_learning_rate: 3.0e-05
+    micro_batch_size: 4
+    gradient_accumulation_steps: 8
+    pressure_method: none
+    pressure_sites: [attention_inputs, mlp_inputs, mlp_hiddens, query_gate_outputs]
+    pressure_weight: 0.0
+    ricker_c: null
+    ricker_sigma: null
+    step_budget: null
+    matched_control_id: S1-B0-ARCH-A3-LR3EM5-S0
+    config_status: ready
+    decision_status: control
+    release_tier: history
+    canonical_run_id: null
+    notes: Q-only POST-RoPE AdamW architecture control; no pressure. Its matched parent is the completed Three-ReLU A3 config 125. S1 is feasibility/within-stratum only.
+  - design_id: S1-B0-ARCH-A4K-LR3EM5-S0
+    config_id: 130-s1-b0-p14m-a4k-adamw-lr3em5-s0
+    config_path: configs/130-s1-b0-p14m-a4k-adamw-lr3em5-s0.yaml
+    phase: S1
+    block: S1-B0
+    comparison_id: S1-B0-ARCH
+    pair_id: S1-B0-ARCH-A4K-VS-A3
+    promotion_family: A4K
+    kind: scientific
+    model_size: 14M
+    steps: 2048
+    tokens: 134217728
+    model_initialization_seed: 0
+    data_order_seed: 0
+    training_schedule_scheme: random_contiguous_blocks_with_replacement_v1
+    training_schedule_hash: db4fa092d7092d29edc3bf1e2005af69f4a92b8bf6e6d88cbb6a166e12be02fc
+    effective_tokens_per_update: 65536
+    validation_partition: selection
+    validation_partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
+    architecture_id: A4-K
+    gate_family: gplus
+    gate_sites: [a, m, h, k]
+    qk_placement: post_rope
+    kappa_mode: fixed
+    kappa: 0.0
+    kappa_init: null
+    kappa_scope: all_active_gates
+    threshold_scale: absolute
+    surrogate: null
+    temperature: null
+    threshold_learning_rate: null
+    optimizer_recipe: harness_adamw
+    model_learning_rate: 3.0e-05
+    micro_batch_size: 4
+    gradient_accumulation_steps: 8
+    pressure_method: none
+    pressure_sites: [attention_inputs, mlp_inputs, mlp_hiddens, key_gate_outputs]
+    pressure_weight: 0.0
+    ricker_c: null
+    ricker_sigma: null
+    step_budget: null
+    matched_control_id: S1-B0-ARCH-A3-LR3EM5-S0
+    config_status: ready
+    decision_status: control
+    release_tier: history
+    canonical_run_id: null
+    notes: K-only POST-RoPE AdamW architecture control; no pressure. Its matched parent is the completed Three-ReLU A3 config 125. S1 is feasibility/within-stratum only.
+  - design_id: S1-B0-ARCH-A4V-LR3EM5-S0
+    config_id: 131-s1-b0-p14m-a4v-adamw-lr3em5-s0
+    config_path: configs/131-s1-b0-p14m-a4v-adamw-lr3em5-s0.yaml
+    phase: S1
+    block: S1-B0
+    comparison_id: S1-B0-ARCH
+    pair_id: S1-B0-ARCH-A4V-VS-A3
+    promotion_family: A4V
+    kind: scientific
+    model_size: 14M
+    steps: 2048
+    tokens: 134217728
+    model_initialization_seed: 0
+    data_order_seed: 0
+    training_schedule_scheme: random_contiguous_blocks_with_replacement_v1
+    training_schedule_hash: db4fa092d7092d29edc3bf1e2005af69f4a92b8bf6e6d88cbb6a166e12be02fc
+    effective_tokens_per_update: 65536
+    validation_partition: selection
+    validation_partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
+    architecture_id: A4-V
+    gate_family: gplus
+    gate_sites: [a, m, h, v]
+    qk_placement: null
+    kappa_mode: fixed
+    kappa: 0.0
+    kappa_init: null
+    kappa_scope: all_active_gates
+    threshold_scale: absolute
+    surrogate: null
+    temperature: null
+    threshold_learning_rate: null
+    optimizer_recipe: harness_adamw
+    model_learning_rate: 3.0e-05
+    micro_batch_size: 4
+    gradient_accumulation_steps: 8
+    pressure_method: none
+    pressure_sites: [attention_inputs, mlp_inputs, mlp_hiddens, value_gate_outputs]
+    pressure_weight: 0.0
+    ricker_c: null
+    ricker_sigma: null
+    step_budget: null
+    matched_control_id: S1-B0-ARCH-A3-LR3EM5-S0
+    config_status: ready
+    decision_status: control
+    release_tier: history
+    canonical_run_id: null
+    notes: V-only AdamW architecture control; no pressure and Q/K placement is not applicable. Its matched parent is the completed Three-ReLU A3 config 125. S1 is feasibility/within-stratum only.
+  - design_id: S1-B0-ARCH-A5QKPRE-LR3EM5-S0
+    config_id: 132-s1-b0-p14m-a5qkpre-adamw-lr3em5-s0
+    config_path: configs/132-s1-b0-p14m-a5qkpre-adamw-lr3em5-s0.yaml
+    phase: S1
+    block: S1-B0
+    comparison_id: S1-B0-ARCH
+    pair_id: S1-B0-ARCH-A5QKPRE-VS-A3
+    promotion_family: A5QKPRE
+    kind: scientific
+    model_size: 14M
+    steps: 2048
+    tokens: 134217728
+    model_initialization_seed: 0
+    data_order_seed: 0
+    training_schedule_scheme: random_contiguous_blocks_with_replacement_v1
+    training_schedule_hash: db4fa092d7092d29edc3bf1e2005af69f4a92b8bf6e6d88cbb6a166e12be02fc
+    effective_tokens_per_update: 65536
+    validation_partition: selection
+    validation_partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
+    architecture_id: A5-QK-PRE
+    gate_family: gplus
+    gate_sites: [a, m, h, q, k]
+    qk_placement: pre_rope
+    kappa_mode: fixed
+    kappa: 0.0
+    kappa_init: null
+    kappa_scope: all_active_gates
+    threshold_scale: absolute
+    surrogate: null
+    temperature: null
+    threshold_learning_rate: null
+    optimizer_recipe: harness_adamw
+    model_learning_rate: 3.0e-05
+    micro_batch_size: 4
+    gradient_accumulation_steps: 8
+    pressure_method: none
+    pressure_sites: [attention_inputs, mlp_inputs, mlp_hiddens, query_gate_outputs, key_gate_outputs]
+    pressure_weight: 0.0
+    ricker_c: null
+    ricker_sigma: null
+    step_budget: null
+    matched_control_id: S1-B0-ARCH-A3-LR3EM5-S0
+    config_status: ready
+    decision_status: control
+    release_tier: history
+    canonical_run_id: null
+    notes: Q/K PRE-RoPE AdamW architecture control; no pressure. It is the direct matched parent of A6-PRE config 126 and is itself matched to completed Three-ReLU A3 config 125. S1 is feasibility/within-stratum only.
+  - design_id: S1-B0-ARCH-A5QKPOST-LR3EM5-S0
+    config_id: 133-s1-b0-p14m-a5qkpost-adamw-lr3em5-s0
+    config_path: configs/133-s1-b0-p14m-a5qkpost-adamw-lr3em5-s0.yaml
+    phase: S1
+    block: S1-B0
+    comparison_id: S1-B0-ARCH
+    pair_id: S1-B0-ARCH-A5QKPOST-VS-A3
+    promotion_family: A5QKPOST
+    kind: scientific
+    model_size: 14M
+    steps: 2048
+    tokens: 134217728
+    model_initialization_seed: 0
+    data_order_seed: 0
+    training_schedule_scheme: random_contiguous_blocks_with_replacement_v1
+    training_schedule_hash: db4fa092d7092d29edc3bf1e2005af69f4a92b8bf6e6d88cbb6a166e12be02fc
+    effective_tokens_per_update: 65536
+    validation_partition: selection
+    validation_partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
+    architecture_id: A5-QK-POST
+    gate_family: gplus
+    gate_sites: [a, m, h, q, k]
+    qk_placement: post_rope
+    kappa_mode: fixed
+    kappa: 0.0
+    kappa_init: null
+    kappa_scope: all_active_gates
+    threshold_scale: absolute
+    surrogate: null
+    temperature: null
+    threshold_learning_rate: null
+    optimizer_recipe: harness_adamw
+    model_learning_rate: 3.0e-05
+    micro_batch_size: 4
+    gradient_accumulation_steps: 8
+    pressure_method: none
+    pressure_sites: [attention_inputs, mlp_inputs, mlp_hiddens, query_gate_outputs, key_gate_outputs]
+    pressure_weight: 0.0
+    ricker_c: null
+    ricker_sigma: null
+    step_budget: null
+    matched_control_id: S1-B0-ARCH-A3-LR3EM5-S0
+    config_status: ready
+    decision_status: control
+    release_tier: history
+    canonical_run_id: null
+    notes: Q/K POST-RoPE AdamW architecture control; no pressure. It is the direct matched parent of A6-POST config 127 and is itself matched to completed Three-ReLU A3 config 125. S1 is feasibility/within-stratum only.

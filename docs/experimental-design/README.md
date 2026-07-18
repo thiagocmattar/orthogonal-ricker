@@ -12,7 +12,7 @@ work.
 - Current phase: E0.1 complete and S1 option 1 approved. The 2,048-step screen
   is restricted to feasibility/collapse and within-stratum comparisons; the B0
   endpoint diagnostic is accepted.
-- Next config prefix: `129`.
+- Next config prefix: `134`.
 - The five central B0 anchors, configs `123--127`, completed and passed
   terminal review. Their final selection losses are `7.04913` (A0),
   `6.98875` (A1-H), `7.01310` (A3), `7.01645` (A6-PRE), and `7.03248`
@@ -21,6 +21,9 @@ work.
   remain accepted engineering controls.
 - Last completed run: `001-20260718-184159-f73e2c80`, result path
   `results/128-s1-b0-p14m-architecture-anchors-selection-propagation/001-20260718-184159-f73e2c80`.
+- Configs `129--133` materialize the next ordinary architecture-parent set:
+  A4-Q, A4-K, A4-V, A5-QK-PRE, and A5-QK-POST. They passed preflight and are
+  ready for sequential local launch; none is active yet.
 - No config is active. B0 has completed `5 / 22` scientific cells; 17 remain,
   of which 15 are executable and two post-PV context cells remain blocked.
   The declared S1 core has completed `5 / 134` cells (`5 / 132` executable).
@@ -62,11 +65,11 @@ The consolidated endpoint evidence and handoff are in
 | `126` | A6-PRE | 7.01645 | 0.344 | 108,541 |
 | `127` | A6-POST | 7.03248 | 0.351 | 106,357 |
 
-The next recommended launch set is the five missing ordinary architecture
-parents A4-Q, A4-K, A4-V, A5-QK-PRE, and A5-QK-POST. It has not been launched.
+The next launch set is the five ordinary architecture parents A4-Q, A4-K,
+A4-V, A5-QK-PRE, and A5-QK-POST. It is materialized but has not been launched.
 All five use the custom attention path. The measured A6 runtime implies about
-1 h 55 min--2 h 05 min after the first run launches, or about 2 h 20 min from
-the current unmaterialized state through diagnostic and handoff.
+1 h 55 min--2 h 05 min through the five per-run reviews after the first run
+launches, or about 2 h 05 min--2 h 15 min through diagnostic and handoff.
 
 ## Latest Completed Engineering Launch Set
 

@@ -157,9 +157,10 @@ it does not select runs by recency.
 
 ## 8. Recommended Next Launch Set
 
-Do not launch from this document. Materialize and review the following five
-ordinary-ReLU AdamW cells as prefixes 129 through 133. They use the exact
-contract of configs 123 through 127 and all have A3 as their matched control.
+Configs 129 through 133 now materialize the following five ordinary-ReLU
+AdamW cells. They passed preflight, use the exact contract of configs 123
+through 127, and all have A3 as their matched control. Launch them only through
+the lifecycle in `04-runbook.md`.
 
 | Proposed prefix | Design ID | Added gate(s) over A3 | Q/K placement | Purpose |
 | ---: | --- | --- | --- | --- |
@@ -175,8 +176,7 @@ applicable. Expected serial training time is approximately 90 to 105 minutes,
 with the measured custom-attention audit giving 104.1 minutes. Budget about
 1h55 to 2h05 from the first launch through the five per-run reviews and registry
 commits, or 2h05 to 2h15 including the combined selection diagnostic and final
-handoff. From the current unmaterialized state, allow approximately 2h20 for
-config review, materialization, and the complete launch set.
+handoff.
 Completing this set enables A4-Q/K/V versus A3, A5 PRE versus POST, and A6
 versus matched A5 parent contrasts without introducing pressure or LR changes.
 The context-gate rows remain blocked and should not be substituted.
