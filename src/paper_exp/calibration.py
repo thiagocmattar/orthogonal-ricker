@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from contextlib import nullcontext
+import hashlib
 import time
 from pathlib import Path
 from typing import Any
@@ -16,6 +17,8 @@ from paper_exp.activations import ActivationCapture
 from paper_exp.config import validate_config
 from paper_exp.data import metadata_matches_config, tokenized_cache_dir, validation_metadata_path
 from paper_exp.modeling import apply_post_layernorm_relu, apply_post_qkv_relu
+from paper_exp.reproducibility import TRAINING_SCHEDULE_SCHEME
+from paper_exp.reproducibility import build_training_schedule
 from paper_exp.run import RunHandle, complete_run, run_lifecycle
 from paper_exp.utils import read_json, write_jsonl
 
@@ -47,7 +50,12 @@ def _run_started_calibration(
     """Execute validated training inside an already-persisted run lifecycle."""
 
     torch, np, auto_config, auto_model = _load_training_dependencies()
-    _set_seed(torch, config["run"]["seed"])
+    run_config = config["run"]
+    model_initialization_seed = int(
+        run_config.get("model_initialization_seed", run_config["seed"])
+    )
+    data_order_seed = int(run_config.get("data_order_seed", run_config["seed"]))
+    _set_seed(torch, model_initialization_seed)
 
     experiment_id = run.config_id
     run_dir = run.run_dir
@@ -81,8 +89,17 @@ def _run_started_calibration(
             config,
             split=validation_config["split"],
             max_documents=validation_config.get("max_documents"),
+            partition=validation_config.get("partition"),
+            partition_seed=validation_config.get("partition_seed"),
         ):
             raise ValueError(f"Validation token cache metadata does not match config: {val_metadata_path}")
+        expected_partition_hash = validation_config.get("partition_hash")
+        actual_partition_hash = validation_metadata.get("source_document_indices_sha256")
+        if expected_partition_hash is not None and actual_partition_hash != expected_partition_hash:
+            raise ValueError(
+                "Validation partition hash does not match config: "
+                f"expected {expected_partition_hash}, got {actual_partition_hash}."
+            )
         validation_tokens = np.memmap(validation_metadata["tokens_path"], dtype=np.int32, mode="r")
         if len(validation_tokens) <= block_size + 1:
             raise ValueError("Validation token cache is too small for the configured block_size.")
@@ -98,6 +115,7 @@ def _run_started_calibration(
         model_config=config["model"],
         device=device,
     )
+    initial_parameter_sha256 = _model_parameter_sha256(model)
     model.train()
 
     base_learning_rate = float(training["learning_rate"])
@@ -119,6 +137,25 @@ def _run_started_calibration(
     micro_batch_size = int(training["micro_batch_size"])
     log_every = int(training.get("log_every", 1))
     tokens_per_step = grad_accum * micro_batch_size * block_size
+    training_schedule_scheme = run_config.get("training_schedule_scheme")
+    training_schedule = None
+    training_schedule_hash = None
+    if training_schedule_scheme == TRAINING_SCHEDULE_SCHEME:
+        training_schedule, training_schedule_hash = build_training_schedule(
+            np,
+            token_count=len(train_tokens),
+            block_size=block_size,
+            max_steps=max_steps,
+            gradient_accumulation_steps=grad_accum,
+            micro_batch_size=micro_batch_size,
+            seed=data_order_seed,
+        )
+    expected_schedule_hash = run_config.get("training_schedule_hash")
+    if expected_schedule_hash is not None and training_schedule_hash != expected_schedule_hash:
+        raise ValueError(
+            "Training schedule hash does not match config: "
+            f"expected {expected_schedule_hash}, got {training_schedule_hash}."
+        )
 
     if device.type == "cuda":
         torch.cuda.reset_peak_memory_stats(device)
@@ -167,6 +204,7 @@ def _run_started_calibration(
                 pressure_config=pressure_config,
                 activation_capture=activation_capture,
                 step=step,
+                schedule_step=(None if training_schedule is None else training_schedule[step - 1]),
             )
 
             should_log = step == 1 or step % log_every == 0 or step == max_steps
@@ -227,6 +265,7 @@ def _run_started_calibration(
                     eval_batches=validation_config.get("eval_batches"),
                     device=device,
                     dtype=dtype,
+                    deterministic_batches=training_schedule is not None,
                 )
                 validation_elapsed = time.perf_counter() - validation_start
                 validation_losses.append((step, validation_result["loss"]))
@@ -267,6 +306,7 @@ def _run_started_calibration(
             eval_batches=validation_config.get("eval_batches"),
             device=device,
             dtype=dtype,
+            deterministic_batches=training_schedule is not None,
         )
         validation_elapsed = time.perf_counter() - validation_start
         validation_losses.append((completed_steps, validation_result["loss"]))
@@ -309,6 +349,10 @@ def _run_started_calibration(
         "calibration/target_wall_seconds": max_wall_seconds,
         "calibration/tokens_seen": tokens_seen,
         "calibration/tokens_per_step": tokens_per_step,
+        "calibration/model_initialization_seed": model_initialization_seed,
+        "calibration/data_order_seed": data_order_seed,
+        "calibration/training_schedule_hash": training_schedule_hash,
+        "calibration/initial_parameter_sha256": initial_parameter_sha256,
         "calibration/estimated_epochs": tokens_seen / train_metadata["tokens"],
         "calibration/wall_seconds": train_elapsed,
         "calibration/wall_seconds_train": train_elapsed,
@@ -326,6 +370,11 @@ def _run_started_calibration(
         "checkpoint/final_size_mb": checkpoint_metadata["size_mb"],
         "checkpoint/final_saved": checkpoint_metadata["saved"],
     }
+    if validation_metadata is not None:
+        metrics["calibration/validation_partition"] = validation_config.get("partition", "full")
+        metrics["calibration/validation_partition_hash"] = validation_metadata.get(
+            "source_document_indices_sha256"
+        )
     metrics.update({f"final/{key}": value for key, value in final_pressure_metrics.items()})
     manifest_updates: dict[str, Any] = {
         "tokenized_data": {"train": train_metadata, "validation": validation_metadata},
@@ -339,6 +388,10 @@ def _run_started_calibration(
             "tokens_per_step": tokens_per_step,
             "loss_logged_as": "mean_micro_batch_loss_over_gradient_accumulation",
             "sampling": "random_contiguous_blocks_with_replacement",
+            "sampling_scheme": training_schedule_scheme,
+            "model_initialization_seed": model_initialization_seed,
+            "data_order_seed": data_order_seed,
+            "training_schedule_hash": training_schedule_hash,
             "learning_rate": base_learning_rate,
             "warmup_steps": warmup_steps,
             "learning_rate_schedule": "linear_warmup_then_constant",
@@ -366,6 +419,7 @@ def _run_started_calibration(
         "initialization": config["model"]["initialization"],
         "loaded_checkpoint_weights": False,
         "parameter_dtype": _parameter_dtype(model),
+        "initial_parameter_sha256": initial_parameter_sha256,
     }
     hidden_act = getattr(getattr(model, "config", None), "hidden_act", None)
     if hidden_act is not None:
@@ -377,7 +431,14 @@ def _run_started_calibration(
     if post_qkv_relu is not None:
         model_manifest["post_qkv_relu"] = dict(post_qkv_relu)
     manifest_updates["model"] = model_manifest
-    manifest_updates["validation"] = validation_config
+    validation_manifest = dict(validation_config)
+    if validation_metadata is not None:
+        validation_manifest["realized_partition_hash"] = validation_metadata.get(
+            "source_document_indices_sha256"
+        )
+        validation_manifest["realized_documents"] = validation_metadata.get("documents")
+        validation_manifest["realized_tokens"] = validation_metadata.get("tokens")
+    manifest_updates["validation"] = validation_manifest
     manifest_updates["checkpoint"] = checkpoint_metadata
     if "sweep" in config:
         manifest_updates["sweep"] = config["sweep"]
@@ -411,6 +472,7 @@ def _run_training_step(
     pressure_config: Any,
     activation_capture: Any,
     step: int,
+    schedule_step: Any = None,
 ) -> dict[str, Any]:
     if pressure_config.enabled and activation_capture is None:
         raise ValueError("Activation pressure is enabled but no activation capture is registered.")
@@ -431,6 +493,7 @@ def _run_training_step(
             pressure_config=pressure_config,
             activation_capture=activation_capture,
             step=step,
+            schedule_step=schedule_step,
         )
 
     optimizer.zero_grad(set_to_none=True)
@@ -441,10 +504,18 @@ def _run_training_step(
     pressure_grads_for_metrics: list[Any | None] = []
     pressure_active = pressure_config.applies_pressure
 
-    for _ in range(grad_accum):
+    for micro_step in range(grad_accum):
         if activation_capture is not None:
             activation_capture.clear()
-        batch = _sample_batch(torch, np, train_tokens, block_size, micro_batch_size, device)
+        batch = _sample_batch(
+            torch,
+            np,
+            train_tokens,
+            block_size,
+            micro_batch_size,
+            device,
+            starts=(None if schedule_step is None else schedule_step[micro_step]),
+        )
         with _autocast_context(torch, device, dtype):
             output = model(input_ids=batch, labels=batch)
             task_loss = output.loss
@@ -515,6 +586,7 @@ def _run_orthogonal_pressure_step(
     pressure_config: Any,
     activation_capture: Any,
     step: int,
+    schedule_step: Any = None,
 ) -> dict[str, Any]:
     optimizer.zero_grad(set_to_none=True)
     task_loss_total = 0.0
@@ -522,9 +594,17 @@ def _run_orthogonal_pressure_step(
     pressure_grads: list[Any | None] = []
     activation_metrics: dict[str, float] = {}
 
-    for _ in range(grad_accum):
+    for micro_step in range(grad_accum):
         activation_capture.clear()
-        batch = _sample_batch(torch, np, train_tokens, block_size, micro_batch_size, device)
+        batch = _sample_batch(
+            torch,
+            np,
+            train_tokens,
+            block_size,
+            micro_batch_size,
+            device,
+            starts=(None if schedule_step is None else schedule_step[micro_step]),
+        )
         with _autocast_context(torch, device, dtype):
             output = model(input_ids=batch, labels=batch)
             task_loss = output.loss
@@ -576,9 +656,14 @@ def _sample_batch(
     block_size: int,
     batch_size: int,
     device: Any,
+    *,
+    starts: Any = None,
 ) -> Any:
-    max_start = len(tokens) - block_size - 1
-    starts = np.random.randint(0, max_start, size=batch_size)
+    if starts is None:
+        max_start = len(tokens) - block_size - 1
+        starts = np.random.randint(0, max_start, size=batch_size)
+    if len(starts) != batch_size:
+        raise ValueError(f"Expected {batch_size} batch starts, got {len(starts)}.")
     batch = np.stack([tokens[start : start + block_size] for start in starts])
     return torch.as_tensor(batch, dtype=torch.long, device=device)
 
@@ -643,6 +728,7 @@ def _evaluate_loss(
     eval_batches: int | None,
     device: Any,
     dtype: Any,
+    deterministic_batches: bool = False,
 ) -> dict[str, Any]:
     model.eval()
     weighted_loss = 0.0
@@ -653,6 +739,24 @@ def _evaluate_loss(
         if eval_batches is None:
             total_blocks = max(1, (len(tokens) - 1) // block_size)
             starts = [index * block_size for index in range(total_blocks)]
+            for offset in range(0, len(starts), batch_size):
+                batch_starts = starts[offset : offset + batch_size]
+                batch = np.stack([tokens[start : start + block_size] for start in batch_starts])
+                input_ids = torch.as_tensor(batch, dtype=torch.long, device=device)
+                batch_sequences = len(batch_starts)
+                with _autocast_context(torch, device, dtype):
+                    output = model(input_ids=input_ids, labels=input_ids)
+                if not bool(torch.isfinite(output.loss.detach()).item()):
+                    raise RuntimeError("Non-finite validation loss.")
+                loss = float(output.loss.detach().cpu())
+                weighted_loss += loss * batch_sequences
+                total_sequences += batch_sequences
+                total_tokens += batch_sequences * block_size
+                batches += 1
+        elif deterministic_batches:
+            total_blocks = max(1, (len(tokens) - 1) // block_size)
+            starts = [index * block_size for index in range(total_blocks)]
+            starts = starts[: int(eval_batches) * batch_size]
             for offset in range(0, len(starts), batch_size):
                 batch_starts = starts[offset : offset + batch_size]
                 batch = np.stack([tokens[start : start + block_size] for start in batch_starts])
@@ -803,6 +907,20 @@ def _parameter_dtype(model: Any) -> str:
     if first_parameter is None:
         return "unknown"
     return str(first_parameter.dtype).replace("torch.", "")
+
+
+def _model_parameter_sha256(model: Any) -> str:
+    digest = hashlib.sha256()
+    for name, parameter in sorted(model.named_parameters(), key=lambda item: item[0]):
+        value = parameter.detach().cpu().contiguous()
+        digest.update(name.encode("utf-8"))
+        digest.update(b"\0")
+        digest.update(str(tuple(value.shape)).encode("ascii"))
+        digest.update(b"\0")
+        digest.update(str(value.dtype).encode("ascii"))
+        digest.update(b"\0")
+        digest.update(value.numpy().tobytes(order="C"))
+    return digest.hexdigest()
 
 
 def _set_seed(torch: Any, seed: int) -> None:

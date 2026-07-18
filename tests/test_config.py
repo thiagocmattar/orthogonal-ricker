@@ -118,6 +118,65 @@ def test_optional_post_layernorm_relu_must_be_boolean() -> None:
         validate_config(config, allow_todos=False)
 
 
+def test_campaign_seed_schedule_and_validation_partition_fields_are_validated() -> None:
+    config = _post_qkv_config(None)
+    config["run"].update(
+        {
+            "model_initialization_seed": 0,
+            "data_order_seed": 11,
+            "training_schedule_scheme": "random_contiguous_blocks_with_replacement_v1",
+            "training_schedule_hash": "a" * 64,
+        }
+    )
+    config["validation"] = {
+        "enabled": True,
+        "split": "validation",
+        "max_documents": 500,
+        "partition": "selection",
+        "partition_scheme": "shuffled_source_documents_half_v1",
+        "partition_seed": 20260718,
+        "partition_hash": "b" * 64,
+    }
+
+    validate_config(config, allow_todos=False)
+
+    config["run"]["training_schedule_hash"] = "not-a-hash"
+    with pytest.raises(ConfigError, match="training_schedule_hash"):
+        validate_config(config, allow_todos=False)
+
+
+def test_campaign_schedule_requires_explicit_supported_scheme() -> None:
+    config = _post_qkv_config(None)
+    config["run"].update(
+        {
+            "model_initialization_seed": 0,
+            "data_order_seed": 11,
+            "training_schedule_hash": "a" * 64,
+        }
+    )
+
+    with pytest.raises(ConfigError, match="require run.training_schedule_scheme"):
+        validate_config(config, allow_todos=False)
+
+    config["run"]["training_schedule_scheme"] = "future_schedule_v2"
+    with pytest.raises(ConfigError, match="training_schedule_scheme"):
+        validate_config(config, allow_todos=False)
+
+
+def test_campaign_model_seed_must_match_legacy_seed_alias() -> None:
+    config = _post_qkv_config(None)
+    config["run"].update(
+        {
+            "model_initialization_seed": 3,
+            "data_order_seed": 0,
+            "training_schedule_scheme": "random_contiguous_blocks_with_replacement_v1",
+        }
+    )
+
+    with pytest.raises(ConfigError, match="must equal"):
+        validate_config(config, allow_todos=False)
+
+
 @pytest.mark.parametrize("placement", ["pre_rope", "post_rope"])
 def test_post_qkv_relu_accepts_both_qk_placements(placement: str) -> None:
     config = _post_qkv_config(

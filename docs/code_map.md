@@ -6,6 +6,11 @@ before changing a paper figure. During active experiments, do not rename,
 rewrite, or clean configs, results, checkpoints, figures, or reports that may be
 in use.
 
+The staged Pythia sparsity campaign is specified under
+[`docs/experimental-design/`](experimental-design/README.md). Its config and run
+registries are the campaign indices; terminal run manifests remain
+authoritative. Read its runbook before allocating config `121` or later.
+
 ## Execution Path
 
 The installed `paper-exp` command and `python -m paper_exp.cli` both enter
@@ -32,6 +37,7 @@ measurement but does not dispatch the command.
 | `run.py` | Experiment/run directory naming, smoke/calibration lifecycle, and the common config/metrics/manifest/predictions envelope | Launch snapshots, terminal status, and artifacts required of completed runs |
 | `utils.py` | JSON/JSONL helpers and environment, Git, GPU, package, and run provenance | Manifest contents and serialization |
 | `data.py` | Dataset loading, tokenization, cache metadata, and cache reuse checks | `data`, `tokenizer`, and `preprocessing` behavior |
+| `reproducibility.py` | Deterministic data-order schedules and document-disjoint validation partition definitions/hashes | Campaign seed, schedule, or validation comparability contracts |
 | `calibration.py` | Calibration and pretraining loops, validation, checkpoints, training events, and naive/orthogonal update routing | Optimizer or training-loop behavior |
 | `modeling.py` | Runtime model architecture modifications and checkpoint reconstruction | Post-LayerNorm and post-QKV Q/K/V ReLU behavior; treat as scientific code |
 | `activations.py` | Named activation sites, hooks, captured tensors, and post-hoc clipping | Where a site is measured or modified |

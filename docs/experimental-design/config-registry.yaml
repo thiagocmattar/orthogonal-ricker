@@ -1,0 +1,196 @@
+schema_version: 1
+campaign_id: pythia-sparsity-scaling-v1
+next_config_prefix: 123
+core_design_cells: 134
+core_executable_cells_without_context_gate: 132
+maximum_design_cells: 184
+maximum_executable_cells_without_context_gate: 182
+s1_launch_gate: blocked_pending_budget_decision
+historical_config_range:
+  first: 1
+  last: 120
+  narrative_log: docs/experiment_log.md
+  registry_coverage: incomplete_pending_release_backfill
+block_summary:
+  - block: E0-CONTRACT
+    planned_cells: 2
+    materialized_cells: 2
+    completed_cells: 0
+    status: ready
+    note: document-disjoint validation, independent seeds, schedule hash, and initialization hash
+  - block: S1-B0
+    planned_cells: 22
+    materialized_cells: 0
+    completed_cells: 0
+    status: planned
+    note: two post-PV context cells are dependency-gated
+  - block: S1-B1
+    planned_cells: 36
+    materialized_cells: 0
+    completed_cells: 0
+    status: blocked
+    blocker: positive-kappa one-sided gate implementation
+  - block: S1-B2
+    planned_cells: 26
+    materialized_cells: 0
+    completed_cells: 0
+    status: blocked
+    blocker: learned-ATG engineering pilot
+  - block: S1-B3
+    planned_cells: 40
+    materialized_cells: 0
+    completed_cells: 0
+    status: planned
+  - block: S1-B4
+    planned_cells: 10
+    materialized_cells: 0
+    completed_cells: 0
+    status: planned
+  - block: S1-CONTROLS
+    planned_cells_max: 50
+    materialized_cells: 0
+    completed_cells: 0
+    status: conditional
+field_order:
+  - design_id
+  - config_id
+  - config_path
+  - phase
+  - block
+  - comparison_id
+  - pair_id
+  - promotion_family
+  - kind
+  - model_size
+  - steps
+  - tokens
+  - model_initialization_seed
+  - data_order_seed
+  - training_schedule_scheme
+  - training_schedule_hash
+  - effective_tokens_per_update
+  - validation_partition
+  - validation_partition_hash
+  - architecture_id
+  - gate_family
+  - gate_sites
+  - qk_placement
+  - kappa_mode
+  - kappa
+  - kappa_init
+  - kappa_scope
+  - threshold_scale
+  - surrogate
+  - temperature
+  - threshold_learning_rate
+  - optimizer_recipe
+  - model_learning_rate
+  - micro_batch_size
+  - gradient_accumulation_steps
+  - pressure_method
+  - pressure_sites
+  - pressure_weight
+  - ricker_c
+  - ricker_sigma
+  - step_budget
+  - matched_control_id
+  - config_status
+  - decision_status
+  - release_tier
+  - canonical_run_id
+  - notes
+records:
+  - design_id: E0-CONTRACT-A0-I0-D0-ST128
+    config_id: 121-e0-p14m-contract-a0-i0-d0-st128
+    config_path: configs/121-e0-p14m-contract-a0-i0-d0-st128.yaml
+    phase: E0
+    block: E0-CONTRACT
+    comparison_id: E0-CONTRACT
+    pair_id: E0-SEED-DECOUPLING
+    promotion_family: null
+    kind: engineering
+    model_size: 14M
+    steps: 128
+    tokens: 8388608
+    model_initialization_seed: 0
+    data_order_seed: 0
+    training_schedule_scheme: random_contiguous_blocks_with_replacement_v1
+    training_schedule_hash: 9d9f708a79511390da9559b88e06e797aa216149af709c841923c56f926e1120
+    effective_tokens_per_update: 65536
+    validation_partition: selection
+    validation_partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
+    architecture_id: A0
+    gate_family: none
+    gate_sites: []
+    qk_placement: null
+    kappa_mode: null
+    kappa: null
+    kappa_init: null
+    kappa_scope: null
+    threshold_scale: null
+    surrogate: null
+    temperature: null
+    threshold_learning_rate: null
+    optimizer_recipe: harness_adamw
+    model_learning_rate: 3.0e-05
+    micro_batch_size: 4
+    gradient_accumulation_steps: 8
+    pressure_method: none
+    pressure_sites: [mlp_hiddens]
+    pressure_weight: 0.0
+    ricker_c: null
+    ricker_sigma: null
+    step_budget: null
+    matched_control_id: null
+    config_status: ready
+    decision_status: control
+    release_tier: history
+    canonical_run_id: null
+    notes: Engineering-only contract pilot; not selection evidence.
+  - design_id: E0-CONTRACT-A0-I1-D0-ST128
+    config_id: 122-e0-p14m-contract-a0-i1-d0-st128
+    config_path: configs/122-e0-p14m-contract-a0-i1-d0-st128.yaml
+    phase: E0
+    block: E0-CONTRACT
+    comparison_id: E0-CONTRACT
+    pair_id: E0-SEED-DECOUPLING
+    promotion_family: null
+    kind: engineering
+    model_size: 14M
+    steps: 128
+    tokens: 8388608
+    model_initialization_seed: 1
+    data_order_seed: 0
+    training_schedule_scheme: random_contiguous_blocks_with_replacement_v1
+    training_schedule_hash: 9d9f708a79511390da9559b88e06e797aa216149af709c841923c56f926e1120
+    effective_tokens_per_update: 65536
+    validation_partition: selection
+    validation_partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
+    architecture_id: A0
+    gate_family: none
+    gate_sites: []
+    qk_placement: null
+    kappa_mode: null
+    kappa: null
+    kappa_init: null
+    kappa_scope: null
+    threshold_scale: null
+    surrogate: null
+    temperature: null
+    threshold_learning_rate: null
+    optimizer_recipe: harness_adamw
+    model_learning_rate: 3.0e-05
+    micro_batch_size: 4
+    gradient_accumulation_steps: 8
+    pressure_method: none
+    pressure_sites: [mlp_hiddens]
+    pressure_weight: 0.0
+    ricker_c: null
+    ricker_sigma: null
+    step_budget: null
+    matched_control_id: E0-CONTRACT-A0-I0-D0-ST128
+    config_status: ready
+    decision_status: control
+    release_tier: history
+    canonical_run_id: null
+    notes: Same schedule and validation as config 121; only model initialization seed changes.

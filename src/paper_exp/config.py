@@ -8,6 +8,8 @@ from typing import Any
 
 import yaml
 
+from paper_exp.reproducibility import TRAINING_SCHEDULE_SCHEME
+
 
 class ConfigError(ValueError):
     """Raised when a config is missing required experiment information."""
@@ -65,6 +67,8 @@ def validate_config(config: Mapping[str, Any], *, allow_todos: bool = True) -> N
     if isinstance(seed, bool) or not isinstance(seed, int):
         raise ConfigError("Config field run.seed must be an integer.")
 
+    _validate_campaign_reproducibility(config, seed=seed)
+
     max_examples = _get_required(config, ("run", "max_examples"))
     if isinstance(max_examples, bool) or not isinstance(max_examples, int) or max_examples <= 0:
         raise ConfigError("Config field run.max_examples must be a positive integer.")
@@ -103,6 +107,77 @@ def find_todo_values(value: Any, prefix: str = "") -> list[tuple[str, str]]:
             child_prefix = f"{prefix}[{index}]"
             found.extend(find_todo_values(child, child_prefix))
     return found
+
+
+def _validate_campaign_reproducibility(config: Mapping[str, Any], *, seed: int) -> None:
+    run_config = config.get("run", {})
+    schedule_scheme = run_config.get("training_schedule_scheme")
+    model_seed = run_config.get("model_initialization_seed")
+    data_seed = run_config.get("data_order_seed")
+    schedule_hash = run_config.get("training_schedule_hash")
+
+    if schedule_scheme is None:
+        campaign_fields = {
+            "model_initialization_seed": model_seed,
+            "data_order_seed": data_seed,
+            "training_schedule_hash": schedule_hash,
+        }
+        provided = [field for field, value in campaign_fields.items() if value is not None]
+        if provided:
+            raise ConfigError(
+                "Campaign run fields require run.training_schedule_scheme; provided: "
+                + ", ".join(provided)
+                + "."
+            )
+    elif schedule_scheme != TRAINING_SCHEDULE_SCHEME:
+        raise ConfigError(
+            f"Config field run.training_schedule_scheme must be '{TRAINING_SCHEDULE_SCHEME}'."
+        )
+
+    if (model_seed is None) != (data_seed is None):
+        raise ConfigError(
+            "Config fields run.model_initialization_seed and run.data_order_seed must be provided together."
+        )
+    if schedule_scheme is not None and model_seed is None:
+        raise ConfigError(
+            "Config fields run.model_initialization_seed and run.data_order_seed are required "
+            "when run.training_schedule_scheme is set."
+        )
+    for field, value in (
+        ("model_initialization_seed", model_seed),
+        ("data_order_seed", data_seed),
+    ):
+        if value is not None and (isinstance(value, bool) or not isinstance(value, int)):
+            raise ConfigError(f"Config field run.{field} must be an integer.")
+    if model_seed is not None and model_seed != seed:
+        raise ConfigError(
+            "Config field run.seed must equal run.model_initialization_seed for campaign runs."
+        )
+
+    if schedule_hash is not None and re.fullmatch(r"[0-9a-f]{64}", str(schedule_hash)) is None:
+        raise ConfigError("Config field run.training_schedule_hash must be a lowercase SHA-256 hex digest.")
+
+    validation = config.get("validation", {})
+    partition = validation.get("partition")
+    if partition is None:
+        return
+    if partition not in {"selection", "confirmation"}:
+        raise ConfigError("Config field validation.partition must be 'selection' or 'confirmation'.")
+    if validation.get("partition_scheme") != "shuffled_source_documents_half_v1":
+        raise ConfigError(
+            "Config field validation.partition_scheme must be 'shuffled_source_documents_half_v1'."
+        )
+    partition_seed = validation.get("partition_seed")
+    if isinstance(partition_seed, bool) or not isinstance(partition_seed, int):
+        raise ConfigError("Config field validation.partition_seed must be an integer.")
+    max_documents = validation.get("max_documents")
+    if isinstance(max_documents, bool) or not isinstance(max_documents, int) or max_documents < 2:
+        raise ConfigError(
+            "Document-disjoint validation partitions require validation.max_documents >= 2."
+        )
+    partition_hash = validation.get("partition_hash")
+    if partition_hash is not None and re.fullmatch(r"[0-9a-f]{64}", str(partition_hash)) is None:
+        raise ConfigError("Config field validation.partition_hash must be a lowercase SHA-256 hex digest.")
 
 
 def _validate_post_qkv_relu(value: Any) -> None:

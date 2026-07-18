@@ -124,6 +124,14 @@ def build_manifest(
         "dataset_split": config["data"]["split"],
         "metric": config["evaluation"]["metric"],
         "seed": config["run"]["seed"],
+        "model_initialization_seed": config["run"].get(
+            "model_initialization_seed", config["run"]["seed"]
+        ),
+        "data_order_seed": config["run"].get("data_order_seed", config["run"]["seed"]),
+        "training_schedule_scheme": config["run"].get("training_schedule_scheme"),
+        "training_schedule_hash": config["run"].get("training_schedule_hash"),
+        "validation_partition": config.get("validation", {}).get("partition"),
+        "validation_partition_hash": config.get("validation", {}).get("partition_hash"),
         "python_version": sys.version,
         "python_executable": sys.executable,
         "platform": platform.platform(),

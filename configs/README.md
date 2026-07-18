@@ -2,16 +2,20 @@
 
 Each experiment should have a numbered YAML config. Start from the closest existing config, copy it, and change only the fields needed for the experiment.
 
-During exploration, treat new configs as local/ignored working artifacts unless
-they are deliberately promoted. A completed exploratory run does not by itself
-make its config part of the public reproducibility surface. Promote a config
-only when it is selected for a method, result, ablation, diagnostic, or paper
-figure: review it, remove unintended `TODO:` values, preserve its sequential
-name, add it explicitly with `git add -f configs/<selected-config>.yaml`, and
-map it in `docs/experiment_log.md` and `docs/paper_map.md` where relevant. The
-final open-source repository should
-contain the selected configs needed to reproduce its documented evidence, not
-every local search point.
+Every config that is launched is part of the scientific search history. Review
+it, remove unintended `TODO:` values, give it the next sequential prefix, add it
+to Git, and commit it before launch. Once launched, the config is immutable; a
+scientific change or new seed gets a new prefix, while an infrastructure-only
+retry creates a new run attempt for the same config. Screened-out, negative,
+failed, and successful configs are all preserved. Do not rename, renumber, or
+delete configs `1--120`, because current reports reference them.
+
+The large Pythia scaling campaign uses stable design ids and separate config/run
+registries under [`docs/experimental-design/`](../docs/experimental-design/README.md).
+Its next prefix is recorded in `config-registry.yaml`. Update the config and
+registry in the same clean commit before launch. Map completed evidence in
+`docs/experiment_log.md` and paper artifacts in `docs/paper_map.md` where
+relevant.
 
 For pretraining runs, keep model architecture and weight initialization explicit:
 

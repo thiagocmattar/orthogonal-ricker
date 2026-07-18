@@ -11,9 +11,8 @@ run-logs/
 data/tokenized/
 data/raw/
 
-# Existing selected configs remain tracked. New exploratory configs stay local
-# until they are deliberately promoted with `git add -f`.
-configs/*.yaml
+# Experiment configs are intentionally tracked before launch. Scientific search
+# history, including screened-out and failed cells, is part of provenance.
 
 results/*/
 !results/README.md

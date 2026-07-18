@@ -1,0 +1,74 @@
+experiment_name: e0_pythia_14m_contract_a0_i1_d0_st128
+sweep:
+  name: pythia_sparsity_scaling_v1_e0_contract
+  role: schedule_partition_seed_contract_i1_d0
+  design_id: E0-CONTRACT-A0-I1-D0-ST128
+  planned_steps: 128
+  planned_tokens: 8388608
+  notes: Engineering-only seed-decoupling pilot matched to config 121; validation loss is not selection evidence.
+model:
+  provider: huggingface
+  name: pythia-14m-random
+  architecture: EleutherAI/pythia-14m-deduped
+  revision: 7386d9a4ae45aef494a6e704910394def3037fc5
+  initialization: random
+data:
+  name: JeanKaddour/minipile
+  revision: 18ad1b0c701eaa0de03d3cecfdd769cbc70ffbd0
+  split: train
+  text_column: text
+  max_documents: null
+evaluation:
+  metric: training_loss
+run:
+  seed: 1
+  model_initialization_seed: 1
+  data_order_seed: 0
+  training_schedule_scheme: random_contiguous_blocks_with_replacement_v1
+  training_schedule_hash: 9d9f708a79511390da9559b88e06e797aa216149af709c841923c56f926e1120
+  max_examples: 1000000
+tokenizer:
+  name: EleutherAI/pythia-14m-deduped
+  revision: 7386d9a4ae45aef494a6e704910394def3037fc5
+preprocessing:
+  output_dir: data/tokenized
+  cache_id: 03-pythia-14m-minipile-random-full-10min
+  block_size: 2048
+  append_eos: true
+  overwrite: false
+training:
+  max_steps: 128
+  max_wall_seconds: null
+  warmup_steps: 10
+  micro_batch_size: 4
+  gradient_accumulation_steps: 8
+  learning_rate: 3.0e-05
+  optimizer: adamw
+  adamw_betas: [0.9, 0.999]
+  adamw_eps: 1.0e-08
+  weight_decay: 0.01
+  precision: auto
+  device: auto
+  log_every: 16
+validation:
+  enabled: true
+  split: validation
+  max_documents: 500
+  partition: selection
+  partition_scheme: shuffled_source_documents_half_v1
+  partition_seed: 20260718
+  partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
+  eval_every_steps: 64
+  eval_batches: null
+  batch_size: 4
+checkpoint:
+  save_final: true
+  save_optimizer: true
+output:
+  dir: results
+activation_pressure:
+  enabled: true
+  method: none
+  sites: [mlp_hiddens]
+  weight: 0.0
+  log_thresholds: [0.0, 0.001, 0.003, 0.01, 0.03]

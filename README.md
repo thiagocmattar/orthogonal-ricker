@@ -11,6 +11,9 @@ Author: Thiago Mattar <thiagocmattar@gmail.com>
 - Earlier local runs that loaded pretrained Pythia weights were removed from the experiment log, result folders, and paper map.
 - Data preparation tokenizes MiniPile into a local cache before calibration or paper runs.
 - Repository files, documentation, result records, plot labels, and generated outputs are kept in English.
+- The next experiment round is a staged 2,048-step Pythia-14M screen followed by
+  token and model scaling through Pythia-410M. Its authoritative design and
+  registries live in [`docs/experimental-design/`](docs/experimental-design/README.md).
 
 ## Code Navigation
 
@@ -20,6 +23,8 @@ sites, diagnostics, and paper figures. See [`configs/README.md`](configs/README.
 before creating or promoting an experiment config. See
 [`docs/plotting.md`](docs/plotting.md) for the Report 04/05 visual contracts,
 plotting-module boundaries, and the parity checks required for figure changes.
+Before creating or launching a config in the scaling campaign, read
+[`docs/experimental-design/README.md`](docs/experimental-design/README.md).
 
 ## Install
 

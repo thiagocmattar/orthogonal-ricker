@@ -1,0 +1,131 @@
+# Pythia Sparsity Scaling Campaign
+
+This folder is the authoritative handoff point for the next experiment round.
+It turns the current sequence of local ablations into a staged campaign that can
+support a paper-quality experimental section without erasing negative or failed
+work.
+
+## Current State
+
+- Campaign id: `pythia-sparsity-scaling-v1`.
+- Planning date: 2026-07-18.
+- Current phase: E0.1 reproducibility contract implemented and awaiting local
+  execution; S1 budget decision remains blocked.
+- Next config prefix: `123`.
+- No campaign run is active; E0 configs `121--122` are materialized.
+- S1 scientific launch is blocked pending the budget decision in
+  `06-s1-budget-backtest.md`; E0 engineering contract pilots may run.
+- Configs `1` through `120` and their existing results remain historical
+  evidence. They must not be renamed, rewritten, or moved.
+- The primary discovery design contains 134 predeclared 2,048-step cells. Two
+  post-PV context cells depend on context-gate implementation, so the formally
+  executable core is 132--134 cells. Up to 50 conditional control cells may be
+  activated, for a maximum design envelope of 182--184 cells.
+- The execution order is core first, then only conditional controls whose
+  predeclared trigger fires, then the scaling ladder. The 182- or 184-cell
+  envelope is a ceiling, not a mandatory batch.
+- Estimated serial runtime on the currently measured RTX 5070 Ti path is about
+  46--56 GPU-hours for the core screen and 66--80 GPU-hours for the full
+  envelope. Learned-gate estimates are provisional until the 128-step pilot.
+- RunPod is the preferred scaling provider, but scientific cloud runs are
+  blocked until cache portability, environment locking, exact resume, artifact
+  verification, and local/cloud parity gates pass.
+
+This is a design and orchestration document, not evidence that any planned cell
+has run.
+
+## Documents
+
+1. [`01-screening-matrix.md`](01-screening-matrix.md) defines the exact broad
+   Pythia-14M screen, stable design ids, parameters, counts, dependencies, and
+   estimated runtime.
+2. [`02-scaling-ladder.md`](02-scaling-ladder.md) defines token scaling at 14M
+   and model scaling through Pythia-410M, including the learning-rate reference
+   rule.
+3. [`03-evaluation-and-promotion.md`](03-evaluation-and-promotion.md) defines
+   validation, exact-zero and compute metrics, matched contrasts, promotion,
+   uncertainty, and the paper figure suite.
+4. [`04-runbook.md`](04-runbook.md) defines config allocation, launch and
+   terminal checks, retries, registries, handoff, and open-source preservation.
+5. [`05-runpod-cloud.md`](05-runpod-cloud.md) defines the core-to-envelope
+   decision gate, RunPod readiness and operating profile, dated prices,
+   expected cost envelopes, and the transition to cloud scaling.
+6. [`06-s1-budget-backtest.md`](06-s1-budget-backtest.md) records the historical
+   short-run rank-survival veto and the S1 budget decision required before a
+   scientific launch.
+7. [`validation-partitions.yaml`](validation-partitions.yaml) freezes the
+   document-disjoint selection and confirmation source-document lists.
+8. [`config-registry.yaml`](config-registry.yaml) is the config-level source of
+   truth for materialized campaign cells.
+9. [`run-registry.yaml`](run-registry.yaml) records every run attempt. It is
+   intentionally separate because one immutable config can have more than one
+   infrastructure attempt.
+
+## Non-Negotiable Controls
+
+- All Pythia runs use the architecture named by the config with
+  `model.initialization: random`. Released Pythia checkpoint weights are not
+  loaded.
+- The broad screen uses 2,048 optimizer steps, 65,536 tokens per step, and
+  134,217,728 training tokens unless a row is explicitly labeled as a
+  fixed-token batch-size control.
+- Architecture, gate, pressure, learning-rate, seed, and token-budget effects
+  are not silently mixed. Every comparison has a matched control id.
+- RN and OR use identical Ricker `weight`, `c`, and `sigma`; L1N and OL1 use
+  identical L1 weight. A method family is promoted as a complete
+  `{AdamW, RN, OR, L1N, OL1}` panel, not as an isolated winner.
+- Primary OR and OL1 cells always use `step_budget: 0.5`. Alternate budgets are
+  diagnostic stability controls and are never eligible as tuned paper cells.
+- Pressure scope is explicit. `QKV-only` and `all-active-gates` are different
+  interventions.
+- Screen selection uses a frozen selection-validation partition. Confirmation
+  seeds and the disjoint campaign-confirmation partition are not inspected
+  until the architecture and hyperparameters are frozen. This partition is new
+  to the campaign, but not historically untouched: Reports 04--06 evaluated the
+  complete cache that contains it.
+- Exact zero means the integer comparison `x == 0`; no tolerance is used.
+- `R_block` and `R_model` are logical scalar-product opportunities, not measured
+  speedups. Runtime claims require sparse-kernel measurements.
+
+## Resume Checklist
+
+An agent resuming this campaign should:
+
+1. Read this folder in numerical order, including the cloud plan, then read
+   `configs/README.md` and `docs/methods.md`.
+2. Inspect `git status --short`, the two registries, and terminal manifests. A
+   manifest always outranks a registry status.
+3. Confirm that no row with the same `design_id` is configured, running, or
+   complete before allocating a prefix.
+4. Complete the engineering blockers in Section 8 of
+   `01-screening-matrix.md` before materializing affected cells.
+5. Allocate the next unused sequential prefix, add a config-registry record,
+   commit the config and registry from a clean tree, and only then launch.
+6. Record every attempt in the run registry, including failures and retries.
+7. Run the terminal envelope and diagnostic checks in `04-runbook.md` before
+   marking evidence valid or considering promotion.
+
+## Status Vocabulary
+
+Config planning and execution are distinct from scientific disposition:
+
+- Config status: `planned`, `blocked`, `ready`, `active`, `closed`, or
+  `cancelled`.
+- Run lifecycle: `running`, `completed`, `failed`, `statusless_complete`,
+  `event_stream`, `partial`, or
+  `inconsistent`.
+- Evidence status: `unreviewed`, `valid`, `provisional`, or `invalid`.
+- Decision status: `pending`, `control`, `screened_out`, `promote_tokens`,
+  `promote_seed`, `promote_model`, `paper_candidate`, or `superseded`.
+
+A scientifically poor result is not a failed run. A failed run can still have a
+provisional endpoint, but its failed manifest is never rewritten as completed.
+
+## Historical Boundary
+
+The campaign registries begin with config `121`. Existing configs `1--120` stay
+indexed by `docs/experiment_log.md` and `docs/paper_map.md`. Before a public
+release, their local attempts should be backfilled into a frozen historical
+inventory; that migration must not mutate their artifacts. Config `119` remains
+`failed + provisional` because its training and validation outputs are durable
+but the terminal atomic predictions write exceeded the Windows path envelope.

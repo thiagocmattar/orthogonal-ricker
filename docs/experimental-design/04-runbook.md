@@ -1,0 +1,297 @@
+# 04. Campaign Runbook and Provenance
+
+## 1. Sources of Truth
+
+Authority is field-specific:
+
+- `manifest.json` is authoritative for lifecycle, timestamps, run id, and
+  launch provenance;
+- the saved run `config.yaml` is authoritative for the scientific inputs that
+  actually launched;
+- durable metrics, events, predictions, and diagnostic artifacts are
+  authoritative for measured values;
+- `run-registry.yaml` and `config-registry.yaml` index those artifacts and
+  decisions;
+- narrative docs and reports interpret only pinned evidence.
+
+The registries are indices, not replacements for artifacts. Never change a
+failed manifest to make a registry row look complete, and never let a summarized
+manifest field override the saved scientific config snapshot.
+
+## 2. Config Allocation
+
+Only one agent allocates config prefixes at a time.
+
+1. Read `next_config_prefix` and verify it against `rg --files configs`.
+2. Search both registries for the stable `design_id`.
+3. Copy the closest config and make the smallest scientific changes.
+4. Use the next unused contiguous prefix. Do not reserve a number by creating
+   an empty config and do not leave intentional gaps.
+5. Keep the filename stem under roughly 72 characters to protect Windows atomic
+   temporary paths. Put full factor detail in the registry.
+6. Validate the config and add a config-registry record with status `ready`.
+7. Increment `next_config_prefix` in the same commit.
+8. Commit the config and registry before launch. A launched config is immutable.
+
+Compact examples:
+
+```text
+121-s1-p14m-a3-aw-lr3em5-s0.yaml
+145-s1-p14m-a6post-gpm-k0p1-or.yaml
+```
+
+Approximate numbering windows are organizational hints, not reservations:
+
+| Prefix range | Intended use |
+| --- | --- |
+| `121--349` | Engineering pilots plus S1 training and conditional controls |
+| `350--399` | S1 propagation/histogram diagnostics |
+| `400--599` | 14M token-promotion and confirmation configs |
+| `600+` | Pythia-family scale training and diagnostics |
+
+If a prior phase ends early, the next phase starts at the next unused prefix.
+
+## 3. Stable Ids and Registry Semantics
+
+`design_id` identifies a planned scientific cell independently of its eventual
+config number. `run_id` identifies one execution attempt. The relationship is:
+
+```text
+one design_id -> one scientific config -> one or more infrastructure attempts
+```
+
+A scientific field change, new seed, or new token budget gets a new config and
+design id. An infrastructure-only retry may reuse the immutable config and gets
+a new run id. The registry `attempt` equals the manifest `run_sequence`; it is
+not manually renumbered.
+
+Allowed config transitions are
+`planned|blocked -> ready -> active`, `active -> ready` after a retryable
+infrastructure failure, and `active -> closed` only after accepting a canonical
+run or deciding that no retry will occur. An unlaunched cell may become
+`cancelled` with a reason.
+
+If `canonical_run_id` is set, exactly one run row must have `canonical: true`,
+its run id must equal the pointer, and its evidence must be `valid` or an
+explicitly accepted `provisional`. No other run for that config may be
+canonical.
+
+Required config-registry fields include design/config ids and paths, phase,
+block, matched control/pair/promotion family, model, steps/tokens, separate
+model-initialization and data-order seeds plus the schedule scheme and hash,
+architecture/gate factors, optimizer/LR/batch factors, pressure factors,
+statuses, canonical run, and notes. The file's `field_order`
+lists the complete schema.
+
+Required run-registry fields include attempt, execution mode, and result path, lifecycle and
+evidence status, timestamps and Git provenance, completed budget, validation
+endpoint, runtime, diagnostic paths, compute/zero summaries, failure details,
+external artifact inventory, execution backend and hardware/image provenance,
+cost and resume provenance when applicable, and review date.
+
+All tracked filesystem paths are repository-relative and use `/` separators.
+Absolute machine paths belong only in transient logs, not registries.
+
+Registry values:
+
+- config status: `planned`, `blocked`, `ready`, `active`, `closed`, `cancelled`;
+- decision status: `pending`, `control`, `screened_out`, `promote_tokens`,
+  `promote_seed`, `promote_model`, `paper_candidate`, `superseded`;
+- release tier: `history`, `reproduction`, `paper`;
+- evidence: `unreviewed`, `valid`, `provisional`, `invalid`.
+
+Harness manifests use `running -> completed|failed`. Historical registry rows
+may also use `statusless_complete`, `event_stream`, `partial`, or
+`inconsistent`. Do not write those historical categories into new manifests.
+`statusless_complete` means there is no explicit manifest status and the core
+artifact envelope is coherent.
+
+## 4. Preflight
+
+From a clean committed tree:
+
+```text
+make test
+make check
+git status --short
+nvidia-smi
+```
+
+Then verify:
+
+- config initialization is random;
+- expected steps, effective batch, tokens, both seeds, schedule hash,
+  validation partition, and
+  pressure sites match the registry;
+- RN/OR or L1N/OL1 pairs share pressure family, weight, sites, and, for
+  Ricker, `c/sigma`; the orthogonal member additionally uses the fixed
+  `step_budget: 0.5` and orthogonal update route;
+- OR/OL1 primary cells have `step_budget: 0.5`;
+- data-order and validation-partition hashes match their paired controls;
+- no existing run for the design/config is active;
+- enough disk space exists for the final checkpoint and atomic writes;
+- the config filename and output path remain below the tested Windows path
+  envelope.
+
+Do not use `run-pressure-sweep` for this campaign. That command is hard-coded to
+regenerate the historical configs `12--48`.
+
+For cloud runs, the additional readiness, parity, storage, pricing, and secrets
+checks in `05-runpod-cloud.md` are part of preflight. The current harness has no
+cloud launcher, exact-resume command, or verified artifact uploader; do not
+represent those workflows as available until their TODO gates are implemented
+and tested.
+
+## 5. Launch
+
+Use the standard pretraining entry point:
+
+```text
+python -m paper_exp.cli pretrain --config configs/<config-id>.yaml
+```
+
+At launch:
+
+1. verify the harness saved `config.yaml` and a `status: running` manifest;
+2. verify launch Git SHA and `git_dirty: false`;
+3. add a run-registry row with `lifecycle_status: running` and
+   `evidence_status: unreviewed`;
+4. set config status to `active`;
+5. record the exact log path and expected completion time.
+
+Commit the launch registry update before launching another config. This returns
+the tree to clean state and preserves `git_dirty: false` for the next launch.
+
+Do not launch the next pressure member if its matched control failed preflight.
+Independent cells may run in parallel only when GPU memory, data-cache access,
+and registry allocation remain unambiguous.
+
+On RunPod, matched methods use the same GPU SKU, image digest, precision, and
+cache hash. Parallel Pods use separate Git worktrees and writable result paths.
+Record the live rate before launch and never put credentials or network access
+details in tracked artifacts.
+
+## 6. Monitoring
+
+During a run, check without mutating artifacts:
+
+- process and GPU activity;
+- completed step and recent event timestamp;
+- finite task/pressure losses;
+- OR/OL1 raw/final update ratios and cap binding;
+- learned-threshold range, transition mass, and collapse flags;
+- projected completion time;
+- free disk space.
+
+An unchanged metric is not itself failure. A missing process with a still-running
+manifest requires artifact inspection; do not relaunch blindly.
+
+## 7. Terminal Verification
+
+After the process exits:
+
+1. read the terminal manifest first;
+2. verify completed steps/tokens against the config;
+3. verify `config.yaml`, `metrics.json`, `predictions.jsonl`, `events.jsonl`, and
+   the final checkpoint are durable where required;
+4. verify final validation token count and finite loss;
+5. verify learned ATG parameters reload exactly when applicable;
+6. run `make check` and any method-specific tests;
+7. update the run registry with the manifest status and measured endpoints;
+8. mark evidence `valid`, `provisional`, or `invalid`, with a reason;
+9. select at most one canonical run; close the config only if that run is
+   accepted or no retry will occur, otherwise return it to `ready`;
+10. commit terminal registry updates before another launch;
+11. only then launch its numbered validation diagnostics.
+
+Training envelope:
+
+```text
+configs/<config-id>.yaml
+results/<config-stem>/<run-id>/
+  config.yaml
+  manifest.json
+  metrics.json
+  predictions.jsonl
+  events.jsonl
+  checkpoints/final/
+```
+
+Propagation diagnostics save `activation_propagation.json`; histogram
+diagnostics save their existing histogram artifacts. Clipping remains a
+CLI-derived workflow indexed by source run and output path rather than a fake
+training config.
+
+## 8. Failures and Retries
+
+- Preserve every failed attempt and its message.
+- If scientific inputs change, allocate a new config.
+- If only infrastructure changes, reuse the config, create a new run attempt,
+  and retain the old directory.
+- Never overwrite a checkpoint, metrics file, or terminal manifest.
+- Never call a scientifically weak endpoint an execution failure.
+- A failed run may be `provisional` only when its durable artifacts support the
+  stated metric and the exception is explicit.
+- Config `119` is the precedent: the full endpoint exists, but the manifest
+  remains failed because an atomic predictions path exceeded Windows limits.
+
+Before a retry, record `failure_type`, the exact failure message, the proposed
+infrastructure correction, and whether numerical comparability is preserved.
+
+## 9. Diagnostics and Standard Handoff
+
+Every valid S1 training run receives a lightweight numbered
+selection-partition propagation/product diagnostic. Every promoted run also
+receives complete-cache propagation. Histograms and clipping are run only for
+predeclared representative cohorts.
+
+When the user asks for results, return:
+
+| Method | Val. loss | `R_block` | `R_model` | `z_a` | `z_m` | `z_h` |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+
+Add architecture, gate parameters, `U_arch`, Q/K/V/context zeros, seed count,
+validation-token count, and evidence status when relevant. Exact-zero values
+must come from the full named validation diagnostic, not the last training
+minibatch.
+
+## 10. Handoff Between Agents
+
+A concise handoff must state:
+
+- current phase and next config prefix;
+- last completed and currently active design ids;
+- active process/log/run paths and ETC;
+- any failed or provisional rows;
+- which engineering blockers remain;
+- which registry rows were changed;
+- the next eligible cell and its matched-control dependency;
+- current Git SHA and dirty-tree status.
+
+The receiving agent independently verifies process state and manifests. A chat
+message is not sufficient evidence that a run completed.
+
+## 11. Open-Source and Archive Policy
+
+1. Track every launched campaign config before launch, including negative and
+   later screened-out cells.
+2. Never renumber or delete configs `1--120`; current reports reference them.
+3. Do not erase failed or partial attempts. Record evidence and decision status
+   instead.
+4. `release_tier: history` preserves the search trajectory;
+   `reproduction` identifies the promotion chain; `paper` identifies final
+   reported evidence.
+5. Retain S1 checkpoints until propagation and promotion are decided. Rejected
+   checkpoints may later move to external archival storage only after a stable
+   URI and deterministic SHA-256 inventory manifest exist. Store the inventory
+   location and its own hash as `artifact_manifest_uri` and
+   `artifact_manifest_sha256`. Scalar artifacts and manifests remain.
+6. Any archive relocation is an explicit migration that verifies hashes
+   atomically. The original repository-relative `result_path` is immutable;
+   record the new location in `artifact_uri`. It is never routine cleanup.
+7. Before release, backfill historical configs/runs into a frozen inventory,
+   add artifact URIs/hashes, run strict integrity checks, and verify every paper
+   figure from pinned saved results.
+
+This policy keeps failures, negative results, and successful promotion chains
+auditable without forcing all large checkpoints into Git.
