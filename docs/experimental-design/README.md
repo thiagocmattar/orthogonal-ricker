@@ -13,17 +13,13 @@ work.
   is restricted to feasibility/collapse and within-stratum comparisons; the B0
   endpoint diagnostic is accepted.
 - Next config prefix: `128`.
-- Configs `123--125` completed and passed terminal review. Their final
-  selection losses are `7.04913` (A0), `6.98875` (A1-H), and `7.01310`
-  (A3). Config `126` (`S1-B0-ARCH-A6PRE-LR3EM5-S0`) is active pending local
-  launch; config `127` remains queued. Configs `121--122` are accepted
-  engineering controls.
-- Last completed run: `001-20260718-173453-33ecfcac`, result path
-  `results/125-s1-b0-p14m-a3-adamw-lr3em5-s0/001-20260718-173453-33ecfcac`.
-- Active run: `001-20260718-175512-d98db007`, started
-  `2026-07-18T17:55:12Z`, result path
-  `results/126-s1-b0-p14m-a6pre-adamw-lr3em5-s0/001-20260718-175512-d98db007`,
-  expected terminal window `2026-07-18T18:12--18:16Z`.
+- Configs `123--126` completed and passed terminal review. Their final
+  selection losses are `7.04913` (A0), `6.98875` (A1-H), `7.01310` (A3),
+  and `7.01645` (A6-PRE). Config `127`
+  (`S1-B0-ARCH-A6POST-LR3EM5-S0`) is active pending local launch. Configs
+  `121--122` are accepted engineering controls.
+- Last completed run: `001-20260718-175512-d98db007`, result path
+  `results/126-s1-b0-p14m-a6pre-adamw-lr3em5-s0/001-20260718-175512-d98db007`.
 - S1 must never use a global rank cutoff. Complete matched method panels from
   viable families advance to the 8,192-step rung under the frozen policy in
   `06-s1-budget-backtest.md`.

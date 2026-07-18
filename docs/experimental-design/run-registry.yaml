@@ -408,15 +408,15 @@ records:
     mode: pretrain
     result_path: results/126-s1-b0-p14m-a6pre-adamw-lr3em5-s0/001-20260718-175512-d98db007
     log_path: run-logs/126-s1-b0-p14m-a6pre-adamw-lr3em5-s0-pretrain-attempt1.log
-    lifecycle_status: running
-    evidence_status: unreviewed
-    canonical: false
+    lifecycle_status: completed
+    evidence_status: valid
+    canonical: true
     started_at: 2026-07-18T17:55:12.568124Z
-    finished_at: null
+    finished_at: 2026-07-18T18:15:51.402490Z
     git_commit: 29ba8614c50d479bb66fc99524cab769bb6459d5
     git_dirty: false
-    completed_steps: 0
-    tokens_seen: 0
+    completed_steps: 2048
+    tokens_seen: 134217728
     model_initialization_seed: 0
     data_order_seed: 0
     training_schedule_scheme: random_contiguous_blocks_with_replacement_v1
@@ -425,10 +425,10 @@ records:
     validation_partition: selection
     validation_partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
     validation_tokens: 311296
-    validation_loss: null
-    wall_hours: null
-    tokens_per_second: null
-    peak_gpu_mb: null
+    validation_loss: 7.016448033483405
+    wall_hours: 0.34350759969443767
+    tokens_per_second: 108540.66733678331
+    peak_gpu_mb: 6032.47119140625
     execution_backend: local
     cloud_provider: null
     gpu_type: NVIDIA GeForce RTX 5070 Ti Laptop GPU
@@ -439,5 +439,5 @@ records:
     gpu_driver_version: "572.84"
     failure_type: null
     failure_message: null
-    reviewed_at: null
-    notes: Six-ReLU PRE-RoPE architecture anchor launched from a clean commit as PID 43308. Its A5-QK-PRE matched parent is not yet materialized, so architecture deltas remain unavailable. Stderr is in run-logs/126-s1-b0-p14m-a6pre-adamw-lr3em5-s0-pretrain-attempt1-stderr.log. Expected terminal window is 2026-07-18T18:12--18:16Z.
+    reviewed_at: 2026-07-18T18:16:22.5665487Z
+    notes: Completed from clean launch commit 29ba861 with 42 train and 10 complete-selection validation events. Final model SHA-256 is 84e73133242c198634ec65bd906b0f3c6795191af8005a62d522c8c115191ee6; optimizer state was intentionally not saved. Final loss is 0.00335 above A3, but the A5-QK-PRE matched parent is still absent. Throughput is 12.81% below A3 under the custom attention path. Selection propagation endpoints remain pending the combined numbered diagnostic.
