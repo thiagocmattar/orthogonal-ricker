@@ -21,7 +21,7 @@ block_summary:
   - block: S1-B0
     planned_cells: 22
     materialized_cells: 10
-    completed_cells: 7
+    completed_cells: 8
     status: active
     note: central anchors and the A4-Q/A4-K/A4-V/A5-QK-PRE/A5-QK-POST ordinary architecture parents are materialized; two post-PV context cells remain dependency-gated
   - block: S1-B1
@@ -612,11 +612,11 @@ records:
     ricker_sigma: null
     step_budget: null
     matched_control_id: S1-B0-ARCH-A3-LR3EM5-S0
-    config_status: active
+    config_status: closed
     decision_status: control
     release_tier: history
-    canonical_run_id: null
-    notes: V-only AdamW architecture control; no pressure and Q/K placement is not applicable. Its matched parent is the completed Three-ReLU A3 config 125. S1 is feasibility/within-stratum only.
+    canonical_run_id: 001-20260718-194713-d1dc3486
+    notes: V-only AdamW architecture control; no pressure and Q/K placement is not applicable. Run 001-20260718-194713-d1dc3486 completed 2048 steps and passed terminal review at selection loss 7.01615, 0.00305 above its matched Three-ReLU A3 control. S1 is feasibility/within-stratum only.
   - design_id: S1-B0-ARCH-A5QKPRE-LR3EM5-S0
     config_id: 132-s1-b0-p14m-a5qkpre-adamw-lr3em5-s0
     config_path: configs/132-s1-b0-p14m-a5qkpre-adamw-lr3em5-s0.yaml
@@ -659,7 +659,7 @@ records:
     ricker_sigma: null
     step_budget: null
     matched_control_id: S1-B0-ARCH-A3-LR3EM5-S0
-    config_status: ready
+    config_status: active
     decision_status: control
     release_tier: history
     canonical_run_id: null

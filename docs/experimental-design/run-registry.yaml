@@ -732,15 +732,15 @@ records:
     mode: pretrain
     result_path: results/131-s1-b0-p14m-a4v-adamw-lr3em5-s0/001-20260718-194713-d1dc3486
     log_path: run-logs/131-s1-b0-p14m-a4v-adamw-lr3em5-s0-pretrain-attempt1.log
-    lifecycle_status: running
-    evidence_status: unreviewed
-    canonical: false
+    lifecycle_status: completed
+    evidence_status: valid
+    canonical: true
     started_at: 2026-07-18T19:47:13.412043Z
-    finished_at: null
+    finished_at: 2026-07-18T20:06:36.661048Z
     git_commit: 5693ee13a542f84721146daeb2f161ad0b8a9842
     git_dirty: false
-    completed_steps: 0
-    tokens_seen: 0
+    completed_steps: 2048
+    tokens_seen: 134217728
     model_initialization_seed: 0
     data_order_seed: 0
     training_schedule_scheme: random_contiguous_blocks_with_replacement_v1
@@ -749,10 +749,10 @@ records:
     validation_partition: selection
     validation_partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
     validation_tokens: 311296
-    validation_loss: null
-    wall_hours: null
-    tokens_per_second: null
-    peak_gpu_mb: null
+    validation_loss: 7.016149295003791
+    wall_hours: 0.3224970748055461
+    tokens_per_second: 115619.0070642807
+    peak_gpu_mb: 6008.47119140625
     execution_backend: local
     cloud_provider: null
     gpu_type: NVIDIA GeForce RTX 5070 Ti Laptop GPU
@@ -763,8 +763,8 @@ records:
     gpu_driver_version: "572.84"
     failure_type: null
     failure_message: null
-    reviewed_at: null
-    notes: A4-V ordinary-ReLU AdamW architecture control launched outside sandbox process containment from clean commit 5693ee1 as PID 47448. Stderr is in run-logs/131-s1-b0-p14m-a4v-adamw-lr3em5-s0-pretrain-attempt1-stderr.log. Expected terminal window is 2026-07-18T20:06--20:08Z.
+    reviewed_at: 2026-07-18T20:07:12.4679593Z
+    notes: Completed from clean launch commit 5693ee1 with 42 train and 10 complete-selection validation events. Final model SHA-256 is fa6190da0d1994867b687cfae9f42b763ea8fa5dc5dfca7af3afd00e369ef93c; optimizer state was intentionally not saved. Final selection loss is 0.00305 above matched A3, and throughput is 7.12% below A3 under the custom attention path. Selection propagation endpoints remain pending the combined numbered diagnostic.
   - design_id: S1-B0-ARCH-A4V-LR3EM5-S0
     config_id: 131-s1-b0-p14m-a4v-adamw-lr3em5-s0
     run_id: 002-20260718-194735-f3cb784b

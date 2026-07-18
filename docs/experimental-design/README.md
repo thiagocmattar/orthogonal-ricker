@@ -19,14 +19,10 @@ work.
   (A6-POST). Config `128`, the combined selection-partition endpoint
   diagnostic, also completed and passed artifact review. Configs `121--122`
   remain accepted engineering controls.
-- Last completed run: config `130` A4-K, run
-  `001-20260718-192601-b1795544`, result path
-  `results/130-s1-b0-p14m-a4k-adamw-lr3em5-s0/001-20260718-192601-b1795544`,
-  selection loss `7.02441`.
-- Active run: config `131` A4-V, run `001-20260718-194713-d1dc3486`,
-  started `2026-07-18T19:47:13Z`, result path
-  `results/131-s1-b0-p14m-a4v-adamw-lr3em5-s0/001-20260718-194713-d1dc3486`.
-  Expected terminal window is `2026-07-18T20:06--20:08Z`.
+- Last completed run: config `131` A4-V, run
+  `001-20260718-194713-d1dc3486`, result path
+  `results/131-s1-b0-p14m-a4v-adamw-lr3em5-s0/001-20260718-194713-d1dc3486`,
+  selection loss `7.01615`.
 - Config `131` attempt 2 was an accidental duplicate created during a handoff
   race. It was terminated after step 1 and is invalid; attempt 1 continues.
 - Config `129` attempt 1, run `001-20260718-190208-c6152824`, is an invalid
@@ -34,11 +30,11 @@ work.
   the first training event. Retry 2 completed from the same immutable config.
 - Configs `129--133` materialize the next ordinary architecture-parent set:
   A4-Q, A4-K, A4-V, A5-QK-PRE, and A5-QK-POST. They passed preflight and are
-  ready for sequential local launch. Configs `129--130` completed; config
-  `131` (A4-V) is running; configs `132--133` remain queued.
-- B0 has completed `7 / 22` scientific cells; 15 remain, of which 13 are
+  ready for sequential local launch. Configs `129--131` completed; config
+  `132` (A5-QK-PRE) is active pending local launch; config `133` remains queued.
+- B0 has completed `8 / 22` scientific cells; 14 remain, of which 12 are
   executable and two post-PV context cells remain blocked. The declared S1
-  core has completed `7 / 134` cells (`7 / 132` executable).
+  core has completed `8 / 134` cells (`8 / 132` executable).
   Diagnostic configs do not count as scientific cells.
 - S1 must never use a global rank cutoff. Complete matched method panels from
   viable families advance to the 8,192-step rung under the frozen policy in
