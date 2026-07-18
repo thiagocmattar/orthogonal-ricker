@@ -1047,3 +1047,43 @@ records:
     failure_message: null
     reviewed_at: 2026-07-18T20:57:16.4488333Z
     notes: Canonical statusless-complete schema-v3 diagnostic over the five exact canonical source runs for configs 129--133. It evaluated all 152 complete 2048-token sequences in the named selection partition (311296 tokens), explicitly excluded 443 trailing cache tokens, and emitted pooled exact-zero counts, per-operation direct zero-product counts, architecture ceilings, U_arch, and PRE-RoPE zero-survival diagnostics. All five source manifests were completed and shared the pinned partition and token-cache identities.
+  - design_id: S1-B0-LR-A0-LR1EM5-S0
+    config_id: 135-s1-b0-p14m-a0-adamw-lr1em5-s0
+    run_id: 001-20260718-210843-fd04a711
+    attempt: 1
+    mode: pretrain
+    result_path: results/135-s1-b0-p14m-a0-adamw-lr1em5-s0/001-20260718-210843-fd04a711
+    log_path: run-logs/135-s1-b0-p14m-a0-adamw-lr1em5-s0-pretrain-attempt1.log
+    lifecycle_status: running
+    evidence_status: unreviewed
+    canonical: false
+    started_at: 2026-07-18T21:08:43.376456Z
+    finished_at: null
+    git_commit: db15564ab1ea69fb4ccf23050e01e45f5c5105e8
+    git_dirty: false
+    completed_steps: 0
+    tokens_seen: 0
+    model_initialization_seed: 0
+    data_order_seed: 0
+    training_schedule_scheme: random_contiguous_blocks_with_replacement_v1
+    training_schedule_hash: db4fa092d7092d29edc3bf1e2005af69f4a92b8bf6e6d88cbb6a166e12be02fc
+    effective_tokens_per_update: 65536
+    validation_partition: selection
+    validation_partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
+    validation_tokens: 311296
+    validation_loss: null
+    wall_hours: null
+    tokens_per_second: null
+    peak_gpu_mb: null
+    execution_backend: local
+    cloud_provider: null
+    gpu_type: NVIDIA GeForce RTX 5070 Ti Laptop GPU
+    gpu_count: 1
+    python_version: 3.12.10
+    pytorch_version: 2.11.0+cu128
+    cuda_version: "12.8"
+    gpu_driver_version: "572.84"
+    failure_type: null
+    failure_message: null
+    reviewed_at: null
+    notes: A0 AdamW LR1EM5 flank launched outside sandbox process containment from clean commit db15564 as PID 54612. Stderr is in run-logs/135-s1-b0-p14m-a0-adamw-lr1em5-s0-pretrain-attempt1-stderr.log. Expected terminal window is 2026-07-18T21:26--21:28Z.

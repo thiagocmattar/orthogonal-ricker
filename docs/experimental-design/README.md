@@ -25,8 +25,11 @@ work.
   selection loss `7.03064`.
 - Config `134`, run `001-20260718-205354-8821b592`, completed the pooled
   exact-zero diagnostic over canonical configs `129--133`.
-- Config `135` (A0, LR `1e-5`) is active pending local launch. Configs
-  `136--144` are queued in the same LR-flank set.
+- Active run: config `135` A0 at LR `1e-5`, run
+  `001-20260718-210843-fd04a711`, started `2026-07-18T21:08:43Z`, result path
+  `results/135-s1-b0-p14m-a0-adamw-lr1em5-s0/001-20260718-210843-fd04a711`.
+  Expected terminal window is `2026-07-18T21:26--21:28Z`; configs `136--144`
+  are queued in the same LR-flank set.
 - Config `133` attempt 2 was an accidental duplicate created during a handoff
   race. It was terminated after step 1 and is invalid; attempt 1 completed.
 - Config `131` attempt 2 was an accidental duplicate created during a handoff
