@@ -11,6 +11,7 @@ This folder is used for internal discussion reports. Keep report source and fina
 | `03` | ReLU site-scope comparison | `03-2026-07-09-relu-site-scope-comparison/03-2026-07-09-relu-site-scope-comparison.pdf` |
 | `04` | Post-LayerNorm Three-ReLU comparison | `04-2026-07-11-post-layernorm-relu-ol1-comparison/04-2026-07-11-post-layernorm-relu-ol1-comparison.pdf` |
 | `05` | Post-QKV ReLU placement comparison | `05-2026-07-17-post-qkv-relu-placement-comparison/05-2026-07-17-post-qkv-relu-placement-comparison.pdf` |
+| `06` | Threshold-gating early evidence and learnable ablation plan | `06-2026-07-18-threshold-gating-study/06-2026-07-18-threshold-gating-study.pdf` |
 
 ## Naming
 

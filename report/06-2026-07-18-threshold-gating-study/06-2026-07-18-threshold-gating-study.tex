@@ -1,0 +1,253 @@
+\documentclass[10pt]{article}
+
+\usepackage[margin=0.72in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{enumitem}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue!55!black,
+  urlcolor=blue!55!black
+}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.38em}
+\setlist[itemize]{leftmargin=1.3em, itemsep=0.10em, topsep=0.12em}
+\setlist[enumerate]{leftmargin=1.5em, itemsep=0.14em, topsep=0.14em}
+\captionsetup{font=small, labelfont=bf}
+
+\newcommand{\code}[1]{\texttt{#1}}
+\newcommand{\pct}{\%}
+\newcommand{\tightsection}[1]{\section{#1}\vspace{-0.35em}}
+\newcommand{\Rblock}{R_{\rm block}}
+\newcommand{\Rmodel}{R_{\rm model}}
+
+\title{Threshold Gates for Activation Sparsity:\\Early Fixed-sReLU Evidence and Learnable Ablation Plan}
+\author{Thiago Mattar\\\href{mailto:thiagocmattar@gmail.com}{thiagocmattar@gmail.com}}
+\date{2026-07-18}
+
+\begin{document}
+\maketitle
+\vspace{-1.35em}
+
+\begin{quote}
+\begin{itemize}[leftmargin=1.2em]
+\item \textbf{Working name.} Use \emph{Adaptive Threshold Gates} (ATGs) as the umbrella name. ATG$^+$ is a one-sided thresholded ReLU; ATG$^{\pm}$ is the signed magnitude gate currently called sReLU. ``Adaptive'' is reserved for learned $\kappa$; fixed-$\kappa$ gates are fixed ATGs.
+\item \textbf{Early AdamW result.} Replacing ordinary POST Q/K/V ReLUs with fixed ATG$^{\pm}_{0.1}$ lowers validation loss from 5.0991 to 4.9829, but lowers $\Rmodel$ from 12.91\pct{} to 12.12\pct{}. Signed-value preservation helps this single-run endpoint; a fixed absolute threshold does not prevent scale evasion.
+\item \textbf{Early OR result.} With the inherited $c=\sigma=0.05$, OR reduces $\Rmodel$ from 12.12\pct{} to 6.09\pct{} on fixed ATG$^{\pm}_{0.1}$. This is a geometric incompatibility: $\sqrt{3}c=0.0866<\kappa$, so every nonzero survivor begins outside the Ricker attraction basin.
+\item \textbf{Learnable does not mean directly differentiable.} A hard comparison has zero $\kappa$-gradient almost everywhere. A learned ATG therefore needs an explicit estimator, checkpointed threshold parameters, and a sparsity/compute incentive; task loss alone is expected to favor smaller thresholds.
+\item \textbf{Recommended program.} Use a matched 2,048-step, 134.2M-token screen, promote Pareto candidates to 8,192 steps, then run full-pass multi-seed confirmations. Do not run a full Cartesian product or compare partial endpoints with full-pass endpoints.
+\item \textbf{Evidence boundary.} All reported training endpoints are seed-0, random-initialized Pythia-14M pretraining over one MiniPile token-cache pass. Logical zero products are not measured speedups. Config 119 is provisional because its terminal artifact publication failed after training and validation had finished.
+\end{itemize}
+\end{quote}
+
+\tightsection{Gate Family and Placement}
+
+For a scalar activation $x$ and nonnegative threshold $\kappa$, define
+\begin{align}
+G^+_{\kappa}(x) &= x\,\mathbf{1}[x\geq\kappa],
+&G^{\pm}_{\kappa}(x) &= x\,\mathbf{1}[|x|\geq\kappa].
+\label{eq:gates}
+\end{align}
+$G^+_0$ is ordinary ReLU. $G^{\pm}_0$ is the identity apart from signed zero, not ReLU. The harness name \code{symmetric\_threshold} and the shorthand ``sReLU'' refer to $G^{\pm}$, but \emph{symmetric magnitude gate} is mathematically clearer because negative survivors remain negative.
+
+The proposed nomenclature is:
+\begin{itemize}
+\item \textbf{fixed ATG$^+$ / fixed ATG$^{\pm}$:} $\kappa$ is a hyperparameter;
+\item \textbf{learned ATG$^+$ / learned ATG$^{\pm}$:} $\kappa$ is optimized;
+\item \textbf{scope:} always name the gated sites, for example POST-QKV learned ATG$^{\pm}$ or Three-ReLU learned ATG$^+$.
+\end{itemize}
+This is working project nomenclature, not a novelty claim.
+
+The completed fixed-threshold experiment keeps ordinary ReLU at the three branch sites
+\(a_l=\operatorname{ReLU}(\operatorname{LN}^{\rm att}_l(H_l))\),
+\(m_l=\operatorname{ReLU}(\operatorname{LN}^{\rm mlp}_l(H_l))\), and
+\(h_l=\operatorname{ReLU}(m_lW_{1,l}+b_{1,l})\). It changes only the post-QKV gates:
+\begin{align*}
+[Q_l^0,K_l^0,V_l^0] &= a_lW_{{\rm qkv},l}+b_{{\rm qkv},l},\\
+Q_l &= G^{\pm}_{0.1}(\operatorname{RoPE}(Q_l^0)),
+&K_l &= G^{\pm}_{0.1}(\operatorname{RoPE}(K_l^0)),
+&V_l &= G^{\pm}_{0.1}(V_l^0),\\
+P_l &= \operatorname{softmax}(Q_lK_l^\top/\sqrt{d_h}+\mathcal{M}),
+&C_l &= P_lV_l.
+\end{align*}
+Thus Q/K are gated after RoPE and V immediately before PV. Future learned ATG$^+$ tests may also replace the ordinary ReLUs at $a_l,m_l,h_l$; those are distinct architectures and require matched controls.
+
+\tightsection{Hypotheses}
+
+\begin{enumerate}
+\item \textbf{Signed preservation.} ATG$^{\pm}$ can retain informative negative Q/K/V values that ordinary ReLU removes, improving quality at comparable logical compute.
+\item \textbf{Site heterogeneity.} Q, K, V, attention/MLP inputs, and MLP hiddens have different scales and loss sensitivities. Per-layer, per-site thresholds should dominate one global absolute $\kappa$.
+\item \textbf{Scale evasion.} A fixed absolute cutoff can be bypassed by moving surviving magnitudes outside $[-\kappa,\kappa]$. RMS-relative thresholds or an explicit active-mask cost may be necessary.
+\item \textbf{Pressure compatibility.} L1 can pull survivors across a hard boundary. Ricker pressure can do so only when its inward-gradient basin overlaps the survivor region; RN and OR share this scalar-field requirement even though their optimizer coupling differs.
+\item \textbf{Compute-aware learning.} Optimizing average activation sparsity is not equivalent to optimizing $\Rmodel$. Gate learning should eventually weight QKV, valid-causal QK/PV, $W_o$, $W_1$, and $W_2$ by their logical product counts.
+\item \textbf{Partial-budget predictiveness.} A 2,048-step screen should expose collapse and gross incompatibility, but candidate ranking must be backtested and rechecked at longer budgets.
+\end{enumerate}
+
+\tightsection{Completed Full-Pass Evidence}
+
+Every row uses the same random-initialized 14,067,712-parameter Pythia-14M architecture, seed 0, 22,762 optimizer steps, 1,491,730,432 training tokens, and full validation on 692,224 tokens. OR uses $w=1$, $c=\sigma=0.05$, and step budget $b=0.5$; OL1 uses $w=5$ and $b=0.5$. Fixed gates add no parameters.
+
+\begin{table}[H]
+\centering
+\caption{Training endpoints. The closest causal contrasts are 118 versus 110, 119 versus 111, and 119 versus 118. Configs 50, 77, and 98 are progressively more distant architecture anchors.}
+\label{tab:endpoints}
+\scriptsize
+\setlength{\tabcolsep}{3.8pt}
+\begin{tabularx}{\textwidth}{rXlllrrl}
+\toprule
+Cfg. & Architecture & Method & Q/K/V gate & $\kappa$ & Val. loss & Time (h) & Evidence \\
+\midrule
+50  & Stock GELU & AdamW & none & --- & 4.8317 & 3.010 & complete \\
+77  & One-ReLU & AdamW & none & --- & 4.8404 & 2.897 & complete \\
+98  & Three-ReLU & AdamW & none & --- & 4.9564 & 3.449 & complete \\
+110 & Six-ReLU POST & AdamW & $G^+$ & 0 & 5.0991 & 3.455 & complete \\
+111 & Six-ReLU POST & OR & $G^+$ & 0 & 5.1358 & 4.212 & complete \\
+112 & Six-ReLU POST & OL1 & $G^+$ & 0 & 5.1731 & 4.087 & complete \\
+118 & POST fixed ATG$^{\pm}$ & AdamW & $G^{\pm}$ & 0.1 & 4.9829 & 3.249 & complete \\
+119$^{\dagger}$ & POST fixed ATG$^{\pm}$ & OR & $G^{\pm}$ & 0.1 & 5.0122 & 4.275 & provisional \\
+\bottomrule
+\end{tabularx}
+\vspace{0.25em}
+
+\scriptsize Throughput (tokens/s), in row order: 137,648; 143,021; 120,139; 119,932; 98,389; 101,399; 127,520; 96,925. Dense PyTorch executes the same matmuls, so these differences are architecture/method overhead and run variability, not sparse acceleration.
+\end{table}
+
+An activation is counted as exactly zero only when its computed floating-point value satisfies $x=0$; there is no tolerance. Table~\ref{tab:zeros} pools integer counts across all six layers, all 338 complete validation sequences, all 692,224 evaluated tokens, and every relevant feature/head coordinate. For QK and PV, only valid causal pairs enter the product denominators.
+
+\begin{table}[H]
+\centering
+\caption{Full-validation exact-zero and logical-product outcomes. The two zero-rate columns report $z_a/z_m/z_h$ and $z_Q/z_K/z_V$, respectively; Q/K/V are the actual POST QK/PV operands. $\Rblock$ counts logical zero products inside transformer blocks. $\Rmodel$ uses the same numerator and adds the dense LM head to the denominator. Neither is latency.}
+\label{tab:zeros}
+\scriptsize
+\setlength{\tabcolsep}{4.5pt}
+\begin{tabular}{rllrllrr}
+\toprule
+Cfg. & Architecture & Method & Val. loss & $z_a/z_m/z_h$ & $z_Q/z_K/z_V$ & $\Rblock$ & $\Rmodel$ \\
+\midrule
+50  & Stock & AdamW & 4.8317 & ---/---/--- & ---/---/--- & 0.00\pct{} & 0.00\pct{} \\
+77  & One-ReLU & AdamW & 4.8404 & ---/---/52.06\pct{} & ---/---/--- & 7.44\pct{} & 2.23\pct{} \\
+98  & Three-ReLU & AdamW & 4.9564 & 49.54/50.14/50.72\pct{} & ---/---/--- & 19.71\pct{} & 5.90\pct{} \\
+110 & POST ReLU & AdamW & 5.0991 & 48.52/50.06/50.11\pct{} & 15.68/23.18/49.24\pct{} & 43.12\pct{} & 12.91\pct{} \\
+111 & POST ReLU & OR & 5.1358 & 48.56/49.82/50.19\pct{} & 64.13/65.77/50.39\pct{} & 55.03\pct{} & 16.48\pct{} \\
+112 & POST ReLU & OL1 & 5.1731 & 48.54/49.72/50.37\pct{} & 81.21/81.39/51.33\pct{} & 59.50\pct{} & 17.82\pct{} \\
+118 & POST fixed ATG$^{\pm}$ & AdamW & 4.9829 & 48.93/49.95/50.99\pct{} & 5.46/10.84/57.15\pct{} & 40.48\pct{} & 12.12\pct{} \\
+119$^{\dagger}$ & POST fixed ATG$^{\pm}$ & OR & 5.0122 & 49.37/50.28/48.06\pct{} & 0.75/0.79/2.01\pct{} & 20.34\pct{} & 6.09\pct{} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[H]
+\centering
+\caption{Matched deltas; positive $\Delta\Rmodel$ means more potentially avoidable logical products. Config 119 comparisons remain provisional.}
+\label{tab:deltas}
+\small
+\setlength{\tabcolsep}{5.0pt}
+\begin{tabularx}{\textwidth}{XrrrX}
+\toprule
+Contrast & $\Delta\mathcal{L}_{\rm val}$ & $\Delta\Rblock$ & $\Delta\Rmodel$ & Readout \\
+\midrule
+Fixed ATG$^{\pm}$ vs ReLU, AdamW (118--110) & $-0.1162$ & $-2.64$ pp & $-0.79$ pp & Better loss, slightly less compute opportunity \\
+OR vs AdamW, POST ReLU (111--110) & $+0.0366$ & $+11.91$ pp & $+3.57$ pp & OR increases ordinary-ReLU sparsity \\
+OR vs AdamW, fixed ATG$^{\pm}$ (119--118) & $+0.0293$ & $-20.14$ pp & $-6.03$ pp & OR drives symmetric-gate survivors outward \\
+Fixed ATG$^{\pm}$ vs ReLU, OR (119--111) & $-0.1235$ & $-34.69$ pp & $-10.39$ pp & Better loss, much lower logical sparsity \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+The clean AdamW contrast supports signed preservation as a quality hypothesis, but not as a sparsity result: Q/K zeros fall, V zeros rise, and net $\Rmodel$ falls by 0.79 points. The fixed threshold is also scale-sensitive: $|x|\geq0.1$ is a local numerical condition, not a guaranteed density target.
+
+\textbf{Artifact boundary.} Config 118 is completed. Config 119 reached all 22,762 steps, saved metrics and its final checkpoint, and completed the 692,224-token validation. Its manifest is nevertheless terminal \code{failed}: the atomic predictions temporary path was 261 characters on Windows, so \code{predictions.jsonl} was not published. Diagnostic config 120 explicitly records \code{source\_manifest\_status: failed}; this report does not repair or promote that run. The pinned IDs are \code{001-20260717-211157-e6f8dda0}, \code{001-20260718-002702-ebfeb045}, and diagnostic \code{001-20260718-104753-25aa16e9}.
+
+\tightsection{Why the Inherited OR Setting Is Incompatible}
+
+For activation $u$, the Ricker score and minimized pressure are
+\begin{align*}
+f(u)&=\left(1-\frac{u^2}{c^2}\right)\exp\!\left(-\frac{u^2}{2\sigma^2}\right),
+&\mathcal{P}(u)&=1-f(u).
+\end{align*}
+When $c=\sigma$, gradient descent on $\mathcal{P}$ moves values inward only for $|u|<\sqrt{3}c$ and outward for $|u|>\sqrt{3}c$. In config 119,
+\[
+\sqrt{3}c=\sqrt{3}(0.05)=0.0866 < \kappa=0.1.
+\]
+Every nonzero ATG$^{\pm}_{0.1}$ output therefore begins in the outward region. Values inside the dead zone are exactly zero and the hard gate blocks the ordinary activation gradient there. The observed aggregate Q/K/V exact-zero rate falls from 47.75\pct{} at step 1 to 2.14\pct{} by step 1,000 and 1.22\pct{} in the final training minibatch; full validation gives 1.18\pct{}. AdamW instead ends at 23.63\pct{} in the final minibatch and 24.48\pct{} on full validation.
+
+This is evidence against the inherited pair $(\kappa,c)=(0.1,0.05)$, not against Ricker pressure in general and not an OR-versus-RN conclusion. A compatible Ricker test must predeclare $c,\sigma$ relative to $\kappa$ and the observed activation scale; for $c=\sigma$, at minimum the survivor boundary must overlap $|u|<\sqrt{3}c$. OL1 is the cleaner next pressure control because it has no finite attraction basin.
+
+\tightsection{Making the Threshold Learnable}
+
+Simply wrapping $\kappa$ in a trainable parameter is insufficient: the indicator in Equation~\ref{eq:gates} has zero derivative with respect to $\kappa$ almost everywhere. The first implementation should use a hard-forward, soft-backward mask. Let $v=x$ for ATG$^+$ and $v=|x|$ for ATG$^{\pm}$:
+\begin{align*}
+m_h &= \mathbf{1}[v\geq\kappa],
+&m_s &= \operatorname{sigmoid}\!\left(\frac{v-\kappa}{\tau}\right),\\
+m &= m_s+\operatorname{stopgrad}(m_h-m_s),
+&y &= xm.
+\end{align*}
+The forward pass remains exactly sparse; the backward pass supplies a local $\kappa$ gradient. Parameterize $\kappa=\operatorname{softplus}(\rho)$ in FP32, exclude $\rho$ from weight decay, and start with one scalar per layer/site. POST Q/K/V then adds only 18 threshold scalars.
+
+The implementation contract is:
+\begin{itemize}
+\item log $\kappa$, its gradient/step norm, transition-band mass, and the pre-gate margin $v-\kappa$ by layer/site;
+\item preserve threshold parameters and metadata through final checkpoint save/reload, then require output and exact-zero equality after a round trip;
+\item keep a distinct threshold-parameter optimizer group so its learning-rate multiplier survives scheduling;
+\item compare absolute $\kappa$ with an RMS-relative variant after the basic path is verified;
+\item do not call task-only threshold learning a sparsity objective. Task loss will often shrink $\kappa$ to recover signal; add an explicit soft active-mask/compute cost or a target-density dual as a separate method when needed.
+\end{itemize}
+
+Report 05's site-specific and model-compute post-hoc clipping frontiers (Figures 101--102) already motivate nonuniform thresholds: Q, K, V, and the branch/MLP gates tolerate different cutoffs. They are ordinary-ReLU checkpoint diagnostics, not learned-ATG results.
+
+\tightsection{Partial-Run Screening Design}
+
+The proposal is a \emph{fixed token budget on the existing full MiniPile cache}, not a permanently reduced document subset. Keep the same 65,536 tokens/step, sampler seed, warmup, batch/accumulation settings, and full 692,224-token final validation for every matched row. This reduces cost without changing the data source. Partial and full-pass endpoints must never be mixed in one numerical ranking.
+
+\begin{table}[H]
+\centering
+\caption{Staged screen. Counts are upper bounds; later stages depend on promotion.}
+\label{tab:screen}
+\scriptsize
+\setlength{\tabcolsep}{4.2pt}
+\begin{tabularx}{\textwidth}{lrrXX}
+\toprule
+Stage & Steps/tokens & Runs & Variables & Purpose / expected cost \\
+\midrule
+Engineering pilot & 128 / 8.39M & few & $\tau$; $\kappa$ LR; checkpoint round trip & Plumbing only; never scientific evidence \\
+AdamW screen & 2,048 / 134.22M & 14 & Three matched controls; fixed ATG$^+_{.03,.10}$; fixed ATG$^{\pm}_{.03,.05,.10,.20}$; learned ATG$^+$ at 1/3/6-gate scopes; learned POST-QKV ATG$^{\pm}$ initialized at .03/.10 & About 4.2 GPU-h total \\
+Pressure screen & 2,048 / 134.22M & $\leq8$ & L1N, OL1, RN, OR on at most two Pareto gate candidates; geometry-aligned Ricker & About 3--4.5 GPU-h \\
+Longer rung & 8,192 / 536.87M & $\leq4$ & Rerun promoted candidates from scratch with matched controls & About 5--6.5 GPU-h \\
+Confirmation & 22,762 / 1.492B & $\leq2$ & Full-pass finalists; at least three seeds & Roughly 3--4.5 h per run \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+The 2,048-step budget is the established harness screen: 9.0\pct{} of one full pass. Existing throughput implies about 17.5--18.7 minutes for POST AdamW and 22--23 minutes for OR/OL1; naive pressure may be slower. It is long enough to expose the observed incompatibility---fixed ATG$^{\pm}$/OR had already fallen to about 1\pct{} aggregate gate zeros by step 2,000---but not long enough to establish the final ordering.
+
+Before launching the grid, backtest whether validation-loss and $\Rmodel$ rankings around step 2,000 agree with the available full-pass runs. Use successive halving rather than a Cartesian product. Hold model learning rate and effective batch size fixed in the primary screen; vary them one axis at a time only for a promoted gate/method pair.
+
+\textbf{Proposed promotion rule.} Require a valid artifact, finite training, exact learned-$\kappa$ reload, and membership on the matched-budget $(\mathcal{L}_{\rm val},\Rmodel)$ Pareto frontier. As a permissive screen, pre-register $\Delta\mathcal{L}_{\rm val}\leq+0.05$ versus the same-topology AdamW control and require either at least +1 percentage point $\Rmodel$ or a clear loss gain without lower $\Rmodel$. Also reject universal $\kappa\rightarrow0$, runaway/all-zero gates, or sharply declining sparsity over the final quarter. These are screening rules, not paper claims.
+
+\tightsection{Prioritized TODOs}
+
+\begin{enumerate}
+\item \textbf{Implement learned ATGs safely:} STE/relaxation, FP32 threshold group, checkpoint reconstruction, metrics, and tests.
+\item \textbf{Run the AdamW fixed-$\kappa$ ladder:} especially ATG$^{\pm}$ at 0.03, 0.05, 0.10, and 0.20 with matched 2,048-step controls.
+\item \textbf{Run learned thresholds:} ATG$^{\pm}$ on POST Q/K/V and ATG$^+$ on the One-, Three-, and Six-gate scopes; compare global, per-site, and per-layer/site $\kappa$ only after the basic path works.
+\item \textbf{Add pressure controls:} OL1 first, then L1N; run RN/OR only with a Ricker basin aligned to $\kappa$. If the orthogonal correction cap is active almost always, vary step budget before nominal pressure weight.
+\item \textbf{Ablate attention scope:} Q-only, K-only, V-only, QK, and QKV; then revisit PRE versus POST RoPE for the best threshold family.
+\item \textbf{Add a direct compute incentive:} soft active-mask cost or target-$\Rmodel$ dual if task-only learned $\kappa$ collapses toward zero.
+\item \textbf{Tune after promotion:} threshold learning rate/temperature, model learning rate, RN/OR/L1 weights and budgets, then effective batch size. Do not cross all axes at once.
+\item \textbf{Confirm robustness:} longer budgets, at least three seeds, larger Pythia models, and measured latency only after a compatible sparse kernel exists.
+\item \textbf{Defer probability gating:} softmax $P$ is positive, so ordinary ReLU is inactive there; retain learnable positive probability thresholding as a separate TODO.
+\end{enumerate}
+
+\tightsection{Current Recommendation}
+
+Proceed with the staged partial-budget design. The immediate scientific priority is not another full-pass run: it is to determine whether the early fixed-ATG behavior is stable across $\kappa$, whether learned thresholds can remain nontrivial under a well-defined gradient estimator, and whether OL1 improves the quality--$\Rmodel$ frontier. Keep the inherited OR result as a useful negative control, then rerun Ricker only after its basin is made compatible with the gate boundary.
+
+\end{document}
