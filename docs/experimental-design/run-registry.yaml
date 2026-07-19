@@ -1842,7 +1842,65 @@ records:
     cuda_version: "12.8"
     gpu_driver_version: "572.84"
     token_cache_sha256: 22bb7c27864f0e5941548c572d6c75b1b5ba6a4c13e4cd26f40f4de546c5cc19
+    propagation_result_path: results/150-s1-b1-gplus-pre-qk-k003-selection-prop/001-20260719-014532-32cc5f54/activation_propagation.json
+    r_block: 0.2906683818708678
+    r_model: 0.08706208948174961
+    r_block_max: 0.6785216178521618
+    r_model_max: 0.20323335282813937
+    u_arch: 0.42838485056816483
+    z_a: 0.5106828631016246
+    z_m: 0.5111776067499529
+    z_h: 0.45955037652400504
+    z_q_gate: 0.18626370346337034
+    z_k_gate: 0.3063818697343793
+    z_v_gate: null
+    z_q_qk: 0.14745762055380301
+    z_k_qk: 0.26115003803320097
+    z_v_pv: 2.9279474626507674e-08
+    z_context_wo: 8.365564179002193e-09
     failure_type: null
     failure_message: null
     reviewed_at: 2026-07-19T01:42:59.4974990Z
-    notes: Completed first B1 scientific cell from clean launch commit 06a29e5 with 42 training and 10 complete-selection validation events. The final checkpoint SHA256 is e8e4456244afa1c772cc7eed9c114b9df276182f2643e36682eb56903db3999a; optimizer state was intentionally not saved. Exact reload recovered ordinary a/m/h ReLU plus fixed G+ kappa 0.03 at PRE-RoPE q/k in all six layers, with V absent and the final LayerNorm ungated. The mandatory selection propagation diagnostic is pending; S1 supports feasibility/collapse and within-stratum comparisons only.
+    notes: Completed first B1 scientific cell from clean launch commit 06a29e5 with 42 training and 10 complete-selection validation events. The final checkpoint SHA256 is e8e4456244afa1c772cc7eed9c114b9df276182f2643e36682eb56903db3999a; optimizer state was intentionally not saved. Exact reload recovered ordinary a/m/h ReLU plus fixed G+ kappa 0.03 at PRE-RoPE q/k in all six layers, with V absent and the final LayerNorm ungated. Canonical diagnostic config 150 supplies the attached complete-selection exact-zero and product endpoints; S1 supports feasibility/collapse and within-stratum comparisons only.
+  - design_id: S1-B1-DIAG-FIX-GPLUS-PRE-QK-K003-SELECTION-S0
+    config_id: 150-s1-b1-gplus-pre-qk-k003-selection-prop
+    run_id: 001-20260719-014532-32cc5f54
+    attempt: 1
+    mode: activation-propagation
+    result_path: results/150-s1-b1-gplus-pre-qk-k003-selection-prop/001-20260719-014532-32cc5f54
+    log_path: null
+    lifecycle_status: statusless_complete
+    evidence_status: valid
+    canonical: true
+    started_at: 2026-07-19T01:45:32.000000Z
+    finished_at: 2026-07-19T01:45:37.8267755Z
+    git_commit: d6a916ed7ff1ca3d0c551959d25266711a6e4fa3
+    git_dirty: false
+    completed_steps: 0
+    tokens_seen: 0
+    model_initialization_seed: 0
+    data_order_seed: 0
+    training_schedule_scheme: null
+    training_schedule_hash: null
+    effective_tokens_per_update: null
+    validation_partition: selection
+    validation_partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
+    validation_tokens: 311296
+    validation_loss: null
+    wall_hours: 0.0013744125277702955
+    tokens_per_second: 62914.96138455088
+    peak_gpu_mb: 670.9775390625
+    execution_backend: local
+    cloud_provider: null
+    gpu_type: NVIDIA GeForce RTX 5070 Ti Laptop GPU
+    gpu_count: 1
+    python_version: 3.12.10
+    pytorch_version: 2.11.0+cu128
+    cuda_version: "12.8"
+    gpu_driver_version: "572.84"
+    token_cache_sha256: 22bb7c27864f0e5941548c572d6c75b1b5ba6a4c13e4cd26f40f4de546c5cc19
+    propagation_result_path: results/150-s1-b1-gplus-pre-qk-k003-selection-prop/001-20260719-014532-32cc5f54/activation_propagation.json
+    failure_type: null
+    failure_message: null
+    reviewed_at: 2026-07-19T01:45:53.8604849Z
+    notes: Canonical statusless-complete schema-v3 diagnostic over the exact completed config 149 checkpoint. It pooled all 311296 complete selection tokens, excluded 443 trailing cache tokens, recovered the intended A5-QK-PRE gate topology, and emitted exact-zero, direct-product, architecture-ceiling, and PRE-RoPE survival counts. The five-file envelope and completed source manifest passed review.
