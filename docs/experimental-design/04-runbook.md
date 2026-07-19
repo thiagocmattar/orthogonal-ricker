@@ -162,6 +162,36 @@ At launch:
 Commit the launch registry update before launching another config. This returns
 the tree to clean state and preserves `git_dirty: false` for the next launch.
 
+For a prespecified local tranche of independent pretraining cells, use the
+durable serial queue instead of hand-launching each child:
+
+```text
+python -m paper_exp.cli run-pretrain-queue \
+  --config configs/<first>.yaml \
+  --config configs/<second>.yaml \
+  --state-path run-logs/<tranche>-queue.json \
+  --logs-dir run-logs/<tranche>
+```
+
+Tranche mode is valid only when every queued config and its `ready` registry
+record are committed together before the queue starts. The queue launches one
+blocking child at a time, checks for a clean tree and any existing running
+pretrain before every child, verifies the terminal artifact envelope, and
+stops on the first inconsistency or failure. Its ignored atomic state file and
+logs are orchestration aids; result manifests and artifacts remain
+authoritative. Reusing a failed queue state is forbidden: inspect the terminal
+artifacts and use a new state path for an explicit retry.
+
+Do not edit the queue's execution checkout while it is active. If engineering
+continues concurrently, run the tranche from a separate clean Git worktree at
+the committed launch SHA. Ensure `PYTHONPATH` resolves to that worktree's
+`src`, rather than an editable installation from a different dirty checkout,
+and route writable data/results to the intended durable storage. After the
+tranche ends, reconcile all child manifests into both registries in one
+set-level commit before launching its numbered diagnostic. This bounded
+exception replaces per-child launch/terminal registry commits; it does not
+relax immutable configs, clean launch provenance, or terminal review.
+
 Do not launch the next pressure member if its matched control failed preflight.
 Independent cells may run in parallel only when GPU memory, data-cache access,
 and registry allocation remain unambiguous.
@@ -201,7 +231,8 @@ After the process exits:
 8. mark evidence `valid`, `provisional`, or `invalid`, with a reason;
 9. select at most one canonical run; close the config only if that run is
    accepted or no retry will occur, otherwise return it to `ready`;
-10. commit terminal registry updates before another launch;
+10. commit terminal registry updates before another launch, or reconcile the
+    full completed tranche in one set-level commit under the queue protocol;
 11. only then launch its numbered validation diagnostics.
 
 Training envelope:

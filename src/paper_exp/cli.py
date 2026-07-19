@@ -19,6 +19,7 @@ from paper_exp.plots import (
     generate_report05_figures,
     generate_run_diagnostics,
 )
+from paper_exp.pretrain_queue import run_pretrain_queue
 from paper_exp.run import run_baseline, run_smoke
 from paper_exp.sweeps import run_pressure_fixed_step_clipping_sweeps
 from paper_exp.sweeps import run_pressure_fixed_step_sweep
@@ -47,6 +48,27 @@ def build_parser() -> argparse.ArgumentParser:
 
     pretrain = subparsers.add_parser("pretrain", help="Run a random-initialized pretraining job.")
     pretrain.add_argument("--config", default="configs/02-pythia-14m-minipile-baseline.yaml")
+
+    pretrain_queue = subparsers.add_parser(
+        "run-pretrain-queue",
+        help="Run committed pretraining configs sequentially with durable queue state.",
+    )
+    pretrain_queue.add_argument(
+        "--config",
+        action="append",
+        required=True,
+        help="Config path to enqueue; repeat this option to preserve launch order.",
+    )
+    pretrain_queue.add_argument(
+        "--state-path",
+        default="run-logs/pretrain-queue-state.json",
+        help="Atomic JSON queue-state path.",
+    )
+    pretrain_queue.add_argument(
+        "--logs-dir",
+        default="run-logs",
+        help="Directory for separate child stdout and stderr logs.",
+    )
 
     plots = subparsers.add_parser("plots", help="Regenerate paper-style plots from saved results.")
     plots.add_argument("--results", default="results")
@@ -238,6 +260,18 @@ def main(argv: list[str] | None = None) -> int:
             config = load_config(args.config, allow_todos=False)
             run_dir = run_calibration(config, config_path=args.config, command=command, mode="pretrain")
             print(f"Pretraining run written to {run_dir}")
+            return 0
+
+        if args.command == "run-pretrain-queue":
+            state = run_pretrain_queue(
+                args.config,
+                state_path=args.state_path,
+                logs_dir=args.logs_dir,
+            )
+            print(
+                f"Pretraining queue {state['queue_id']} completed "
+                f"{len(state['items'])} config(s); state written to {args.state_path}"
+            )
             return 0
 
         if args.command == "plots":

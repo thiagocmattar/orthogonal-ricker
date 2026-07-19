@@ -12,21 +12,21 @@ work.
 - Current phase: E0.1 and all currently executable S1-B0 cells are complete;
   the fixed-gate engineering gate passed, and the first twenty-four S1-B1
   scientific cells and their mandatory complete-selection diagnostics are
-  complete. Config `197`, the first POST site-isolation cell, is active from
-  clean commit `52cf42a`. The 2,048-step screen remains restricted to
+  complete. Config `197`, the first POST site-isolation cell, also completed;
+  configs `198--202` materialize the remaining five site-isolation cells for
+  the next serial-GPU tranche. The 2,048-step screen remains restricted to
   feasibility/collapse and within-stratum comparisons.
-- Next config prefix: `198`.
+- Next config prefix: `203` (reserved for the pooled site-isolation diagnostic).
 - The five central B0 anchors, configs `123--127`, completed and passed
   terminal review. Their final selection losses are `7.04913` (A0),
   `6.98875` (A1-H), `7.01310` (A3), `7.01645` (A6-PRE), and `7.03248`
   (A6-POST). Config `128`, the combined selection-partition endpoint
   diagnostic, also completed and passed artifact review. Configs `121--122`
   remain accepted engineering controls.
-- Last completed scientific run: config `195`, fixed `Gpm` POST-RoPE Q/K plus
-  post-split V at `kappa=0.30`, run `001-20260719-131409-70c042d7`, selection
-  loss `7.02043`.
-- Active scientific run: config `197`, fixed `G+` POST-RoPE Q-only at
-  `kappa=0.10`, run `001-20260719-134717-3cfc0e0f`.
+- Last completed scientific run: config `197`, fixed `G+` POST-RoPE Q-only at
+  `kappa=0.10`, run `001-20260719-134717-3cfc0e0f`, selection loss `7.02146`.
+- Active scientific run: none; configs `198--202` are the next committed
+  serial-GPU tranche after preflight.
 - Config `196`, run `001-20260719-134214-2cfa55c7`, completed config `195`'s
   mandatory diagnostic at `R_block=0.65130` and `R_model=0.19508`.
 - Config `194`, run `001-20260719-130907-96667214`, completed config `193`'s

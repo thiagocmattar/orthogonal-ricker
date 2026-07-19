@@ -35,6 +35,7 @@ measurement but does not dispatch the command.
 | `config.py` | Shared filename and minimum-field validation; random-initialization invariant | Cross-workflow config rules |
 | `integrity.py` | Read-only checks for configs, run envelopes, document references, paper outputs, and figure numbering | Preflight and open-source release checks |
 | `run.py` | Experiment/run directory naming, smoke/calibration lifecycle, and the common config/metrics/manifest/predictions envelope | Launch snapshots, terminal status, and artifacts required of completed runs |
+| `pretrain_queue.py` | Clean-provenance, fail-stop serial execution of prespecified pretraining config tranches | Batched local launches, queue state, locking, and terminal artifact verification |
 | `utils.py` | JSON/JSONL helpers and environment, Git, GPU, package, and run provenance | Manifest contents and serialization |
 | `data.py` | Dataset loading, tokenization, cache metadata, and cache reuse checks | `data`, `tokenizer`, and `preprocessing` behavior |
 | `reproducibility.py` | Deterministic data-order schedules and document-disjoint validation partition definitions/hashes | Campaign seed, schedule, or validation comparability contracts |
@@ -69,7 +70,8 @@ suite dispatch, CLI preflight, and selected numerical helpers are locked by
 `tests/test_report04_math.py`. Report 05 catalog, selection, CLI, diagnostics,
 and clipping contracts live in the corresponding `test_*report05*` modules;
 launch/terminal transitions are covered by
-`tests/test_run_lifecycle.py` and `tests/test_calibration_lifecycle.py`.
+`tests/test_run_lifecycle.py` and `tests/test_calibration_lifecycle.py`; serial
+queue safety is covered by `tests/test_pretrain_queue.py`.
 
 ## Run Lifecycle: First Tranche
 
@@ -115,6 +117,7 @@ the legacy `run.write_run_artifacts`.
 | `prepare-data` | `data.prepare_tokenized_data` | `data`, `tokenizer`, `preprocessing`, optional `validation` | `tokens.int32.bin` and `metadata.json` under the token cache; cache paths are recorded in the run |
 | `calibrate` | `calibration.run_calibration` | `model`, `data`, `preprocessing`, `training`, `validation`, `checkpoint`, optional `activation_pressure` | Lifecycle launch snapshot; `events.jsonl`; optional `checkpoints/final/`; terminal manifest last |
 | `pretrain` | `calibration.run_calibration(..., mode="pretrain")` | Same as `calibrate` | Same lifecycle as `calibrate`; `predictions.jsonl` currently contains event history |
+| `run-pretrain-queue` | `pretrain_queue.run_pretrain_queue` | Repeated immutable pretraining configs | One child at a time, ignored atomic queue state/logs, clean-tree checks, fail-stop behavior, and terminal artifact verification |
 | `clip-sweep` | `clipping.run_clipping_sweep` | Saved source-run config plus `activation_clipping`; thresholds/sites are normally CLI arguments; `--measure-zero-products` enables actual-operand QKV/QK/PV/WO/W1/W2 counters | `clipping_frontier.jsonl` and the common envelope |
 | `activation-histograms` | `activation_histograms.run_activation_histograms` | `activation_histograms`, `validation`, and cache/model fields | `activation_histograms.json` and the common envelope |
 | `weight-histograms` | `weight_histograms.run_weight_histograms` | `weight_histograms` and source-run references | `weight_histograms.json` and the common envelope |
