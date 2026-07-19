@@ -113,7 +113,7 @@ work.
   run `001-20260719-070611-60dbfac9`, completed at `R_block=0.73260` and
   `R_model=0.21943`. Config `173` materializes fixed `Gpm`, PRE-RoPE Q/K,
   `kappa=0.03`, with the Three-ReLU A3 identity parent as its matched control;
-  it is ready to launch.
+  run `001-20260719-071126-022f081f` is active from clean commit `10f1667`.
 - B0 has completed all `20 / 20` currently executable scientific cells
   (`20 / 22` declared); the two post-PV context cells remain blocked. The
   declared S1 core has completed `32 / 134` cells (`32 / 132` executable).
