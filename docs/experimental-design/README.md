@@ -11,9 +11,9 @@ work.
 - Planning date: 2026-07-18.
 - Current phase: E0.1 and all currently executable S1-B0 cells are complete;
   the fixed-gate engineering gate passed, and the first twenty-four S1-B1
-  scientific cells are complete. Their first twenty-three mandatory
-  complete-selection diagnostics are complete; config `196` is ready for
-  config `195`. The 2,048-step screen remains restricted to
+  scientific cells and their mandatory complete-selection diagnostics are
+  complete. Config `197`, the first POST site-isolation cell, is next. The
+  2,048-step screen remains restricted to
   feasibility/collapse and within-stratum comparisons.
 - Next config prefix: `197`.
 - The five central B0 anchors, configs `123--127`, completed and passed
@@ -25,8 +25,10 @@ work.
 - Last completed scientific run: config `195`, fixed `Gpm` POST-RoPE Q/K plus
   post-split V at `kappa=0.30`, run `001-20260719-131409-70c042d7`, selection
   loss `7.02043`.
-- Active scientific run: none. Config `196` materializes config `195`'s
-  mandatory complete-selection propagation diagnostic and is ready to run.
+- Active scientific run: none. Config `197`, fixed `G+` POST-RoPE Q-only at
+  `kappa=0.10`, is next to materialize.
+- Config `196`, run `001-20260719-134214-2cfa55c7`, completed config `195`'s
+  mandatory diagnostic at `R_block=0.65130` and `R_model=0.19508`.
 - Config `194`, run `001-20260719-130907-96667214`, completed config `193`'s
   mandatory diagnostic at `R_block=0.39646` and `R_model=0.11875`.
 - Config `192`, run `001-20260719-123504-77673d45`, completed config `191`'s
@@ -191,8 +193,10 @@ work.
   POST-RoPE identity review. Config `195` materializes the matched fixed `Gpm`
   POST-RoPE Q/K plus post-split V cell at `kappa=0.30`; run
   `001-20260719-131409-70c042d7` completed at selection loss `7.02043` and
-  passed terminal review. Its mandatory diagnostic is materialized as config
-  `196` and ready to run over the complete frozen selection partition.
+  passed terminal review. Its mandatory diagnostic, config `196`, run
+  `001-20260719-134214-2cfa55c7`, completed over the frozen selection partition
+  at `R_block=0.65130` and `R_model=0.19508` and passed artifact, endpoint, and
+  POST-RoPE identity review. Config `197` is next.
 - B0 has completed all `20 / 20` currently executable scientific cells
   (`20 / 22` declared); the two post-PV context cells remain blocked. The
   declared S1 core has completed `44 / 134` cells (`44 / 132` executable).
