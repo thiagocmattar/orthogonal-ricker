@@ -2010,15 +2010,15 @@ records:
     mode: pretrain
     result_path: results/153-s1-b1-p14m-gplus-pre-qk-k030-s0/001-20260719-021803-600ff4f4
     log_path: run-logs/153-s1-b1-p14m-gplus-pre-qk-k030-s0-attempt1.log
-    lifecycle_status: running
-    evidence_status: unreviewed
-    canonical: false
+    lifecycle_status: completed
+    evidence_status: valid
+    canonical: true
     started_at: 2026-07-19T02:18:03.630851Z
-    finished_at: null
+    finished_at: 2026-07-19T02:38:04.180214Z
     git_commit: 26dd0b8914b1982c5eb6b97fecac2c6e1962f1ab
     git_dirty: false
-    completed_steps: 0
-    tokens_seen: 0
+    completed_steps: 2048
+    tokens_seen: 134217728
     model_initialization_seed: 0
     data_order_seed: 0
     training_schedule_scheme: random_contiguous_blocks_with_replacement_v1
@@ -2027,10 +2027,10 @@ records:
     validation_partition: selection
     validation_partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
     validation_tokens: 311296
-    validation_loss: null
-    wall_hours: null
-    tokens_per_second: null
-    peak_gpu_mb: null
+    validation_loss: 7.030792248876471
+    wall_hours: 0.3328700086388886
+    tokens_per_second: 112003.78903065452
+    peak_gpu_mb: 6032.47119140625
     execution_backend: local
     cloud_provider: null
     gpu_type: NVIDIA GeForce RTX 5070 Ti Laptop GPU
@@ -2041,5 +2041,5 @@ records:
     gpu_driver_version: "572.84"
     failure_type: null
     failure_message: null
-    reviewed_at: null
-    notes: Active third B1 scientific cell. Fixed absolute G+ kappa 0.30 at PRE-RoPE Q/K, ordinary a/m/h ReLU, V absent, AdamW without pressure. Expected completion near 2026-07-19T02:38Z; S1 supports feasibility/collapse and within-stratum comparisons only. Standard error is recorded separately at run-logs/153-s1-b1-p14m-gplus-pre-qk-k030-s0-attempt1.err.log.
+    reviewed_at: 2026-07-19T02:40:28.1012843Z
+    notes: Completed third B1 scientific cell from clean launch commit 26dd0b8 with 42 training and 10 complete-selection validation events. Final train loss was 7.08331 and final/best selection loss was 7.03079. The final model SHA256 is 343b7c4477cfa33aaa7c849c55f09e7ff0174b79f010c8cf76043b11e55482e4; optimizer state was intentionally not saved. Exact reload recovered ordinary a/m/h ReLU plus fixed G+ kappa 0.30 at PRE-RoPE q/k in all six layers, with V absent and the final LayerNorm ungated. Mean final logged exact-zero fractions were z_a 0.51154, z_m 0.51154, z_h 0.45995, z_q_gate 0.87572, and z_k_gate 0.90218; collapse and stability checks passed. The mandatory selection propagation diagnostic is pending; S1 supports feasibility/collapse and within-stratum comparisons only.
