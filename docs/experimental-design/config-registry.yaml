@@ -1370,7 +1370,7 @@ records:
     ricker_sigma: null
     step_budget: null
     matched_control_id: S1-B0-ARCH-A3-LR3EM5-S0
-    config_status: ready
+    config_status: active
     decision_status: control
     release_tier: history
     canonical_run_id: null

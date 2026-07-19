@@ -48,7 +48,8 @@ work.
   fixed-`Gpm`, `kappa=0.10` subset/round-trip pilot. They are engineering
   controls, not members of the 36-cell B1 scientific matrix. Config `146`, run
   `001-20260719-010308-764e5074`, completed cleanly and passed terminal review;
-  config `147` is next.
+  config `147`, run `001-20260719-010858-a4a15700`, is active from clean commit
+  `3dc0506`.
 - B0 has completed all `20 / 20` currently executable scientific cells
   (`20 / 22` declared); the two post-PV context cells remain blocked. The
   declared S1 core has completed `20 / 134` cells (`20 / 132` executable).
