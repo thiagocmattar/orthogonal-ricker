@@ -27,9 +27,9 @@ block_summary:
   - block: S1-B1-ENGINEERING
     planned_cells: 2
     materialized_cells: 2
-    completed_cells: 1
+    completed_cells: 2
     status: active
-    note: the fixed-G+ pilot is complete and accepted; the fixed-Gpm PRE-RoPE Q/K pilot remains ready. Both are engineering-only and excluded from the 36-cell B1 and 134-cell primary scientific counts
+    note: both fixed-gate pilots are complete and individually accepted; the pooled complete-selection propagation diagnostic remains pending. Both are engineering-only and excluded from the 36-cell B1 and 134-cell primary scientific counts
   - block: S1-B1
     planned_cells: 36
     materialized_cells: 0
@@ -1370,8 +1370,8 @@ records:
     ricker_sigma: null
     step_budget: null
     matched_control_id: S1-B0-ARCH-A3-LR3EM5-S0
-    config_status: active
+    config_status: closed
     decision_status: control
     release_tier: history
-    canonical_run_id: null
-    notes: Engineering-only fixed absolute Gpm kappa 0.10 PRE-RoPE Q/K-subset pilot with ordinary a/m/h gates; excluded from scientific-cell counts and validation ranking.
+    canonical_run_id: 001-20260719-010858-a4a15700
+    notes: Completed engineering-only fixed absolute Gpm kappa 0.10 PRE-RoPE Q/K-subset pilot with ordinary a/m/h gates. The run passed terminal artifact and exact checkpoint-reload review without universal collapse; it remains excluded from scientific-cell counts and validation ranking.

@@ -1697,15 +1697,15 @@ records:
     mode: pretrain
     result_path: results/147-s1-b1-eng-gpm-a5qkpre-k010-st128/001-20260719-010858-a4a15700
     log_path: run-logs/147-s1-b1-eng-gpm-a5qkpre-k010-st128-attempt1.log
-    lifecycle_status: running
-    evidence_status: unreviewed
-    canonical: false
+    lifecycle_status: completed
+    evidence_status: valid
+    canonical: true
     started_at: 2026-07-19T01:08:58.441389Z
-    finished_at: null
+    finished_at: 2026-07-19T01:10:18.658642Z
     git_commit: 3dc0506982deb8a177be3d1742ecd60e3a77074e
     git_dirty: false
-    completed_steps: 0
-    tokens_seen: 0
+    completed_steps: 128
+    tokens_seen: 8388608
     model_initialization_seed: 0
     data_order_seed: 0
     training_schedule_scheme: random_contiguous_blocks_with_replacement_v1
@@ -1714,10 +1714,10 @@ records:
     validation_partition: selection
     validation_partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
     validation_tokens: 311296
-    validation_loss: null
-    wall_hours: null
-    tokens_per_second: null
-    peak_gpu_mb: null
+    validation_loss: 10.13878305334794
+    wall_hours: 0.021549364527777977
+    tokens_per_second: 108131.67533943796
+    peak_gpu_mb: 6032.47119140625
     execution_backend: local
     cloud_provider: null
     gpu_type: NVIDIA GeForce RTX 5070 Ti Laptop GPU
@@ -1726,7 +1726,8 @@ records:
     pytorch_version: 2.11.0+cu128
     cuda_version: "12.8"
     gpu_driver_version: "572.84"
+    token_cache_sha256: 22bb7c27864f0e5941548c572d6c75b1b5ba6a4c13e4cd26f40f4de546c5cc19
     failure_type: null
     failure_message: null
-    reviewed_at: null
-    notes: Active 128-step engineering-only fixed Gpm kappa 0.10 PRE-RoPE Q/K pilot with ordinary ReLU at a/m/h and no V gate. Launched from a clean tree; validation loss is not selection evidence. Standard error is recorded separately at run-logs/147-s1-b1-eng-gpm-a5qkpre-k010-st128-attempt1.err.log.
+    reviewed_at: 2026-07-19T01:11:17.6638305Z
+    notes: Accepted 128-step engineering-only fixed Gpm kappa 0.10 PRE-RoPE Q/K pilot with ordinary ReLU at a/m/h and no V gate. It completed 9 training and 3 validation events, saved the final model and optimizer, and exact checkpoint reload recovered ordinary a/m/h gates plus Gpm kappa 0.10 at q/k in every layer with PRE-RoPE placement and no V gate. Final-minibatch site zero rates ranged from 38.43% to 52.11%, so no universal collapse occurred. Model SHA256 is 45e3cc292c5b622907b64eb74247e34b15d7cd163ebe6f7e13e2be1febce2859. Validation is engineering evidence only; the pooled selection diagnostic is pending.
