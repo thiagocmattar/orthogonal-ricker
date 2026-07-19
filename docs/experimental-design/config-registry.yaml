@@ -1,6 +1,6 @@
 schema_version: 1
 campaign_id: pythia-sparsity-scaling-v1
-next_config_prefix: 160
+next_config_prefix: 161
 core_design_cells: 134
 core_executable_cells_without_context_gate: 132
 maximum_design_cells: 184
@@ -35,7 +35,7 @@ block_summary:
     materialized_cells: 6
     completed_cells: 6
     status: active
-    note: configs 149, 151, 153, 155, 157, and 159 passed terminal training review; config 159's mandatory complete-selection propagation diagnostic is pending
+    note: configs 149, 151, 153, 155, 157, and 159 passed terminal training review; config 160 materializes config 159's mandatory complete-selection propagation diagnostic and is ready
   - block: S1-B2
     planned_cells: 26
     materialized_cells: 0
@@ -1939,3 +1939,50 @@ records:
     release_tier: history
     canonical_run_id: 001-20260719-034439-ee5194a7
     notes: Sixth B1 scientific cell; fixed absolute G+ kappa 0.30 at PRE-RoPE Q/K and post-split V, ordinary a/m/h ReLU, AdamW without pressure. Run 001-20260719-034439-ee5194a7 completed 2048 steps and passed terminal artifact, stability, collapse, and exact checkpoint-reload review at selection loss 7.03369. Its mandatory selection propagation diagnostic is pending. S1 supports feasibility/collapse and within-stratum comparisons only.
+  - design_id: S1-B1-DIAG-FIX-GPLUS-PRE-QKV-K030-SELECTION-S0
+    config_id: 160-s1-b1-gplus-pre-qkv-k030-selection-prop
+    config_path: configs/160-s1-b1-gplus-pre-qkv-k030-selection-prop.yaml
+    phase: S1
+    block: S1-B1-DIAGNOSTIC
+    comparison_id: S1-B1-FIX-ATTENTION
+    pair_id: S1-B1-FIX-PRE-QKV-K030
+    promotion_family: FIX-GPLUS-PRE-QKV
+    kind: diagnostic
+    model_size: 14M
+    steps: 0
+    tokens: 311296
+    model_initialization_seed: 0
+    data_order_seed: 0
+    training_schedule_scheme: null
+    training_schedule_hash: null
+    effective_tokens_per_update: null
+    validation_partition: selection
+    validation_partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
+    architecture_id: A6-PRE
+    gate_family: gplus
+    gate_sites: [a, m, h, q, k, v]
+    qk_placement: pre_rope
+    kappa_mode: fixed
+    kappa: 0.3
+    kappa_init: null
+    kappa_scope: qkv
+    threshold_scale: absolute
+    surrogate: null
+    temperature: null
+    threshold_learning_rate: null
+    optimizer_recipe: null
+    model_learning_rate: null
+    micro_batch_size: null
+    gradient_accumulation_steps: null
+    pressure_method: none
+    pressure_sites: []
+    pressure_weight: 0.0
+    ricker_c: null
+    ricker_sigma: null
+    step_budget: null
+    matched_control_id: S1-B0-ARCH-A6PRE-LR3EM5-S0
+    config_status: ready
+    decision_status: control
+    release_tier: history
+    canonical_run_id: null
+    notes: Mandatory complete-selection propagation diagnostic pinned to canonical config 159; diagnostic-only and excluded from scientific-cell counts.
