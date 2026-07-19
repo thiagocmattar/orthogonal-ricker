@@ -1,0 +1,73 @@
+experiment_name: s1_b2_eng_atg_selection_propagation
+sweep:
+  name: pythia_sparsity_scaling_v1_s1_b2_engineering
+  role: learned_atg_pilot_selection_endpoint_diagnostic
+  design_id: S1-B2-ENG-ATG-PILOT-SELECTION-S0
+  notes: Complete frozen selection-partition propagation diagnostic for the nine learned-ATG plumbing pilots; preserves center-first order and is not a validation-loss ranking.
+model:
+  provider: huggingface
+  name: pythia-14m-random-s1-b2-learned-atg-pilot-propagation
+  architecture: EleutherAI/pythia-14m-deduped
+  revision: 7386d9a4ae45aef494a6e704910394def3037fc5
+  initialization: random
+data:
+  name: JeanKaddour/minipile
+  revision: 18ad1b0c701eaa0de03d3cecfdd769cbc70ffbd0
+  split: validation
+  text_column: text
+  max_documents: 500
+evaluation:
+  metric: activation_propagation
+run:
+  seed: 0
+  max_examples: 500
+tokenizer:
+  name: EleutherAI/pythia-14m-deduped
+  revision: 7386d9a4ae45aef494a6e704910394def3037fc5
+preprocessing:
+  output_dir: data/tokenized
+  cache_id: 03-pythia-14m-minipile-random-full-10min
+  block_size: 2048
+  append_eos: true
+  overwrite: false
+validation:
+  enabled: true
+  split: validation
+  max_documents: 500
+  partition: selection
+  partition_scheme: shuffled_source_documents_half_v1
+  partition_seed: 20260718
+  partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
+  eval_batches: null
+  batch_size: 4
+activation_propagation:
+  selected_runs:
+    - label: Learned G+ A6-POST ABS PLS tau 0.03 TLRM 1 (default)
+      config_id: 211-s1-b2-eng-atg-gplus-a6post-abs-pls-t003-tlrm1-st128-s0
+      run_id: 001-20260719-183813-92a4d493
+    - label: Learned G+ A6-POST ABS PLS tau 0.03 TLRM 0.1
+      config_id: 212-s1-b2-eng-atg-gplus-a6post-abs-pls-t003-tlrm0p1-st128-s0
+      run_id: 001-20260719-183947-cff2e4c7
+    - label: Learned G+ A6-POST ABS PLS tau 0.03 TLRM 10
+      config_id: 213-s1-b2-eng-atg-gplus-a6post-abs-pls-t003-tlrm10-st128-s0
+      run_id: 001-20260719-184119-7f35517f
+    - label: Learned G+ A6-POST ABS PLS tau 0.01 TLRM 1
+      config_id: 214-s1-b2-eng-atg-gplus-a6post-abs-pls-t001-tlrm1-st128-s0
+      run_id: 001-20260719-184252-f0eaa457
+    - label: Learned G+ A6-POST ABS PLS tau 0.10 TLRM 1
+      config_id: 215-s1-b2-eng-atg-gplus-a6post-abs-pls-t010-tlrm1-st128-s0
+      run_id: 001-20260719-184425-50d9d788
+    - label: Learned G+ A6-POST ABS PLS tau 0.01 TLRM 0.1 (corner)
+      config_id: 216-s1-b2-eng-atg-gplus-a6post-abs-pls-t001-tlrm0p1-st128-s0
+      run_id: 001-20260719-184557-95cc237f
+    - label: Learned G+ A6-POST ABS PLS tau 0.01 TLRM 10 (corner)
+      config_id: 217-s1-b2-eng-atg-gplus-a6post-abs-pls-t001-tlrm10-st128-s0
+      run_id: 001-20260719-184729-7ab8bb47
+    - label: Learned G+ A6-POST ABS PLS tau 0.10 TLRM 0.1 (corner)
+      config_id: 218-s1-b2-eng-atg-gplus-a6post-abs-pls-t010-tlrm0p1-st128-s0
+      run_id: 001-20260719-184902-92fbe493
+    - label: Learned G+ A6-POST ABS PLS tau 0.10 TLRM 10 (corner)
+      config_id: 219-s1-b2-eng-atg-gplus-a6post-abs-pls-t010-tlrm10-st128-s0
+      run_id: 001-20260719-185034-0c473337
+output:
+  dir: results

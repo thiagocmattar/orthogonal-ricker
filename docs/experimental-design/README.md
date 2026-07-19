@@ -14,11 +14,15 @@ work.
   diagnostics `203` (site isolation) and `210` (branch scope). The 2,048-step
   screen remains restricted to feasibility/collapse and within-stratum
   comparisons.
-- Learned-ATG engineering configs `211--219` are ready as one center-first
-  nine-cell tranche; they remain engineering-only and do not change the
-  scientific completion count.
-- Next unused config prefix: `220`, deferred for the pooled learned-ATG pilot
-  diagnostic after configs `211--219` have audited canonical runs.
+- Learned-ATG engineering configs `211--219` completed all nine 128-step runs
+  and passed the hard checkpoint/optimizer contract. The preregistered default,
+  config `211`, is provisional because its final-quarter `no_frozen_flag`
+  acceptance check failed at steps 96 and 128. Validation loss was checked only
+  for finiteness and was not used to rank or select a replacement.
+- Config `220` materializes the exact center-first pooled selection diagnostic
+  and is ready but not yet run. No revised learned-gate default has been chosen,
+  scientific S1-B2 remains blocked, and the scientific count remains 56/132.
+- Next unused config prefix: `221`.
 - The five central B0 anchors, configs `123--127`, completed and passed
   terminal review. Their final selection losses are `7.04913` (A0),
   `6.98875` (A1-H), `7.01310` (A3), `7.01645` (A6-PRE), and `7.03248`
@@ -28,9 +32,9 @@ work.
 - Last completed scientific run: config `209`, fixed `G+` at all six A6-POST
   gates with `kappa=0.10`, run `001-20260719-174822-82abb149`, selection loss
   `7.05266`.
-- Active scientific run: none. The next launch set is ready configs
-  `211--219`, the preregistered engineering-only learned-ATG pilot tranche; it
-  does not change the 56/132 scientific count.
+- Active scientific run: none. The next eligible action is engineering
+  diagnostic `220`; scientific S1-B2 cannot launch until the provisional
+  default failure is resolved through a registered design decision.
 
 | Config | Gate/site | Canonical run | Selection loss | `R_block` | `R_model` |
 | ---: | --- | --- | ---: | ---: | ---: |
