@@ -58,7 +58,8 @@ work.
   completed its mandatory selection diagnostic at `R_block=0.29067` and
   `R_model=0.08706`. Config `151` materializes the next matched cell at fixed
   `G+`, PRE-RoPE Q/K, `kappa=0.10`; run
-  `001-20260719-014816-62d42778` is active from clean commit `08a0b4e`.
+  `001-20260719-014816-62d42778` completed at selection loss `7.01905` and
+  passed terminal review. Its mandatory selection diagnostic is next.
 - B0 has completed all `20 / 20` currently executable scientific cells
   (`20 / 22` declared); the two post-PV context cells remain blocked. The
   declared S1 core has completed `20 / 134` cells (`20 / 132` executable).
