@@ -2597,3 +2597,43 @@ records:
     failure_message: null
     reviewed_at: 2026-07-19T05:06:58.3714128Z
     notes: Canonical statusless-complete schema-v3 diagnostic over the exact completed config 163 checkpoint. It pooled all 311296 complete selection tokens across 152 sequences and 38 batches, excluded 443 trailing cache tokens, recovered ordinary a/m/h ReLU plus fixed G+ kappa 0.10 at POST-RoPE q/k in all six layers with V absent, and emitted exact-zero, direct-product, and architecture-ceiling counts. RoPE survival metrics are correctly unavailable because gating occurs after RoPE. The five-file envelope, completed source manifest, and activation artifact SHA256 cd3855fda6f2f6a4d8e0854301af0887f63d29448bcd1b9d5a8e66d4fb6a5d44 passed review.
+  - design_id: S1-B1-FIX-GPLUS-POST-QK-K030-S0
+    config_id: 165-s1-b1-p14m-gplus-post-qk-k030-s0
+    run_id: 001-20260719-051008-59f8fe4c
+    attempt: 1
+    mode: pretrain
+    result_path: results/165-s1-b1-p14m-gplus-post-qk-k030-s0/001-20260719-051008-59f8fe4c
+    log_path: run-logs/165-s1-b1-p14m-gplus-post-qk-k030-s0-attempt1.log
+    lifecycle_status: running
+    evidence_status: unreviewed
+    canonical: false
+    started_at: 2026-07-19T05:10:08.881852Z
+    finished_at: null
+    git_commit: d60a4a7fb0981cc474a20a949f72b3ddb0229d4d
+    git_dirty: false
+    completed_steps: 0
+    tokens_seen: 0
+    model_initialization_seed: 0
+    data_order_seed: 0
+    training_schedule_scheme: random_contiguous_blocks_with_replacement_v1
+    training_schedule_hash: db4fa092d7092d29edc3bf1e2005af69f4a92b8bf6e6d88cbb6a166e12be02fc
+    effective_tokens_per_update: 65536
+    validation_partition: selection
+    validation_partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
+    validation_tokens: 311296
+    validation_loss: null
+    wall_hours: null
+    tokens_per_second: null
+    peak_gpu_mb: null
+    execution_backend: local
+    cloud_provider: null
+    gpu_type: NVIDIA GeForce RTX 5070 Ti Laptop GPU
+    gpu_count: 1
+    python_version: 3.12.10
+    pytorch_version: 2.11.0+cu128
+    cuda_version: "12.8"
+    gpu_driver_version: "572.84"
+    failure_type: null
+    failure_message: null
+    reviewed_at: null
+    notes: Active ninth B1 scientific cell. Fixed absolute G+ kappa 0.30 at POST-RoPE Q/K, ordinary a/m/h ReLU, V absent, AdamW without pressure. Expected completion near 2026-07-19T05:30Z; S1 supports feasibility/collapse and within-stratum comparisons only. Standard error is recorded separately at run-logs/165-s1-b1-p14m-gplus-post-qk-k030-s0-attempt1.err.log.
