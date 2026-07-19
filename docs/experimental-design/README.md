@@ -83,8 +83,10 @@ work.
   `R_model=0.21815`. Config `161` materializes the matched fixed `G+`
   POST-RoPE QK-only, `kappa=0.03` cell; run
   `001-20260719-041422-bacaff99` completed at selection loss `7.03029` and
-  passed terminal review. Its mandatory selection propagation diagnostic is
-  materialized as config `162` and is next.
+  passed terminal review. Its mandatory selection propagation diagnostic,
+  config `162`, run `001-20260719-043828-c242eeb4`, completed at
+  `R_block=0.33881` and `R_model=0.10148`; the next B1 scientific cell may be
+  materialized.
 - B0 has completed all `20 / 20` currently executable scientific cells
   (`20 / 22` declared); the two post-PV context cells remain blocked. The
   declared S1 core has completed `27 / 134` cells (`27 / 132` executable).
