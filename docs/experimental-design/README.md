@@ -56,7 +56,8 @@ work.
   `001-20260719-012122-d3b3c4f5` completed at selection loss `7.01612` and
   passed terminal review. Config `150`, run `001-20260719-014532-32cc5f54`,
   completed its mandatory selection diagnostic at `R_block=0.29067` and
-  `R_model=0.08706`; the next B1 scientific cell may be materialized.
+  `R_model=0.08706`. Config `151` materializes the next matched cell at fixed
+  `G+`, PRE-RoPE Q/K, `kappa=0.10`.
 - B0 has completed all `20 / 20` currently executable scientific cells
   (`20 / 22` declared); the two post-PV context cells remain blocked. The
   declared S1 core has completed `20 / 134` cells (`20 / 132` executable).
