@@ -54,7 +54,8 @@ work.
   config `149` materializes the first scientific cell: fixed `G+`, PRE-RoPE
   Q/K, `kappa=0.03`, AdamW without pressure. Run
   `001-20260719-012122-d3b3c4f5` completed at selection loss `7.01612` and
-  passed terminal review; its selection propagation diagnostic is next.
+  passed terminal review. Config `150` materializes its mandatory selection
+  propagation diagnostic and is next.
 - B0 has completed all `20 / 20` currently executable scientific cells
   (`20 / 22` declared); the two post-PV context cells remain blocked. The
   declared S1 core has completed `20 / 134` cells (`20 / 132` executable).
