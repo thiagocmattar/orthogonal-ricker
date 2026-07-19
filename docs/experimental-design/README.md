@@ -59,8 +59,9 @@ work.
   `001-20260719-014816-62d42778` completed at selection loss `7.01905` and
   passed terminal review. Config `152`, run
   `001-20260719-021127-8e8a8e3c`, completed its mandatory selection diagnostic
-  at `R_block=0.32972` and `R_model=0.09876`. Config `153` materializes the
-  matched fixed `G+`, PRE-RoPE Q/K, `kappa=0.30` cell and is ready to launch.
+  at `R_block=0.32972` and `R_model=0.09876`. Config `153`, the matched fixed
+  `G+`, PRE-RoPE Q/K, `kappa=0.30` cell, is active from clean commit `26dd0b8`
+  as run `001-20260719-021803-600ff4f4`.
 - B0 has completed all `20 / 20` currently executable scientific cells
   (`20 / 22` declared); the two post-PV context cells remain blocked. The
   declared S1 core has completed `22 / 134` cells (`22 / 132` executable).

@@ -35,7 +35,7 @@ block_summary:
     materialized_cells: 3
     completed_cells: 2
     status: active
-    note: configs 149 and 151 completed and passed terminal training and complete-selection propagation review; config 153 materializes the fixed G+ PRE-RoPE Q/K kappa 0.30 cell and is ready to launch
+    note: configs 149 and 151 completed and passed terminal training and complete-selection propagation review; config 153 is the active fixed G+ PRE-RoPE Q/K kappa 0.30 cell
   - block: S1-B2
     planned_cells: 26
     materialized_cells: 0
@@ -1652,7 +1652,7 @@ records:
     ricker_sigma: null
     step_budget: null
     matched_control_id: S1-B0-ARCH-A5QKPRE-LR3EM5-S0
-    config_status: ready
+    config_status: active
     decision_status: pending
     release_tier: history
     canonical_run_id: null
