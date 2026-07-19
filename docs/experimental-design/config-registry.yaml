@@ -1,6 +1,6 @@
 schema_version: 1
 campaign_id: pythia-sparsity-scaling-v1
-next_config_prefix: 168
+next_config_prefix: 169
 core_design_cells: 134
 core_executable_cells_without_context_gate: 132
 maximum_design_cells: 184
@@ -35,7 +35,7 @@ block_summary:
     materialized_cells: 10
     completed_cells: 10
     status: active
-    note: configs 149, 151, 153, 155, 157, 159, 161, 163, and 165 plus their mandatory complete-selection propagation diagnostics are complete; config 167 passed terminal review and its mandatory diagnostic is pending
+    note: configs 149, 151, 153, 155, 157, 159, 161, 163, and 165 plus their mandatory complete-selection propagation diagnostics are complete; config 167 passed terminal review and config 168 materializes its mandatory complete-selection diagnostic
   - block: S1-B2
     planned_cells: 26
     materialized_cells: 0
@@ -2314,4 +2314,51 @@ records:
     decision_status: pending
     release_tier: history
     canonical_run_id: 001-20260719-054016-5e3f0e3d
-    notes: Tenth B1 scientific cell; fixed absolute G+ kappa 0.03 at POST-RoPE Q/K and post-split V, ordinary a/m/h ReLU, AdamW without pressure. Run 001-20260719-054016-5e3f0e3d completed all 2048 steps from clean commit 0f81a0e and passed terminal review at selection loss 7.03290. Its mandatory complete-selection propagation diagnostic is pending. S1 supports feasibility/collapse and within-stratum comparisons only.
+    notes: Tenth B1 scientific cell; fixed absolute G+ kappa 0.03 at POST-RoPE Q/K and post-split V, ordinary a/m/h ReLU, AdamW without pressure. Run 001-20260719-054016-5e3f0e3d completed all 2048 steps from clean commit 0f81a0e and passed terminal review at selection loss 7.03290. Its mandatory complete-selection propagation diagnostic is materialized as config 168. S1 supports feasibility/collapse and within-stratum comparisons only.
+  - design_id: S1-B1-DIAG-FIX-GPLUS-POST-QKV-K003-SELECTION-S0
+    config_id: 168-s1-b1-gplus-post-qkv-k003-selection-prop
+    config_path: configs/168-s1-b1-gplus-post-qkv-k003-selection-prop.yaml
+    phase: S1
+    block: S1-B1-DIAGNOSTIC
+    comparison_id: S1-B1-FIX-ATTENTION
+    pair_id: S1-B1-FIX-POST-QKV-K003
+    promotion_family: FIX-GPLUS-POST-QKV
+    kind: diagnostic
+    model_size: 14M
+    steps: 0
+    tokens: 311296
+    model_initialization_seed: 0
+    data_order_seed: 0
+    training_schedule_scheme: null
+    training_schedule_hash: null
+    effective_tokens_per_update: null
+    validation_partition: selection
+    validation_partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
+    architecture_id: A6-POST
+    gate_family: gplus
+    gate_sites: [a, m, h, q, k, v]
+    qk_placement: post_rope
+    kappa_mode: fixed
+    kappa: 0.03
+    kappa_init: null
+    kappa_scope: qkv
+    threshold_scale: absolute
+    surrogate: null
+    temperature: null
+    threshold_learning_rate: null
+    optimizer_recipe: null
+    model_learning_rate: null
+    micro_batch_size: null
+    gradient_accumulation_steps: null
+    pressure_method: none
+    pressure_sites: []
+    pressure_weight: 0.0
+    ricker_c: null
+    ricker_sigma: null
+    step_budget: null
+    matched_control_id: S1-B0-ARCH-A6POST-LR3EM5-S0
+    config_status: ready
+    decision_status: control
+    release_tier: history
+    canonical_run_id: null
+    notes: Mandatory complete-selection propagation diagnostic pinned to canonical config 167; diagnostic-only and excluded from scientific-cell counts.
