@@ -11,8 +11,9 @@ work.
 - Planning date: 2026-07-18.
 - Current phase: E0.1 and all currently executable S1-B0 cells are complete;
   the fixed-gate engineering gate passed, and the first six S1-B1 cells plus
-  their diagnostics are complete. The 2,048-step screen remains restricted to
-  feasibility/collapse and within-stratum comparisons.
+  their diagnostics are complete; the seventh B1 training cell passed terminal
+  review. The 2,048-step screen remains restricted to feasibility/collapse and
+  within-stratum comparisons.
 - Next config prefix: `162`.
 - The five central B0 anchors, configs `123--127`, completed and passed
   terminal review. Their final selection losses are `7.04913` (A0),
@@ -20,9 +21,8 @@ work.
   (A6-POST). Config `128`, the combined selection-partition endpoint
   diagnostic, also completed and passed artifact review. Configs `121--122`
   remain accepted engineering controls.
-- Last completed scientific run: config `159`, fixed `G+` PRE-RoPE Q/K plus
-  post-split V at `kappa=0.30`, run `001-20260719-034439-ee5194a7`, selection
-  loss `7.03369`.
+- Last completed scientific run: config `161`, fixed `G+` POST-RoPE Q/K at
+  `kappa=0.03`, run `001-20260719-041422-bacaff99`, selection loss `7.03029`.
 - Config `134`, run `001-20260718-205354-8821b592`, completed the pooled
   exact-zero diagnostic over canonical configs `129--133`.
 - All ten LR-flank training runs, configs `135--144`, are complete and passed
@@ -82,10 +82,12 @@ work.
   `001-20260719-040928-dd0f5070`, completed at `R_block=0.72831` and
   `R_model=0.21815`. Config `161` materializes the matched fixed `G+`
   POST-RoPE QK-only, `kappa=0.03` cell; run
-  `001-20260719-041422-bacaff99` is active from clean commit `5ccb3f0`.
+  `001-20260719-041422-bacaff99` completed at selection loss `7.03029` and
+  passed terminal review. Its mandatory selection propagation diagnostic is
+  next.
 - B0 has completed all `20 / 20` currently executable scientific cells
   (`20 / 22` declared); the two post-PV context cells remain blocked. The
-  declared S1 core has completed `26 / 134` cells (`26 / 132` executable).
+  declared S1 core has completed `27 / 134` cells (`27 / 132` executable).
   Diagnostic configs do not count as scientific cells.
 - S1 must never use a global rank cutoff. Complete matched method panels from
   viable families advance to the 8,192-step rung under the frozen policy in
