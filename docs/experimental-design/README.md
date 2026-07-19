@@ -76,7 +76,8 @@ work.
   mandatory selection propagation diagnostic, config `158`, run
   `001-20260719-033946-134ea0ae`, completed at `R_block=0.52409` and
   `R_model=0.15698`. Config `159` materializes the matched fixed `G+`
-  PRE-RoPE QKV, `kappa=0.30` cell and is ready to launch.
+  PRE-RoPE QKV, `kappa=0.30` cell; run `001-20260719-034439-ee5194a7` is
+  active from clean commit `d9ad596`.
 - B0 has completed all `20 / 20` currently executable scientific cells
   (`20 / 22` declared); the two post-PV context cells remain blocked. The
   declared S1 core has completed `25 / 134` cells (`25 / 132` executable).
