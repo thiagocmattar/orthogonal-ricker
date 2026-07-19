@@ -3,7 +3,7 @@ sweep:
   name: pythia_sparsity_scaling_v1_s1_b2_engineering
   role: learned_atg_pilot_selection_endpoint_diagnostic
   design_id: S1-B2-ENG-ATG-PILOT-SELECTION-S0
-  notes: Complete frozen selection-partition propagation diagnostic for the nine learned-ATG plumbing pilots; preserves center-first order and is not a validation-loss ranking.
+  notes: Complete frozen selection-partition propagation diagnostic for the nine learned-ATG plumbing pilots; preserves center-first order. The 2026-07-19 revision used only the original no_frozen engineering criterion, never validation-loss ranking.
 model:
   provider: huggingface
   name: pythia-14m-random-s1-b2-learned-atg-pilot-propagation

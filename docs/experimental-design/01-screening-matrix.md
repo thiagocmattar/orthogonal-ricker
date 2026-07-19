@@ -223,13 +223,26 @@ between 0 and 99.5%. Corner collapse or frozen dynamics is retained as boundary
 evidence. If the default fails, B2 remains blocked pending a registered design
 revision.
 
+Registered design revision, 2026-07-19: config `211`, the original
+`(tau=0.03, TLRM=1)` preregistered default, was vetoed solely because its
+original `no_frozen_flag` condition failed at steps 96 and 128. The revision
+keeps the preregistered center temperature `tau=0.03` and selects the exact
+one-factor alternative config `213`, `TLRM=10`, giving threshold LR `3e-4` at
+model LR `3e-5`. Config `213` passed `no_frozen_flag` at all final-quarter
+points 96/112/128. This is a numerical-resolution correction under the
+original engineering rubric: validation loss was checked only for finiteness
+and was never ranked or used. All other B2 factors remain preregistered.
+
 ### B2: learned-ATG AdamW -- 26 cells
 
 All learned gates use `kappa = softplus(rho)` in FP32, no weight decay on
 `rho`, hard masks in the forward pass, and a soft mask only for backward
-threshold gradients. The screen default is `kappa_init=0.10`, one threshold per
-layer/site, transition temperature `tau=0.03`, and threshold LR equal to the
-model LR. Absolute and RMS-relative thresholds are separate methods.
+threshold gradients. The original screen default was `kappa_init=0.10`, one
+threshold per layer/site, transition temperature `tau=0.03`, and threshold LR
+equal to the model LR. The registered 2026-07-19 revision changes only the
+threshold LR to `3e-4` (TLRM `10`); it preserves `tau=0.03`, `kappa_init=0.10`,
+and per-layer/site sharing. Absolute and RMS-relative thresholds are separate
+methods.
 
 | Sub-block | Cells | Factors |
 | --- | ---: | --- |
@@ -400,7 +413,9 @@ Complete these before the affected block launches:
    groups with LR multipliers, training metrics, dynamic propagation metadata,
    and exact model/optimizer checkpoint round trips. AdamW engineering is ready.
    The 128-step `tau={0.01,0.03,0.10}` by threshold-LR multiplier
-   `{0.1,1,10}` pilot remains a launch gate and is engineering evidence only.
+   `{0.1,1,10}` gate is complete. The registered revision selects
+   `(tau=0.03, TLRM=10)` solely by the original `no_frozen_flag` engineering
+   criterion; validation loss was never ranked.
 3. Completed 2026-07-19: RMS-relative ATG uses a detached full-gate-tensor RMS
    statistic, so threshold learning cannot flow through the normalization.
 4. `TODO:` before learned OR or OL1 launches, include heterogeneous optimizer-group

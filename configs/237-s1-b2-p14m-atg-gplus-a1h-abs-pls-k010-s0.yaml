@@ -1,41 +1,19 @@
-experiment_name: s1_b2_eng_atg_pythia_14m_gplus_a6post_abs_pls_k010_t003_tlrm10_st128_s0
+experiment_name: s1_b2_p14m_atg_gplus_a1h_abs_pls_k010_s0
 sweep:
-  name: pythia_sparsity_scaling_v1_s1_b2_engineering
-  role: learned_atg_gplus_a6post_abs_pls_k010_t003_tlrm10_st128
-  design_id: S1-B2-ENG-ATG-GPLUS-A6POST-ABS-PLS-K010-T003-TLRM10-ST128-S0
-  planned_steps: 128
-  planned_tokens: 8388608
-  notes: Engineering-only learned-ATG pilot selected by the 2026-07-19 registered revision at tau=0.03 and TLRM=10 solely because it passed the original no_frozen criterion; validation loss was never ranked or used.
+  name: pythia_sparsity_scaling_v1_s1_b2
+  role: learned_atg_gplus_a1h_abs_pls_k010
+  design_id: S1-B2-ATG-GPLUS-POST-A1H-ABS-PLS-K010-S0
+  planned_steps: 2048
+  planned_tokens: 134217728
+  notes: Learned absolute one-sided G+ ATG at every active A1H gate; AdamW without activation pressure.
 model:
   provider: huggingface
-  name: pythia-14m-random-a6post-atg-gplus-t003-tlrm10
+  name: pythia-14m-random-atg-gplus-a1h-abs-pls-k0p10
   architecture: EleutherAI/pythia-14m-deduped
   revision: 7386d9a4ae45aef494a6e704910394def3037fc5
   initialization: random
   hidden_act: relu
-  post_layernorm_relu: true
-  post_layernorm_gate:
-    gate_type: learned_one_sided_threshold
-    kappa_init: 0.1
-    kappa_scope: per_layer_site
-    threshold_scale: absolute
-    surrogate: hard_forward_soft_backward
-    temperature: 0.03
-    rms_epsilon: 1.0e-08
   mlp_hidden_gate:
-    gate_type: learned_one_sided_threshold
-    kappa_init: 0.1
-    kappa_scope: per_layer_site
-    threshold_scale: absolute
-    surrogate: hard_forward_soft_backward
-    temperature: 0.03
-    rms_epsilon: 1.0e-08
-  post_qkv_relu:
-    enabled: true
-    query: true
-    key: true
-    value: true
-    qk_placement: post_rope
     gate_type: learned_one_sided_threshold
     kappa_init: 0.1
     kappa_scope: per_layer_site
@@ -56,7 +34,7 @@ run:
   model_initialization_seed: 0
   data_order_seed: 0
   training_schedule_scheme: random_contiguous_blocks_with_replacement_v1
-  training_schedule_hash: 9d9f708a79511390da9559b88e06e797aa216149af709c841923c56f926e1120
+  training_schedule_hash: db4fa092d7092d29edc3bf1e2005af69f4a92b8bf6e6d88cbb6a166e12be02fc
   max_examples: 1000000
 tokenizer:
   name: EleutherAI/pythia-14m-deduped
@@ -68,20 +46,22 @@ preprocessing:
   append_eos: true
   overwrite: false
 training:
-  max_steps: 128
+  max_steps: 2048
   max_wall_seconds: null
-  warmup_steps: 10
+  warmup_steps: 100
   micro_batch_size: 4
   gradient_accumulation_steps: 8
   learning_rate: 3.0e-05
   threshold_learning_rate_multiplier: 10.0
   optimizer: adamw
-  adamw_betas: [0.9, 0.999]
+  adamw_betas:
+  - 0.9
+  - 0.999
   adamw_eps: 1.0e-08
   weight_decay: 0.01
   precision: auto
   device: auto
-  log_every: 16
+  log_every: 50
 validation:
   enabled: true
   split: validation
@@ -90,7 +70,7 @@ validation:
   partition_scheme: shuffled_source_documents_half_v1
   partition_seed: 20260718
   partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
-  eval_every_steps: 64
+  eval_every_steps: 250
   eval_batches: null
   batch_size: 4
 checkpoint:
@@ -102,11 +82,11 @@ activation_pressure:
   enabled: true
   method: none
   sites:
-    - attention_inputs
-    - mlp_inputs
-    - mlp_hiddens
-    - query_gate_outputs
-    - key_gate_outputs
-    - value_gate_outputs
+  - mlp_hiddens
   weight: 0.0
-  log_thresholds: [0.0, 0.001, 0.003, 0.01, 0.03]
+  log_thresholds:
+  - 0.0
+  - 0.001
+  - 0.003
+  - 0.01
+  - 0.03

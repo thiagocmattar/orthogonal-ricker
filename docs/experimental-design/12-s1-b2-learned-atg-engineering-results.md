@@ -13,10 +13,10 @@ hard-forward/soft-backward surrogate. They cross temperature
 All nine pilots completed 128 steps and passed the hard checkpoint and
 optimizer contract. Config `220`, run
 `001-20260719-190523-f28590eb`, completed the pooled selection-partition
-propagation diagnostic. The engineering block is therefore 9/9 complete, but
-its decision status is pending: the preregistered default, config `211`, failed
-one dynamic acceptance condition and no replacement has been selected. S1-B2
-remains blocked at 0/26, and executable scientific completion remains 56/132.
+propagation diagnostic. The engineering block and its decision are complete.
+The 2026-07-19 registered revision selects config `213` at `tau=0.03`, TLRM
+`10`, and threshold LR `3e-4`; all 26 S1-B2 configs are materialized and ready.
+B2 remains 0/26 complete, so executable scientific completion remains 56/132.
 
 These runs are plumbing evidence, not scientific cells. Validation loss was
 checked only for finiteness. It was not ranked and must not select a
@@ -33,9 +33,9 @@ telemetry; it is not the pooled diagnostic endpoint.
 
 | Config | Role | `tau` | TLRM | Threshold LR | Val. loss (finite only) | Mean `abs(kappa-0.10)` | Frozen 96/112/128 | `z_active` |
 | ---: | --- | ---: | ---: | ---: | ---: | ---: | --- | ---: |
-| 211 | preregistered default | 0.03 | 1 | `3e-5` | 10.127606 | 0.000090902 | 1/0/1 | 68.5076% |
+| 211 | preregistered default (vetoed) | 0.03 | 1 | `3e-5` | 10.127606 | 0.000090902 | 1/0/1 | 68.5076% |
 | 212 | axial | 0.03 | 0.1 | `3e-6` | 10.127613 | 0.000009019 | 1/1/1 | 68.5065% |
-| 213 | axial | 0.03 | 10 | `3e-4` | 10.127472 | 0.000912218 | 0/0/0 | 68.5462% |
+| 213 | registered revision | 0.03 | 10 | `3e-4` | 10.127472 | 0.000912218 | 0/0/0 | 68.5462% |
 | 214 | axial | 0.01 | 1 | `3e-5` | 10.127644 | 0.000103059 | 1/0/0 | 68.5267% |
 | 215 | axial | 0.10 | 1 | `3e-5` | 10.127662 | 0.000101151 | 1/1/0 | 68.5001% |
 | 216 | boundary | 0.01 | 0.1 | `3e-6` | 10.127636 | 0.000010482 | 1/1/1 | 68.4897% |
@@ -89,7 +89,7 @@ PV operands.
 | 218 | 70.8851 | 21.2318 | 52.9955 | 53.0162 | 74.1797 | 70.7031 | 72.5950 | 70.1264 | 24.4060 |
 | 219 | 70.8229 | 21.2131 | 52.9675 | 53.0546 | 74.1944 | 70.5728 | 72.6418 | 69.9465 | 23.8219 |
 
-## 5. Engineering Pattern and Decision Boundary
+## 5. Engineering Pattern and Registered Decision
 
 - The observed frozen-flag pattern is ordered by TLRM rather than temperature.
   All three TLRM `0.1` rows report `1/1/1`; the three TLRM `1` rows are mixed;
@@ -102,12 +102,14 @@ PV operands.
   `R_block=70.8229--70.9099%`. This short engineering screen does not establish
   a quality or sparsity winner.
 
-No revised default is selected here. A registered design decision must resolve
-the failed default using plumbing and numerical-resolution criteria, without
-validation-loss ranking, before configs `221+` can enter scientific S1-B2.
-The TLRM `10` observations are eligible evidence for that decision because all
-three avoid final-quarter frozen flags, but they are not automatically the new
-default and the four corner rows remain boundary observations.
+Registered revision, 2026-07-19: retain the preregistered center temperature
+`tau=0.03` and select config `213` at TLRM `10`, giving threshold LR `3e-4`.
+This is the smallest one-factor correction to config `211`, and config `213`
+passes the original `no_frozen_flag` criterion at all final-quarter points
+96/112/128. The choice uses only that preregistered engineering criterion.
+Validation loss was checked for finiteness, never ranked, and did not enter the
+decision; neither pooled sparsity nor `R_block`/`R_model` selected the default.
+The other TLRM `10` temperatures remain boundary observations.
 
 ## 6. Artifact Audit
 

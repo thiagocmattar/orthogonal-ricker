@@ -5,7 +5,7 @@ sweep:
   design_id: S1-B2-ENG-ATG-GPLUS-A6POST-ABS-PLS-K010-T003-TLRM1-ST128-S0
   planned_steps: 128
   planned_tokens: 8388608
-  notes: Engineering-only learned-ATG pilot; plumbing acceptance only; validation loss cannot select hyperparameters.
+  notes: Engineering-only preregistered learned-ATG default; vetoed on 2026-07-19 solely by the original no_frozen engineering criterion; validation loss was never ranked or used to select its replacement.
 model:
   provider: huggingface
   name: pythia-14m-random-a6post-atg-gplus-t003-tlrm1

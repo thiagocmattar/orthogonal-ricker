@@ -17,15 +17,18 @@ work.
 - Learned-ATG engineering configs `211--219` completed all nine 128-step runs
   and passed the hard checkpoint/optimizer contract. Config `220`, run
   `001-20260719-190523-f28590eb`, completed and passed the exact center-first
-  pooled selection diagnostic. The engineering block is 9/9 complete with its
-  design decision still pending.
-- The preregistered default, config `211`, is provisional because its
-  final-quarter `no_frozen_flag` acceptance check failed at steps 96 and 128.
-  TLRM `10` avoided frozen flags at all three tested temperatures, but no
-  revised default has been selected. Validation loss was checked only for
-  finiteness and was not ranked. Scientific S1-B2 remains blocked, and the
-  scientific count remains 56/132.
-- Next unused config prefix: `221`.
+  pooled selection diagnostic. The engineering block is closed at 9/9.
+- Registered revision dated 2026-07-19: retain `tau=0.03` and replace the
+  failed preregistered TLRM `1` default (config `211`) with config `213` at
+  TLRM `10`, hence threshold LR `3e-4`. This is the smallest same-temperature
+  correction and was selected solely because config `213` passed the original
+  final-quarter `no_frozen_flag` criterion at steps 96/112/128. Validation loss
+  was checked only for finiteness and was never ranked or used in the decision.
+- Scientific configs `221--246` materialize all 26 S1-B2 AdamW cells and are
+  ready for a clean fail-stop launch. B2 is 0/26 complete, so the scientific
+  count remains 56/132.
+- Next unused config prefix: `247`; diagnostic `247` remains deferred until all
+  26 canonical training run IDs are reconciled.
 - The five central B0 anchors, configs `123--127`, completed and passed
   terminal review. Their final selection losses are `7.04913` (A0),
   `6.98875` (A1-H), `7.01310` (A3), `7.01645` (A6-PRE), and `7.03248`
@@ -35,10 +38,8 @@ work.
 - Last completed scientific run: config `209`, fixed `G+` at all six A6-POST
   gates with `kappa=0.10`, run `001-20260719-174822-82abb149`, selection loss
   `7.05266`.
-- Active scientific run: none. The next eligible action is a registered
-  learned-ATG default decision based on plumbing and numerical-resolution
-  evidence; scientific S1-B2 cannot launch until that decision resolves the
-  provisional default failure.
+- Active scientific run: none. The next eligible action is the clean prelaunch
+  commit and fail-stop execution of learned-ATG configs `221--246`.
 
 | Config | Gate/site | Canonical run | Selection loss | `R_block` | `R_model` |
 | ---: | --- | --- | ---: | ---: | ---: |
