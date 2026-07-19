@@ -34,8 +34,8 @@ block_summary:
     planned_cells: 36
     materialized_cells: 1
     completed_cells: 0
-    status: ready
-    note: fixed positive-kappa one-sided and symmetric gate plumbing passed the frozen engineering gate; scientific configs may now be materialized sequentially
+    status: active
+    note: fixed positive-kappa gate plumbing passed the frozen engineering gate; config 149 is the active first scientific cell
   - block: S1-B2
     planned_cells: 26
     materialized_cells: 0
@@ -1464,7 +1464,7 @@ records:
     ricker_sigma: null
     step_budget: null
     matched_control_id: S1-B0-ARCH-A5QKPRE-LR3EM5-S0
-    config_status: ready
+    config_status: active
     decision_status: pending
     release_tier: history
     canonical_run_id: null
