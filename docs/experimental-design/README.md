@@ -11,10 +11,10 @@ work.
 - Planning date: 2026-07-18.
 - Current phase: E0.1 and all currently executable S1-B0 cells are complete;
   the fixed-gate engineering gate passed, and the first twenty-one S1-B1 cells
-  plus their mandatory complete-selection diagnostics are complete. Config
-  `191` is next to materialize. The 2,048-step screen remains restricted to
+  plus their mandatory complete-selection diagnostics are complete. The
+  twenty-second B1 scientific config, `191`, is ready. The 2,048-step screen remains restricted to
   feasibility/collapse and within-stratum comparisons.
-- Next config prefix: `191`.
+- Next config prefix: `192`.
 - The five central B0 anchors, configs `123--127`, completed and passed
   terminal review. Their final selection losses are `7.04913` (A0),
   `6.98875` (A1-H), `7.01310` (A3), `7.01645` (A6-PRE), and `7.03248`
@@ -168,8 +168,8 @@ work.
   passed terminal review. Its mandatory selection diagnostic is materialized
   config `190`, run `001-20260719-115604-facf4ade`, completed over the frozen
   selection partition at `R_block=0.40495` and `R_model=0.12129` and passed
-  artifact, endpoint, and POST-RoPE identity review. Config `191` is next to
-  materialize.
+  artifact, endpoint, and POST-RoPE identity review. Config `191` materializes
+  fixed `Gpm`, POST-RoPE Q/K plus post-split V, at `kappa=0.03` and is ready.
 - B0 has completed all `20 / 20` currently executable scientific cells
   (`20 / 22` declared); the two post-PV context cells remain blocked. The
   declared S1 core has completed `41 / 134` cells (`41 / 132` executable).
