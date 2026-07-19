@@ -19,15 +19,15 @@ work.
   (A6-POST). Config `128`, the combined selection-partition endpoint
   diagnostic, also completed and passed artifact review. Configs `121--122`
   remain accepted engineering controls.
-- Last completed run: config `143` A6-PRE at LR `1e-4`, run
-  `001-20260718-234920-d1bc5ad6`, result path
-  `results/143-s1-b0-p14m-a6pre-adamw-lr1em4-s0/001-20260718-234920-d1bc5ad6`,
-  selection loss `5.93539`.
+- Last completed run: config `144` A6-POST at LR `1e-4`, run
+  `001-20260719-001147-1cf26b02`, result path
+  `results/144-s1-b0-p14m-a6post-adamw-lr1em4-s0/001-20260719-001147-1cf26b02`,
+  selection loss `6.06320`.
 - Config `134`, run `001-20260718-205354-8821b592`, completed the pooled
   exact-zero diagnostic over canonical configs `129--133`.
-- Config `144` (A6-POST, LR `1e-4`), run
-  `001-20260719-001147-1cf26b02`, is active locally; it is the final training
-  run in the LR-flank set.
+- All ten LR-flank training runs, configs `135--144`, are complete and passed
+  terminal review. Config `145`, the pooled selection-partition endpoint
+  diagnostic, is pending materialization.
 - Config `133` attempt 2 was an accidental duplicate created during a handoff
   race. It was terminated after step 1 and is invalid; attempt 1 completed.
 - Config `131` attempt 2 was an accidental duplicate created during a handoff
@@ -41,9 +41,9 @@ work.
   in [`08-s1-b0-attention-parent-results.md`](08-s1-b0-attention-parent-results.md).
 - Configs `135--144` materialize all 10 executable B0 learning-rate flanks:
   A0, A1-H, A3, A6-PRE, and A6-POST at LR `1e-5` and `1e-4`.
-- B0 has completed `19 / 22` scientific cells; 3 remain, of which one is
-  executable and two post-PV context cells remain blocked. The declared S1
-  core has completed `19 / 134` cells (`19 / 132` executable).
+- B0 has completed all `20 / 20` currently executable scientific cells
+  (`20 / 22` declared); the two post-PV context cells remain blocked. The
+  declared S1 core has completed `20 / 134` cells (`20 / 132` executable).
   Diagnostic configs do not count as scientific cells.
 - S1 must never use a global rank cutoff. Complete matched method panels from
   viable families advance to the 8,192-step rung under the frozen policy in

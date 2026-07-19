@@ -1414,15 +1414,15 @@ records:
     mode: pretrain
     result_path: results/144-s1-b0-p14m-a6post-adamw-lr1em4-s0/001-20260719-001147-1cf26b02
     log_path: run-logs/144-s1-b0-p14m-a6post-adamw-lr1em4-s0-pretrain-attempt1.log
-    lifecycle_status: running
-    evidence_status: unreviewed
-    canonical: false
+    lifecycle_status: completed
+    evidence_status: valid
+    canonical: true
     started_at: 2026-07-19T00:11:47.162314Z
-    finished_at: null
+    finished_at: 2026-07-19T00:32:32.983669Z
     git_commit: 3ec78b45c7a8c523f15f38188dbbc18303c234ed
     git_dirty: false
-    completed_steps: 0
-    tokens_seen: 0
+    completed_steps: 2048
+    tokens_seen: 134217728
     model_initialization_seed: 0
     data_order_seed: 0
     training_schedule_scheme: random_contiguous_blocks_with_replacement_v1
@@ -1431,10 +1431,10 @@ records:
     validation_partition: selection
     validation_partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
     validation_tokens: 311296
-    validation_loss: null
-    wall_hours: null
-    tokens_per_second: null
-    peak_gpu_mb: null
+    validation_loss: 6.063203761452122
+    wall_hours: 0.345433272555561
+    tokens_per_second: 107935.66297620443
+    peak_gpu_mb: 6056.47119140625
     execution_backend: local
     cloud_provider: null
     gpu_type: NVIDIA GeForce RTX 5070 Ti Laptop GPU
@@ -1445,5 +1445,5 @@ records:
     gpu_driver_version: "572.84"
     failure_type: null
     failure_message: null
-    reviewed_at: null
-    notes: Launched outside sandbox process containment from clean commit 3ec78b4 with PID 32620. Standard error is recorded at run-logs/144-s1-b0-p14m-a6post-adamw-lr1em4-s0-pretrain-attempt1-stderr.log; expected terminal window is 2026-07-19T00:32--00:34Z.
+    reviewed_at: 2026-07-19T00:33:06.5629005Z
+    notes: Completed from clean launch commit 3ec78b4 with 42 train and 10 complete-selection validation events. Final model SHA-256 is eebbaa1b1fb6c86c9b9537dd32cb42a8ccb61a0d253a4322a9bd644c75737e32; optimizer state was intentionally not saved. Final selection loss is 0.96927 below the matched A6-POST LR3EM5 control at the fixed 2048-step budget; S1 supports within-stratum feasibility comparisons only.

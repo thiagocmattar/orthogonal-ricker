@@ -21,8 +21,8 @@ block_summary:
   - block: S1-B0
     planned_cells: 22
     materialized_cells: 20
-    completed_cells: 19
-    status: active
+    completed_cells: 20
+    status: blocked
     note: all 20 executable B0 cells are materialized, comprising 10 central/ordinary architecture controls and 10 model-LR flanks; two post-PV context cells remain dependency-gated
   - block: S1-B1
     planned_cells: 36
@@ -1223,8 +1223,8 @@ records:
     ricker_sigma: null
     step_budget: null
     matched_control_id: S1-B0-ARCH-A6POST-LR3EM5-S0
-    config_status: active
+    config_status: closed
     decision_status: control
     release_tier: history
-    canonical_run_id: null
-    notes: A6POST AdamW model-learning-rate flank at 1.0e-04, matched to S1-B0-ARCH-A6POST-LR3EM5-S0; no pressure. S1 is feasibility/within-stratum only.
+    canonical_run_id: 001-20260719-001147-1cf26b02
+    notes: A6POST AdamW model-learning-rate flank at 1.0e-04; no pressure. Run 001-20260719-001147-1cf26b02 completed 2048 steps and passed terminal review at selection loss 6.06320, 0.96927 below its matched central LR3EM5 control. S1 is feasibility/within-stratum only.
