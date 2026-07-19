@@ -9,25 +9,24 @@ work.
 
 - Campaign id: `pythia-sparsity-scaling-v1`.
 - Planning date: 2026-07-18.
-- Current phase: all 20 executable S1-B0 cells, the 24-cell B1 main attention
-  factorial, and all six B1 POST site-isolation cells are complete. Pooled
-  site-isolation diagnostic `203` is closed; branch-scope configs `204--209`
-  are ready. The 2,048-step screen remains restricted to feasibility/collapse
-  and within-stratum comparisons.
+- Current phase: 56 of 132 executable S1 scientific cells are complete
+  (42.42%): S1-B0 is 20/20 and the S1-B1 scientific matrix is 36/36. Pooled
+  site-isolation diagnostic `203` is closed; pooled branch-scope diagnostic
+  `210` remains pending before B1 closure. The 2,048-step screen remains
+  restricted to feasibility/collapse and within-stratum comparisons.
 - Next unused config prefix: `210`, deferred for the pooled branch-scope
-  diagnostic after configs `204--209` have canonical runs.
+  diagnostic over the exact canonical runs for configs `204--209`.
 - The five central B0 anchors, configs `123--127`, completed and passed
   terminal review. Their final selection losses are `7.04913` (A0),
   `6.98875` (A1-H), `7.01310` (A3), `7.01645` (A6-PRE), and `7.03248`
   (A6-POST). Config `128`, the combined selection-partition endpoint
   diagnostic, also completed and passed artifact review. Configs `121--122`
   remain accepted engineering controls.
-- Last completed scientific run: config `202`, fixed `Gpm` post-split V-only
-  at `kappa=0.10`, run `001-20260719-152835-0369b367`, selection loss
-  `7.01501`.
-- Active scientific run: none. Launch branch-scope configs `204--209` next as
-  one fail-stop tranche, then materialize their pooled diagnostic at prefix
-  `210` from the exact canonical run ids.
+- Last completed scientific run: config `209`, fixed `G+` at all six A6-POST
+  gates with `kappa=0.10`, run `001-20260719-174822-82abb149`, selection loss
+  `7.05266`.
+- Active scientific run: none. Materialize and run pooled branch-scope
+  diagnostic `210` next from the six exact canonical run ids below.
 
 | Config | Gate/site | Canonical run | Selection loss | `R_block` | `R_model` |
 | ---: | --- | --- | ---: | ---: | ---: |
@@ -41,6 +40,20 @@ work.
 - Config `203`, run `001-20260719-160449-6ea5e005`, supplies these pooled
   endpoints over all 311,296 complete selection tokens and passed artifact,
   topology, gate-operand identity, exact-zero, and product-count review.
+
+| Config | Architecture / fixed G+ sites | `kappa` | Canonical run | Selection loss | `R_block` / `R_model` |
+| ---: | --- | ---: | --- | ---: | --- |
+| 204 | A1-H / h | 0.03 | `001-20260719-162004-acaa3c4d` | 6.98927 | pending diagnostic 210 |
+| 205 | A1-H / h | 0.10 | `001-20260719-163632-0ef57fc3` | 6.99409 | pending diagnostic 210 |
+| 206 | A3 / a, m, h | 0.03 | `001-20260719-165244-cdb05be6` | 7.00780 | pending diagnostic 210 |
+| 207 | A3 / a, m, h | 0.10 | `001-20260719-171028-3317c771` | 7.02685 | pending diagnostic 210 |
+| 208 | A6-POST / a, m, h, q, k, v | 0.03 | `001-20260719-172812-44207e36` | 7.02389 | pending diagnostic 210 |
+| 209 | A6-POST / a, m, h, q, k, v | 0.10 | `001-20260719-174822-82abb149` | 7.05266 | pending diagnostic 210 |
+
+- Configs `204--209` completed 2,048 steps each from clean commit `5c17fa0`
+  and passed terminal envelope, saved-config, finite-event, collapse, and
+  recomputed-checkpoint-hash review. Pooled `z_*`, `R_block`, `R_model`, and
+  `U_arch` values are intentionally unreported until diagnostic `210`.
 - Config `196`, run `001-20260719-134214-2cfa55c7`, completed config `195`'s
   mandatory diagnostic at `R_block=0.65130` and `R_model=0.19508`.
 - Config `194`, run `001-20260719-130907-96667214`, completed config `193`'s
@@ -316,7 +329,8 @@ must not be used to rank methods.
    endpoints, acceptance decision, and B1 handoff.
 11. [`11-s1-b1-fixed-threshold-results.md`](11-s1-b1-fixed-threshold-results.md)
    consolidates the fixed-threshold factorial, topology-normalized utilization,
-   completed site-isolation training endpoints, and remaining B1 diagnostics.
+   completed site-isolation and branch-scope training endpoints, and remaining
+   B1 diagnostic closure.
 12. [`validation-partitions.yaml`](validation-partitions.yaml) freezes the
    document-disjoint selection and confirmation source-document lists.
 13. [`config-registry.yaml`](config-registry.yaml) is the config-level source of

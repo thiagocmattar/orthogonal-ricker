@@ -9,8 +9,10 @@ one-seed, 2,048-step screening evidence: it supports feasibility and matched
 within-stratum comparisons, not a global ranking or paper-level conclusion.
 
 All six site-isolation training cells, configs `197--202`, and their pooled
-selection-partition diagnostic `203` are complete. The remaining six
-branch-scope cells, configs `204--209`, are ready but have not launched.
+selection-partition diagnostic `203` are complete. The six branch-scope cells,
+configs `204--209`, are also complete and reviewed. The B1 scientific matrix
+is therefore 36/36, bringing executable S1 completion to 56/132 (42.42%). Its
+pooled branch-scope diagnostic `210` remains pending, so B1 is not yet closed.
 
 ## 2. Methods and Denominators
 
@@ -187,12 +189,38 @@ At this one seed and threshold:
   exactly to the PV operand and produce 4.1569% (`G+`) or 0.0644% (`Gpm`)
   exact-zero attention-context coordinates before Wo.
 
-## TODO: Close S1-B1
+## 7. Canonical Branch-Scope Training Results
 
-- Launch the one-sided branch-scope configs `204--209`: topology
-  `{A1-H, A3, A6-POST}` crossed with `kappa={0.03,0.10}`.
-- Run the next pooled branch-scope diagnostic (planned config `210`), audit its
-  exact-zero/product denominators, and add the six canonical rows here.
-- Mark B1 complete only after all 36 scientific cells and both pooled closure
-  diagnostics have durable, reviewed artifacts. Preserve the one-seed and
-  short-budget interpretation boundary.
+These one-sided fixed-threshold rows cross topology `{A1-H, A3, A6-POST}`
+with `kappa={0.03,0.10}`. All six runs use the common B1 budget and schedule
+defined above. Their terminal envelopes, immutable saved configs, finite event
+streams, and recomputed final-model hashes passed review.
+
+| Config | Architecture | Fixed G+ sites | `kappa` | Training run | Val. loss | Wall (h) | Tokens/s |
+| ---: | --- | --- | ---: | --- | ---: | ---: | ---: |
+| 204 | A1-H | h | 0.03 | `001-20260719-162004-acaa3c4d` | 6.989267 | 0.2703 | 137,912 |
+| 205 | A1-H | h | 0.10 | `001-20260719-163632-0ef57fc3` | 6.994088 | 0.2686 | 138,804 |
+| 206 | A3 | a, m, h | 0.03 | `001-20260719-165244-cdb05be6` | 7.007799 | 0.2944 | 126,659 |
+| 207 | A3 | a, m, h | 0.10 | `001-20260719-171028-3317c771` | 7.026853 | 0.2945 | 126,580 |
+| 208 | A6-POST | a, m, h, q, k, v | 0.03 | `001-20260719-172812-44207e36` | 7.023888 | 0.3348 | 111,356 |
+| 209 | A6-POST | a, m, h, q, k, v | 0.10 | `001-20260719-174822-82abb149` | 7.052660 | 0.3345 | 111,456 |
+
+The six rows consumed 1.7971 serial GPU-hours. All best selection losses occur
+at step 2,048. Raising `kappa` from 0.03 to 0.10 increases selection loss by
+0.004821 for A1-H, 0.019053 for A3, and 0.028772 for A6-POST at this seed. The
+throughput differences reflect dense gate and instrumentation overhead; they
+are not sparse-kernel speedups.
+
+Pooled `z_*`, `R_block`, `R_model`, topology ceilings, and `U_arch` are not
+reported from last-minibatch telemetry. They remain pending the full 311,296-
+token selection-partition diagnostic `210`.
+
+## TODO: Finish S1-B1 Diagnostic Closure
+
+- Materialize diagnostic `210` from the exact canonical run ids for configs
+  `204--209`, run it over the frozen selection partition, and audit its
+  exact-zero/product denominators.
+- Attach the six pooled `z_*`, `R_block`, `R_model`, ceiling, and `U_arch`
+  endpoints to the run registry and this document.
+- Mark B1 closed only after diagnostic `210` has durable, reviewed artifacts.
+  Preserve the one-seed and short-budget interpretation boundary.
