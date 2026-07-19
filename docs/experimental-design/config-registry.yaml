@@ -1270,8 +1270,8 @@ records:
     ricker_sigma: null
     step_budget: null
     matched_control_id: null
-    config_status: active
+    config_status: closed
     decision_status: control
     release_tier: history
-    canonical_run_id: null
-    notes: Complete-selection propagation diagnostic pinned to the exact canonical run ids for configs 135--144; pending local launch.
+    canonical_run_id: 001-20260719-003521-94d90e97
+    notes: Complete-selection schema-v3 propagation diagnostic pinned to the exact canonical run ids for configs 135--144. Run 001-20260719-003521-94d90e97 evaluated all 311296 complete selection-partition tokens and passed five-file statusless artifact and source-manifest review.

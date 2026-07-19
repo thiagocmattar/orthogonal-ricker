@@ -9,9 +9,9 @@ work.
 
 - Campaign id: `pythia-sparsity-scaling-v1`.
 - Planning date: 2026-07-18.
-- Current phase: E0.1 complete and S1 option 1 approved. The 2,048-step screen
-  is restricted to feasibility/collapse and within-stratum comparisons; the B0
-  endpoint diagnostic is accepted.
+- Current phase: E0.1 and all currently executable S1-B0 cells are complete.
+  The 2,048-step screen is restricted to feasibility/collapse and
+  within-stratum comparisons; all three B0 endpoint diagnostics are accepted.
 - Next config prefix: `146`.
 - The five central B0 anchors, configs `123--127`, completed and passed
   terminal review. Their final selection losses are `7.04913` (A0),
@@ -19,15 +19,16 @@ work.
   (A6-POST). Config `128`, the combined selection-partition endpoint
   diagnostic, also completed and passed artifact review. Configs `121--122`
   remain accepted engineering controls.
-- Last completed run: config `144` A6-POST at LR `1e-4`, run
+- Last completed scientific run: config `144` A6-POST at LR `1e-4`, run
   `001-20260719-001147-1cf26b02`, result path
   `results/144-s1-b0-p14m-a6post-adamw-lr1em4-s0/001-20260719-001147-1cf26b02`,
   selection loss `6.06320`.
 - Config `134`, run `001-20260718-205354-8821b592`, completed the pooled
   exact-zero diagnostic over canonical configs `129--133`.
 - All ten LR-flank training runs, configs `135--144`, are complete and passed
-  terminal review. Config `145`, the pooled selection-partition endpoint
-  diagnostic, is active pending local launch.
+  terminal review. Config `145`, run `001-20260719-003521-94d90e97`, completed
+  the pooled selection-partition endpoint diagnostic over all ten checkpoints
+  and evaluated 311,296 tokens per method.
 - Config `133` attempt 2 was an accidental duplicate created during a handoff
   race. It was terminated after step 1 and is invalid; attempt 1 completed.
 - Config `131` attempt 2 was an accidental duplicate created during a handoff
@@ -69,24 +70,23 @@ registry rows explicitly marked as valid are campaign evidence.
 
 ## Latest Completed Launch Set
 
-The second S1-B0 architecture set completed locally on 2026-07-18. All five
-runs used 2,048 matched steps and the complete selection partition; diagnostic
-config `134` then measured their pooled exact-zero and logical-product
-endpoints. The consolidated evidence and handoff are in
-[`08-s1-b0-attention-parent-results.md`](08-s1-b0-attention-parent-results.md).
+The S1-B0 learning-rate controls completed locally across 2026-07-18 and
+2026-07-19. Each architecture now has matched `1e-5`, `3e-5`, and `1e-4`
+endpoints at 2,048 steps; config `145` measured exact-zero and logical-product
+endpoints for both flank slices. The consolidated evidence and handoff are in
+[`09-s1-b0-learning-rate-flank-results.md`](09-s1-b0-learning-rate-flank-results.md).
 
-| Config | Architecture | Validation loss | Wall (h) | Tokens/s |
-| --- | --- | ---: | ---: | ---: |
-| `129` | A4-Q | 7.02126 | 0.319 | 116,700 |
-| `130` | A4-K | 7.02441 | 0.325 | 114,792 |
-| `131` | A4-V | 7.01615 | 0.322 | 115,619 |
-| `132` | A5-QK-PRE | 7.01586 | 0.335 | 111,235 |
-| `133` | A5-QK-POST | 7.03064 | 0.340 | 109,539 |
+| Architecture | Loss at `1e-5` | Loss at `3e-5` | Loss at `1e-4` |
+| --- | ---: | ---: | ---: |
+| A0 | 8.35104 | 7.04913 | 5.93887 |
+| A1-H | 8.38652 | 6.98875 | 5.87474 |
+| A3 | 8.40015 | 7.01310 | 5.91768 |
+| A6-PRE | 8.38739 | 7.01645 | 5.93539 |
+| A6-POST | 8.38743 | 7.03248 | 6.06320 |
 
-The preceding central-anchor set is recorded in
-[`07-s1-b0-anchor-results.md`](07-s1-b0-anchor-results.md). B0 now has 10 of 22
-scientific cells complete. The next executable set is the predeclared learning-
-rate flank controls; the two post-PV context cells remain dependency-gated.
+B0 has completed all 20 currently executable scientific cells. Two post-PV
+context cells remain dependency-gated; they are not silently counted as
+complete.
 
 ## Latest Completed Engineering Launch Set
 
@@ -136,11 +136,14 @@ must not be used to rank methods.
 8. [`08-s1-b0-attention-parent-results.md`](08-s1-b0-attention-parent-results.md)
    consolidates the attention-parent controls, pooled endpoints, matched
    parent-child contrasts, caveats, and next launch set.
-9. [`validation-partitions.yaml`](validation-partitions.yaml) freezes the
+9. [`09-s1-b0-learning-rate-flank-results.md`](09-s1-b0-learning-rate-flank-results.md)
+   consolidates the matched three-point learning-rate controls, pooled
+   endpoints, caveats, and next engineering gate.
+10. [`validation-partitions.yaml`](validation-partitions.yaml) freezes the
    document-disjoint selection and confirmation source-document lists.
-10. [`config-registry.yaml`](config-registry.yaml) is the config-level source of
+11. [`config-registry.yaml`](config-registry.yaml) is the config-level source of
    truth for materialized campaign cells.
-11. [`run-registry.yaml`](run-registry.yaml) records every run attempt. It is
+12. [`run-registry.yaml`](run-registry.yaml) records every run attempt. It is
    intentionally separate because one immutable config can have more than one
    infrastructure attempt.
 
