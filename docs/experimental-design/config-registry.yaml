@@ -35,7 +35,7 @@ block_summary:
     materialized_cells: 13
     completed_cells: 13
     status: active
-    note: the first 12 B1 scientific cells, configs 149 through 171 at odd prefixes, plus their mandatory complete-selection propagation diagnostics are complete; config 173 passed terminal review and diagnostic config 174 is ready
+    note: the first 13 B1 scientific cells, configs 149 through 173 at odd prefixes, plus their mandatory complete-selection propagation diagnostics are complete
   - block: S1-B2
     planned_cells: 26
     materialized_cells: 0
@@ -2596,7 +2596,7 @@ records:
     decision_status: pending
     release_tier: history
     canonical_run_id: 001-20260719-071126-022f081f
-    notes: Thirteenth B1 scientific cell; fixed absolute Gpm kappa 0.03 at PRE-RoPE Q/K, ordinary a/m/h ReLU, V absent, AdamW without pressure. Run 001-20260719-071126-022f081f completed all 2048 steps from clean commit 10f1667 and passed terminal review at selection loss 7.01319. Its identity-parent matched control is the Three-ReLU A3 config 125 because Gpm at kappa 0 is identity. The mandatory complete-selection propagation diagnostic is pending; S1 supports feasibility/collapse and within-stratum comparisons only.
+    notes: Thirteenth B1 scientific cell; fixed absolute Gpm kappa 0.03 at PRE-RoPE Q/K, ordinary a/m/h ReLU, V absent, AdamW without pressure. Run 001-20260719-071126-022f081f completed all 2048 steps from clean commit 10f1667 and passed terminal review at selection loss 7.01319. Its identity-parent matched control is the Three-ReLU A3 config 125 because Gpm at kappa 0 is identity. Canonical diagnostic config 174 measured R_block 0.21885 and R_model 0.06555 over the complete selection partition. S1 supports feasibility/collapse and within-stratum comparisons only.
   - design_id: S1-B1-DIAG-FIX-GPM-PRE-QK-K003-SELECTION-S0
     config_id: 174-s1-b1-gpm-pre-qk-k003-selection-prop
     config_path: configs/174-s1-b1-gpm-pre-qk-k003-selection-prop.yaml
@@ -2639,8 +2639,8 @@ records:
     ricker_sigma: null
     step_budget: null
     matched_control_id: S1-B0-ARCH-A3-LR3EM5-S0
-    config_status: ready
+    config_status: closed
     decision_status: control
     release_tier: history
-    canonical_run_id: null
-    notes: Mandatory complete-selection propagation diagnostic pinned to canonical config 173; materialized before execution and excluded from scientific-cell counts.
+    canonical_run_id: 001-20260719-073848-15430afb
+    notes: Canonical schema-v3 complete-selection diagnostic pinned to config 173. Run 001-20260719-073848-15430afb pooled all 311296 complete selection tokens and passed the five-file statusless artifact, topology, PRE-RoPE survival, exact-zero, and product-count review; diagnostic-only and excluded from scientific-cell counts.
