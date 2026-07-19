@@ -195,6 +195,34 @@ S1-B1-ISO-<GPLUS|GPM>-POST-<Q|K|V>-K010-S0
 S1-B1-BRANCH-GPLUS-<A1H|A3|A6POST>-K<003|010>-S0
 ```
 
+### Learned-gate engineering gate before B2 -- 9 pilots plus one diagnostic
+
+Before materializing B2, run a 128-step plumbing grid on learned `G+`
+`A6-POST`: all six sites `{a,m,h,q,k,v}`, POST-RoPE Q/K, absolute thresholds,
+`kappa_init=0.10`, and `kappa_scope=per_layer_site`. Cross transition
+temperature `tau={0.01,0.03,0.10}` with threshold/model LR multiplier
+`{0.1,1,10}`. Retain the B1 engineering envelope: model LR `3e-5`, seeds
+`0/0`, 8,388,608 tokens, no pressure, and final model plus optimizer state.
+The preregistered scientific default is `tau=0.03` and LR multiplier `1`;
+the grid can veto this default for an engineering failure but cannot replace it
+by ranking validation loss.
+
+Launch the center first, then its one-factor neighbors, then the corners:
+`(0.03,1)`, `(0.03,0.1)`, `(0.03,10)`, `(0.01,1)`, `(0.10,1)`,
+`(0.01,0.1)`, `(0.01,10)`, `(0.10,0.1)`, `(0.10,10)`. After all nine
+terminal runs are reconciled, run one pooled complete-selection propagation
+diagnostic pinned to their canonical run ids.
+
+Acceptance is plumbing-only. Every run must complete with finite metrics and
+an exact model/optimizer reload containing 36 FP32 threshold parameters and a
+separate zero-decay threshold optimizer group. Saved/reloaded thresholds must
+match exactly. The default must have finite nonzero threshold gradient and
+update norms, no nonfinite or frozen-threshold flag, no universal collapse in
+its final-quarter logged points, and pooled active-site zero rates strictly
+between 0 and 99.5%. Corner collapse or frozen dynamics is retained as boundary
+evidence. If the default fails, B2 remains blocked pending a registered design
+revision.
+
 ### B2: learned-ATG AdamW -- 26 cells
 
 All learned gates use `kappa = softplus(rho)` in FP32, no weight decay on
