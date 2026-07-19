@@ -33,9 +33,9 @@ block_summary:
   - block: S1-B1
     planned_cells: 36
     materialized_cells: 6
-    completed_cells: 5
+    completed_cells: 6
     status: active
-    note: configs 149, 151, 153, 155, and 157 plus their mandatory complete-selection propagation diagnostics are complete; config 159 is the active fixed G+ PRE-RoPE QKV kappa 0.30 cell
+    note: configs 149, 151, 153, 155, 157, and 159 passed terminal training review; config 159's mandatory complete-selection propagation diagnostic is pending
   - block: S1-B2
     planned_cells: 26
     materialized_cells: 0
@@ -1934,8 +1934,8 @@ records:
     ricker_sigma: null
     step_budget: null
     matched_control_id: S1-B0-ARCH-A6PRE-LR3EM5-S0
-    config_status: active
+    config_status: closed
     decision_status: pending
     release_tier: history
-    canonical_run_id: null
-    notes: Sixth B1 scientific cell; fixed absolute G+ kappa 0.30 at PRE-RoPE Q/K and post-split V, ordinary a/m/h ReLU, AdamW without pressure. S1 supports feasibility/collapse and within-stratum comparisons only.
+    canonical_run_id: 001-20260719-034439-ee5194a7
+    notes: Sixth B1 scientific cell; fixed absolute G+ kappa 0.30 at PRE-RoPE Q/K and post-split V, ordinary a/m/h ReLU, AdamW without pressure. Run 001-20260719-034439-ee5194a7 completed 2048 steps and passed terminal artifact, stability, collapse, and exact checkpoint-reload review at selection loss 7.03369. Its mandatory selection propagation diagnostic is pending. S1 supports feasibility/collapse and within-stratum comparisons only.

@@ -2307,15 +2307,15 @@ records:
     mode: pretrain
     result_path: results/159-s1-b1-p14m-gplus-pre-qkv-k030-s0/001-20260719-034439-ee5194a7
     log_path: run-logs/159-s1-b1-p14m-gplus-pre-qkv-k030-s0-attempt1.log
-    lifecycle_status: running
-    evidence_status: unreviewed
-    canonical: false
+    lifecycle_status: completed
+    evidence_status: valid
+    canonical: true
     started_at: 2026-07-19T03:44:39.838630Z
-    finished_at: null
+    finished_at: 2026-07-19T04:05:34.406278Z
     git_commit: d9ad596563dec3f5130c0bf96369c88e8561eb17
     git_dirty: false
-    completed_steps: 0
-    tokens_seen: 0
+    completed_steps: 2048
+    tokens_seen: 134217728
     model_initialization_seed: 0
     data_order_seed: 0
     training_schedule_scheme: random_contiguous_blocks_with_replacement_v1
@@ -2324,10 +2324,10 @@ records:
     validation_partition: selection
     validation_partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
     validation_tokens: 311296
-    validation_loss: null
-    wall_hours: null
-    tokens_per_second: null
-    peak_gpu_mb: null
+    validation_loss: 7.0336885703237435
+    wall_hours: 0.3478937463055546
+    tokens_per_second: 107166.92271173187
+    peak_gpu_mb: 6050.47119140625
     execution_backend: local
     cloud_provider: null
     gpu_type: NVIDIA GeForce RTX 5070 Ti Laptop GPU
@@ -2336,7 +2336,8 @@ records:
     pytorch_version: 2.11.0+cu128
     cuda_version: "12.8"
     gpu_driver_version: "572.84"
+    token_cache_sha256: 22bb7c27864f0e5941548c572d6c75b1b5ba6a4c13e4cd26f40f4de546c5cc19
     failure_type: null
     failure_message: null
-    reviewed_at: null
-    notes: Active sixth B1 scientific cell. Fixed absolute G+ kappa 0.30 at PRE-RoPE Q/K and post-split V, ordinary a/m/h ReLU, AdamW without pressure. Expected completion near 2026-07-19T04:06Z; S1 supports feasibility/collapse and within-stratum comparisons only. Standard error is recorded separately at run-logs/159-s1-b1-p14m-gplus-pre-qkv-k030-s0-attempt1.err.log.
+    reviewed_at: 2026-07-19T04:07:10.2188943Z
+    notes: Completed sixth B1 scientific cell from clean launch commit d9ad596 with 42 training and 10 complete-selection validation events. Final train loss was 7.08366 and final/best selection loss was 7.03369. The final model SHA256 is 0aeb18d746006c0d6ddff098dccfc0966741ce2f62ddbebdfb8601c188a82c9f; optimizer state was intentionally not saved. Exact reload recovered ordinary a/m/h ReLU plus fixed G+ kappa 0.30 at PRE-RoPE q/k and post-split V in all six layers, with the final LayerNorm ungated. Mean final logged exact-zero fractions were z_a 0.50790, z_m 0.50987, z_h 0.46409, z_q_gate 0.87162, z_k_gate 0.90686, and z_v_gate 0.90600; collapse, stability, and sparsity-evaporation checks passed. The mandatory selection propagation diagnostic is pending; S1 supports feasibility/collapse and within-stratum comparisons only.
