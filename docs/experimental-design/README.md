@@ -13,7 +13,7 @@ work.
   the fixed-gate engineering gate passed, and the first eleven S1-B1 cells
   plus their diagnostics are complete. The 2,048-step screen remains restricted to
   feasibility/collapse and within-stratum comparisons.
-- Next config prefix: `171`.
+- Next config prefix: `172`.
 - The five central B0 anchors, configs `123--127`, completed and passed
   terminal review. Their final selection losses are `7.04913` (A0),
   `6.98875` (A1-H), `7.01310` (A3), `7.01645` (A6-PRE), and `7.03248`
@@ -105,8 +105,9 @@ work.
   `001-20260719-060936-1cfd8103` completed at selection loss `7.03408` and
   passed terminal review. Its mandatory selection propagation diagnostic,
   config `170`, run `001-20260719-063500-541b449d`, completed at
-  `R_block=0.56464` and `R_model=0.16912`; the next B1 scientific cell may be
-  materialized.
+  `R_block=0.56464` and `R_model=0.16912`. Config `171` materializes the
+  matched fixed `G+` POST-RoPE Q/K plus post-split V, `kappa=0.30` cell and is
+  ready to launch.
 - B0 has completed all `20 / 20` currently executable scientific cells
   (`20 / 22` declared); the two post-PV context cells remain blocked. The
   declared S1 core has completed `31 / 134` cells (`31 / 132` executable).
