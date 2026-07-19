@@ -35,7 +35,7 @@ block_summary:
     materialized_cells: 23
     completed_cells: 23
     status: active
-    note: the first 23 B1 scientific cells, configs 149 through 193 at odd prefixes, are complete; mandatory complete-selection diagnostics are complete through config 192, and diagnostic config 194 is ready for config 193
+    note: the first 23 B1 scientific cells, configs 149 through 193 at odd prefixes, plus their mandatory complete-selection propagation diagnostics are complete; config 195 is next for the final main-factorial cell
   - block: S1-B2
     planned_cells: 26
     materialized_cells: 0
@@ -3536,7 +3536,7 @@ records:
     decision_status: pending
     release_tier: history
     canonical_run_id: 001-20260719-124320-952d526f
-    notes: Twenty-third B1 scientific cell; fixed absolute Gpm kappa 0.10 at POST-RoPE Q/K and post-split V, ordinary a/m/h ReLU, AdamW without pressure. Run 001-20260719-124320-952d526f completed all 2048 steps from clean commit 1e83a14 and passed terminal review at selection loss 7.01688. Its identity-parent matched control is the Three-ReLU A3 config 125 because Gpm at kappa 0 is identity at Q/K/V. Mandatory complete-selection diagnostic config 194 is pending; S1 supports feasibility/collapse and within-stratum comparisons only.
+    notes: Twenty-third B1 scientific cell; fixed absolute Gpm kappa 0.10 at POST-RoPE Q/K and post-split V, ordinary a/m/h ReLU, AdamW without pressure. Run 001-20260719-124320-952d526f completed all 2048 steps from clean commit 1e83a14 and passed terminal review at selection loss 7.01688. Its identity-parent matched control is the Three-ReLU A3 config 125 because Gpm at kappa 0 is identity at Q/K/V. Canonical diagnostic config 194 measured R_block 0.39646 and R_model 0.11875 over the complete selection partition. S1 supports feasibility/collapse and within-stratum comparisons only.
   - design_id: S1-B1-DIAG-FIX-GPM-POST-QKV-K010-SELECTION-S0
     config_id: 194-s1-b1-gpm-post-qkv-k010-selection-prop
     config_path: configs/194-s1-b1-gpm-post-qkv-k010-selection-prop.yaml
@@ -3579,8 +3579,8 @@ records:
     ricker_sigma: null
     step_budget: null
     matched_control_id: S1-B0-ARCH-A3-LR3EM5-S0
-    config_status: ready
+    config_status: closed
     decision_status: control
     release_tier: history
-    canonical_run_id: null
-    notes: Mandatory schema-v3 complete-selection diagnostic pinned to canonical config 193 run 001-20260719-124320-952d526f; run only after this clean committed materialization. Diagnostic-only and excluded from scientific-cell counts.
+    canonical_run_id: 001-20260719-130907-96667214
+    notes: Canonical schema-v3 complete-selection diagnostic pinned to config 193. Run 001-20260719-130907-96667214 pooled all 311296 complete selection tokens and passed the five-file statusless artifact, topology, POST-RoPE identity, exact-zero, and product-count review; diagnostic-only and excluded from scientific-cell counts.
