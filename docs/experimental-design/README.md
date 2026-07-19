@@ -10,8 +10,9 @@ work.
 - Campaign id: `pythia-sparsity-scaling-v1`.
 - Planning date: 2026-07-18.
 - Current phase: E0.1 and all currently executable S1-B0 cells are complete;
-  the fixed-gate engineering gate passed, and the first eleven S1-B1 cells
-  plus their diagnostics are complete. The 2,048-step screen remains restricted to
+  the fixed-gate engineering gate passed, the first eleven S1-B1 cells plus
+  their diagnostics are complete, and the twelfth S1-B1 training run passed
+  terminal review. The 2,048-step screen remains restricted to
   feasibility/collapse and within-stratum comparisons.
 - Next config prefix: `172`.
 - The five central B0 anchors, configs `123--127`, completed and passed
@@ -20,9 +21,9 @@ work.
   (A6-POST). Config `128`, the combined selection-partition endpoint
   diagnostic, also completed and passed artifact review. Configs `121--122`
   remain accepted engineering controls.
-- Last completed scientific run: config `169`, fixed `G+` POST-RoPE Q/K plus
-  post-split V at `kappa=0.10`, run `001-20260719-060936-1cfd8103`, selection
-  loss `7.03408`.
+- Last completed scientific run: config `171`, fixed `G+` POST-RoPE Q/K plus
+  post-split V at `kappa=0.30`, run `001-20260719-063931-ae5b970a`, selection
+  loss `7.03405`.
 - Config `134`, run `001-20260718-205354-8821b592`, completed the pooled
   exact-zero diagnostic over canonical configs `129--133`.
 - All ten LR-flank training runs, configs `135--144`, are complete and passed
@@ -107,10 +108,11 @@ work.
   config `170`, run `001-20260719-063500-541b449d`, completed at
   `R_block=0.56464` and `R_model=0.16912`. Config `171` materializes the
   matched fixed `G+` POST-RoPE Q/K plus post-split V, `kappa=0.30` cell; run
-  `001-20260719-063931-ae5b970a` is active from clean commit `319d4ac`.
+  `001-20260719-063931-ae5b970a` completed at selection loss `7.03405` and
+  passed terminal review. Its mandatory selection diagnostic is pending.
 - B0 has completed all `20 / 20` currently executable scientific cells
   (`20 / 22` declared); the two post-PV context cells remain blocked. The
-  declared S1 core has completed `31 / 134` cells (`31 / 132` executable).
+  declared S1 core has completed `32 / 134` cells (`32 / 132` executable).
   Diagnostic configs do not count as scientific cells.
 - S1 must never use a global rank cutoff. Complete matched method panels from
   viable families advance to the 8,192-step rung under the frozen policy in
