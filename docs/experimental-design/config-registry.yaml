@@ -1,6 +1,6 @@
 schema_version: 1
 campaign_id: pythia-sparsity-scaling-v1
-next_config_prefix: 211
+next_config_prefix: 220
 core_design_cells: 134
 core_executable_cells_without_context_gate: 132
 maximum_design_cells: 184
@@ -36,6 +36,12 @@ block_summary:
     completed_cells: 36
     status: completed
     note: all 36 scientific cells and both pooled selection diagnostics are complete and reviewed; diagnostic 203 closes site isolation and diagnostic 210 closes branch scope
+  - block: S1-B2-ENGINEERING
+    planned_cells: 9
+    materialized_cells: 9
+    completed_cells: 0
+    status: active
+    note: Nine 128-step learned-ATG plumbing pilots are launch-ready in preregistered center-first order; they are engineering-only, excluded from the 26-cell B2 and 134-cell primary scientific counts, and cannot select hyperparameters by validation-loss ranking.
   - block: S1-B2
     planned_cells: 26
     materialized_cells: 0
@@ -4336,3 +4342,426 @@ records:
     release_tier: history
     canonical_run_id: 001-20260719-182227-8a286ad9
     notes: Canonical schema-v3 pooled endpoint diagnostic pinned to the six exact source runs for configs 204--209. Run 001-20260719-182227-8a286ad9 pooled all 311296 complete selection tokens and passed the five-file statusless artifact, source-manifest, topology, POST-RoPE gate-operand identity, exact-zero, product-count, architecture-ceiling, and U_arch review. Diagnostic-only and excluded from scientific-cell counts.
+  - design_id: S1-B2-ENG-ATG-GPLUS-A6POST-ABS-PLS-K010-T003-TLRM1-ST128-S0
+    config_id: 211-s1-b2-eng-atg-gplus-a6post-abs-pls-t003-tlrm1-st128-s0
+    config_path: configs/211-s1-b2-eng-atg-gplus-a6post-abs-pls-t003-tlrm1-st128-s0.yaml
+    phase: S1
+    block: S1-B2-ENGINEERING
+    comparison_id: S1-B2-ENG-LEARNED-ATG-GPLUS-A6POST
+    pair_id: S1-B2-ENG-LEARNED-ATG-GPLUS-A6POST
+    promotion_family: null
+    kind: engineering
+    model_size: 14M
+    steps: 128
+    tokens: 8388608
+    model_initialization_seed: 0
+    data_order_seed: 0
+    training_schedule_scheme: random_contiguous_blocks_with_replacement_v1
+    training_schedule_hash: 9d9f708a79511390da9559b88e06e797aa216149af709c841923c56f926e1120
+    effective_tokens_per_update: 65536
+    validation_partition: selection
+    validation_partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
+    architecture_id: A6-POST
+    gate_family: gplus
+    gate_sites: [a, m, h, q, k, v]
+    qk_placement: post_rope
+    kappa_mode: learned
+    kappa: null
+    kappa_init: 0.1
+    kappa_scope: per_layer_site
+    threshold_scale: absolute
+    surrogate: hard_forward_soft_backward
+    temperature: 0.03
+    threshold_learning_rate: 3.0e-05
+    optimizer_recipe: harness_adamw
+    model_learning_rate: 3.0e-05
+    micro_batch_size: 4
+    gradient_accumulation_steps: 8
+    pressure_method: none
+    pressure_sites: [attention_inputs, mlp_inputs, mlp_hiddens, query_gate_outputs, key_gate_outputs, value_gate_outputs]
+    pressure_weight: 0.0
+    ricker_c: null
+    ricker_sigma: null
+    step_budget: null
+    matched_control_id: S1-B1-ENG-GPLUS-A6POST-K010-ST128-S0
+    config_status: ready
+    decision_status: pending
+    release_tier: history
+    canonical_run_id: null
+    notes: Queue 1/9, preregistered center; engineering-only plumbing evidence, excluded from scientific-cell counts and validation ranking.
+  - design_id: S1-B2-ENG-ATG-GPLUS-A6POST-ABS-PLS-K010-T003-TLRM0P1-ST128-S0
+    config_id: 212-s1-b2-eng-atg-gplus-a6post-abs-pls-t003-tlrm0p1-st128-s0
+    config_path: configs/212-s1-b2-eng-atg-gplus-a6post-abs-pls-t003-tlrm0p1-st128-s0.yaml
+    phase: S1
+    block: S1-B2-ENGINEERING
+    comparison_id: S1-B2-ENG-LEARNED-ATG-GPLUS-A6POST
+    pair_id: S1-B2-ENG-LEARNED-ATG-GPLUS-A6POST
+    promotion_family: null
+    kind: engineering
+    model_size: 14M
+    steps: 128
+    tokens: 8388608
+    model_initialization_seed: 0
+    data_order_seed: 0
+    training_schedule_scheme: random_contiguous_blocks_with_replacement_v1
+    training_schedule_hash: 9d9f708a79511390da9559b88e06e797aa216149af709c841923c56f926e1120
+    effective_tokens_per_update: 65536
+    validation_partition: selection
+    validation_partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
+    architecture_id: A6-POST
+    gate_family: gplus
+    gate_sites: [a, m, h, q, k, v]
+    qk_placement: post_rope
+    kappa_mode: learned
+    kappa: null
+    kappa_init: 0.1
+    kappa_scope: per_layer_site
+    threshold_scale: absolute
+    surrogate: hard_forward_soft_backward
+    temperature: 0.03
+    threshold_learning_rate: 3.0e-06
+    optimizer_recipe: harness_adamw
+    model_learning_rate: 3.0e-05
+    micro_batch_size: 4
+    gradient_accumulation_steps: 8
+    pressure_method: none
+    pressure_sites: [attention_inputs, mlp_inputs, mlp_hiddens, query_gate_outputs, key_gate_outputs, value_gate_outputs]
+    pressure_weight: 0.0
+    ricker_c: null
+    ricker_sigma: null
+    step_budget: null
+    matched_control_id: S1-B1-ENG-GPLUS-A6POST-K010-ST128-S0
+    config_status: ready
+    decision_status: pending
+    release_tier: history
+    canonical_run_id: null
+    notes: Queue 2/9, temperature-center low-TLR neighbor; engineering-only plumbing evidence, excluded from scientific-cell counts and validation ranking.
+  - design_id: S1-B2-ENG-ATG-GPLUS-A6POST-ABS-PLS-K010-T003-TLRM10-ST128-S0
+    config_id: 213-s1-b2-eng-atg-gplus-a6post-abs-pls-t003-tlrm10-st128-s0
+    config_path: configs/213-s1-b2-eng-atg-gplus-a6post-abs-pls-t003-tlrm10-st128-s0.yaml
+    phase: S1
+    block: S1-B2-ENGINEERING
+    comparison_id: S1-B2-ENG-LEARNED-ATG-GPLUS-A6POST
+    pair_id: S1-B2-ENG-LEARNED-ATG-GPLUS-A6POST
+    promotion_family: null
+    kind: engineering
+    model_size: 14M
+    steps: 128
+    tokens: 8388608
+    model_initialization_seed: 0
+    data_order_seed: 0
+    training_schedule_scheme: random_contiguous_blocks_with_replacement_v1
+    training_schedule_hash: 9d9f708a79511390da9559b88e06e797aa216149af709c841923c56f926e1120
+    effective_tokens_per_update: 65536
+    validation_partition: selection
+    validation_partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
+    architecture_id: A6-POST
+    gate_family: gplus
+    gate_sites: [a, m, h, q, k, v]
+    qk_placement: post_rope
+    kappa_mode: learned
+    kappa: null
+    kappa_init: 0.1
+    kappa_scope: per_layer_site
+    threshold_scale: absolute
+    surrogate: hard_forward_soft_backward
+    temperature: 0.03
+    threshold_learning_rate: 3.0e-04
+    optimizer_recipe: harness_adamw
+    model_learning_rate: 3.0e-05
+    micro_batch_size: 4
+    gradient_accumulation_steps: 8
+    pressure_method: none
+    pressure_sites: [attention_inputs, mlp_inputs, mlp_hiddens, query_gate_outputs, key_gate_outputs, value_gate_outputs]
+    pressure_weight: 0.0
+    ricker_c: null
+    ricker_sigma: null
+    step_budget: null
+    matched_control_id: S1-B1-ENG-GPLUS-A6POST-K010-ST128-S0
+    config_status: ready
+    decision_status: pending
+    release_tier: history
+    canonical_run_id: null
+    notes: Queue 3/9, temperature-center high-TLR neighbor; engineering-only plumbing evidence, excluded from scientific-cell counts and validation ranking.
+  - design_id: S1-B2-ENG-ATG-GPLUS-A6POST-ABS-PLS-K010-T001-TLRM1-ST128-S0
+    config_id: 214-s1-b2-eng-atg-gplus-a6post-abs-pls-t001-tlrm1-st128-s0
+    config_path: configs/214-s1-b2-eng-atg-gplus-a6post-abs-pls-t001-tlrm1-st128-s0.yaml
+    phase: S1
+    block: S1-B2-ENGINEERING
+    comparison_id: S1-B2-ENG-LEARNED-ATG-GPLUS-A6POST
+    pair_id: S1-B2-ENG-LEARNED-ATG-GPLUS-A6POST
+    promotion_family: null
+    kind: engineering
+    model_size: 14M
+    steps: 128
+    tokens: 8388608
+    model_initialization_seed: 0
+    data_order_seed: 0
+    training_schedule_scheme: random_contiguous_blocks_with_replacement_v1
+    training_schedule_hash: 9d9f708a79511390da9559b88e06e797aa216149af709c841923c56f926e1120
+    effective_tokens_per_update: 65536
+    validation_partition: selection
+    validation_partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
+    architecture_id: A6-POST
+    gate_family: gplus
+    gate_sites: [a, m, h, q, k, v]
+    qk_placement: post_rope
+    kappa_mode: learned
+    kappa: null
+    kappa_init: 0.1
+    kappa_scope: per_layer_site
+    threshold_scale: absolute
+    surrogate: hard_forward_soft_backward
+    temperature: 0.01
+    threshold_learning_rate: 3.0e-05
+    optimizer_recipe: harness_adamw
+    model_learning_rate: 3.0e-05
+    micro_batch_size: 4
+    gradient_accumulation_steps: 8
+    pressure_method: none
+    pressure_sites: [attention_inputs, mlp_inputs, mlp_hiddens, query_gate_outputs, key_gate_outputs, value_gate_outputs]
+    pressure_weight: 0.0
+    ricker_c: null
+    ricker_sigma: null
+    step_budget: null
+    matched_control_id: S1-B1-ENG-GPLUS-A6POST-K010-ST128-S0
+    config_status: ready
+    decision_status: pending
+    release_tier: history
+    canonical_run_id: null
+    notes: Queue 4/9, low-temperature center-TLR neighbor; engineering-only plumbing evidence, excluded from scientific-cell counts and validation ranking.
+  - design_id: S1-B2-ENG-ATG-GPLUS-A6POST-ABS-PLS-K010-T010-TLRM1-ST128-S0
+    config_id: 215-s1-b2-eng-atg-gplus-a6post-abs-pls-t010-tlrm1-st128-s0
+    config_path: configs/215-s1-b2-eng-atg-gplus-a6post-abs-pls-t010-tlrm1-st128-s0.yaml
+    phase: S1
+    block: S1-B2-ENGINEERING
+    comparison_id: S1-B2-ENG-LEARNED-ATG-GPLUS-A6POST
+    pair_id: S1-B2-ENG-LEARNED-ATG-GPLUS-A6POST
+    promotion_family: null
+    kind: engineering
+    model_size: 14M
+    steps: 128
+    tokens: 8388608
+    model_initialization_seed: 0
+    data_order_seed: 0
+    training_schedule_scheme: random_contiguous_blocks_with_replacement_v1
+    training_schedule_hash: 9d9f708a79511390da9559b88e06e797aa216149af709c841923c56f926e1120
+    effective_tokens_per_update: 65536
+    validation_partition: selection
+    validation_partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
+    architecture_id: A6-POST
+    gate_family: gplus
+    gate_sites: [a, m, h, q, k, v]
+    qk_placement: post_rope
+    kappa_mode: learned
+    kappa: null
+    kappa_init: 0.1
+    kappa_scope: per_layer_site
+    threshold_scale: absolute
+    surrogate: hard_forward_soft_backward
+    temperature: 0.10
+    threshold_learning_rate: 3.0e-05
+    optimizer_recipe: harness_adamw
+    model_learning_rate: 3.0e-05
+    micro_batch_size: 4
+    gradient_accumulation_steps: 8
+    pressure_method: none
+    pressure_sites: [attention_inputs, mlp_inputs, mlp_hiddens, query_gate_outputs, key_gate_outputs, value_gate_outputs]
+    pressure_weight: 0.0
+    ricker_c: null
+    ricker_sigma: null
+    step_budget: null
+    matched_control_id: S1-B1-ENG-GPLUS-A6POST-K010-ST128-S0
+    config_status: ready
+    decision_status: pending
+    release_tier: history
+    canonical_run_id: null
+    notes: Queue 5/9, high-temperature center-TLR neighbor; engineering-only plumbing evidence, excluded from scientific-cell counts and validation ranking.
+  - design_id: S1-B2-ENG-ATG-GPLUS-A6POST-ABS-PLS-K010-T001-TLRM0P1-ST128-S0
+    config_id: 216-s1-b2-eng-atg-gplus-a6post-abs-pls-t001-tlrm0p1-st128-s0
+    config_path: configs/216-s1-b2-eng-atg-gplus-a6post-abs-pls-t001-tlrm0p1-st128-s0.yaml
+    phase: S1
+    block: S1-B2-ENGINEERING
+    comparison_id: S1-B2-ENG-LEARNED-ATG-GPLUS-A6POST
+    pair_id: S1-B2-ENG-LEARNED-ATG-GPLUS-A6POST
+    promotion_family: null
+    kind: engineering
+    model_size: 14M
+    steps: 128
+    tokens: 8388608
+    model_initialization_seed: 0
+    data_order_seed: 0
+    training_schedule_scheme: random_contiguous_blocks_with_replacement_v1
+    training_schedule_hash: 9d9f708a79511390da9559b88e06e797aa216149af709c841923c56f926e1120
+    effective_tokens_per_update: 65536
+    validation_partition: selection
+    validation_partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
+    architecture_id: A6-POST
+    gate_family: gplus
+    gate_sites: [a, m, h, q, k, v]
+    qk_placement: post_rope
+    kappa_mode: learned
+    kappa: null
+    kappa_init: 0.1
+    kappa_scope: per_layer_site
+    threshold_scale: absolute
+    surrogate: hard_forward_soft_backward
+    temperature: 0.01
+    threshold_learning_rate: 3.0e-06
+    optimizer_recipe: harness_adamw
+    model_learning_rate: 3.0e-05
+    micro_batch_size: 4
+    gradient_accumulation_steps: 8
+    pressure_method: none
+    pressure_sites: [attention_inputs, mlp_inputs, mlp_hiddens, query_gate_outputs, key_gate_outputs, value_gate_outputs]
+    pressure_weight: 0.0
+    ricker_c: null
+    ricker_sigma: null
+    step_budget: null
+    matched_control_id: S1-B1-ENG-GPLUS-A6POST-K010-ST128-S0
+    config_status: ready
+    decision_status: pending
+    release_tier: history
+    canonical_run_id: null
+    notes: Queue 6/9, low-temperature low-TLR corner; engineering-only plumbing evidence, excluded from scientific-cell counts and validation ranking.
+  - design_id: S1-B2-ENG-ATG-GPLUS-A6POST-ABS-PLS-K010-T001-TLRM10-ST128-S0
+    config_id: 217-s1-b2-eng-atg-gplus-a6post-abs-pls-t001-tlrm10-st128-s0
+    config_path: configs/217-s1-b2-eng-atg-gplus-a6post-abs-pls-t001-tlrm10-st128-s0.yaml
+    phase: S1
+    block: S1-B2-ENGINEERING
+    comparison_id: S1-B2-ENG-LEARNED-ATG-GPLUS-A6POST
+    pair_id: S1-B2-ENG-LEARNED-ATG-GPLUS-A6POST
+    promotion_family: null
+    kind: engineering
+    model_size: 14M
+    steps: 128
+    tokens: 8388608
+    model_initialization_seed: 0
+    data_order_seed: 0
+    training_schedule_scheme: random_contiguous_blocks_with_replacement_v1
+    training_schedule_hash: 9d9f708a79511390da9559b88e06e797aa216149af709c841923c56f926e1120
+    effective_tokens_per_update: 65536
+    validation_partition: selection
+    validation_partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
+    architecture_id: A6-POST
+    gate_family: gplus
+    gate_sites: [a, m, h, q, k, v]
+    qk_placement: post_rope
+    kappa_mode: learned
+    kappa: null
+    kappa_init: 0.1
+    kappa_scope: per_layer_site
+    threshold_scale: absolute
+    surrogate: hard_forward_soft_backward
+    temperature: 0.01
+    threshold_learning_rate: 3.0e-04
+    optimizer_recipe: harness_adamw
+    model_learning_rate: 3.0e-05
+    micro_batch_size: 4
+    gradient_accumulation_steps: 8
+    pressure_method: none
+    pressure_sites: [attention_inputs, mlp_inputs, mlp_hiddens, query_gate_outputs, key_gate_outputs, value_gate_outputs]
+    pressure_weight: 0.0
+    ricker_c: null
+    ricker_sigma: null
+    step_budget: null
+    matched_control_id: S1-B1-ENG-GPLUS-A6POST-K010-ST128-S0
+    config_status: ready
+    decision_status: pending
+    release_tier: history
+    canonical_run_id: null
+    notes: Queue 7/9, low-temperature high-TLR corner; engineering-only plumbing evidence, excluded from scientific-cell counts and validation ranking.
+  - design_id: S1-B2-ENG-ATG-GPLUS-A6POST-ABS-PLS-K010-T010-TLRM0P1-ST128-S0
+    config_id: 218-s1-b2-eng-atg-gplus-a6post-abs-pls-t010-tlrm0p1-st128-s0
+    config_path: configs/218-s1-b2-eng-atg-gplus-a6post-abs-pls-t010-tlrm0p1-st128-s0.yaml
+    phase: S1
+    block: S1-B2-ENGINEERING
+    comparison_id: S1-B2-ENG-LEARNED-ATG-GPLUS-A6POST
+    pair_id: S1-B2-ENG-LEARNED-ATG-GPLUS-A6POST
+    promotion_family: null
+    kind: engineering
+    model_size: 14M
+    steps: 128
+    tokens: 8388608
+    model_initialization_seed: 0
+    data_order_seed: 0
+    training_schedule_scheme: random_contiguous_blocks_with_replacement_v1
+    training_schedule_hash: 9d9f708a79511390da9559b88e06e797aa216149af709c841923c56f926e1120
+    effective_tokens_per_update: 65536
+    validation_partition: selection
+    validation_partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
+    architecture_id: A6-POST
+    gate_family: gplus
+    gate_sites: [a, m, h, q, k, v]
+    qk_placement: post_rope
+    kappa_mode: learned
+    kappa: null
+    kappa_init: 0.1
+    kappa_scope: per_layer_site
+    threshold_scale: absolute
+    surrogate: hard_forward_soft_backward
+    temperature: 0.10
+    threshold_learning_rate: 3.0e-06
+    optimizer_recipe: harness_adamw
+    model_learning_rate: 3.0e-05
+    micro_batch_size: 4
+    gradient_accumulation_steps: 8
+    pressure_method: none
+    pressure_sites: [attention_inputs, mlp_inputs, mlp_hiddens, query_gate_outputs, key_gate_outputs, value_gate_outputs]
+    pressure_weight: 0.0
+    ricker_c: null
+    ricker_sigma: null
+    step_budget: null
+    matched_control_id: S1-B1-ENG-GPLUS-A6POST-K010-ST128-S0
+    config_status: ready
+    decision_status: pending
+    release_tier: history
+    canonical_run_id: null
+    notes: Queue 8/9, high-temperature low-TLR corner; engineering-only plumbing evidence, excluded from scientific-cell counts and validation ranking.
+  - design_id: S1-B2-ENG-ATG-GPLUS-A6POST-ABS-PLS-K010-T010-TLRM10-ST128-S0
+    config_id: 219-s1-b2-eng-atg-gplus-a6post-abs-pls-t010-tlrm10-st128-s0
+    config_path: configs/219-s1-b2-eng-atg-gplus-a6post-abs-pls-t010-tlrm10-st128-s0.yaml
+    phase: S1
+    block: S1-B2-ENGINEERING
+    comparison_id: S1-B2-ENG-LEARNED-ATG-GPLUS-A6POST
+    pair_id: S1-B2-ENG-LEARNED-ATG-GPLUS-A6POST
+    promotion_family: null
+    kind: engineering
+    model_size: 14M
+    steps: 128
+    tokens: 8388608
+    model_initialization_seed: 0
+    data_order_seed: 0
+    training_schedule_scheme: random_contiguous_blocks_with_replacement_v1
+    training_schedule_hash: 9d9f708a79511390da9559b88e06e797aa216149af709c841923c56f926e1120
+    effective_tokens_per_update: 65536
+    validation_partition: selection
+    validation_partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
+    architecture_id: A6-POST
+    gate_family: gplus
+    gate_sites: [a, m, h, q, k, v]
+    qk_placement: post_rope
+    kappa_mode: learned
+    kappa: null
+    kappa_init: 0.1
+    kappa_scope: per_layer_site
+    threshold_scale: absolute
+    surrogate: hard_forward_soft_backward
+    temperature: 0.10
+    threshold_learning_rate: 3.0e-04
+    optimizer_recipe: harness_adamw
+    model_learning_rate: 3.0e-05
+    micro_batch_size: 4
+    gradient_accumulation_steps: 8
+    pressure_method: none
+    pressure_sites: [attention_inputs, mlp_inputs, mlp_hiddens, query_gate_outputs, key_gate_outputs, value_gate_outputs]
+    pressure_weight: 0.0
+    ricker_c: null
+    ricker_sigma: null
+    step_budget: null
+    matched_control_id: S1-B1-ENG-GPLUS-A6POST-K010-ST128-S0
+    config_status: ready
+    decision_status: pending
+    release_tier: history
+    canonical_run_id: null
+    notes: Queue 9/9, high-temperature high-TLR corner; engineering-only plumbing evidence, excluded from scientific-cell counts and validation ranking.
