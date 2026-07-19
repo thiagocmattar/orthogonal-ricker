@@ -1941,7 +1941,65 @@ records:
     cuda_version: "12.8"
     gpu_driver_version: "572.84"
     token_cache_sha256: 22bb7c27864f0e5941548c572d6c75b1b5ba6a4c13e4cd26f40f4de546c5cc19
+    propagation_result_path: results/152-s1-b1-gplus-pre-qk-k010-selection-prop/001-20260719-021127-8e8a8e3c/activation_propagation.json
+    r_block: 0.3297233070718518
+    r_model: 0.09875996790480314
+    r_block_max: 0.6785216178521618
+    r_model_max: 0.20323335282813937
+    u_arch: 0.4859437023032225
+    z_a: 0.5105688362790827
+    z_m: 0.5109385983985767
+    z_h: 0.4594864395626804
+    z_q_gate: 0.3221733653754519
+    z_k_gate: 0.44069479222883257
+    z_v_gate: null
+    z_q_qk: 0.2732637179525275
+    z_k_qk: 0.385640913980049
+    z_v_pv: 1.2548346268503289e-08
+    z_context_wo: 1.2548346268503289e-08
     failure_type: null
     failure_message: null
     reviewed_at: 2026-07-19T02:09:34.1854481Z
-    notes: Completed second B1 scientific cell from clean launch commit 08a0b4e with 42 training and 10 complete-selection validation events. The final checkpoint SHA256 is 7672c1bf22bc70b22a034ab745be6ec6be2acb4545dba74559b80171662d8f72; optimizer state was intentionally not saved. Exact reload recovered ordinary a/m/h ReLU plus fixed G+ kappa 0.10 at PRE-RoPE q/k in all six layers, with V absent and the final LayerNorm ungated. The mandatory selection propagation diagnostic is pending; S1 supports feasibility/collapse and within-stratum comparisons only.
+    notes: Completed second B1 scientific cell from clean launch commit 08a0b4e with 42 training and 10 complete-selection validation events. The final checkpoint SHA256 is 7672c1bf22bc70b22a034ab745be6ec6be2acb4545dba74559b80171662d8f72; optimizer state was intentionally not saved. Exact reload recovered ordinary a/m/h ReLU plus fixed G+ kappa 0.10 at PRE-RoPE q/k in all six layers, with V absent and the final LayerNorm ungated. Canonical diagnostic config 152 supplies the attached complete-selection exact-zero and product endpoints; S1 supports feasibility/collapse and within-stratum comparisons only.
+  - design_id: S1-B1-DIAG-FIX-GPLUS-PRE-QK-K010-SELECTION-S0
+    config_id: 152-s1-b1-gplus-pre-qk-k010-selection-prop
+    run_id: 001-20260719-021127-8e8a8e3c
+    attempt: 1
+    mode: activation-propagation
+    result_path: results/152-s1-b1-gplus-pre-qk-k010-selection-prop/001-20260719-021127-8e8a8e3c
+    log_path: null
+    lifecycle_status: statusless_complete
+    evidence_status: valid
+    canonical: true
+    started_at: 2026-07-19T02:11:27.000000Z
+    finished_at: 2026-07-19T02:11:32.3078627Z
+    git_commit: 1fd590def74777c74e021c777a38c85d7e83e231
+    git_dirty: false
+    completed_steps: 0
+    tokens_seen: 0
+    model_initialization_seed: 0
+    data_order_seed: 0
+    training_schedule_scheme: null
+    training_schedule_hash: null
+    effective_tokens_per_update: null
+    validation_partition: selection
+    validation_partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
+    validation_tokens: 311296
+    validation_loss: null
+    wall_hours: 0.00135910769444308
+    tokens_per_second: 63623.443134536974
+    peak_gpu_mb: 670.9775390625
+    execution_backend: local
+    cloud_provider: null
+    gpu_type: NVIDIA GeForce RTX 5070 Ti Laptop GPU
+    gpu_count: 1
+    python_version: 3.12.10
+    pytorch_version: 2.11.0+cu128
+    cuda_version: "12.8"
+    gpu_driver_version: "572.84"
+    token_cache_sha256: 22bb7c27864f0e5941548c572d6c75b1b5ba6a4c13e4cd26f40f4de546c5cc19
+    propagation_result_path: results/152-s1-b1-gplus-pre-qk-k010-selection-prop/001-20260719-021127-8e8a8e3c/activation_propagation.json
+    failure_type: null
+    failure_message: null
+    reviewed_at: 2026-07-19T02:12:32.0000000Z
+    notes: Canonical statusless-complete schema-v3 diagnostic over the exact completed config 151 checkpoint. It pooled all 311296 complete selection tokens across 152 sequences and 38 batches, excluded 443 trailing cache tokens, recovered ordinary a/m/h ReLU plus fixed G+ kappa 0.10 at PRE-RoPE q/k in all six layers with no V gate, and emitted exact-zero, direct-product, architecture-ceiling, and PRE-RoPE survival counts. Rotary coordinates preserved 40.44% and repopulated 59.56% of input zeros; pass-through coordinates preserved all input zeros. The five-file envelope, completed source manifest, and activation artifact SHA256 61daf933a828c835481b82436b028b8342ffee90e2c9814db81297aade24509d passed review.

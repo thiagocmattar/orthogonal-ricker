@@ -35,7 +35,7 @@ block_summary:
     materialized_cells: 2
     completed_cells: 2
     status: active
-    note: configs 149 and 151 completed and passed terminal training review; config 151's mandatory selection propagation diagnostic is pending
+    note: configs 149 and 151 completed and passed terminal training review; their mandatory complete-selection propagation diagnostics also passed review
   - block: S1-B2
     planned_cells: 26
     materialized_cells: 0
@@ -1562,7 +1562,7 @@ records:
     decision_status: pending
     release_tier: history
     canonical_run_id: 001-20260719-014816-62d42778
-    notes: Second B1 scientific cell; fixed absolute G+ kappa 0.10 at PRE-RoPE Q/K, ordinary a/m/h ReLU, V absent, AdamW without pressure. Run 001-20260719-014816-62d42778 completed 2048 steps and passed terminal artifact and exact checkpoint-reload review at selection loss 7.01905. Its selection propagation diagnostic is pending. S1 supports feasibility/collapse and within-stratum comparisons only.
+    notes: Second B1 scientific cell; fixed absolute G+ kappa 0.10 at PRE-RoPE Q/K, ordinary a/m/h ReLU, V absent, AdamW without pressure. Run 001-20260719-014816-62d42778 completed 2048 steps and passed terminal artifact and exact checkpoint-reload review at selection loss 7.01905. Canonical diagnostic config 152 measured R_block 0.32972 and R_model 0.09876 over the complete selection partition. S1 supports feasibility/collapse and within-stratum comparisons only.
   - design_id: S1-B1-DIAG-FIX-GPLUS-PRE-QK-K010-SELECTION-S0
     config_id: 152-s1-b1-gplus-pre-qk-k010-selection-prop
     config_path: configs/152-s1-b1-gplus-pre-qk-k010-selection-prop.yaml
@@ -1605,8 +1605,8 @@ records:
     ricker_sigma: null
     step_budget: null
     matched_control_id: S1-B0-ARCH-A5QKPRE-LR3EM5-S0
-    config_status: ready
+    config_status: closed
     decision_status: control
     release_tier: history
-    canonical_run_id: null
-    notes: Mandatory complete-selection propagation diagnostic pinned to canonical config 151; diagnostic-only and excluded from scientific-cell counts.
+    canonical_run_id: 001-20260719-021127-8e8a8e3c
+    notes: Canonical schema-v3 complete-selection diagnostic pinned to config 151. Run 001-20260719-021127-8e8a8e3c pooled all 311296 complete selection tokens and passed the five-file statusless artifact, topology, exact-zero, and product-count review; diagnostic-only and excluded from scientific-cell counts.
