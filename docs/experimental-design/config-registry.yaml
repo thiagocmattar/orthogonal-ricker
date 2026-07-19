@@ -27,9 +27,9 @@ block_summary:
   - block: S1-B1-ENGINEERING
     planned_cells: 2
     materialized_cells: 2
-    completed_cells: 0
+    completed_cells: 1
     status: active
-    note: two frozen 128-step fixed-gate plumbing pilots; engineering-only and excluded from the 36-cell B1 and 134-cell primary scientific counts
+    note: the fixed-G+ pilot is complete and accepted; the fixed-Gpm PRE-RoPE Q/K pilot remains ready. Both are engineering-only and excluded from the 36-cell B1 and 134-cell primary scientific counts
   - block: S1-B1
     planned_cells: 36
     materialized_cells: 0
@@ -1323,11 +1323,11 @@ records:
     ricker_sigma: null
     step_budget: null
     matched_control_id: S1-B0-ARCH-A6POST-LR3EM5-S0
-    config_status: active
+    config_status: closed
     decision_status: control
     release_tier: history
-    canonical_run_id: null
-    notes: Engineering-only fixed absolute G+ kappa 0.10 pilot at all A6-POST gates; excluded from scientific-cell counts and validation ranking.
+    canonical_run_id: 001-20260719-010308-764e5074
+    notes: Completed engineering-only fixed absolute G+ kappa 0.10 pilot at all A6-POST gates. The run passed terminal artifact and exact checkpoint-reload review without universal collapse; it remains excluded from scientific-cell counts and validation ranking.
   - design_id: S1-B1-ENG-GPM-A5QKPRE-K010-ST128-S0
     config_id: 147-s1-b1-eng-gpm-a5qkpre-k010-st128
     config_path: configs/147-s1-b1-eng-gpm-a5qkpre-k010-st128.yaml
