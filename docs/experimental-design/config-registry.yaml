@@ -28,14 +28,14 @@ block_summary:
     planned_cells: 2
     materialized_cells: 2
     completed_cells: 2
-    status: active
-    note: both fixed-gate pilots are complete and individually accepted; the pooled complete-selection propagation diagnostic remains pending. Both are engineering-only and excluded from the 36-cell B1 and 134-cell primary scientific counts
+    status: completed
+    note: both fixed-gate pilots and their pooled complete-selection propagation diagnostic passed all five engineering criteria. They are engineering-only and excluded from the 36-cell B1 and 134-cell primary scientific counts
   - block: S1-B1
     planned_cells: 36
     materialized_cells: 0
     completed_cells: 0
-    status: blocked
-    blocker: positive-kappa one-sided gate implementation
+    status: ready
+    note: fixed positive-kappa one-sided and symmetric gate plumbing passed the frozen engineering gate; scientific configs may now be materialized sequentially
   - block: S1-B2
     planned_cells: 26
     materialized_cells: 0
@@ -1417,8 +1417,8 @@ records:
     ricker_sigma: null
     step_budget: null
     matched_control_id: null
-    config_status: ready
+    config_status: closed
     decision_status: control
     release_tier: history
-    canonical_run_id: null
-    notes: Complete-selection engineering diagnostic pinned to the exact canonical run ids for configs 146 and 147; it is excluded from scientific-cell counts and validation ranking.
+    canonical_run_id: 001-20260719-011324-dd965e29
+    notes: Complete-selection schema-v3 engineering diagnostic pinned to the exact canonical run ids for configs 146 and 147. Run 001-20260719-011324-dd965e29 evaluated all 311296 complete selection tokens and passed the five-file statusless artifact, gate-topology, direct-product, and noncollapse review; it remains excluded from scientific-cell counts and validation ranking.

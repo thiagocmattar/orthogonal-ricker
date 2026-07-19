@@ -49,8 +49,9 @@ work.
   controls, not members of the 36-cell B1 scientific matrix. Config `146`, run
   `001-20260719-010308-764e5074`, and config `147`, run
   `001-20260719-010858-a4a15700`, completed cleanly and passed individual
-  terminal review. Config `148` materializes their pooled complete-selection
-  propagation diagnostic and is next.
+  terminal review. Config `148`, run `001-20260719-011324-dd965e29`, completed
+  the pooled selection diagnostic and passed the frozen engineering gate. B1
+  scientific configs may now be materialized.
 - B0 has completed all `20 / 20` currently executable scientific cells
   (`20 / 22` declared); the two post-PV context cells remain blocked. The
   declared S1 core has completed `20 / 134` cells (`20 / 132` executable).
@@ -148,11 +149,14 @@ must not be used to rank methods.
 9. [`09-s1-b0-learning-rate-flank-results.md`](09-s1-b0-learning-rate-flank-results.md)
    consolidates the matched three-point learning-rate controls, pooled
    endpoints, caveats, and next engineering gate.
-10. [`validation-partitions.yaml`](validation-partitions.yaml) freezes the
+10. [`10-s1-b1-fixed-gate-engineering-results.md`](10-s1-b1-fixed-gate-engineering-results.md)
+   records the fixed positive-threshold plumbing pilots, complete-selection
+   endpoints, acceptance decision, and B1 handoff.
+11. [`validation-partitions.yaml`](validation-partitions.yaml) freezes the
    document-disjoint selection and confirmation source-document lists.
-11. [`config-registry.yaml`](config-registry.yaml) is the config-level source of
+12. [`config-registry.yaml`](config-registry.yaml) is the config-level source of
    truth for materialized campaign cells.
-12. [`run-registry.yaml`](run-registry.yaml) records every run attempt. It is
+13. [`run-registry.yaml`](run-registry.yaml) records every run attempt. It is
    intentionally separate because one immutable config can have more than one
    infrastructure attempt.
 

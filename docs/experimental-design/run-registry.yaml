@@ -1686,10 +1686,26 @@ records:
     cuda_version: "12.8"
     gpu_driver_version: "572.84"
     token_cache_sha256: 22bb7c27864f0e5941548c572d6c75b1b5ba6a4c13e4cd26f40f4de546c5cc19
+    propagation_result_path: results/148-s1-b1-eng-fixed-gates-selection-propagation/001-20260719-011324-dd965e29/activation_propagation.json
+    r_block: 0.7089597892579218
+    r_model: 0.21235030867153895
+    r_block_max: 1.0
+    r_model_max: 0.2995237697384911
+    u_arch: 0.7089597892579218
+    z_a: 0.5300611654917399
+    z_m: 0.5302775617231402
+    z_h: 0.741865665243383
+    z_q_gate: 0.707028025075009
+    z_k_gate: 0.7267828824227316
+    z_v_gate: 0.7012115110430801
+    z_q_qk: 0.707028025075009
+    z_k_qk: 0.7267828824227316
+    z_v_pv: 0.7012115110430801
+    z_context_wo: 0.24310172231573807
     failure_type: null
     failure_message: null
     reviewed_at: 2026-07-19T01:05:33.9218132Z
-    notes: Accepted 128-step engineering-only fixed G+ kappa 0.10 pilot over all six A6-POST gates. It completed 9 training and 3 validation events, saved the final model and optimizer, and exact checkpoint reload recovered G+ kappa 0.10 at a/m/h/q/k/v in every layer with POST-RoPE Q/K placement. Final-minibatch site zero rates ranged from 51.15% to 77.29%, so no universal collapse occurred. Model SHA256 is 57d12ea1d04c6f35b210c714cbcee85df95f9de3ad10a6a18439b03f143ce4e3. Validation is engineering evidence only; the pooled selection diagnostic is pending.
+    notes: Accepted 128-step engineering-only fixed G+ kappa 0.10 pilot over all six A6-POST gates. It completed 9 training and 3 validation events, saved the final model and optimizer, and exact checkpoint reload recovered G+ kappa 0.10 at a/m/h/q/k/v in every layer with POST-RoPE Q/K placement. The pooled complete-selection diagnostic confirmed nonzero exact-zero and direct-product opportunities without universal collapse. Model SHA256 is 57d12ea1d04c6f35b210c714cbcee85df95f9de3ad10a6a18439b03f143ce4e3. Validation is engineering evidence only.
   - design_id: S1-B1-ENG-GPM-A5QKPRE-K010-ST128-S0
     config_id: 147-s1-b1-eng-gpm-a5qkpre-k010-st128
     run_id: 001-20260719-010858-a4a15700
@@ -1727,7 +1743,65 @@ records:
     cuda_version: "12.8"
     gpu_driver_version: "572.84"
     token_cache_sha256: 22bb7c27864f0e5941548c572d6c75b1b5ba6a4c13e4cd26f40f4de546c5cc19
+    propagation_result_path: results/148-s1-b1-eng-fixed-gates-selection-propagation/001-20260719-011324-dd965e29/activation_propagation.json
+    r_block: 0.36755442783834824
+    r_model: 0.11009128781021627
+    r_block_max: 0.6785216178521618
+    r_model_max: 0.20323335282813937
+    u_arch: 0.5416989203701864
+    z_a: 0.49922385132103636
+    z_m: 0.499352542977584
+    z_h: 0.4854475374807391
+    z_q_gate: 0.45584624692013387
+    z_k_gate: 0.44172291588364987
+    z_v_gate: null
+    z_q_qk: 0.390326834561532
+    z_k_qk: 0.37856938546163993
+    z_v_pv: 1.2548346268503289e-08
+    z_context_wo: 4.182782089501096e-08
     failure_type: null
     failure_message: null
     reviewed_at: 2026-07-19T01:11:17.6638305Z
-    notes: Accepted 128-step engineering-only fixed Gpm kappa 0.10 PRE-RoPE Q/K pilot with ordinary ReLU at a/m/h and no V gate. It completed 9 training and 3 validation events, saved the final model and optimizer, and exact checkpoint reload recovered ordinary a/m/h gates plus Gpm kappa 0.10 at q/k in every layer with PRE-RoPE placement and no V gate. Final-minibatch site zero rates ranged from 38.43% to 52.11%, so no universal collapse occurred. Model SHA256 is 45e3cc292c5b622907b64eb74247e34b15d7cd163ebe6f7e13e2be1febce2859. Validation is engineering evidence only; the pooled selection diagnostic is pending.
+    notes: Accepted 128-step engineering-only fixed Gpm kappa 0.10 PRE-RoPE Q/K pilot with ordinary ReLU at a/m/h and no V gate. It completed 9 training and 3 validation events, saved the final model and optimizer, and exact checkpoint reload recovered ordinary a/m/h gates plus Gpm kappa 0.10 at q/k in every layer with PRE-RoPE placement and no V gate. The pooled complete-selection diagnostic confirmed nonzero exact-zero and direct-product opportunities without universal collapse. Model SHA256 is 45e3cc292c5b622907b64eb74247e34b15d7cd163ebe6f7e13e2be1febce2859. Validation is engineering evidence only.
+  - design_id: S1-B1-ENG-FIXED-GATES-SELECTION-S0
+    config_id: 148-s1-b1-eng-fixed-gates-selection-propagation
+    run_id: 001-20260719-011324-dd965e29
+    attempt: 1
+    mode: activation-propagation
+    result_path: results/148-s1-b1-eng-fixed-gates-selection-propagation/001-20260719-011324-dd965e29
+    log_path: null
+    lifecycle_status: statusless_complete
+    evidence_status: valid
+    canonical: true
+    started_at: 2026-07-19T01:13:24.000000Z
+    finished_at: 2026-07-19T01:13:33.7679073Z
+    git_commit: 7dd624890a1754d3e22a8e22507139a55370777a
+    git_dirty: false
+    completed_steps: 0
+    tokens_seen: 0
+    model_initialization_seed: 0
+    data_order_seed: 0
+    training_schedule_scheme: null
+    training_schedule_hash: null
+    effective_tokens_per_update: null
+    validation_partition: selection
+    validation_partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
+    validation_tokens: 311296
+    validation_loss: null
+    wall_hours: 0.002545359999995627
+    tokens_per_second: 67944.11094011037
+    peak_gpu_mb: 672.4892578125
+    execution_backend: local
+    cloud_provider: null
+    gpu_type: NVIDIA GeForce RTX 5070 Ti Laptop GPU
+    gpu_count: 1
+    python_version: 3.12.10
+    pytorch_version: 2.11.0+cu128
+    cuda_version: "12.8"
+    gpu_driver_version: "572.84"
+    token_cache_sha256: 22bb7c27864f0e5941548c572d6c75b1b5ba6a4c13e4cd26f40f4de546c5cc19
+    propagation_result_path: results/148-s1-b1-eng-fixed-gates-selection-propagation/001-20260719-011324-dd965e29/activation_propagation.json
+    failure_type: null
+    failure_message: null
+    reviewed_at: 2026-07-19T01:14:22.7782715Z
+    notes: Canonical statusless-complete schema-v3 diagnostic over the exact completed checkpoints for configs 146 and 147. It pooled all 311296 complete selection tokens, excluded 443 trailing cache tokens, recovered the intended gate topology in all six layers, and confirmed nonzero exact zeros and targetable direct logical-product counts without universal collapse. The five-file envelope and both completed source manifests passed review; the fixed-gate engineering gate is accepted.

@@ -166,6 +166,10 @@ The fixed-gate engineering gate passes only when all of the following hold:
 
 Only after this gate passes may the B1 scientific configs be materialized.
 
+Acceptance record: configs `146` and `147` and pooled diagnostic config `148`
+passed all five criteria on 2026-07-19. The accepted evidence and exact run ids
+are recorded in `10-s1-b1-fixed-gate-engineering-results.md`.
+
 ### B1: fixed-threshold AdamW -- 36 cells
 
 All cells use LR `3.0e-5`, initialization/data-order seeds `0/0`, and no activation pressure.
@@ -317,11 +321,10 @@ diagnostics, or human review.
 
 Complete these before the affected block launches:
 
-1. `TODO:` implement and test fixed `G+` with positive `kappa` at branch and Q/K/V
-   sites. Current fixed `Gpm` Q/K/V gating supports PRE/POST and subsets, but
-   add explicit PRE/subset round-trip coverage before the large grid. V-only
-   configs must still set the validator-required harmless
-   `qk_placement: post_rope`.
+1. Completed 2026-07-19: fixed positive-`kappa` `G+` is implemented and tested
+   at branch and Q/K/V sites; fixed `Gpm` PRE/POST subsets, V-only placement,
+   and checkpoint round trips are covered. V-only configs still set the
+   validator-required harmless `qk_placement: post_rope`.
 2. `TODO:` implement learned ATG with exact hard-forward sparsity, safe soft backward,
    FP32 threshold parameters, optimizer parameter groups, metrics, and exact
    checkpoint reload. Learned-gate configs use `checkpoint.save_optimizer:
