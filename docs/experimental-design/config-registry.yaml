@@ -40,14 +40,14 @@ block_summary:
     planned_cells: 9
     materialized_cells: 9
     completed_cells: 9
-    status: active
-    note: All nine 128-step learned-ATG plumbing pilots completed and passed the hard checkpoint/optimizer contract. The preregistered default, config 211, is provisional because its final-quarter no_frozen_flag acceptance check failed; pooled diagnostic 220 is ready but pending. No revised default has been selected, validation loss was not ranked, and scientific S1-B2 remains blocked.
+    status: decision_pending
+    note: All nine 128-step learned-ATG plumbing pilots and pooled diagnostic 220 completed and passed their hard artifact contracts. The preregistered default, config 211, is provisional because its final-quarter no_frozen_flag acceptance check failed. TLRM 10 avoided frozen flags at all three tested temperatures, but no revised default has been selected, validation loss was not ranked, and scientific S1-B2 remains blocked.
   - block: S1-B2
     planned_cells: 26
     materialized_cells: 0
     completed_cells: 0
     status: blocked
-    blocker: learned-ATG engineering pilot
+    blocker: learned-ATG default decision
   - block: S1-B3
     planned_cells: 40
     materialized_cells: 0
@@ -4435,7 +4435,7 @@ records:
     decision_status: pending
     release_tier: history
     canonical_run_id: 001-20260719-183947-cff2e4c7
-    notes: Queue 2/9 temperature-center low-TLR observation completed 128 steps and passed the hard model/optimizer round-trip contract; final training-minibatch pooled active-site exact-zero telemetry was 68.5065%. It is engineering-only boundary evidence, not a replacement selected by validation loss; pooled diagnostic 220 is pending.
+    notes: Queue 2/9 temperature-center low-TLR observation completed 128 steps and passed the hard model/optimizer round-trip contract; final training-minibatch pooled active-site exact-zero telemetry was 68.5065%. It is engineering-only boundary evidence, not a replacement selected by validation loss; pooled diagnostic 220 passed and supplies the canonical complete-selection endpoints.
   - design_id: S1-B2-ENG-ATG-GPLUS-A6POST-ABS-PLS-K010-T003-TLRM10-ST128-S0
     config_id: 213-s1-b2-eng-atg-gplus-a6post-abs-pls-t003-tlrm10-st128-s0
     config_path: configs/213-s1-b2-eng-atg-gplus-a6post-abs-pls-t003-tlrm10-st128-s0.yaml
@@ -4482,7 +4482,7 @@ records:
     decision_status: pending
     release_tier: history
     canonical_run_id: 001-20260719-184119-7f35517f
-    notes: Queue 3/9 temperature-center high-TLR observation completed 128 steps and passed the hard model/optimizer round-trip contract; final training-minibatch pooled active-site exact-zero telemetry was 68.5462%. It is engineering-only boundary evidence, not a replacement selected by validation loss; pooled diagnostic 220 is pending.
+    notes: Queue 3/9 temperature-center high-TLR observation completed 128 steps and passed the hard model/optimizer round-trip contract; final training-minibatch pooled active-site exact-zero telemetry was 68.5462%. It is engineering-only boundary evidence, not a replacement selected by validation loss; pooled diagnostic 220 passed and supplies the canonical complete-selection endpoints.
   - design_id: S1-B2-ENG-ATG-GPLUS-A6POST-ABS-PLS-K010-T001-TLRM1-ST128-S0
     config_id: 214-s1-b2-eng-atg-gplus-a6post-abs-pls-t001-tlrm1-st128-s0
     config_path: configs/214-s1-b2-eng-atg-gplus-a6post-abs-pls-t001-tlrm1-st128-s0.yaml
@@ -4529,7 +4529,7 @@ records:
     decision_status: pending
     release_tier: history
     canonical_run_id: 001-20260719-184252-f0eaa457
-    notes: Queue 4/9 low-temperature center-TLR observation completed 128 steps and passed the hard model/optimizer round-trip contract; final training-minibatch pooled active-site exact-zero telemetry was 68.5267%. It is engineering-only boundary evidence, not a replacement selected by validation loss; pooled diagnostic 220 is pending.
+    notes: Queue 4/9 low-temperature center-TLR observation completed 128 steps and passed the hard model/optimizer round-trip contract; final training-minibatch pooled active-site exact-zero telemetry was 68.5267%. It is engineering-only boundary evidence, not a replacement selected by validation loss; pooled diagnostic 220 passed and supplies the canonical complete-selection endpoints.
   - design_id: S1-B2-ENG-ATG-GPLUS-A6POST-ABS-PLS-K010-T010-TLRM1-ST128-S0
     config_id: 215-s1-b2-eng-atg-gplus-a6post-abs-pls-t010-tlrm1-st128-s0
     config_path: configs/215-s1-b2-eng-atg-gplus-a6post-abs-pls-t010-tlrm1-st128-s0.yaml
@@ -4576,7 +4576,7 @@ records:
     decision_status: pending
     release_tier: history
     canonical_run_id: 001-20260719-184425-50d9d788
-    notes: Queue 5/9 high-temperature center-TLR observation completed 128 steps and passed the hard model/optimizer round-trip contract; final training-minibatch pooled active-site exact-zero telemetry was 68.5001%. It is engineering-only boundary evidence, not a replacement selected by validation loss; pooled diagnostic 220 is pending.
+    notes: Queue 5/9 high-temperature center-TLR observation completed 128 steps and passed the hard model/optimizer round-trip contract; final training-minibatch pooled active-site exact-zero telemetry was 68.5001%. It is engineering-only boundary evidence, not a replacement selected by validation loss; pooled diagnostic 220 passed and supplies the canonical complete-selection endpoints.
   - design_id: S1-B2-ENG-ATG-GPLUS-A6POST-ABS-PLS-K010-T001-TLRM0P1-ST128-S0
     config_id: 216-s1-b2-eng-atg-gplus-a6post-abs-pls-t001-tlrm0p1-st128-s0
     config_path: configs/216-s1-b2-eng-atg-gplus-a6post-abs-pls-t001-tlrm0p1-st128-s0.yaml
@@ -4623,7 +4623,7 @@ records:
     decision_status: pending
     release_tier: history
     canonical_run_id: 001-20260719-184557-95cc237f
-    notes: Queue 6/9 low-temperature low-TLR corner completed 128 steps and passed the hard model/optimizer round-trip contract; final training-minibatch pooled active-site exact-zero telemetry was 68.4897%. It is engineering-only boundary evidence and cannot replace the preregistered default; pooled diagnostic 220 is pending.
+    notes: Queue 6/9 low-temperature low-TLR corner completed 128 steps and passed the hard model/optimizer round-trip contract; final training-minibatch pooled active-site exact-zero telemetry was 68.4897%. It is engineering-only boundary evidence and cannot replace the preregistered default; pooled diagnostic 220 passed and supplies the canonical complete-selection endpoints.
   - design_id: S1-B2-ENG-ATG-GPLUS-A6POST-ABS-PLS-K010-T001-TLRM10-ST128-S0
     config_id: 217-s1-b2-eng-atg-gplus-a6post-abs-pls-t001-tlrm10-st128-s0
     config_path: configs/217-s1-b2-eng-atg-gplus-a6post-abs-pls-t001-tlrm10-st128-s0.yaml
@@ -4670,7 +4670,7 @@ records:
     decision_status: pending
     release_tier: history
     canonical_run_id: 001-20260719-184729-7ab8bb47
-    notes: Queue 7/9 low-temperature high-TLR corner completed 128 steps and passed the hard model/optimizer round-trip contract; final training-minibatch pooled active-site exact-zero telemetry was 68.6433%. It is engineering-only boundary evidence and cannot replace the preregistered default; pooled diagnostic 220 is pending.
+    notes: Queue 7/9 low-temperature high-TLR corner completed 128 steps and passed the hard model/optimizer round-trip contract; final training-minibatch pooled active-site exact-zero telemetry was 68.6433%. It is engineering-only boundary evidence and cannot replace the preregistered default; pooled diagnostic 220 passed and supplies the canonical complete-selection endpoints.
   - design_id: S1-B2-ENG-ATG-GPLUS-A6POST-ABS-PLS-K010-T010-TLRM0P1-ST128-S0
     config_id: 218-s1-b2-eng-atg-gplus-a6post-abs-pls-t010-tlrm0p1-st128-s0
     config_path: configs/218-s1-b2-eng-atg-gplus-a6post-abs-pls-t010-tlrm0p1-st128-s0.yaml
@@ -4717,7 +4717,7 @@ records:
     decision_status: pending
     release_tier: history
     canonical_run_id: 001-20260719-184902-92fbe493
-    notes: Queue 8/9 high-temperature low-TLR corner completed 128 steps and passed the hard model/optimizer round-trip contract; final training-minibatch pooled active-site exact-zero telemetry was 68.4768%. It is engineering-only boundary evidence and cannot replace the preregistered default; pooled diagnostic 220 is pending.
+    notes: Queue 8/9 high-temperature low-TLR corner completed 128 steps and passed the hard model/optimizer round-trip contract; final training-minibatch pooled active-site exact-zero telemetry was 68.4768%. It is engineering-only boundary evidence and cannot replace the preregistered default; pooled diagnostic 220 passed and supplies the canonical complete-selection endpoints.
   - design_id: S1-B2-ENG-ATG-GPLUS-A6POST-ABS-PLS-K010-T010-TLRM10-ST128-S0
     config_id: 219-s1-b2-eng-atg-gplus-a6post-abs-pls-t010-tlrm10-st128-s0
     config_path: configs/219-s1-b2-eng-atg-gplus-a6post-abs-pls-t010-tlrm10-st128-s0.yaml
@@ -4764,7 +4764,7 @@ records:
     decision_status: pending
     release_tier: history
     canonical_run_id: 001-20260719-185034-0c473337
-    notes: Queue 9/9 high-temperature high-TLR corner completed 128 steps and passed the hard model/optimizer round-trip contract; final training-minibatch pooled active-site exact-zero telemetry was 68.4626%. It is engineering-only boundary evidence and cannot replace the preregistered default; pooled diagnostic 220 is pending.
+    notes: Queue 9/9 high-temperature high-TLR corner completed 128 steps and passed the hard model/optimizer round-trip contract; final training-minibatch pooled active-site exact-zero telemetry was 68.4626%. It is engineering-only boundary evidence and cannot replace the preregistered default; pooled diagnostic 220 passed and supplies the canonical complete-selection endpoints.
   - design_id: S1-B2-ENG-ATG-PILOT-SELECTION-S0
     config_id: 220-s1-b2-eng-atg-selection-propagation
     config_path: configs/220-s1-b2-eng-atg-selection-propagation.yaml
@@ -4807,8 +4807,8 @@ records:
     ricker_sigma: null
     step_budget: null
     matched_control_id: null
-    config_status: ready
+    config_status: closed
     decision_status: control
     release_tier: history
-    canonical_run_id: null
-    notes: Complete-selection propagation diagnostic for the nine 128-step learned-ATG engineering pilots in exact center-first canonical-run order. It is plumbing evidence only; validation loss must not rank, replace, or select the preregistered default. Config 211 remains provisional after failing no_frozen_flag, no revised default has been selected, and scientific S1-B2 remains blocked.
+    canonical_run_id: 001-20260719-190523-f28590eb
+    notes: Canonical schema-v3 complete-selection propagation diagnostic for the nine 128-step learned-ATG engineering pilots in exact center-first order. Run 001-20260719-190523-f28590eb pooled all 311296 complete selection tokens and passed the five-file statusless artifact, source-manifest, learned-topology, threshold-metadata, exact-zero, product-count, architecture-ceiling, and endpoint-arithmetic review. It is plumbing evidence only; validation loss was not ranked, config 211 remains provisional after failing no_frozen_flag, no revised default has been selected, and scientific S1-B2 remains blocked.

@@ -5324,22 +5324,22 @@ records:
     resumed_from_run_id: null
     resume_checkpoint_sha256: null
     artifact_upload_verified_at: null
-    propagation_result_path: null
-    r_block: null
-    r_model: null
-    r_block_max: null
-    r_model_max: null
-    u_arch: null
-    z_a: null
-    z_m: null
-    z_h: null
-    z_q_gate: null
-    z_k_gate: null
-    z_v_gate: null
-    z_q_qk: null
-    z_k_qk: null
-    z_v_pv: null
-    z_context_wo: null
+    propagation_result_path: results/220-s1-b2-eng-atg-selection-propagation/001-20260719-190523-f28590eb/activation_propagation.json
+    r_block: 0.7089725658137476
+    r_model: 0.21235413555370417
+    r_block_max: 1.0
+    r_model_max: 0.2995237697384911
+    u_arch: 0.7089725658137476
+    z_a: 0.5299797727350604
+    z_m: 0.5303048376451459
+    z_h: 0.7422837479072705
+    z_q_gate: 0.7070559367798922
+    z_k_gate: 0.7263378846017938
+    z_v_gate: 0.7012953716411925
+    z_q_qk: 0.7070559367798922
+    z_k_qk: 0.7263378846017938
+    z_v_pv: 0.7012953716411925
+    z_context_wo: 0.24263319634554678
     clipping_result_paths: []
     figure_ids: []
     failure_type: null
@@ -5347,8 +5347,8 @@ records:
     artifact_uri: null
     artifact_manifest_uri: null
     artifact_manifest_sha256: null
-    reviewed_at: '2026-07-19T18:57:00Z'
-    notes: 'Completed preregistered-center learned-ATG engineering pilot from clean launch commit 8d7341b with 128 steps, 8388608 training tokens, and 311296 selection tokens. Independent hard-contract review passed exact model and optimizer reload, 36 unique FP32 rho parameters, the separate zero-weight-decay adaptive_threshold optimizer group, finite rho state, finite metrics/events, and model/optimizer SHA256 345d988a1a6b28c3fac3c8e03cbe08f0affaecfd3070c7f3fe4f46584cc22545/4df55debab93849b4ff2ba171308899d8f58e7d671d542dad2a86666dcf774b5. The preregistered default failed dynamic acceptance solely at no_frozen_flag: final-quarter steps 96/112/128 reported frozen_threshold_flag 1/0/1; step 96 froze only layer_0__v and step 128 only layer_2__a at FP32-zero steps despite nonzero gradients. Aggregate threshold gradients, updates, and kappa updates remained finite/nonzero; nonfinite flags were zero; final training-minibatch pooled active-site exact-zero telemetry ended at 68.5076%; no universal collapse occurred. The completed run is canonical but provisional for engineering acceptance. Validation loss was checked only for finiteness and was not ranked or used to choose a replacement. No revised default has been selected, diagnostic 220 is pending, and scientific S1-B2 remains blocked.'
+    reviewed_at: '2026-07-19T19:10:00Z'
+    notes: 'Completed preregistered-center learned-ATG engineering pilot from clean launch commit 8d7341b with 128 steps, 8388608 training tokens, and 311296 selection tokens. Independent hard-contract review passed exact model and optimizer reload, 36 unique FP32 rho parameters, the separate zero-weight-decay adaptive_threshold optimizer group, finite rho state, finite metrics/events, and model/optimizer SHA256 345d988a1a6b28c3fac3c8e03cbe08f0affaecfd3070c7f3fe4f46584cc22545/4df55debab93849b4ff2ba171308899d8f58e7d671d542dad2a86666dcf774b5. The preregistered default failed dynamic acceptance solely at no_frozen_flag: final-quarter steps 96/112/128 reported frozen_threshold_flag 1/0/1; step 96 froze only layer_0__v and step 128 only layer_2__a at FP32-zero steps despite nonzero gradients. Aggregate threshold gradients, updates, and kappa updates remained finite/nonzero; nonfinite flags were zero; final training-minibatch pooled active-site exact-zero telemetry ended at 68.5076%; no universal collapse occurred. The completed run is canonical but provisional for engineering acceptance. Validation loss was checked only for finiteness and was not ranked or used to choose a replacement. Canonical diagnostic 220 supplies the attached complete-selection exact-zero and product endpoints. No revised default has been selected, and scientific S1-B2 remains blocked.'
   - design_id: S1-B2-ENG-ATG-GPLUS-A6POST-ABS-PLS-K010-T003-TLRM0P1-ST128-S0
     config_id: 212-s1-b2-eng-atg-gplus-a6post-abs-pls-t003-tlrm0p1-st128-s0
     run_id: 001-20260719-183947-cff2e4c7
@@ -5406,22 +5406,22 @@ records:
     resumed_from_run_id: null
     resume_checkpoint_sha256: null
     artifact_upload_verified_at: null
-    propagation_result_path: null
-    r_block: null
-    r_model: null
-    r_block_max: null
-    r_model_max: null
-    u_arch: null
-    z_a: null
-    z_m: null
-    z_h: null
-    z_q_gate: null
-    z_k_gate: null
-    z_v_gate: null
-    z_q_qk: null
-    z_k_qk: null
-    z_v_pv: null
-    z_context_wo: null
+    propagation_result_path: results/220-s1-b2-eng-atg-selection-propagation/001-20260719-190523-f28590eb/activation_propagation.json
+    r_block: 0.7090994712566652
+    r_model: 0.2123921467503672
+    r_block_max: 1.0
+    r_model_max: 0.2995237697384911
+    u_arch: 0.7090994712566653
+    z_a: 0.530175807183249
+    z_m: 0.5304124522627446
+    z_h: 0.7418748161248994
+    z_q_gate: 0.7077047364753589
+    z_k_gate: 0.7264642088036788
+    z_v_gate: 0.7014080641562479
+    z_q_qk: 0.7077047364753589
+    z_k_qk: 0.7264642088036788
+    z_v_pv: 0.7014080641562479
+    z_context_wo: 0.24338384260211074
     clipping_result_paths: []
     figure_ids: []
     failure_type: null
@@ -5429,8 +5429,8 @@ records:
     artifact_uri: null
     artifact_manifest_uri: null
     artifact_manifest_sha256: null
-    reviewed_at: '2026-07-19T18:57:00Z'
-    notes: 'Completed learned-ATG engineering axial observation from clean launch commit 8d7341b with 128 steps, 8388608 training tokens, and 311296 selection tokens. Independent hard-contract review passed exact model and optimizer reload, 36 unique FP32 rho parameters, the separate zero-weight-decay adaptive_threshold optimizer group, finite rho state, finite metrics/events, and model/optimizer SHA256 62be6872ce7fa0c9340fb649ccb75642ccf56896503dd1f0d364f8226dd10c52/9209295c76235d22f881ac77c420f3e24632a5634425ac95eb17f774c5a7163c. Final-quarter frozen_threshold_flag pattern at steps 96/112/128 was 1/1/1; pooled active-site exact-zero mass ended at 68.5065%. This is valid engineering boundary evidence only: it cannot replace the preregistered default and validation loss was checked only for finiteness, not ranked. Diagnostic 220 is pending; no revised default has been selected and scientific S1-B2 remains blocked.'
+    reviewed_at: '2026-07-19T19:10:00Z'
+    notes: 'Completed learned-ATG engineering axial observation from clean launch commit 8d7341b with 128 steps, 8388608 training tokens, and 311296 selection tokens. Independent hard-contract review passed exact model and optimizer reload, 36 unique FP32 rho parameters, the separate zero-weight-decay adaptive_threshold optimizer group, finite rho state, finite metrics/events, and model/optimizer SHA256 62be6872ce7fa0c9340fb649ccb75642ccf56896503dd1f0d364f8226dd10c52/9209295c76235d22f881ac77c420f3e24632a5634425ac95eb17f774c5a7163c. Final-quarter frozen_threshold_flag pattern at steps 96/112/128 was 1/1/1; pooled active-site exact-zero mass ended at 68.5065%. This is valid engineering boundary evidence only: it cannot replace the preregistered default and validation loss was checked only for finiteness, not ranked. Canonical diagnostic 220 supplies the attached complete-selection exact-zero and product endpoints; no revised default has been selected and scientific S1-B2 remains blocked.'
   - design_id: S1-B2-ENG-ATG-GPLUS-A6POST-ABS-PLS-K010-T003-TLRM10-ST128-S0
     config_id: 213-s1-b2-eng-atg-gplus-a6post-abs-pls-t003-tlrm10-st128-s0
     run_id: 001-20260719-184119-7f35517f
@@ -5488,22 +5488,22 @@ records:
     resumed_from_run_id: null
     resume_checkpoint_sha256: null
     artifact_upload_verified_at: null
-    propagation_result_path: null
-    r_block: null
-    r_model: null
-    r_block_max: null
-    r_model_max: null
-    u_arch: null
-    z_a: null
-    z_m: null
-    z_h: null
-    z_q_gate: null
-    z_k_gate: null
-    z_v_gate: null
-    z_q_qk: null
-    z_k_qk: null
-    z_v_pv: null
-    z_context_wo: null
+    propagation_result_path: results/220-s1-b2-eng-atg-selection-propagation/001-20260719-190523-f28590eb/activation_propagation.json
+    r_block: 0.7085678684355308
+    r_model: 0.21223291906937736
+    r_block_max: 1.0
+    r_model_max: 0.2995237697384911
+    u_arch: 0.7085678684355308
+    z_a: 0.529701128340604
+    z_m: 0.5308183578022739
+    z_h: 0.7435909593314455
+    z_q_gate: 0.7060317365746749
+    z_k_gate: 0.7281594276428223
+    z_v_gate: 0.6996290725574159
+    z_q_qk: 0.7060317365746749
+    z_k_qk: 0.7281594276428223
+    z_v_pv: 0.6996290725574159
+    z_context_wo: 0.23928245745207133
     clipping_result_paths: []
     figure_ids: []
     failure_type: null
@@ -5511,8 +5511,8 @@ records:
     artifact_uri: null
     artifact_manifest_uri: null
     artifact_manifest_sha256: null
-    reviewed_at: '2026-07-19T18:57:00Z'
-    notes: 'Completed learned-ATG engineering axial observation from clean launch commit 8d7341b with 128 steps, 8388608 training tokens, and 311296 selection tokens. Independent hard-contract review passed exact model and optimizer reload, 36 unique FP32 rho parameters, the separate zero-weight-decay adaptive_threshold optimizer group, finite rho state, finite metrics/events, and model/optimizer SHA256 ba6b88810b07343404a0da958c0872893768a8aec7bb2949dbbf87aa6cdccf75/a117faea7bd4b575ab5b39669f96df5354ad44bd71a904d4806642a3a2fb708d. Final-quarter frozen_threshold_flag pattern at steps 96/112/128 was 0/0/0; pooled active-site exact-zero mass ended at 68.5462%. This is valid engineering boundary evidence only: it cannot replace the preregistered default and validation loss was checked only for finiteness, not ranked. Diagnostic 220 is pending; no revised default has been selected and scientific S1-B2 remains blocked.'
+    reviewed_at: '2026-07-19T19:10:00Z'
+    notes: 'Completed learned-ATG engineering axial observation from clean launch commit 8d7341b with 128 steps, 8388608 training tokens, and 311296 selection tokens. Independent hard-contract review passed exact model and optimizer reload, 36 unique FP32 rho parameters, the separate zero-weight-decay adaptive_threshold optimizer group, finite rho state, finite metrics/events, and model/optimizer SHA256 ba6b88810b07343404a0da958c0872893768a8aec7bb2949dbbf87aa6cdccf75/a117faea7bd4b575ab5b39669f96df5354ad44bd71a904d4806642a3a2fb708d. Final-quarter frozen_threshold_flag pattern at steps 96/112/128 was 0/0/0; pooled active-site exact-zero mass ended at 68.5462%. This is valid engineering boundary evidence only: it cannot replace the preregistered default and validation loss was checked only for finiteness, not ranked. Canonical diagnostic 220 supplies the attached complete-selection exact-zero and product endpoints; no revised default has been selected and scientific S1-B2 remains blocked.'
   - design_id: S1-B2-ENG-ATG-GPLUS-A6POST-ABS-PLS-K010-T001-TLRM1-ST128-S0
     config_id: 214-s1-b2-eng-atg-gplus-a6post-abs-pls-t001-tlrm1-st128-s0
     run_id: 001-20260719-184252-f0eaa457
@@ -5570,22 +5570,22 @@ records:
     resumed_from_run_id: null
     resume_checkpoint_sha256: null
     artifact_upload_verified_at: null
-    propagation_result_path: null
-    r_block: null
-    r_model: null
-    r_block_max: null
-    r_model_max: null
-    u_arch: null
-    z_a: null
-    z_m: null
-    z_h: null
-    z_q_gate: null
-    z_k_gate: null
-    z_v_gate: null
-    z_q_qk: null
-    z_k_qk: null
-    z_v_pv: null
-    z_context_wo: null
+    propagation_result_path: results/220-s1-b2-eng-atg-selection-propagation/001-20260719-190523-f28590eb/activation_propagation.json
+    r_block: 0.7089233941510792
+    r_model: 0.2123394074719374
+    r_block_max: 1.0
+    r_model_max: 0.2995237697384911
+    u_arch: 0.7089233941510792
+    z_a: 0.5299682784498784
+    z_m: 0.53034354092782
+    z_h: 0.7425146102905273
+    z_q_gate: 0.7070093991463644
+    z_k_gate: 0.7270530566834567
+    z_v_gate: 0.701051063704909
+    z_q_qk: 0.7070093991463644
+    z_k_qk: 0.7270530566834567
+    z_v_pv: 0.701051063704909
+    z_context_wo: 0.2420292946330288
     clipping_result_paths: []
     figure_ids: []
     failure_type: null
@@ -5593,8 +5593,8 @@ records:
     artifact_uri: null
     artifact_manifest_uri: null
     artifact_manifest_sha256: null
-    reviewed_at: '2026-07-19T18:57:00Z'
-    notes: 'Completed learned-ATG engineering axial observation from clean launch commit 8d7341b with 128 steps, 8388608 training tokens, and 311296 selection tokens. Independent hard-contract review passed exact model and optimizer reload, 36 unique FP32 rho parameters, the separate zero-weight-decay adaptive_threshold optimizer group, finite rho state, finite metrics/events, and model/optimizer SHA256 6bac5c77ab82dc4fe87157df66ae82b4e2bacaf4585241d99ffa193c1649780a/b531787c96de413caef8f9248c7d0b10dd7c70b4e920d8dad658ac3a64ae0edf. Final-quarter frozen_threshold_flag pattern at steps 96/112/128 was 1/0/0; pooled active-site exact-zero mass ended at 68.5267%. This is valid engineering boundary evidence only: it cannot replace the preregistered default and validation loss was checked only for finiteness, not ranked. Diagnostic 220 is pending; no revised default has been selected and scientific S1-B2 remains blocked.'
+    reviewed_at: '2026-07-19T19:10:00Z'
+    notes: 'Completed learned-ATG engineering axial observation from clean launch commit 8d7341b with 128 steps, 8388608 training tokens, and 311296 selection tokens. Independent hard-contract review passed exact model and optimizer reload, 36 unique FP32 rho parameters, the separate zero-weight-decay adaptive_threshold optimizer group, finite rho state, finite metrics/events, and model/optimizer SHA256 6bac5c77ab82dc4fe87157df66ae82b4e2bacaf4585241d99ffa193c1649780a/b531787c96de413caef8f9248c7d0b10dd7c70b4e920d8dad658ac3a64ae0edf. Final-quarter frozen_threshold_flag pattern at steps 96/112/128 was 1/0/0; pooled active-site exact-zero mass ended at 68.5267%. This is valid engineering boundary evidence only: it cannot replace the preregistered default and validation loss was checked only for finiteness, not ranked. Canonical diagnostic 220 supplies the attached complete-selection exact-zero and product endpoints; no revised default has been selected and scientific S1-B2 remains blocked.'
   - design_id: S1-B2-ENG-ATG-GPLUS-A6POST-ABS-PLS-K010-T010-TLRM1-ST128-S0
     config_id: 215-s1-b2-eng-atg-gplus-a6post-abs-pls-t010-tlrm1-st128-s0
     run_id: 001-20260719-184425-50d9d788
@@ -5652,22 +5652,22 @@ records:
     resumed_from_run_id: null
     resume_checkpoint_sha256: null
     artifact_upload_verified_at: null
-    propagation_result_path: null
-    r_block: null
-    r_model: null
-    r_block_max: null
-    r_model_max: null
-    u_arch: null
-    z_a: null
-    z_m: null
-    z_h: null
-    z_q_gate: null
-    z_k_gate: null
-    z_v_gate: null
-    z_q_qk: null
-    z_k_qk: null
-    z_v_pv: null
-    z_context_wo: null
+    propagation_result_path: results/220-s1-b2-eng-atg-selection-propagation/001-20260719-190523-f28590eb/activation_propagation.json
+    r_block: 0.7088424420379502
+    r_model: 0.21231516038984471
+    r_block_max: 1.0
+    r_model_max: 0.2995237697384911
+    u_arch: 0.7088424420379502
+    z_a: 0.5299646268811142
+    z_m: 0.5302386325702333
+    z_h: 0.7420873150490878
+    z_q_gate: 0.7068237170838473
+    z_k_gate: 0.7259602755831
+    z_v_gate: 0.7012969945606432
+    z_q_qk: 0.7068237170838473
+    z_k_qk: 0.7259602755831
+    z_v_pv: 0.7012969945606432
+    z_context_wo: 0.24411196875990482
     clipping_result_paths: []
     figure_ids: []
     failure_type: null
@@ -5675,8 +5675,8 @@ records:
     artifact_uri: null
     artifact_manifest_uri: null
     artifact_manifest_sha256: null
-    reviewed_at: '2026-07-19T18:57:00Z'
-    notes: 'Completed learned-ATG engineering axial observation from clean launch commit 8d7341b with 128 steps, 8388608 training tokens, and 311296 selection tokens. Independent hard-contract review passed exact model and optimizer reload, 36 unique FP32 rho parameters, the separate zero-weight-decay adaptive_threshold optimizer group, finite rho state, finite metrics/events, and model/optimizer SHA256 1790a6a59abafa80f9eb1151c86dd2952eae28eda54aa6e119e08d3748cd2e63/8ba48a27c64dd8d05ab5d46801011f86b089c651ba442b1c68e69a785d5243db. Final-quarter frozen_threshold_flag pattern at steps 96/112/128 was 1/1/0; pooled active-site exact-zero mass ended at 68.5001%. This is valid engineering boundary evidence only: it cannot replace the preregistered default and validation loss was checked only for finiteness, not ranked. Diagnostic 220 is pending; no revised default has been selected and scientific S1-B2 remains blocked.'
+    reviewed_at: '2026-07-19T19:10:00Z'
+    notes: 'Completed learned-ATG engineering axial observation from clean launch commit 8d7341b with 128 steps, 8388608 training tokens, and 311296 selection tokens. Independent hard-contract review passed exact model and optimizer reload, 36 unique FP32 rho parameters, the separate zero-weight-decay adaptive_threshold optimizer group, finite rho state, finite metrics/events, and model/optimizer SHA256 1790a6a59abafa80f9eb1151c86dd2952eae28eda54aa6e119e08d3748cd2e63/8ba48a27c64dd8d05ab5d46801011f86b089c651ba442b1c68e69a785d5243db. Final-quarter frozen_threshold_flag pattern at steps 96/112/128 was 1/1/0; pooled active-site exact-zero mass ended at 68.5001%. This is valid engineering boundary evidence only: it cannot replace the preregistered default and validation loss was checked only for finiteness, not ranked. Canonical diagnostic 220 supplies the attached complete-selection exact-zero and product endpoints; no revised default has been selected and scientific S1-B2 remains blocked.'
   - design_id: S1-B2-ENG-ATG-GPLUS-A6POST-ABS-PLS-K010-T001-TLRM0P1-ST128-S0
     config_id: 216-s1-b2-eng-atg-gplus-a6post-abs-pls-t001-tlrm0p1-st128-s0
     run_id: 001-20260719-184557-95cc237f
@@ -5734,22 +5734,22 @@ records:
     resumed_from_run_id: null
     resume_checkpoint_sha256: null
     artifact_upload_verified_at: null
-    propagation_result_path: null
-    r_block: null
-    r_model: null
-    r_block_max: null
-    r_model_max: null
-    u_arch: null
-    z_a: null
-    z_m: null
-    z_h: null
-    z_q_gate: null
-    z_k_gate: null
-    z_v_gate: null
-    z_q_qk: null
-    z_k_qk: null
-    z_v_pv: null
-    z_context_wo: null
+    propagation_result_path: results/220-s1-b2-eng-atg-selection-propagation/001-20260719-190523-f28590eb/activation_propagation.json
+    r_block: 0.7088182476292638
+    r_model: 0.21230791358934836
+    r_block_max: 1.0
+    r_model_max: 0.2995237697384911
+    u_arch: 0.7088182476292638
+    z_a: 0.5296984429945025
+    z_m: 0.5298921183535927
+    z_h: 0.7417835363170557
+    z_q_gate: 0.7070385656858745
+    z_k_gate: 0.7262864112854004
+    z_v_gate: 0.7011336234577915
+    z_q_qk: 0.7070385656858745
+    z_k_qk: 0.7262864112854004
+    z_v_pv: 0.7011336234577915
+    z_context_wo: 0.24394570317184716
     clipping_result_paths: []
     figure_ids: []
     failure_type: null
@@ -5757,8 +5757,8 @@ records:
     artifact_uri: null
     artifact_manifest_uri: null
     artifact_manifest_sha256: null
-    reviewed_at: '2026-07-19T18:57:00Z'
-    notes: 'Completed learned-ATG engineering boundary corner from clean launch commit 8d7341b with 128 steps, 8388608 training tokens, and 311296 selection tokens. Independent hard-contract review passed exact model and optimizer reload, 36 unique FP32 rho parameters, the separate zero-weight-decay adaptive_threshold optimizer group, finite rho state, finite metrics/events, and model/optimizer SHA256 72081909aa820917c2b1858d8a7897a59087f27bdaa7409c1a25caeb8b9d1f9a/db7af117d81f0cf1033894119379d9f94db5118357e8e8109df4c9d4838994a5. Final-quarter frozen_threshold_flag pattern at steps 96/112/128 was 1/1/1; pooled active-site exact-zero mass ended at 68.4897%. This is valid engineering boundary evidence only: it cannot replace the preregistered default and validation loss was checked only for finiteness, not ranked. Diagnostic 220 is pending; no revised default has been selected and scientific S1-B2 remains blocked.'
+    reviewed_at: '2026-07-19T19:10:00Z'
+    notes: 'Completed learned-ATG engineering boundary corner from clean launch commit 8d7341b with 128 steps, 8388608 training tokens, and 311296 selection tokens. Independent hard-contract review passed exact model and optimizer reload, 36 unique FP32 rho parameters, the separate zero-weight-decay adaptive_threshold optimizer group, finite rho state, finite metrics/events, and model/optimizer SHA256 72081909aa820917c2b1858d8a7897a59087f27bdaa7409c1a25caeb8b9d1f9a/db7af117d81f0cf1033894119379d9f94db5118357e8e8109df4c9d4838994a5. Final-quarter frozen_threshold_flag pattern at steps 96/112/128 was 1/1/1; pooled active-site exact-zero mass ended at 68.4897%. This is valid engineering boundary evidence only: it cannot replace the preregistered default and validation loss was checked only for finiteness, not ranked. Canonical diagnostic 220 supplies the attached complete-selection exact-zero and product endpoints; no revised default has been selected and scientific S1-B2 remains blocked.'
   - design_id: S1-B2-ENG-ATG-GPLUS-A6POST-ABS-PLS-K010-T001-TLRM10-ST128-S0
     config_id: 217-s1-b2-eng-atg-gplus-a6post-abs-pls-t001-tlrm10-st128-s0
     run_id: 001-20260719-184729-7ab8bb47
@@ -5816,22 +5816,22 @@ records:
     resumed_from_run_id: null
     resume_checkpoint_sha256: null
     artifact_upload_verified_at: null
-    propagation_result_path: null
-    r_block: null
-    r_model: null
-    r_block_max: null
-    r_model_max: null
-    u_arch: null
-    z_a: null
-    z_m: null
-    z_h: null
-    z_q_gate: null
-    z_k_gate: null
-    z_v_gate: null
-    z_q_qk: null
-    z_k_qk: null
-    z_v_pv: null
-    z_context_wo: null
+    propagation_result_path: results/220-s1-b2-eng-atg-selection-propagation/001-20260719-190523-f28590eb/activation_propagation.json
+    r_block: 0.7089392784743281
+    r_model: 0.21234416520431668
+    r_block_max: 1.0
+    r_model_max: 0.2995237697384911
+    u_arch: 0.7089392784743281
+    z_a: 0.529719352722168
+    z_m: 0.5307827999717311
+    z_h: 0.7451195444977075
+    z_q_gate: 0.7066432927784166
+    z_k_gate: 0.7291932106018066
+    z_v_gate: 0.6997395858430026
+    z_q_qk: 0.7066432927784166
+    z_k_qk: 0.7291932106018066
+    z_v_pv: 0.6997395858430026
+    z_context_wo: 0.23875914540207177
     clipping_result_paths: []
     figure_ids: []
     failure_type: null
@@ -5839,8 +5839,8 @@ records:
     artifact_uri: null
     artifact_manifest_uri: null
     artifact_manifest_sha256: null
-    reviewed_at: '2026-07-19T18:57:00Z'
-    notes: 'Completed learned-ATG engineering boundary corner from clean launch commit 8d7341b with 128 steps, 8388608 training tokens, and 311296 selection tokens. Independent hard-contract review passed exact model and optimizer reload, 36 unique FP32 rho parameters, the separate zero-weight-decay adaptive_threshold optimizer group, finite rho state, finite metrics/events, and model/optimizer SHA256 cd7cbdd7ec5e14f5a6f20313c7fbd8e3d9435d88ad6eb1bfc67294fe916a32e2/253a9613251724142af940c411a0c4fa4632bba8da6f776347ff767b3953d422. Final-quarter frozen_threshold_flag pattern at steps 96/112/128 was 0/0/0; pooled active-site exact-zero mass ended at 68.6433%. This is valid engineering boundary evidence only: it cannot replace the preregistered default and validation loss was checked only for finiteness, not ranked. Diagnostic 220 is pending; no revised default has been selected and scientific S1-B2 remains blocked.'
+    reviewed_at: '2026-07-19T19:10:00Z'
+    notes: 'Completed learned-ATG engineering boundary corner from clean launch commit 8d7341b with 128 steps, 8388608 training tokens, and 311296 selection tokens. Independent hard-contract review passed exact model and optimizer reload, 36 unique FP32 rho parameters, the separate zero-weight-decay adaptive_threshold optimizer group, finite rho state, finite metrics/events, and model/optimizer SHA256 cd7cbdd7ec5e14f5a6f20313c7fbd8e3d9435d88ad6eb1bfc67294fe916a32e2/253a9613251724142af940c411a0c4fa4632bba8da6f776347ff767b3953d422. Final-quarter frozen_threshold_flag pattern at steps 96/112/128 was 0/0/0; pooled active-site exact-zero mass ended at 68.6433%. This is valid engineering boundary evidence only: it cannot replace the preregistered default and validation loss was checked only for finiteness, not ranked. Canonical diagnostic 220 supplies the attached complete-selection exact-zero and product endpoints; no revised default has been selected and scientific S1-B2 remains blocked.'
   - design_id: S1-B2-ENG-ATG-GPLUS-A6POST-ABS-PLS-K010-T010-TLRM0P1-ST128-S0
     config_id: 218-s1-b2-eng-atg-gplus-a6post-abs-pls-t010-tlrm0p1-st128-s0
     run_id: 001-20260719-184902-92fbe493
@@ -5898,22 +5898,22 @@ records:
     resumed_from_run_id: null
     resume_checkpoint_sha256: null
     artifact_upload_verified_at: null
-    propagation_result_path: null
-    r_block: null
-    r_model: null
-    r_block_max: null
-    r_model_max: null
-    u_arch: null
-    z_a: null
-    z_m: null
-    z_h: null
-    z_q_gate: null
-    z_k_gate: null
-    z_v_gate: null
-    z_q_qk: null
-    z_k_qk: null
-    z_v_pv: null
-    z_context_wo: null
+    propagation_result_path: results/220-s1-b2-eng-atg-selection-propagation/001-20260719-190523-f28590eb/activation_propagation.json
+    r_block: 0.7088508898215075
+    r_model: 0.21231769070182172
+    r_block_max: 1.0
+    r_model_max: 0.2995237697384911
+    u_arch: 0.7088508898215075
+    z_a: 0.5299554331260815
+    z_m: 0.5301621294858163
+    z_h: 0.7417971648667988
+    z_q_gate: 0.7070311454304478
+    z_k_gate: 0.7259501867127001
+    z_v_gate: 0.7012637372602496
+    z_q_qk: 0.7070311454304478
+    z_k_qk: 0.7259501867127001
+    z_v_pv: 0.7012637372602496
+    z_context_wo: 0.2440603866911771
     clipping_result_paths: []
     figure_ids: []
     failure_type: null
@@ -5921,8 +5921,8 @@ records:
     artifact_uri: null
     artifact_manifest_uri: null
     artifact_manifest_sha256: null
-    reviewed_at: '2026-07-19T18:57:00Z'
-    notes: 'Completed learned-ATG engineering boundary corner from clean launch commit 8d7341b with 128 steps, 8388608 training tokens, and 311296 selection tokens. Independent hard-contract review passed exact model and optimizer reload, 36 unique FP32 rho parameters, the separate zero-weight-decay adaptive_threshold optimizer group, finite rho state, finite metrics/events, and model/optimizer SHA256 4394bfa7d195dfdff9b37ef6f9915e663bb243117edf3588fb211c08dcd4bd0c/8450c8495044b76998867042a63be8117ba5ee31ee9caba74123c4522791bf42. Final-quarter frozen_threshold_flag pattern at steps 96/112/128 was 1/1/1; pooled active-site exact-zero mass ended at 68.4768%. This is valid engineering boundary evidence only: it cannot replace the preregistered default and validation loss was checked only for finiteness, not ranked. Diagnostic 220 is pending; no revised default has been selected and scientific S1-B2 remains blocked.'
+    reviewed_at: '2026-07-19T19:10:00Z'
+    notes: 'Completed learned-ATG engineering boundary corner from clean launch commit 8d7341b with 128 steps, 8388608 training tokens, and 311296 selection tokens. Independent hard-contract review passed exact model and optimizer reload, 36 unique FP32 rho parameters, the separate zero-weight-decay adaptive_threshold optimizer group, finite rho state, finite metrics/events, and model/optimizer SHA256 4394bfa7d195dfdff9b37ef6f9915e663bb243117edf3588fb211c08dcd4bd0c/8450c8495044b76998867042a63be8117ba5ee31ee9caba74123c4522791bf42. Final-quarter frozen_threshold_flag pattern at steps 96/112/128 was 1/1/1; pooled active-site exact-zero mass ended at 68.4768%. This is valid engineering boundary evidence only: it cannot replace the preregistered default and validation loss was checked only for finiteness, not ranked. Canonical diagnostic 220 supplies the attached complete-selection exact-zero and product endpoints; no revised default has been selected and scientific S1-B2 remains blocked.'
   - design_id: S1-B2-ENG-ATG-GPLUS-A6POST-ABS-PLS-K010-T010-TLRM10-ST128-S0
     config_id: 219-s1-b2-eng-atg-gplus-a6post-abs-pls-t010-tlrm10-st128-s0
     run_id: 001-20260719-185034-0c473337
@@ -5980,7 +5980,89 @@ records:
     resumed_from_run_id: null
     resume_checkpoint_sha256: null
     artifact_upload_verified_at: null
-    propagation_result_path: null
+    propagation_result_path: results/220-s1-b2-eng-atg-selection-propagation/001-20260719-190523-f28590eb/activation_propagation.json
+    r_block: 0.7082291049946075
+    r_model: 0.21213145136650244
+    r_block_max: 1.0
+    r_model_max: 0.2995237697384911
+    u_arch: 0.7082291049946075
+    z_a: 0.5296752494678163
+    z_m: 0.5305459583014772
+    z_h: 0.7419443684711791
+    z_q_gate: 0.7057284304970189
+    z_k_gate: 0.7264175415039062
+    z_v_gate: 0.6994654253909462
+    z_q_qk: 0.7057284304970189
+    z_k_qk: 0.7264175415039062
+    z_v_pv: 0.6994654253909462
+    z_context_wo: 0.23821923607274106
+    clipping_result_paths: []
+    figure_ids: []
+    failure_type: null
+    failure_message: null
+    artifact_uri: null
+    artifact_manifest_uri: null
+    artifact_manifest_sha256: null
+    reviewed_at: '2026-07-19T19:10:00Z'
+    notes: 'Completed learned-ATG engineering boundary corner from clean launch commit 8d7341b with 128 steps, 8388608 training tokens, and 311296 selection tokens. Independent hard-contract review passed exact model and optimizer reload, 36 unique FP32 rho parameters, the separate zero-weight-decay adaptive_threshold optimizer group, finite rho state, finite metrics/events, and model/optimizer SHA256 9ee1768446fa8dd656c1122f805ef65a29067e06adff3cd3814a970d71b796db/6b70538332692e19c1e19717a3f92ede2cbbd018abb175eec0118747288a6d5f. Final-quarter frozen_threshold_flag pattern at steps 96/112/128 was 0/0/0; pooled active-site exact-zero mass ended at 68.4626%. This is valid engineering boundary evidence only: it cannot replace the preregistered default and validation loss was checked only for finiteness, not ranked. Canonical diagnostic 220 supplies the attached complete-selection exact-zero and product endpoints; no revised default has been selected and scientific S1-B2 remains blocked.'
+  - design_id: S1-B2-ENG-ATG-PILOT-SELECTION-S0
+    config_id: 220-s1-b2-eng-atg-selection-propagation
+    run_id: 001-20260719-190523-f28590eb
+    attempt: 1
+    mode: activation-propagation
+    result_path: results/220-s1-b2-eng-atg-selection-propagation/001-20260719-190523-f28590eb
+    log_path: null
+    lifecycle_status: statusless_complete
+    evidence_status: valid
+    canonical: true
+    started_at: 2026-07-19T19:05:23.000000Z
+    finished_at: 2026-07-19T19:06:00.352716Z
+    git_commit: 31710d28eabb2058823968d230b0b0038acbedfa
+    git_dirty: false
+    completed_steps: 0
+    tokens_seen: 0
+    model_initialization_seed: 0
+    data_order_seed: 0
+    training_schedule_scheme: null
+    training_schedule_hash: null
+    initial_parameter_sha256: null
+    effective_tokens_per_update: null
+    validation_partition: selection
+    validation_partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
+    validation_tokens: 311296
+    validation_loss: null
+    wall_hours: 0.0102905892222285
+    tokens_per_second: 75626.37893648847
+    peak_gpu_mb: 676.6416015625
+    execution_backend: local
+    cloud_provider: null
+    cloud_tier: null
+    provisioning_type: null
+    interruptible: null
+    pod_id: null
+    region: null
+    datacenter_id: null
+    gpu_type: NVIDIA GeForce RTX 5070 Ti Laptop GPU
+    gpu_count: 1
+    container_image_ref: null
+    container_image_digest: null
+    environment_lock_sha256: null
+    python_version: 3.12.10
+    pytorch_version: 2.11.0+cu128
+    cuda_version: '12.8'
+    cudnn_version: null
+    gpu_driver_version: '572.84'
+    token_cache_sha256: 22bb7c27864f0e5941548c572d6c75b1b5ba6a4c13e4cd26f40f4de546c5cc19
+    hourly_rate_usd: null
+    rate_snapshot_date: null
+    rate_source_url: null
+    billed_gpu_seconds: null
+    compute_cost_usd: null
+    storage_cost_usd: null
+    resumed_from_run_id: null
+    resume_checkpoint_sha256: null
+    artifact_upload_verified_at: null
+    propagation_result_path: results/220-s1-b2-eng-atg-selection-propagation/001-20260719-190523-f28590eb/activation_propagation.json
     r_block: null
     r_model: null
     r_block_max: null
@@ -6003,5 +6085,5 @@ records:
     artifact_uri: null
     artifact_manifest_uri: null
     artifact_manifest_sha256: null
-    reviewed_at: '2026-07-19T18:57:00Z'
-    notes: 'Completed learned-ATG engineering boundary corner from clean launch commit 8d7341b with 128 steps, 8388608 training tokens, and 311296 selection tokens. Independent hard-contract review passed exact model and optimizer reload, 36 unique FP32 rho parameters, the separate zero-weight-decay adaptive_threshold optimizer group, finite rho state, finite metrics/events, and model/optimizer SHA256 9ee1768446fa8dd656c1122f805ef65a29067e06adff3cd3814a970d71b796db/6b70538332692e19c1e19717a3f92ede2cbbd018abb175eec0118747288a6d5f. Final-quarter frozen_threshold_flag pattern at steps 96/112/128 was 0/0/0; pooled active-site exact-zero mass ended at 68.4626%. This is valid engineering boundary evidence only: it cannot replace the preregistered default and validation loss was checked only for finiteness, not ranked. Diagnostic 220 is pending; no revised default has been selected and scientific S1-B2 remains blocked.'
+    reviewed_at: '2026-07-19T19:10:00Z'
+    notes: 'Canonical statusless-complete schema-v3 diagnostic over the nine exact completed checkpoints for configs 211--219 in center-first order. It pooled all 311296 complete selection tokens across 152 sequences and 38 batches, excluded 443 trailing cache tokens, and emitted exact-zero, direct-product, architecture-ceiling, U_arch, and final learned-threshold metadata. Every source recovered learned G+ at all six A6-POST sites a/m/h/q/k/v with absolute per-layer/site thresholds, POST-RoPE Q/K placement, 36 distinct threshold parameters, and an ungated final LayerNorm. All nine completed source manifests are pinned exactly. The five-file envelope, partition identity, topology, gate-operand identity, exact-zero/product denominators, ceilings, endpoint arithmetic, and activation artifact SHA256 f603130384684092ccd78c4c842d8ea0e8357a4546ff4c8f1360eed4010a22bf passed review. This is engineering evidence only: validation loss was not ranked, config 211 remains provisional, no revised default has been selected, and scientific S1-B2 remains blocked.'
