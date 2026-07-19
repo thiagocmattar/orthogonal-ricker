@@ -141,7 +141,8 @@ work.
   `001-20260719-094101-86e1b7ca`, completed at `R_block=0.38896` and
   `R_model=0.11650` and passed artifact, endpoint, and PRE-RoPE zero-survival
   review. Config `183` materializes the matched fixed `Gpm` PRE-RoPE Q/K plus
-  post-split V cell at `kappa=0.30`; it is the next run to launch.
+  post-split V cell at `kappa=0.30`; run
+  `001-20260719-094646-118743a1` is active from clean commit `a2380f1`.
 - B0 has completed all `20 / 20` currently executable scientific cells
   (`20 / 22` declared); the two post-PV context cells remain blocked. The
   declared S1 core has completed `37 / 134` cells (`37 / 132` executable).

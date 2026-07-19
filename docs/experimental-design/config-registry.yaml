@@ -35,7 +35,7 @@ block_summary:
     materialized_cells: 18
     completed_cells: 17
     status: active
-    note: the first 17 B1 scientific cells, configs 149 through 181 at odd prefixes, plus their mandatory complete-selection propagation diagnostics are complete; config 183 materializes the eighteenth B1 cell and is ready
+    note: the first 17 B1 scientific cells, configs 149 through 181 at odd prefixes, plus their mandatory complete-selection propagation diagnostics are complete; config 183 is the active fixed Gpm PRE-RoPE QKV kappa 0.30 cell
   - block: S1-B2
     planned_cells: 26
     materialized_cells: 0
@@ -3062,7 +3062,7 @@ records:
     ricker_sigma: null
     step_budget: null
     matched_control_id: S1-B0-ARCH-A3-LR3EM5-S0
-    config_status: ready
+    config_status: active
     decision_status: pending
     release_tier: history
     canonical_run_id: null
