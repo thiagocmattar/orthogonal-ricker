@@ -10,9 +10,9 @@ within-stratum comparisons, not a global ranking or paper-level conclusion.
 
 All six site-isolation training cells, configs `197--202`, and their pooled
 selection-partition diagnostic `203` are complete. The six branch-scope cells,
-configs `204--209`, are also complete and reviewed. The B1 scientific matrix
-is therefore 36/36, bringing executable S1 completion to 56/132 (42.42%). Its
-pooled branch-scope diagnostic `210` remains pending, so B1 is not yet closed.
+configs `204--209`, and their pooled diagnostic `210` are also complete and
+reviewed. B1 is closed at 36/36 scientific cells, bringing executable S1
+completion to 56/132 (42.42%).
 
 ## 2. Methods and Denominators
 
@@ -140,6 +140,11 @@ The 24 training rows consumed 8.108 serial GPU-hours.
   diagnostic for site-isolation configs `197--202`. It passed source-manifest,
   topology, gate-operand identity, exact-zero, and product-count review over
   all 311,296 complete selection tokens.
+- Config `210`, run `001-20260719-182227-8a286ad9`, is the canonical pooled
+  diagnostic for branch-scope configs `204--209`. Its schema-v3 five-file
+  artifact passed source-manifest, topology, POST-RoPE gate-operand identity,
+  exact-zero, product-count, architecture-ceiling, and `U_arch` review over all
+  311,296 complete selection tokens.
 - Config `190` attempt 2 is a retained accidental duplicate. It is
   noncanonical and excluded; attempt 1 supplies config `189`'s endpoint.
 - Exact run identities and review notes are in
@@ -211,16 +216,37 @@ at step 2,048. Raising `kappa` from 0.03 to 0.10 increases selection loss by
 throughput differences reflect dense gate and instrumentation overhead; they
 are not sparse-kernel speedups.
 
-Pooled `z_*`, `R_block`, `R_model`, topology ceilings, and `U_arch` are not
-reported from last-minibatch telemetry. They remain pending the full 311,296-
-token selection-partition diagnostic `210`.
+All endpoint columns below are pooled percentages from diagnostic `210`; they
+are not last-minibatch telemetry. An em dash means that the explicit gate is
+absent. In A6-POST, Q/K gate outputs equal their QK operands and V gate outputs
+equal the PV operand. Ungated Q/K/V operands contain at most five exact zeros
+in their 239,075,328-element pooled tensors.
 
-## TODO: Finish S1-B1 Diagnostic Closure
+| Config | `R_block` | `R_model` | `R_block_max` | `R_model_max` | `U_arch` | `z_a` | `z_m` | `z_h` | `z_Q_gate` | `z_K_gate` | `z_V_gate` | `z_context_wo` |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 204 | 8.4420 | 2.5286 | 14.2817 | 4.2777 | 59.1104 | — | — | 59.1104 | — | — | — | 0.0000 |
+| 205 | 11.1841 | 3.3499 | 14.2817 | 4.2777 | 78.3102 | — | — | 78.3102 | — | — | — | 0.0000 |
+| 206 | 22.0664 | 6.6094 | 39.2748 | 11.7637 | 56.1847 | 52.3602 | 52.4455 | 62.7923 | — | — | — | 0.0000 |
+| 207 | 26.4774 | 7.9306 | 39.2748 | 11.7637 | 67.4159 | 55.0645 | 55.1476 | 88.9477 | — | — | — | 0.0000 |
+| 208 | 51.5531 | 15.4414 | 100.0000 | 29.9524 | 51.5531 | 52.3798 | 52.5019 | 62.7722 | 25.5067 | 39.4793 | 51.1635 | 1.3276 |
+| 209 | 62.1471 | 18.6145 | 100.0000 | 29.9524 | 62.1471 | 54.7311 | 54.9095 | 88.8878 | 33.5450 | 46.5705 | 65.6664 | 3.9303 |
 
-- Materialize diagnostic `210` from the exact canonical run ids for configs
-  `204--209`, run it over the frozen selection partition, and audit its
-  exact-zero/product denominators.
-- Attach the six pooled `z_*`, `R_block`, `R_model`, ceiling, and `U_arch`
-  endpoints to the run registry and this document.
-- Mark B1 closed only after diagnostic `210` has durable, reviewed artifacts.
-  Preserve the one-seed and short-budget interpretation boundary.
+At this one seed and short budget:
+
+- Raising `kappa` from 0.03 to 0.10 increases `R_model` by 0.8213 points for
+  A1-H, 1.3212 for A3, and 3.1731 for A6-POST, alongside the selection-loss
+  increases reported above.
+- Expanding the active topology from h-only to a/m/h and then to all six
+  A6-POST gates raises both the architecture ceiling and realized model-product
+  opportunity. This is a topology comparison, not a global architecture rank.
+- A6-POST V zeros reach PV exactly, but dense attention mixing reduces
+  `z_context_wo` to 1.3276% at `kappa=0.03` and 3.9303% at `kappa=0.10`.
+
+## 8. B1 Closure and Handoff
+
+Diagnostic `210` has durable reviewed artifacts, the exact pooled endpoints are
+attached to the six canonical training rows in `run-registry.yaml`, and S1-B1
+is closed. These results remain one-seed, 2,048-step screening evidence. The
+next stage is the preregistered learned-ATG engineering gate before any S1-B2
+scientific cell launches; engineering validation loss must not select its
+hyperparameters.

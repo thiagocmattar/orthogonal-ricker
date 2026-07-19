@@ -10,12 +10,12 @@ work.
 - Campaign id: `pythia-sparsity-scaling-v1`.
 - Planning date: 2026-07-18.
 - Current phase: 56 of 132 executable S1 scientific cells are complete
-  (42.42%): S1-B0 is 20/20 and the S1-B1 scientific matrix is 36/36. Pooled
-  site-isolation diagnostic `203` is closed; pooled branch-scope diagnostic
-  `210` remains pending before B1 closure. The 2,048-step screen remains
-  restricted to feasibility/collapse and within-stratum comparisons.
-- Next unused config prefix: `210`, deferred for the pooled branch-scope
-  diagnostic over the exact canonical runs for configs `204--209`.
+  (42.42%): S1-B0 is 20/20 and S1-B1 is closed at 36/36 after reviewed pooled
+  diagnostics `203` (site isolation) and `210` (branch scope). The 2,048-step
+  screen remains restricted to feasibility/collapse and within-stratum
+  comparisons.
+- Next unused config prefix: `211`, reserved for the first learned-ATG
+  engineering pilot before the 26-cell S1-B2 scientific matrix can launch.
 - The five central B0 anchors, configs `123--127`, completed and passed
   terminal review. Their final selection losses are `7.04913` (A0),
   `6.98875` (A1-H), `7.01310` (A3), `7.01645` (A6-PRE), and `7.03248`
@@ -25,8 +25,9 @@ work.
 - Last completed scientific run: config `209`, fixed `G+` at all six A6-POST
   gates with `kappa=0.10`, run `001-20260719-174822-82abb149`, selection loss
   `7.05266`.
-- Active scientific run: none. Materialize and run pooled branch-scope
-  diagnostic `210` next from the six exact canonical run ids below.
+- Active scientific run: none. The next launch set is the preregistered
+  engineering-only learned-ATG pilot tranche; it does not change the 56/132
+  scientific count.
 
 | Config | Gate/site | Canonical run | Selection loss | `R_block` | `R_model` |
 | ---: | --- | --- | ---: | ---: | ---: |
@@ -43,17 +44,19 @@ work.
 
 | Config | Architecture / fixed G+ sites | `kappa` | Canonical run | Selection loss | `R_block` / `R_model` |
 | ---: | --- | ---: | --- | ---: | --- |
-| 204 | A1-H / h | 0.03 | `001-20260719-162004-acaa3c4d` | 6.98927 | pending diagnostic 210 |
-| 205 | A1-H / h | 0.10 | `001-20260719-163632-0ef57fc3` | 6.99409 | pending diagnostic 210 |
-| 206 | A3 / a, m, h | 0.03 | `001-20260719-165244-cdb05be6` | 7.00780 | pending diagnostic 210 |
-| 207 | A3 / a, m, h | 0.10 | `001-20260719-171028-3317c771` | 7.02685 | pending diagnostic 210 |
-| 208 | A6-POST / a, m, h, q, k, v | 0.03 | `001-20260719-172812-44207e36` | 7.02389 | pending diagnostic 210 |
-| 209 | A6-POST / a, m, h, q, k, v | 0.10 | `001-20260719-174822-82abb149` | 7.05266 | pending diagnostic 210 |
+| 204 | A1-H / h | 0.03 | `001-20260719-162004-acaa3c4d` | 6.98927 | 8.4420% / 2.5286% |
+| 205 | A1-H / h | 0.10 | `001-20260719-163632-0ef57fc3` | 6.99409 | 11.1841% / 3.3499% |
+| 206 | A3 / a, m, h | 0.03 | `001-20260719-165244-cdb05be6` | 7.00780 | 22.0664% / 6.6094% |
+| 207 | A3 / a, m, h | 0.10 | `001-20260719-171028-3317c771` | 7.02685 | 26.4774% / 7.9306% |
+| 208 | A6-POST / a, m, h, q, k, v | 0.03 | `001-20260719-172812-44207e36` | 7.02389 | 51.5531% / 15.4414% |
+| 209 | A6-POST / a, m, h, q, k, v | 0.10 | `001-20260719-174822-82abb149` | 7.05266 | 62.1471% / 18.6145% |
 
 - Configs `204--209` completed 2,048 steps each from clean commit `5c17fa0`
   and passed terminal envelope, saved-config, finite-event, collapse, and
-  recomputed-checkpoint-hash review. Pooled `z_*`, `R_block`, `R_model`, and
-  `U_arch` values are intentionally unreported until diagnostic `210`.
+  recomputed-checkpoint-hash review. Config `210`, run
+  `001-20260719-182227-8a286ad9`, supplies their pooled `z_*`, `R_block`,
+  `R_model`, topology ceilings, and `U_arch` endpoints over all 311,296
+  complete selection tokens; its artifact and endpoint audit passed.
 - Config `196`, run `001-20260719-134214-2cfa55c7`, completed config `195`'s
   mandatory diagnostic at `R_block=0.65130` and `R_model=0.19508`.
 - Config `194`, run `001-20260719-130907-96667214`, completed config `193`'s
@@ -227,9 +230,12 @@ work.
   site-isolation tranche at `kappa=0.10`; all six terminal runs passed artifact,
   finite-event, and exact topology review. Their pooled complete-selection
   diagnostic is closed config `203`, run `001-20260719-160449-6ea5e005`.
+- Configs `204--209` complete the six-cell one-sided branch-scope tranche;
+  pooled complete-selection diagnostic `210`, run
+  `001-20260719-182227-8a286ad9`, closes S1-B1.
 - B0 has completed all `20 / 20` currently executable scientific cells
   (`20 / 22` declared); the two post-PV context cells remain blocked. The
-  declared S1 core has completed `50 / 134` cells (`50 / 132` executable).
+  declared S1 core has completed `56 / 134` cells (`56 / 132` executable).
   Diagnostic configs do not count as scientific cells.
 - S1 must never use a global rank cutoff. Complete matched method panels from
   viable families advance to the 8,192-step rung under the frozen policy in
@@ -329,8 +335,7 @@ must not be used to rank methods.
    endpoints, acceptance decision, and B1 handoff.
 11. [`11-s1-b1-fixed-threshold-results.md`](11-s1-b1-fixed-threshold-results.md)
    consolidates the fixed-threshold factorial, topology-normalized utilization,
-   completed site-isolation and branch-scope training endpoints, and remaining
-   B1 diagnostic closure.
+   site-isolation and branch-scope endpoints, and the reviewed B1 closure.
 12. [`validation-partitions.yaml`](validation-partitions.yaml) freezes the
    document-disjoint selection and confirmation source-document lists.
 13. [`config-registry.yaml`](config-registry.yaml) is the config-level source of
