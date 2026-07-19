@@ -1,0 +1,76 @@
+experiment_name: s1_b0_pythia_14m_lr_flanks_selection_propagation
+sweep:
+  name: pythia_sparsity_scaling_v1_s1_b0
+  role: lr_flank_selection_endpoint_diagnostic
+  design_id: S1-B0-DIAG-LR-FLANKS-SELECTION-S0
+  notes: Complete frozen selection-partition exact-zero and logical-product diagnostic for the ten B0 model-learning-rate flanks.
+model:
+  provider: huggingface
+  name: pythia-14m-random-s1-b0-lr-flank-propagation
+  architecture: EleutherAI/pythia-14m-deduped
+  revision: 7386d9a4ae45aef494a6e704910394def3037fc5
+  initialization: random
+data:
+  name: JeanKaddour/minipile
+  revision: 18ad1b0c701eaa0de03d3cecfdd769cbc70ffbd0
+  split: validation
+  text_column: text
+  max_documents: 500
+evaluation:
+  metric: activation_propagation
+run:
+  seed: 0
+  max_examples: 500
+tokenizer:
+  name: EleutherAI/pythia-14m-deduped
+  revision: 7386d9a4ae45aef494a6e704910394def3037fc5
+preprocessing:
+  output_dir: data/tokenized
+  cache_id: 03-pythia-14m-minipile-random-full-10min
+  block_size: 2048
+  append_eos: true
+  overwrite: false
+validation:
+  enabled: true
+  split: validation
+  max_documents: 500
+  partition: selection
+  partition_scheme: shuffled_source_documents_half_v1
+  partition_seed: 20260718
+  partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
+  eval_batches: null
+  batch_size: 4
+activation_propagation:
+  selected_runs:
+    - label: A0 AdamW LR1e-5
+      config_id: 135-s1-b0-p14m-a0-adamw-lr1em5-s0
+      run_id: 001-20260718-210843-fd04a711
+    - label: A1-H AdamW LR1e-5
+      config_id: 136-s1-b0-p14m-a1h-adamw-lr1em5-s0
+      run_id: 001-20260718-212731-d350d541
+    - label: A3 AdamW LR1e-5
+      config_id: 137-s1-b0-p14m-a3-adamw-lr1em5-s0
+      run_id: 001-20260718-214625-4c3a46fa
+    - label: A6-PRE AdamW LR1e-5
+      config_id: 138-s1-b0-p14m-a6pre-adamw-lr1em5-s0
+      run_id: 001-20260718-220621-c6efb587
+    - label: A6-POST AdamW LR1e-5
+      config_id: 139-s1-b0-p14m-a6post-adamw-lr1em5-s0
+      run_id: 001-20260718-222908-79d618fa
+    - label: A0 AdamW LR1e-4
+      config_id: 140-s1-b0-p14m-a0-adamw-lr1em4-s0
+      run_id: 001-20260718-225228-b8972e8d
+    - label: A1-H AdamW LR1e-4
+      config_id: 141-s1-b0-p14m-a1h-adamw-lr1em4-s0
+      run_id: 001-20260718-231051-25bf322c
+    - label: A3 AdamW LR1e-4
+      config_id: 142-s1-b0-p14m-a3-adamw-lr1em4-s0
+      run_id: 001-20260718-232919-f14b6c84
+    - label: A6-PRE AdamW LR1e-4
+      config_id: 143-s1-b0-p14m-a6pre-adamw-lr1em4-s0
+      run_id: 001-20260718-234920-d1bc5ad6
+    - label: A6-POST AdamW LR1e-4
+      config_id: 144-s1-b0-p14m-a6post-adamw-lr1em4-s0
+      run_id: 001-20260719-001147-1cf26b02
+output:
+  dir: results

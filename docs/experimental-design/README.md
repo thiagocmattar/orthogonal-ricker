@@ -12,7 +12,7 @@ work.
 - Current phase: E0.1 complete and S1 option 1 approved. The 2,048-step screen
   is restricted to feasibility/collapse and within-stratum comparisons; the B0
   endpoint diagnostic is accepted.
-- Next config prefix: `145`.
+- Next config prefix: `146`.
 - The five central B0 anchors, configs `123--127`, completed and passed
   terminal review. Their final selection losses are `7.04913` (A0),
   `6.98875` (A1-H), `7.01310` (A3), `7.01645` (A6-PRE), and `7.03248`
@@ -27,7 +27,7 @@ work.
   exact-zero diagnostic over canonical configs `129--133`.
 - All ten LR-flank training runs, configs `135--144`, are complete and passed
   terminal review. Config `145`, the pooled selection-partition endpoint
-  diagnostic, is pending materialization.
+  diagnostic, is active pending local launch.
 - Config `133` attempt 2 was an accidental duplicate created during a handoff
   race. It was terminated after step 1 and is invalid; attempt 1 completed.
 - Config `131` attempt 2 was an accidental duplicate created during a handoff
