@@ -1,6 +1,6 @@
 schema_version: 1
 campaign_id: pythia-sparsity-scaling-v1
-next_config_prefix: 194
+next_config_prefix: 195
 core_design_cells: 134
 core_executable_cells_without_context_gate: 132
 maximum_design_cells: 184
@@ -35,7 +35,7 @@ block_summary:
     materialized_cells: 23
     completed_cells: 23
     status: active
-    note: the first 23 B1 scientific cells, configs 149 through 193 at odd prefixes, are complete; mandatory complete-selection diagnostics are complete through config 192, and config 194 is next for config 193
+    note: the first 23 B1 scientific cells, configs 149 through 193 at odd prefixes, are complete; mandatory complete-selection diagnostics are complete through config 192, and diagnostic config 194 is ready for config 193
   - block: S1-B2
     planned_cells: 26
     materialized_cells: 0
@@ -3537,3 +3537,50 @@ records:
     release_tier: history
     canonical_run_id: 001-20260719-124320-952d526f
     notes: Twenty-third B1 scientific cell; fixed absolute Gpm kappa 0.10 at POST-RoPE Q/K and post-split V, ordinary a/m/h ReLU, AdamW without pressure. Run 001-20260719-124320-952d526f completed all 2048 steps from clean commit 1e83a14 and passed terminal review at selection loss 7.01688. Its identity-parent matched control is the Three-ReLU A3 config 125 because Gpm at kappa 0 is identity at Q/K/V. Mandatory complete-selection diagnostic config 194 is pending; S1 supports feasibility/collapse and within-stratum comparisons only.
+  - design_id: S1-B1-DIAG-FIX-GPM-POST-QKV-K010-SELECTION-S0
+    config_id: 194-s1-b1-gpm-post-qkv-k010-selection-prop
+    config_path: configs/194-s1-b1-gpm-post-qkv-k010-selection-prop.yaml
+    phase: S1
+    block: S1-B1-DIAGNOSTIC
+    comparison_id: S1-B1-FIX-ATTENTION
+    pair_id: S1-B1-FIX-POST-QKV-K010
+    promotion_family: FIX-GPM-POST-QKV
+    kind: diagnostic
+    model_size: 14M
+    steps: 0
+    tokens: 311296
+    model_initialization_seed: 0
+    data_order_seed: 0
+    training_schedule_scheme: null
+    training_schedule_hash: null
+    effective_tokens_per_update: null
+    validation_partition: selection
+    validation_partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
+    architecture_id: A6-POST
+    gate_family: gpm
+    gate_sites: [a, m, h, q, k, v]
+    qk_placement: post_rope
+    kappa_mode: fixed
+    kappa: 0.1
+    kappa_init: null
+    kappa_scope: qkv
+    threshold_scale: absolute
+    surrogate: null
+    temperature: null
+    threshold_learning_rate: null
+    optimizer_recipe: null
+    model_learning_rate: null
+    micro_batch_size: null
+    gradient_accumulation_steps: null
+    pressure_method: none
+    pressure_sites: []
+    pressure_weight: 0.0
+    ricker_c: null
+    ricker_sigma: null
+    step_budget: null
+    matched_control_id: S1-B0-ARCH-A3-LR3EM5-S0
+    config_status: ready
+    decision_status: control
+    release_tier: history
+    canonical_run_id: null
+    notes: Mandatory schema-v3 complete-selection diagnostic pinned to canonical config 193 run 001-20260719-124320-952d526f; run only after this clean committed materialization. Diagnostic-only and excluded from scientific-cell counts.
