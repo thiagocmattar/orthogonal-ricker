@@ -14,7 +14,7 @@ work.
   diagnostics are complete, and the third and fourth B1 training cells passed
   terminal review. The 2,048-step screen
   remains restricted to feasibility/collapse and within-stratum comparisons.
-- Next config prefix: `156`.
+- Next config prefix: `157`.
 - The five central B0 anchors, configs `123--127`, completed and passed
   terminal review. Their final selection losses are `7.04913` (A0),
   `6.98875` (A1-H), `7.01310` (A3), `7.01645` (A6-PRE), and `7.03248`
@@ -69,7 +69,7 @@ work.
   be materialized. Config `155` materializes fixed `G+`, PRE-RoPE Q/K plus
   post-split V, `kappa=0.03`; run `001-20260719-024629-701ee0c3` completed at
   selection loss `7.01712` and passed terminal review. Its mandatory selection
-  propagation diagnostic is next.
+  propagation diagnostic is materialized as config `156` and is next.
 - B0 has completed all `20 / 20` currently executable scientific cells
   (`20 / 22` declared); the two post-PV context cells remain blocked. The
   declared S1 core has completed `24 / 134` cells (`24 / 132` executable).
