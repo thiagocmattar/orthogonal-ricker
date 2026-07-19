@@ -255,6 +255,24 @@ Fixed symmetric-threshold POST follow-up:
 - Config `118` completed at validation loss 4.9829. Config `119` reached 5.0122 after all planned steps, but its source run remains terminally failed because Windows rejected the final 261-character predictions temporary path; use its checkpoint-derived measurements only when explicitly labeled provisional.
 - Config `120` is the pinned 692,224-token propagation comparison. Fixed-sReLU AdamW reached $R_{\mathrm{block}}=40.48\%$ and $R_{\mathrm{model}}=12.12\%$; provisional fixed-sReLU OR reached 20.34% and 6.09%, confirming the predicted outward-pressure incompatibility at this $(c,\kappa)$ pair.
 
+Fixed threshold-gate nomenclature for the scaling campaign:
+
+- `G+` is the one-sided gate $G^+_\kappa(x)=x\mathbf{1}[x\geq\kappa]$.
+  Ordinary ReLU is the separate $\kappa=0$ control; positive-`kappa` campaign
+  configs use `gate_type: one_sided_threshold`.
+- `Gpm` is the signed magnitude gate
+  $G^\pm_\kappa(x)=x\mathbf{1}[|x|\geq\kappa]$ and uses
+  `gate_type: symmetric_threshold`.
+- Both fixed gates use hard, parameter-free masks. Equality survives, masked
+  inputs receive zero input gradient, and surviving inputs receive unit input
+  gradient. `kappa` is absolute rather than RMS-normalized.
+- Fixed `G+` can be applied independently to Q/K/V through
+  `model.post_qkv_relu`, to both post-LayerNorm branch inputs through
+  `model.post_layernorm_gate`, and to the MLP hidden activation through
+  `model.mlp_hidden_gate`. The final LayerNorm is never gated.
+- These fixed gates provide exact-zero architecture paths. They do not by
+  themselves imply sparse-kernel execution or measured speedup.
+
 ## Expected Scale Ladders
 
 TODO: after the Pythia-14M MiniPile random-init baseline is stable and calibrated, consider scaling within the Pythia family up to 160M if memory and runtime measurements justify it. Do not add scale-up configs until the 14M path is reproducible.

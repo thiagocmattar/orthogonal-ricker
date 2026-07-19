@@ -75,7 +75,7 @@ suite.
 | Fields or section | Primary owner | Meaning |
 | --- | --- | --- |
 | `experiment_name`, `model`, `data`, `evaluation`, `run`, `output` | `config.py` validates the shared minimum; each workflow consumes its subset | Common experiment identity and run envelope |
-| `model.architecture`, `model.revision`, `model.initialization`, `model.hidden_act`, `model.post_layernorm_relu`, `model.post_qkv_relu` | `calibration.py`, `modeling.py` | Architecture construction and explicit scientific modifications |
+| `model.architecture`, `model.revision`, `model.initialization`, `model.hidden_act`, `model.post_layernorm_relu`, `model.post_layernorm_gate`, `model.mlp_hidden_gate`, `model.post_qkv_relu` | `calibration.py`, `modeling.py` | Architecture construction and explicit scientific modifications |
 | `data`, `tokenizer`, `preprocessing` | `data.py` | Dataset/tokenizer identity, token cache shape, and cache reuse |
 | `training`, `validation`, `checkpoint` | `calibration.py` | Optimizer loop, evaluation schedule, and final checkpoint policy |
 | `activation_pressure` | `activation_pressure.py`, `activations.py`, `calibration.py` | Method, sites, weight, Ricker parameters, step budget, and logged thresholds |
@@ -141,3 +141,50 @@ Configs `118` and `119` keep the POST placement but replace only the Q/K/V ReLUs
 This gate returns the original signed value when `abs(x) >= kappa` and exact zero otherwise. Equality survives. Omitting `gate_type` retains the historical ordinary-ReLU behavior. The attention-input, MLP-input, and MLP-hidden gates remain ordinary ReLUs. Config `118` is monitor-only AdamW; config `119` is OR on the Q/K/V gate outputs only.
 
 Config `120` pins the ordinary-POST and fixed-threshold checkpoints for full-validation propagation. An exceptional source whose terminal envelope is incomplete must be explicit: set its exact `run_id`, its durable `checkpoint_path`, and `allow_incomplete_source: true`. The diagnostic records the source manifest status and does not repair or promote the source run.
+
+## Fixed one-sided threshold gates
+
+Campaign configs use `one_sided_threshold` for the fixed
+`G+` gate
+
+```text
+G+_kappa(x) = x if x >= kappa, else 0.
+```
+
+The boundary survives. `kappa` is an absolute, parameter-free threshold and
+must be finite and non-negative. Q/K/V gates use the existing post-QKV
+mapping:
+
+```yaml
+model:
+  post_qkv_relu:
+    enabled: true
+    query: true
+    key: true
+    value: true
+    qk_placement: post_rope
+    gate_type: one_sided_threshold
+    kappa: 0.1
+```
+
+Thresholding the existing post-LayerNorm and MLP-hidden ReLU sites is explicit
+and backward-compatible:
+
+```yaml
+model:
+  hidden_act: relu
+  post_layernorm_relu: true
+  post_layernorm_gate:
+    gate_type: one_sided_threshold
+    kappa: 0.1
+  mlp_hidden_gate:
+    gate_type: one_sided_threshold
+    kappa: 0.1
+```
+
+`post_layernorm_gate` applies to both `attention_inputs` and `mlp_inputs` and
+requires `post_layernorm_relu: true`. `mlp_hidden_gate` replaces the configured
+MLP ReLU at the same `gpt_neox.layers.N.mlp.act` module path and requires
+`hidden_act: relu`. Omitting either mapping preserves the ordinary ReLU at that
+site. For V-only post-QKV configs, keep the harmless validator-required
+`qk_placement: post_rope` even though no Q/K gate consumes it.

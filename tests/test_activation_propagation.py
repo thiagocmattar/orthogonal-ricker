@@ -28,7 +28,12 @@ from paper_exp.activation_propagation import (
     _validate_shared_validation_cache,
     _valid_causal_exact_zero_counts,
 )
-from paper_exp.modeling import apply_post_layernorm_relu, apply_post_qkv_relu
+from paper_exp.modeling import (
+    FixedOneSidedThreshold,
+    apply_mlp_hidden_gate,
+    apply_post_layernorm_relu,
+    apply_post_qkv_relu,
+)
 
 
 def test_linear_zero_product_counts_scale_input_zeros_by_output_width() -> None:
@@ -207,6 +212,36 @@ def test_dynamic_endpoint_summary_covers_campaign_anchor_topologies(
         assert endpoint["U_arch"] is None
         assert endpoint["R_block"] == 0.0
         assert endpoint["R_model"] == 0.0
+
+
+def test_dynamic_architecture_recognizes_fixed_one_sided_hidden_gate() -> None:
+    model, layers, post_qkv = _fake_architecture(
+        active_sites={"a", "m", "h"},
+        placement=None,
+    )
+    for layer in layers:
+        layer.attention_input_relu = FixedOneSidedThreshold(0.1)
+        layer.mlp_input_relu = FixedOneSidedThreshold(0.1)
+        layer.mlp.act = FixedOneSidedThreshold(0.1)
+
+    architecture = _architecture_metadata(
+        model,
+        layers=layers,
+        post_qkv_relu=post_qkv,
+        block_size=4,
+        torch=torch,
+    )
+
+    assert architecture["topology_id"] == "A3"
+    assert architecture["active_gate_sites"] == ["a", "m", "h"]
+    assert architecture["gate_specs"] == {
+        "a": {"gate_family": "gplus", "gate_type": "one_sided_threshold", "kappa": 0.1},
+        "m": {"gate_family": "gplus", "gate_type": "one_sided_threshold", "kappa": 0.1},
+        "h": {"gate_family": "gplus", "gate_type": "one_sided_threshold", "kappa": 0.1},
+        "q": None,
+        "k": None,
+        "v": None,
+    }
 
 
 def test_named_partition_diagnostic_requires_the_complete_matching_cache() -> None:
@@ -571,6 +606,85 @@ def test_real_gpt_neox_diagnostic_preserves_gate_placement_and_legacy_na(
             row["available"] is True
             for row in accumulator.rope_survival_rows(num_layers=1)
         )
+
+
+def test_real_gpt_neox_diagnostic_preserves_fixed_gplus_metadata_and_ceiling() -> None:
+    from transformers import GPTNeoXConfig, GPTNeoXForCausalLM
+    from transformers.models.gpt_neox import modeling_gpt_neox
+
+    gate = {"gate_type": "one_sided_threshold", "kappa": 0.1}
+    architecture = GPTNeoXConfig(
+        vocab_size=32,
+        hidden_size=8,
+        intermediate_size=16,
+        num_hidden_layers=1,
+        num_attention_heads=2,
+        max_position_embeddings=16,
+        rotary_pct=0.5,
+        hidden_act="relu",
+        hidden_dropout=0.0,
+        attention_dropout=0.0,
+        use_cache=False,
+        use_parallel_residual=True,
+    )
+    architecture.post_layernorm_relu = True
+    architecture.post_layernorm_gate = dict(gate)
+    architecture.mlp_hidden_gate = dict(gate)
+    architecture.post_qkv_relu = {
+        "enabled": True,
+        "query": True,
+        "key": True,
+        "value": True,
+        "qk_placement": "post_rope",
+        **gate,
+    }
+    model = GPTNeoXForCausalLM(architecture)
+    apply_post_layernorm_relu(model, torch=torch)
+    apply_mlp_hidden_gate(model, torch=torch)
+    apply_post_qkv_relu(model, torch=torch)
+    model.eval()
+    accumulator = _PropagationAccumulator(torch)
+
+    with _capture_model_propagation(
+        model,
+        accumulator=accumulator,
+        modeling_gpt_neox=modeling_gpt_neox,
+        torch=torch,
+    ):
+        with torch.no_grad():
+            model.gpt_neox(input_ids=torch.tensor([[1, 2, 3]]), use_cache=False)
+
+    activations = accumulator.rows(
+        "activations", ACTIVATION_STAGE_ORDER, num_layers=1
+    )
+    matmuls = accumulator.rows("matmuls", MATMUL_STAGE_ORDER, num_layers=1)
+    post_qkv = _post_qkv_relu_metadata(list(model.gpt_neox.layers))
+    architecture_metadata = _architecture_metadata(
+        model,
+        layers=list(model.gpt_neox.layers),
+        post_qkv_relu=post_qkv,
+        block_size=3,
+        torch=torch,
+    )
+    endpoint = _endpoint_summary(
+        architecture=architecture_metadata,
+        activation_rows=activations,
+        matmul_rows=matmuls,
+        validation_tokens=3,
+    )
+
+    assert post_qkv["gate_family"] == "gplus"
+    assert post_qkv["gate_type"] == "one_sided_threshold"
+    assert post_qkv["kappa"] == pytest.approx(0.1)
+    assert architecture_metadata["topology_id"] == "A6-POST"
+    assert all(
+        spec == {"gate_family": "gplus", "gate_type": "one_sided_threshold", "kappa": 0.1}
+        for spec in architecture_metadata["gate_specs"].values()
+    )
+    assert endpoint["active_gate_sites"] == ["a", "m", "h", "q", "k", "v"]
+    assert endpoint["targetable_matmul_stages"] == MATMUL_STAGE_ORDER
+    assert endpoint["R_block_max"] == pytest.approx(1.0)
+    assert endpoint["zero_sites"]["z_h"]["available"] is True
 
 
 @pytest.mark.parametrize(

@@ -16,7 +16,7 @@ from paper_exp.activation_pressure import pressure_loss
 from paper_exp.activations import ActivationCapture
 from paper_exp.config import validate_config
 from paper_exp.data import metadata_matches_config, tokenized_cache_dir, validation_metadata_path
-from paper_exp.modeling import apply_post_layernorm_relu, apply_post_qkv_relu
+from paper_exp.modeling import apply_mlp_hidden_gate, apply_post_layernorm_relu, apply_post_qkv_relu
 from paper_exp.reproducibility import TRAINING_SCHEDULE_SCHEME
 from paper_exp.reproducibility import build_training_schedule
 from paper_exp.run import RunHandle, complete_run, run_lifecycle
@@ -427,6 +427,12 @@ def _run_started_calibration(
     model_manifest["post_layernorm_relu"] = bool(
         getattr(getattr(model, "config", None), "post_layernorm_relu", False)
     )
+    post_layernorm_gate = getattr(getattr(model, "config", None), "post_layernorm_gate", None)
+    if post_layernorm_gate is not None:
+        model_manifest["post_layernorm_gate"] = dict(post_layernorm_gate)
+    mlp_hidden_gate = getattr(getattr(model, "config", None), "mlp_hidden_gate", None)
+    if mlp_hidden_gate is not None:
+        model_manifest["mlp_hidden_gate"] = dict(mlp_hidden_gate)
     post_qkv_relu = getattr(getattr(model, "config", None), "post_qkv_relu", None)
     if post_qkv_relu is not None:
         model_manifest["post_qkv_relu"] = dict(post_qkv_relu)
@@ -686,6 +692,7 @@ def _build_random_model(
     architecture.torch_dtype = torch.float32
     model = auto_model.from_config(architecture)
     apply_post_layernorm_relu(model, torch=torch)
+    apply_mlp_hidden_gate(model, torch=torch)
     apply_post_qkv_relu(model, torch=torch)
     return model.to(device=device, dtype=torch.float32)
 
@@ -700,6 +707,14 @@ def _apply_model_architecture_overrides(architecture: Any, model_config: dict[st
     post_layernorm_relu = model_config.get("post_layernorm_relu")
     if post_layernorm_relu is not None:
         architecture.post_layernorm_relu = post_layernorm_relu
+
+    post_layernorm_gate = model_config.get("post_layernorm_gate")
+    if post_layernorm_gate is not None:
+        architecture.post_layernorm_gate = dict(post_layernorm_gate)
+
+    mlp_hidden_gate = model_config.get("mlp_hidden_gate")
+    if mlp_hidden_gate is not None:
+        architecture.mlp_hidden_gate = dict(mlp_hidden_gate)
 
     post_qkv_relu = model_config.get("post_qkv_relu")
     if post_qkv_relu is not None:

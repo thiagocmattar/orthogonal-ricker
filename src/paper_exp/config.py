@@ -85,6 +85,18 @@ def validate_config(config: Mapping[str, Any], *, allow_todos: bool = True) -> N
     if post_layernorm_relu is not None and not isinstance(post_layernorm_relu, bool):
         raise ConfigError("Config field model.post_layernorm_relu must be a boolean when provided.")
 
+    post_layernorm_gate = config.get("model", {}).get("post_layernorm_gate")
+    _validate_fixed_one_sided_gate(post_layernorm_gate, field_path="model.post_layernorm_gate")
+    if post_layernorm_gate is not None and post_layernorm_relu is not True:
+        raise ConfigError(
+            "Config field model.post_layernorm_gate requires model.post_layernorm_relu: true."
+        )
+
+    mlp_hidden_gate = config.get("model", {}).get("mlp_hidden_gate")
+    _validate_fixed_one_sided_gate(mlp_hidden_gate, field_path="model.mlp_hidden_gate")
+    if mlp_hidden_gate is not None and str(hidden_act).lower() != "relu":
+        raise ConfigError("Config field model.mlp_hidden_gate requires model.hidden_act: relu.")
+
     _validate_post_qkv_relu(config.get("model", {}).get("post_qkv_relu"))
 
     if not allow_todos:
@@ -218,9 +230,10 @@ def _validate_post_qkv_relu(value: Any) -> None:
         raise ConfigError("Configured model.post_qkv_relu is enabled, but no Q/K/V gate is enabled.")
 
     gate_type = value.get("gate_type", "relu")
-    if gate_type not in {"relu", "symmetric_threshold"}:
+    if gate_type not in {"relu", "one_sided_threshold", "symmetric_threshold"}:
         raise ConfigError(
-            "Config field model.post_qkv_relu.gate_type must be 'relu' or 'symmetric_threshold'."
+            "Config field model.post_qkv_relu.gate_type must be 'relu', "
+            "'one_sided_threshold', or 'symmetric_threshold'."
         )
     if gate_type == "relu":
         if "kappa" in value:
@@ -231,7 +244,7 @@ def _validate_post_qkv_relu(value: Any) -> None:
 
     if "kappa" not in value:
         raise ConfigError(
-            "Missing required config field: model.post_qkv_relu.kappa for symmetric-threshold gates."
+            "Missing required config field: model.post_qkv_relu.kappa for threshold gates."
         )
     kappa = value["kappa"]
     if (
@@ -243,6 +256,31 @@ def _validate_post_qkv_relu(value: Any) -> None:
         raise ConfigError(
             "Config field model.post_qkv_relu.kappa must be a finite non-negative number."
         )
+
+
+def _validate_fixed_one_sided_gate(value: Any, *, field_path: str) -> None:
+    if value is None:
+        return
+    if not isinstance(value, Mapping):
+        raise ConfigError(f"Config field {field_path} must be a mapping when provided.")
+    extra = set(value) - {"gate_type", "kappa"}
+    if extra:
+        fields = ", ".join(sorted(str(field) for field in extra))
+        raise ConfigError(f"Config field {field_path} contains unsupported fields: {fields}.")
+    if value.get("gate_type") != "one_sided_threshold":
+        raise ConfigError(
+            f"Config field {field_path}.gate_type must be 'one_sided_threshold'."
+        )
+    if "kappa" not in value:
+        raise ConfigError(f"Missing required config field: {field_path}.kappa")
+    kappa = value["kappa"]
+    if (
+        isinstance(kappa, bool)
+        or not isinstance(kappa, (int, float))
+        or not math.isfinite(float(kappa))
+        or float(kappa) < 0.0
+    ):
+        raise ConfigError(f"Config field {field_path}.kappa must be a finite non-negative number.")
 
 
 def _get_required(config: Mapping[str, Any], field_path: tuple[str, ...]) -> Any:

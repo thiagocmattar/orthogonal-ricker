@@ -129,6 +129,43 @@ close to the Pythia-14M native LR `1e-3` linearly scaled from the official
 roughly half-decade screen on either side; the batch-scaled value is a campaign
 inference, not an official Pythia recommendation.
 
+### Fixed-gate engineering gate before B1 -- 2 pilots plus one diagnostic
+
+These are 128-step engineering-only plumbing runs. They are not scientific
+screening cells and are not included in either the 36-cell B1 count or the
+134-cell primary matrix. Both pilots use the Pythia-14M architecture with
+random initialization, AdamW without activation pressure, model LR `3.0e-5`,
+model-initialization/data-order seeds `0/0`, 65,536 effective tokens per
+update, 128 steps, and 8,388,608 total training tokens. They use the frozen
+selection partition and the E0 128-step random-contiguous-block schedule hash
+`9d9f708a79511390da9559b88e06e797aa216149af709c841923c56f926e1120`.
+
+| Design id | Architecture and fixed gates |
+| --- | --- |
+| `S1-B1-ENG-GPLUS-A6POST-K010-ST128-S0` | `A6-POST`; fixed absolute `G+` with `kappa=0.10` at every active site `{a,m,h,q,k,v}`; Q/K gates are POST RoPE |
+| `S1-B1-ENG-GPM-A5QKPRE-K010-ST128-S0` | `A5-QK-PRE`; ordinary `G+_0` at `{a,m,h}` and fixed absolute `Gpm` with `kappa=0.10` at `{q,k}`; Q/K gates are PRE RoPE and V is absent |
+
+After both pilots finish, run one pooled complete-selection propagation
+diagnostic with stable design id
+`S1-B1-ENG-FIXED-GATES-SELECTION-S0`. The diagnostic is also engineering-only
+and does not count as a scientific cell.
+
+The fixed-gate engineering gate passes only when all of the following hold:
+
+1. Focused tests cover the `G+` threshold boundary and gradients, PRE and POST
+   Q/K placement, Q/K/V subsets including V-only, and checkpoint round trips.
+2. Both pilots complete all 128 steps with finite metrics, durable terminal
+   artifacts, and clean launch provenance.
+3. Checkpoint reload reconstructs the exact gate family, `kappa`, active sites,
+   and Q/K placement for each pilot.
+4. The pooled diagnostic produces nonzero exact-zero and directly counted
+   logical-product opportunities for the configured gates, with neither pilot
+   exhibiting universal gate collapse.
+5. Validation loss is labeled engineering-only and is not used to choose gate
+   families, placements, sites, thresholds, or any other scientific setting.
+
+Only after this gate passes may the B1 scientific configs be materialized.
+
 ### B1: fixed-threshold AdamW -- 36 cells
 
 All cells use LR `3.0e-5`, initialization/data-order seeds `0/0`, and no activation pressure.

@@ -7,7 +7,7 @@ from typing import Any, Iterator
 
 import yaml
 
-from paper_exp.modeling import load_checkpoint_model
+from paper_exp.modeling import activation_gate_metadata, load_checkpoint_model
 from paper_exp.run import create_run_dir, write_run_artifacts
 from paper_exp.utils import build_manifest, read_json, write_json
 
@@ -448,14 +448,19 @@ def _post_qkv_relu_metadata(layers: list[Any]) -> dict[str, Any]:
     per_layer = []
     for layer_index, layer in enumerate(layers):
         attention = layer.attention
+        gate_specs = {
+            name: activation_gate_metadata(getattr(attention, f"{name}_relu", None))
+            for name in ("query", "key", "value")
+        }
         row = {
             "layer": layer_index,
-            "query": getattr(attention, "query_relu", None) is not None,
-            "key": getattr(attention, "key_relu", None) is not None,
-            "value": getattr(attention, "value_relu", None) is not None,
+            "query": gate_specs["query"] is not None,
+            "key": gate_specs["key"] is not None,
+            "value": gate_specs["value"] is not None,
             "qk_placement": getattr(attention, "qk_relu_placement", None),
             "rotary_dim": int(attention.rotary_ndims),
             "head_width": int(attention.head_size),
+            "gate_specs": gate_specs,
         }
         per_layer.append(row)
 
@@ -464,16 +469,45 @@ def _post_qkv_relu_metadata(layers: list[Any]) -> dict[str, Any]:
         for row in per_layer
     }
     if len(signatures) != 1:
-        raise ValueError("Post-QKV ReLU gate presence and placement must match across all layers.")
+        raise ValueError("Post-QKV gate presence and placement must match across all layers.")
     query, key, value, placement = next(iter(signatures))
     if (query or key) and placement not in {"pre_rope", "post_rope"}:
-        raise ValueError("Q/K ReLU gates require qk_placement pre_rope or post_rope.")
+        raise ValueError("Q/K gates require qk_placement pre_rope or post_rope.")
+
+    gate_spec_signatures = {
+        tuple(
+            None
+            if row["gate_specs"][name] is None
+            else (
+                row["gate_specs"][name]["gate_family"],
+                row["gate_specs"][name]["gate_type"],
+                float(row["gate_specs"][name]["kappa"]),
+            )
+            for name in ("query", "key", "value")
+        )
+        for row in per_layer
+    }
+    if len(gate_spec_signatures) != 1:
+        raise ValueError("Post-QKV gate family and kappa must match across all layers.")
+    gate_specs = dict(per_layer[0]["gate_specs"])
+    enabled_specs = [spec for spec in gate_specs.values() if spec is not None]
+    common_specs = {
+        (spec["gate_family"], spec["gate_type"], float(spec["kappa"]))
+        for spec in enabled_specs
+    }
+    if len(common_specs) > 1:
+        raise ValueError("Enabled Q/K/V gates must share one gate family, type, and kappa.")
+    common_spec = enabled_specs[0] if enabled_specs else None
     return {
         "enabled": bool(query or key or value),
         "query": query,
         "key": key,
         "value": value,
         "qk_placement": placement,
+        "gate_family": common_spec["gate_family"] if common_spec is not None else None,
+        "gate_type": common_spec["gate_type"] if common_spec is not None else None,
+        "kappa": float(common_spec["kappa"]) if common_spec is not None else None,
+        "gate_specs": gate_specs,
         "layers": per_layer,
     }
 
@@ -491,19 +525,42 @@ def _architecture_metadata(
     if block_size <= 0:
         raise ValueError("Architecture accounting requires a positive sequence length.")
 
+    branch_gate_specs_per_layer = [
+        {
+            "a": activation_gate_metadata(getattr(layer, "attention_input_relu", None)),
+            "m": activation_gate_metadata(getattr(layer, "mlp_input_relu", None)),
+            "h": activation_gate_metadata(layer.mlp.act),
+        }
+        for layer in layers
+    ]
     branch_signatures = {
         (
-            getattr(layer, "attention_input_relu", None) is not None,
-            getattr(layer, "mlp_input_relu", None) is not None,
-            isinstance(layer.mlp.act, torch.nn.ReLU),
+            specs["a"] is not None,
+            specs["m"] is not None,
+            specs["h"] is not None,
         )
-        for layer in layers
+        for specs in branch_gate_specs_per_layer
     }
     if len(branch_signatures) != 1:
         raise ValueError(
             "Branch and MLP-hidden gate presence must match across all layers."
         )
     attention_input, mlp_input, mlp_hidden = next(iter(branch_signatures))
+    branch_spec_signatures = {
+        tuple(
+            None
+            if specs[site] is None
+            else (
+                specs[site]["gate_family"],
+                specs[site]["gate_type"],
+                float(specs[site]["kappa"]),
+            )
+            for site in ("a", "m", "h")
+        )
+        for specs in branch_gate_specs_per_layer
+    }
+    if len(branch_spec_signatures) != 1:
+        raise ValueError("Branch gate family and kappa must match across all layers.")
 
     projection_signatures = {
         (
@@ -567,6 +624,15 @@ def _architecture_metadata(
         site for site in ("a", "m", "h", "q", "k", "v") if active[site]
     ]
     placement = post_qkv_relu["qk_placement"] if active["q"] or active["k"] else None
+    qkv_gate_specs = post_qkv_relu.get("gate_specs", {})
+    gate_specs = {
+        "a": branch_gate_specs_per_layer[0]["a"],
+        "m": branch_gate_specs_per_layer[0]["m"],
+        "h": branch_gate_specs_per_layer[0]["h"],
+        "q": qkv_gate_specs.get("query"),
+        "k": qkv_gate_specs.get("key"),
+        "v": qkv_gate_specs.get("value"),
+    }
 
     attention_core_products = hidden_size * block_size * (block_size + 1) // 2
     operation_products_per_sequence_per_layer = {
@@ -585,6 +651,7 @@ def _architecture_metadata(
         "topology_id": _topology_id(active, placement),
         "active_gate_sites": active_sites,
         "gate_presence": active,
+        "gate_specs": gate_specs,
         "qk_gate_placement": placement,
         "hidden_activation": str(getattr(model.config, "hidden_act", "")),
         "num_layers": len(layers),
@@ -1088,7 +1155,7 @@ def _capture_model_propagation(
         for layer_index, layer in enumerate(model.gpt_neox.layers):
             attention_relu = getattr(layer, "attention_input_relu", None)
             mlp_relu = getattr(layer, "mlp_input_relu", None)
-            hidden_relu = str(getattr(model.config, "hidden_act", "")).lower() == "relu"
+            hidden_relu = activation_gate_metadata(layer.mlp.act) is not None
 
             attention = layer.attention
             query_relu = getattr(attention, "query_relu", None)

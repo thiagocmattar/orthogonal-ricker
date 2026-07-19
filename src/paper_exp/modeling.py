@@ -22,6 +22,20 @@ class FixedSymmetricThreshold(torch.nn.Module):
         return f"kappa={self.kappa:g}"
 
 
+class FixedOneSidedThreshold(torch.nn.Module):
+    """Keep values at or above a fixed one-sided threshold."""
+
+    def __init__(self, kappa: float) -> None:
+        super().__init__()
+        self.kappa = float(kappa)
+
+    def forward(self, value: Any) -> Any:
+        return value.masked_fill(value.detach() < self.kappa, 0.0)
+
+    def extra_repr(self) -> str:
+        return f"kappa={self.kappa:g}"
+
+
 def apply_post_layernorm_relu(model: Any, *, torch: Any) -> Any:
     """Apply configured ReLUs after each GPT-NeoX block LayerNorm."""
     config = getattr(model, "config", None)
@@ -35,6 +49,10 @@ def apply_post_layernorm_relu(model: Any, *, torch: Any) -> Any:
     if layers is None:
         raise ValueError("Configured model.post_layernorm_relu, but the model has no GPT-NeoX layers.")
 
+    gate_config = _fixed_one_sided_gate_config(
+        getattr(config, "post_layernorm_gate", None),
+        field_name="post_layernorm_gate",
+    )
     for layer in layers:
         input_layernorm = getattr(layer, "input_layernorm", None)
         post_attention_layernorm = getattr(layer, "post_attention_layernorm", None)
@@ -43,12 +61,46 @@ def apply_post_layernorm_relu(model: Any, *, torch: Any) -> Any:
                 "Configured model.post_layernorm_relu, but a GPT-NeoX layer is missing a branch LayerNorm."
             )
 
-        layer.attention_input_relu = torch.nn.ReLU()
-        layer.mlp_input_relu = torch.nn.ReLU()
+        layer.attention_input_relu = _branch_gate(gate_config, torch=torch)
+        layer.mlp_input_relu = _branch_gate(gate_config, torch=torch)
         input_layernorm.register_forward_hook(_relu_output_hook(layer.attention_input_relu))
         post_attention_layernorm.register_forward_hook(_relu_output_hook(layer.mlp_input_relu))
 
     model._post_layernorm_relu_applied = True
+    return model
+
+
+def apply_mlp_hidden_gate(model: Any, *, torch: Any) -> Any:
+    """Replace configured GPT-NeoX MLP ReLUs with fixed one-sided gates."""
+    config = getattr(model, "config", None)
+    gate_config = _fixed_one_sided_gate_config(
+        getattr(config, "mlp_hidden_gate", None),
+        field_name="mlp_hidden_gate",
+    )
+    if gate_config is None:
+        return model
+    if getattr(model, "_mlp_hidden_gate_applied", False):
+        return model
+    if str(getattr(config, "hidden_act", "")).lower() != "relu":
+        raise ValueError("Configured model.mlp_hidden_gate requires model.hidden_act='relu'.")
+
+    gpt_neox = getattr(model, "gpt_neox", None)
+    layers = getattr(gpt_neox, "layers", None)
+    if layers is None:
+        raise ValueError("Configured model.mlp_hidden_gate, but the model has no GPT-NeoX layers.")
+
+    for layer in layers:
+        mlp = getattr(layer, "mlp", None)
+        activation = getattr(mlp, "act", None)
+        if activation is None:
+            raise ValueError("Configured model.mlp_hidden_gate, but a GPT-NeoX layer has no MLP activation.")
+        if not isinstance(activation, torch.nn.ReLU):
+            raise ValueError(
+                "Configured model.mlp_hidden_gate requires every GPT-NeoX MLP activation to be ReLU."
+            )
+        mlp.act = FixedOneSidedThreshold(gate_config["kappa"])
+
+    model._mlp_hidden_gate_applied = True
     return model
 
 
@@ -96,6 +148,7 @@ def apply_post_qkv_relu(model: Any, *, torch: Any) -> Any:
 def load_checkpoint_model(auto_model: Any, checkpoint_path: str | Path, *, torch: Any) -> Any:
     model = auto_model.from_pretrained(checkpoint_path)
     apply_post_layernorm_relu(model, torch=torch)
+    apply_mlp_hidden_gate(model, torch=torch)
     return apply_post_qkv_relu(model, torch=torch)
 
 
@@ -206,14 +259,17 @@ def _post_qkv_relu_config(value: Any) -> dict[str, Any] | None:
         raise ValueError("Model config post_qkv_relu is enabled, but no Q/K/V gate is enabled.")
 
     gate_type = value.get("gate_type", "relu")
-    if gate_type not in {"relu", "symmetric_threshold"}:
-        raise ValueError("Model config post_qkv_relu.gate_type must be 'relu' or 'symmetric_threshold'.")
+    if gate_type not in {"relu", "one_sided_threshold", "symmetric_threshold"}:
+        raise ValueError(
+            "Model config post_qkv_relu.gate_type must be 'relu', "
+            "'one_sided_threshold', or 'symmetric_threshold'."
+        )
     if gate_type == "relu":
         if "kappa" in value:
             raise ValueError("Model config post_qkv_relu.kappa must be omitted for ordinary ReLU gates.")
     else:
         if "kappa" not in value:
-            raise ValueError("Model config post_qkv_relu.kappa is required for symmetric-threshold gates.")
+            raise ValueError("Model config post_qkv_relu.kappa is required for threshold gates.")
         kappa = value["kappa"]
         if (
             isinstance(kappa, bool)
@@ -233,4 +289,55 @@ def _post_qkv_relu_config(value: Any) -> dict[str, Any] | None:
 def _post_qkv_gate(gate_config: Mapping[str, Any], *, torch: Any) -> Any:
     if gate_config["gate_type"] == "relu":
         return torch.nn.ReLU()
+    if gate_config["gate_type"] == "one_sided_threshold":
+        return FixedOneSidedThreshold(gate_config["kappa"])
     return FixedSymmetricThreshold(gate_config["kappa"])
+
+
+def activation_gate_metadata(module: Any) -> dict[str, Any] | None:
+    """Return stable runtime metadata for supported exact-zero gate modules."""
+    if isinstance(module, torch.nn.ReLU):
+        return {"gate_family": "gplus", "gate_type": "relu", "kappa": 0.0}
+    if isinstance(module, FixedOneSidedThreshold):
+        return {
+            "gate_family": "gplus",
+            "gate_type": "one_sided_threshold",
+            "kappa": module.kappa,
+        }
+    if isinstance(module, FixedSymmetricThreshold):
+        return {
+            "gate_family": "gpm",
+            "gate_type": "symmetric_threshold",
+            "kappa": module.kappa,
+        }
+    return None
+
+
+def _branch_gate(gate_config: Mapping[str, Any] | None, *, torch: Any) -> Any:
+    if gate_config is None:
+        return torch.nn.ReLU()
+    return FixedOneSidedThreshold(gate_config["kappa"])
+
+
+def _fixed_one_sided_gate_config(value: Any, *, field_name: str) -> dict[str, Any] | None:
+    if value is None:
+        return None
+    if not isinstance(value, Mapping):
+        raise ValueError(f"Model config {field_name} must be a mapping.")
+    extra = set(value) - {"gate_type", "kappa"}
+    if extra:
+        fields = ", ".join(sorted(str(field) for field in extra))
+        raise ValueError(f"Model config {field_name} contains unsupported fields: {fields}.")
+    if value.get("gate_type") != "one_sided_threshold":
+        raise ValueError(f"Model config {field_name}.gate_type must be 'one_sided_threshold'.")
+    if "kappa" not in value:
+        raise ValueError(f"Model config {field_name}.kappa is required.")
+    kappa = value["kappa"]
+    if (
+        isinstance(kappa, bool)
+        or not isinstance(kappa, (int, float))
+        or not torch.isfinite(torch.tensor(float(kappa))).item()
+        or float(kappa) < 0.0
+    ):
+        raise ValueError(f"Model config {field_name}.kappa must be a finite non-negative number.")
+    return {"gate_type": "one_sided_threshold", "kappa": float(kappa)}

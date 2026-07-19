@@ -177,6 +177,78 @@ def test_campaign_model_seed_must_match_legacy_seed_alias() -> None:
         validate_config(config, allow_todos=False)
 
 
+def test_fixed_one_sided_branch_gates_are_accepted() -> None:
+    config = _post_qkv_config(None)
+    config["model"].update(
+        {
+            "hidden_act": "relu",
+            "post_layernorm_relu": True,
+            "post_layernorm_gate": {
+                "gate_type": "one_sided_threshold",
+                "kappa": 0.1,
+            },
+            "mlp_hidden_gate": {
+                "gate_type": "one_sided_threshold",
+                "kappa": 0.1,
+            },
+        }
+    )
+
+    validate_config(config, allow_todos=False)
+
+
+@pytest.mark.parametrize("field", ["post_layernorm_gate", "mlp_hidden_gate"])
+@pytest.mark.parametrize(
+    ("gate", "message"),
+    [
+        (True, "mapping"),
+        ({"gate_type": "relu", "kappa": 0.1}, "one_sided_threshold"),
+        ({"gate_type": "one_sided_threshold"}, "kappa"),
+        ({"gate_type": "one_sided_threshold", "kappa": -0.1}, "non-negative"),
+        ({"gate_type": "one_sided_threshold", "kappa": float("inf")}, "finite"),
+        ({"gate_type": "one_sided_threshold", "kappa": True}, "finite"),
+        (
+            {"gate_type": "one_sided_threshold", "kappa": 0.1, "enabled": True},
+            "unsupported",
+        ),
+    ],
+)
+def test_fixed_one_sided_branch_gates_reject_invalid_mappings(
+    field: str,
+    gate: object,
+    message: str,
+) -> None:
+    config = _post_qkv_config(None)
+    config["model"].update(
+        {
+            "hidden_act": "relu",
+            "post_layernorm_relu": True,
+            field: gate,
+        }
+    )
+
+    with pytest.raises(ConfigError, match=message):
+        validate_config(config, allow_todos=False)
+
+
+def test_fixed_one_sided_branch_gates_require_active_base_relu_sites() -> None:
+    post_layernorm = _post_qkv_config(None)
+    post_layernorm["model"]["post_layernorm_gate"] = {
+        "gate_type": "one_sided_threshold",
+        "kappa": 0.1,
+    }
+    with pytest.raises(ConfigError, match="post_layernorm_relu"):
+        validate_config(post_layernorm, allow_todos=False)
+
+    mlp_hidden = _post_qkv_config(None)
+    mlp_hidden["model"]["mlp_hidden_gate"] = {
+        "gate_type": "one_sided_threshold",
+        "kappa": 0.1,
+    }
+    with pytest.raises(ConfigError, match="hidden_act"):
+        validate_config(mlp_hidden, allow_todos=False)
+
+
 @pytest.mark.parametrize("placement", ["pre_rope", "post_rope"])
 def test_post_qkv_relu_accepts_both_qk_placements(placement: str) -> None:
     config = _post_qkv_config(
@@ -208,6 +280,23 @@ def test_post_qkv_relu_accepts_fixed_symmetric_threshold() -> None:
     validate_config(config, allow_todos=False)
 
 
+@pytest.mark.parametrize("placement", ["pre_rope", "post_rope"])
+def test_post_qkv_relu_accepts_fixed_one_sided_threshold(placement: str) -> None:
+    config = _post_qkv_config(
+        {
+            "enabled": True,
+            "query": True,
+            "key": True,
+            "value": False,
+            "qk_placement": placement,
+            "gate_type": "one_sided_threshold",
+            "kappa": 0.1,
+        }
+    )
+
+    validate_config(config, allow_todos=False)
+
+
 @pytest.mark.parametrize(
     ("extra", "message"),
     [
@@ -216,6 +305,8 @@ def test_post_qkv_relu_accepts_fixed_symmetric_threshold() -> None:
         ({"gate_type": "symmetric_threshold", "kappa": -0.1}, "non-negative"),
         ({"gate_type": "symmetric_threshold", "kappa": float("inf")}, "finite"),
         ({"gate_type": "symmetric_threshold", "kappa": True}, "finite"),
+        ({"gate_type": "one_sided_threshold"}, "kappa"),
+        ({"gate_type": "one_sided_threshold", "kappa": -0.1}, "non-negative"),
         ({"gate_type": "relu", "kappa": 0.1}, "must be omitted"),
     ],
 )

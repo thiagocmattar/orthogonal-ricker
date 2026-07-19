@@ -10,9 +10,10 @@ work.
 - Campaign id: `pythia-sparsity-scaling-v1`.
 - Planning date: 2026-07-18.
 - Current phase: E0.1 and all currently executable S1-B0 cells are complete.
-  The 2,048-step screen is restricted to feasibility/collapse and
-  within-stratum comparisons; all three B0 endpoint diagnostics are accepted.
-- Next config prefix: `146`.
+  Fixed positive-`kappa` `G+` support has passed the full test suite, and the
+  two frozen S1-B1 engineering pilots are ready. The 2,048-step screen remains
+  restricted to feasibility/collapse and within-stratum comparisons.
+- Next config prefix: `148`.
 - The five central B0 anchors, configs `123--127`, completed and passed
   terminal review. Their final selection losses are `7.04913` (A0),
   `6.98875` (A1-H), `7.01310` (A3), `7.01645` (A6-PRE), and `7.03248`
@@ -42,6 +43,10 @@ work.
   in [`08-s1-b0-attention-parent-results.md`](08-s1-b0-attention-parent-results.md).
 - Configs `135--144` materialize all 10 executable B0 learning-rate flanks:
   A0, A1-H, A3, A6-PRE, and A6-POST at LR `1e-5` and `1e-4`.
+- Config `146` is the 128-step all-site A6-POST fixed-`G+`, `kappa=0.10`
+  engineering pilot. Config `147` is the matched 128-step PRE-RoPE Q/K-only
+  fixed-`Gpm`, `kappa=0.10` subset/round-trip pilot. They are engineering
+  controls, not members of the 36-cell B1 scientific matrix.
 - B0 has completed all `20 / 20` currently executable scientific cells
   (`20 / 22` declared); the two post-PV context cells remain blocked. The
   declared S1 core has completed `20 / 134` cells (`20 / 132` executable).
