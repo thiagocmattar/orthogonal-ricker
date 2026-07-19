@@ -33,9 +33,9 @@ block_summary:
   - block: S1-B1
     planned_cells: 36
     materialized_cells: 21
-    completed_cells: 20
+    completed_cells: 21
     status: active
-    note: the first 20 B1 scientific cells, configs 149 through 187 at odd prefixes, plus their mandatory complete-selection propagation diagnostics are complete; config 189 is the active fixed Gpm POST-RoPE QK kappa 0.30 cell
+    note: the first 20 B1 scientific cells, configs 149 through 187 at odd prefixes, plus their mandatory complete-selection propagation diagnostics are complete; config 189 passed terminal review and its diagnostic is next to materialize
   - block: S1-B2
     planned_cells: 26
     materialized_cells: 0
@@ -3344,8 +3344,8 @@ records:
     ricker_sigma: null
     step_budget: null
     matched_control_id: S1-B0-ARCH-A3-LR3EM5-S0
-    config_status: active
+    config_status: closed
     decision_status: pending
     release_tier: history
-    canonical_run_id: null
-    notes: Twenty-first B1 scientific cell; fixed absolute Gpm kappa 0.30 at POST-RoPE Q/K, ordinary a/m/h ReLU, V absent, AdamW without pressure. Its identity-parent matched control is the Three-ReLU A3 config 125 because Gpm at kappa 0 is identity. Launch only from a clean committed config; S1 supports feasibility/collapse and within-stratum comparisons only.
+    canonical_run_id: 001-20260719-113001-536f9230
+    notes: Twenty-first B1 scientific cell; fixed absolute Gpm kappa 0.30 at POST-RoPE Q/K, ordinary a/m/h ReLU, V absent, AdamW without pressure. Run 001-20260719-113001-536f9230 completed all 2048 steps from clean commit abab687 and passed terminal review at selection loss 7.02492. Its identity-parent matched control is the Three-ReLU A3 config 125 because Gpm at kappa 0 is identity. The mandatory complete-selection propagation diagnostic is pending; S1 supports feasibility/collapse and within-stratum comparisons only.
