@@ -12,8 +12,8 @@ work.
 - Current phase: E0.1 and all currently executable S1-B0 cells are complete;
   the fixed-gate engineering gate passed, and the first twenty-four S1-B1
   scientific cells and their mandatory complete-selection diagnostics are
-  complete. Config `197`, the first POST site-isolation cell, is ready. The
-  2,048-step screen remains restricted to
+  complete. Config `197`, the first POST site-isolation cell, is active from
+  clean commit `52cf42a`. The 2,048-step screen remains restricted to
   feasibility/collapse and within-stratum comparisons.
 - Next config prefix: `198`.
 - The five central B0 anchors, configs `123--127`, completed and passed
@@ -25,8 +25,8 @@ work.
 - Last completed scientific run: config `195`, fixed `Gpm` POST-RoPE Q/K plus
   post-split V at `kappa=0.30`, run `001-20260719-131409-70c042d7`, selection
   loss `7.02043`.
-- Active scientific run: none. Config `197`, fixed `G+` POST-RoPE Q-only at
-  `kappa=0.10`, is materialized and ready to launch.
+- Active scientific run: config `197`, fixed `G+` POST-RoPE Q-only at
+  `kappa=0.10`, run `001-20260719-134717-3cfc0e0f`.
 - Config `196`, run `001-20260719-134214-2cfa55c7`, completed config `195`'s
   mandatory diagnostic at `R_block=0.65130` and `R_model=0.19508`.
 - Config `194`, run `001-20260719-130907-96667214`, completed config `193`'s
@@ -197,7 +197,8 @@ work.
   `001-20260719-134214-2cfa55c7`, completed over the frozen selection partition
   at `R_block=0.65130` and `R_model=0.19508` and passed artifact, endpoint, and
   POST-RoPE identity review. Config `197` materializes fixed `G+` POST-RoPE
-  Q-only at `kappa=0.10` and is ready.
+  Q-only at `kappa=0.10`; run `001-20260719-134717-3cfc0e0f` is active from
+  clean commit `52cf42a`.
 - B0 has completed all `20 / 20` currently executable scientific cells
   (`20 / 22` declared); the two post-PV context cells remain blocked. The
   declared S1 core has completed `44 / 134` cells (`44 / 132` executable).

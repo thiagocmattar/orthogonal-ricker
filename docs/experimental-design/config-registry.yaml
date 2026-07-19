@@ -35,7 +35,7 @@ block_summary:
     materialized_cells: 25
     completed_cells: 24
     status: active
-    note: all 24 main-attention-factorial cells and their mandatory complete-selection diagnostics are complete; config 197 materializes the first POST site-isolation cell and is ready
+    note: all 24 main-attention-factorial cells and their mandatory complete-selection diagnostics are complete; config 197 is the active first POST site-isolation cell
   - block: S1-B2
     planned_cells: 26
     materialized_cells: 0
@@ -3720,8 +3720,8 @@ records:
     ricker_sigma: null
     step_budget: null
     matched_control_id: S1-B0-ARCH-A4Q-LR3EM5-S0
-    config_status: ready
+    config_status: active
     decision_status: pending
     release_tier: history
     canonical_run_id: null
-    notes: Twenty-fifth B1 scientific cell and first POST site-isolation row; fixed absolute G+ kappa 0.10 at POST-RoPE Q only, ordinary a/m/h ReLU, AdamW without pressure. Its matched ordinary-ReLU architecture parent is config 129 (A4-Q). Launch only from a clean committed config; S1 supports feasibility/collapse and within-stratum comparisons only.
+    notes: Active twenty-fifth B1 scientific cell and first POST site-isolation row. Fixed absolute G+ kappa 0.10 at POST-RoPE Q only, ordinary a/m/h ReLU, AdamW without pressure. Run 001-20260719-134717-3cfc0e0f launched from clean commit 52cf42a. Its matched ordinary-ReLU architecture parent is config 129 (A4-Q); S1 supports feasibility/collapse and within-stratum comparisons only.
