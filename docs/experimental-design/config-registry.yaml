@@ -35,7 +35,7 @@ block_summary:
     materialized_cells: 4
     completed_cells: 3
     status: active
-    note: configs 149, 151, and 153 plus their mandatory complete-selection propagation diagnostics are complete; config 155 materializes the first fixed G+ PRE-RoPE QKV cell at kappa 0.03 and is ready to launch
+    note: configs 149, 151, and 153 plus their mandatory complete-selection propagation diagnostics are complete; config 155 is the active first fixed G+ PRE-RoPE QKV cell at kappa 0.03
   - block: S1-B2
     planned_cells: 26
     materialized_cells: 0
@@ -1746,7 +1746,7 @@ records:
     ricker_sigma: null
     step_budget: null
     matched_control_id: S1-B0-ARCH-A6PRE-LR3EM5-S0
-    config_status: ready
+    config_status: active
     decision_status: pending
     release_tier: history
     canonical_run_id: null

@@ -66,7 +66,8 @@ work.
   `001-20260719-024218-dcb80f3f`, completed its mandatory selection diagnostic
   at `R_block=0.45622` and `R_model=0.13665`; the next B1 scientific cell may
   be materialized. Config `155` materializes fixed `G+`, PRE-RoPE Q/K plus
-  post-split V, `kappa=0.03`, and is ready to launch.
+  post-split V, `kappa=0.03`; run `001-20260719-024629-701ee0c3` is active
+  from clean commit `2500899`.
 - B0 has completed all `20 / 20` currently executable scientific cells
   (`20 / 22` declared); the two post-PV context cells remain blocked. The
   declared S1 core has completed `23 / 134` cells (`23 / 132` executable).
