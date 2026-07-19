@@ -51,7 +51,8 @@ work.
   `001-20260719-010858-a4a15700`, completed cleanly and passed individual
   terminal review. Config `148`, run `001-20260719-011324-dd965e29`, completed
   the pooled selection diagnostic and passed the frozen engineering gate. B1
-  scientific configs may now be materialized.
+  config `149` materializes the first scientific cell: fixed `G+`, PRE-RoPE
+  Q/K, `kappa=0.03`, AdamW without pressure.
 - B0 has completed all `20 / 20` currently executable scientific cells
   (`20 / 22` declared); the two post-PV context cells remain blocked. The
   declared S1 core has completed `20 / 134` cells (`20 / 132` executable).
