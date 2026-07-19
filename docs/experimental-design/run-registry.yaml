@@ -4260,10 +4260,26 @@ records:
     cuda_version: "12.8"
     gpu_driver_version: "572.84"
     token_cache_sha256: 22bb7c27864f0e5941548c572d6c75b1b5ba6a4c13e4cd26f40f4de546c5cc19
+    propagation_result_path: results/203-s1-b1-post-site-isolation-selection-prop/001-20260719-160449-6ea5e005/activation_propagation.json
+    r_block: 0.27243030922807643
+    r_model: 0.08159935321101629
+    r_block_max: 0.6785216178521618
+    r_model_max: 0.20323335282813937
+    u_arch: 0.40150571781404065
+    z_a: 0.5114761904666298
+    z_m: 0.5119038548385888
+    z_h: 0.45962801732515035
+    z_q_gate: 0.2803119107296592
+    z_k_gate: null
+    z_v_gate: null
+    z_q_qk: 0.2803119107296592
+    z_k_qk: 1.2548346268503289e-08
+    z_v_pv: 1.6731128358004385e-08
+    z_context_wo: 0.0
     failure_type: null
     failure_message: null
     reviewed_at: 2026-07-19T14:09:47.0330934Z
-    notes: Completed twenty-fifth B1 scientific cell and first POST site-isolation row from clean launch commit 52cf42a with 42 training and 10 complete-selection validation events. Final train loss was 7.07279 and final/best selection loss was 7.02146. The final model SHA256 is 6084351099e70c6a64eb3a078523783109bcc7edfcbb3185a37469656c342c13; optimizer state was intentionally not saved. Exact checkpoint reload recovered ordinary a/m/h ReLU plus fixed G+ kappa 0.10 at POST-RoPE Q only in all six layers, with K/V absent and the final LayerNorm ungated. Mean final logged exact-zero fractions were z_a 0.51247, z_m 0.51291, z_h 0.46033, and z_q_gate 0.28093. Gradient norm peaked at 2.412 at step 1750, recovered, and ended at 1.574; nonfinite and universal-collapse checks passed. The queued pooled site-isolation diagnostic will supply complete-selection exact-zero and product endpoints; S1 supports feasibility/collapse and within-stratum comparisons only.
+    notes: Completed twenty-fifth B1 scientific cell and first POST site-isolation row from clean launch commit 52cf42a with 42 training and 10 complete-selection validation events. Final train loss was 7.07279 and final/best selection loss was 7.02146. The final model SHA256 is 6084351099e70c6a64eb3a078523783109bcc7edfcbb3185a37469656c342c13; optimizer state was intentionally not saved. Exact checkpoint reload recovered ordinary a/m/h ReLU plus fixed G+ kappa 0.10 at POST-RoPE Q only in all six layers, with K/V absent and the final LayerNorm ungated. Mean final logged exact-zero fractions were z_a 0.51247, z_m 0.51291, z_h 0.46033, and z_q_gate 0.28093. Gradient norm peaked at 2.412 at step 1750, recovered, and ended at 1.574; nonfinite and universal-collapse checks passed. Canonical diagnostic 203 supplies attached complete-selection exact-zero, direct-product, topology-ceiling, and U_arch endpoints; its POST-RoPE Q gate output equals the actual QK operand. S1 supports feasibility/collapse and within-stratum comparisons only.
   - design_id: S1-B1-ISO-GPLUS-POST-K-K010-S0
     config_id: 198-s1-b1-p14m-gplus-post-k-k010-s0
     run_id: 001-20260719-141336-5d660aa4
@@ -4321,22 +4337,22 @@ records:
     resumed_from_run_id: null
     resume_checkpoint_sha256: null
     artifact_upload_verified_at: null
-    propagation_result_path: null
-    r_block: null
-    r_model: null
-    r_block_max: null
-    r_model_max: null
-    u_arch: null
-    z_a: null
-    z_m: null
-    z_h: null
+    propagation_result_path: results/203-s1-b1-post-site-isolation-selection-prop/001-20260719-160449-6ea5e005/activation_propagation.json
+    r_block: 0.3026266053861149
+    r_model: 0.0906438616684119
+    r_block_max: 0.6785216178521618
+    r_model_max: 0.20323335282813937
+    u_arch: 0.44600878943852906
+    z_a: 0.5112456229695103
+    z_m: 0.5116039409972074
+    z_h: 0.45965381045090525
     z_q_gate: null
-    z_k_gate: null
+    z_k_gate: 0.3821302422305994
     z_v_gate: null
-    z_q_qk: null
-    z_k_qk: null
-    z_v_pv: null
-    z_context_wo: null
+    z_q_qk: 8.365564179002193e-09
+    z_k_qk: 0.3821302422305994
+    z_v_pv: 8.365564179002193e-09
+    z_context_wo: 8.365564179002193e-09
     clipping_result_paths: []
     figure_ids: []
     failure_type: null
@@ -4345,7 +4361,7 @@ records:
     artifact_manifest_uri: null
     artifact_manifest_sha256: null
     reviewed_at: 2026-07-19T15:41:10.8238004Z
-    notes: Completed twenty-sixth B1 scientific cell from clean launch commit e0228d7 with 42 training and 10 complete-selection validation events. Final train loss was 7.07600 and final/best selection loss was 7.02413. The final model SHA256 is 505dce381fa6c6f02dc4f08133f276e8cd710a9af5d2e5b9284d6dacdab90255; optimizer state was intentionally not saved. The immutable saved config and checkpoint review recovered ordinary a/m/h ReLU plus fixed G+ kappa 0.10 at POST-RoPE K only in all six layers, with Q/V absent and the final LayerNorm ungated. Mean final logged exact-zero fractions were z_a 0.51215, z_m 0.51251, z_h 0.46029, and z_k_gate 0.39053. Gradient norm peaked at 2.294 at step 1650, recovered, and ended at 1.488; finite-event and universal-collapse checks passed. The queue verifier and recomputed final-model hash passed. Diagnostic config 203 will supply pooled complete-selection exact-zero and product endpoints; S1 supports feasibility/collapse and within-stratum comparisons only.
+    notes: Completed twenty-sixth B1 scientific cell from clean launch commit e0228d7 with 42 training and 10 complete-selection validation events. Final train loss was 7.07600 and final/best selection loss was 7.02413. The final model SHA256 is 505dce381fa6c6f02dc4f08133f276e8cd710a9af5d2e5b9284d6dacdab90255; optimizer state was intentionally not saved. The immutable saved config and checkpoint review recovered ordinary a/m/h ReLU plus fixed G+ kappa 0.10 at POST-RoPE K only in all six layers, with Q/V absent and the final LayerNorm ungated. Mean final logged exact-zero fractions were z_a 0.51215, z_m 0.51251, z_h 0.46029, and z_k_gate 0.39053. Gradient norm peaked at 2.294 at step 1650, recovered, and ended at 1.488; finite-event and universal-collapse checks passed. The queue verifier and recomputed final-model hash passed. Canonical diagnostic 203 supplies attached complete-selection exact-zero, direct-product, topology-ceiling, and U_arch endpoints; its POST-RoPE K gate output equals the actual QK operand. S1 supports feasibility/collapse and within-stratum comparisons only.
   - design_id: S1-B1-ISO-GPLUS-POST-V-K010-S0
     config_id: 199-s1-b1-p14m-gplus-post-v-k010-s0
     run_id: 001-20260719-143237-b913af6d
@@ -4403,22 +4419,22 @@ records:
     resumed_from_run_id: null
     resume_checkpoint_sha256: null
     artifact_upload_verified_at: null
-    propagation_result_path: null
-    r_block: null
-    r_model: null
-    r_block_max: null
-    r_model_max: null
-    u_arch: null
-    z_a: null
-    z_m: null
-    z_h: null
+    propagation_result_path: results/203-s1-b1-post-site-isolation-selection-prop/001-20260719-160449-6ea5e005/activation_propagation.json
+    r_block: 0.3830450431913617
+    r_model: 0.11473109531631978
+    r_block_max: 0.7142259414225941
+    r_model_max: 0.21392764641991813
+    u_arch: 0.536307939793412
+    z_a: 0.5091521781787538
+    z_m: 0.5112589200337728
+    z_h: 0.4604510570827283
     z_q_gate: null
     z_k_gate: null
-    z_v_gate: null
-    z_q_qk: null
-    z_k_qk: null
-    z_v_pv: null
-    z_context_wo: null
+    z_v_gate: 0.658719213385331
+    z_q_qk: 4.182782089501096e-09
+    z_k_qk: 1.2548346268503289e-08
+    z_v_pv: 0.658719213385331
+    z_context_wo: 0.04156871009291264
     clipping_result_paths: []
     figure_ids: []
     failure_type: null
@@ -4427,7 +4443,7 @@ records:
     artifact_manifest_uri: null
     artifact_manifest_sha256: null
     reviewed_at: 2026-07-19T15:41:10.8238004Z
-    notes: Completed twenty-seventh B1 scientific cell from clean launch commit e0228d7 with 42 training and 10 complete-selection validation events. Final train loss was 7.06889 and final/best selection loss was 7.01547. The final model SHA256 is 6b0cd38bb37ac7bff62b2a6fcfdddeaee6d0c7985b220d1d77eaad2d16f542b9; optimizer state was intentionally not saved. The immutable saved config and checkpoint review recovered ordinary a/m/h ReLU plus fixed G+ kappa 0.10 at post-split V only in all six layers, with Q/K gates absent and the final LayerNorm ungated. Mean final logged exact-zero fractions were z_a 0.50877, z_m 0.51090, z_h 0.46154, and z_v_gate 0.65956. Gradient norm peaked at 2.820 at step 1800, recovered, and ended at 1.317; finite-event and universal-collapse checks passed. The queue verifier and recomputed final-model hash passed. Diagnostic config 203 will supply pooled complete-selection exact-zero and product endpoints; S1 supports feasibility/collapse and within-stratum comparisons only.
+    notes: Completed twenty-seventh B1 scientific cell from clean launch commit e0228d7 with 42 training and 10 complete-selection validation events. Final train loss was 7.06889 and final/best selection loss was 7.01547. The final model SHA256 is 6b0cd38bb37ac7bff62b2a6fcfdddeaee6d0c7985b220d1d77eaad2d16f542b9; optimizer state was intentionally not saved. The immutable saved config and checkpoint review recovered ordinary a/m/h ReLU plus fixed G+ kappa 0.10 at post-split V only in all six layers, with Q/K gates absent and the final LayerNorm ungated. Mean final logged exact-zero fractions were z_a 0.50877, z_m 0.51090, z_h 0.46154, and z_v_gate 0.65956. Gradient norm peaked at 2.820 at step 1800, recovered, and ended at 1.317; finite-event and universal-collapse checks passed. The queue verifier and recomputed final-model hash passed. Canonical diagnostic 203 supplies attached complete-selection exact-zero, direct-product, topology-ceiling, and U_arch endpoints; the V gate output equals the PV operand, while Q/K remain ungated so Q/K placement is not applicable. S1 supports feasibility/collapse and within-stratum comparisons only.
   - design_id: S1-B1-ISO-GPM-POST-Q-K010-S0
     config_id: 200-s1-b1-p14m-gpm-post-q-k010-s0
     run_id: 001-20260719-145118-8455717e
@@ -4485,22 +4501,22 @@ records:
     resumed_from_run_id: null
     resume_checkpoint_sha256: null
     artifact_upload_verified_at: null
-    propagation_result_path: null
-    r_block: null
-    r_model: null
-    r_block_max: null
-    r_model_max: null
-    u_arch: null
-    z_a: null
-    z_m: null
-    z_h: null
-    z_q_gate: null
+    propagation_result_path: results/203-s1-b1-post-site-isolation-selection-prop/001-20260719-160449-6ea5e005/activation_propagation.json
+    r_block: 0.21658210344166864
+    r_model: 0.06487148808074042
+    r_block_max: 0.6785216178521618
+    r_model_max: 0.20323335282813937
+    u_arch: 0.3191970568708662
+    z_a: 0.5111721942299291
+    z_m: 0.511874002322816
+    z_h: 0.46007651299761054
+    z_q_gate: 0.08064878196047064
     z_k_gate: null
     z_v_gate: null
-    z_q_qk: null
-    z_k_qk: null
-    z_v_pv: null
-    z_context_wo: null
+    z_q_qk: 0.08064878196047064
+    z_k_qk: 1.2548346268503289e-08
+    z_v_pv: 8.365564179002193e-09
+    z_context_wo: 4.182782089501096e-09
     clipping_result_paths: []
     figure_ids: []
     failure_type: null
@@ -4509,7 +4525,7 @@ records:
     artifact_manifest_uri: null
     artifact_manifest_sha256: null
     reviewed_at: 2026-07-19T15:41:10.8238004Z
-    notes: Completed twenty-eighth B1 scientific cell from clean launch commit e0228d7 with 42 training and 10 complete-selection validation events. Final train loss was 7.06533 and final/best selection loss was 7.01355. The final model SHA256 is 07b0856deed4eb24627ddc4ad5175b4bdaec34bc11815193dcfe38a457da2372; optimizer state was intentionally not saved. The immutable saved config and checkpoint review recovered ordinary a/m/h ReLU plus fixed Gpm kappa 0.10 at POST-RoPE Q only in all six layers, with K/V absent and the final LayerNorm ungated. Mean final logged exact-zero fractions were z_a 0.51189, z_m 0.51258, z_h 0.46050, and z_q_gate 0.08074. Gradient norm peaked at 2.067 at step 1650, recovered, and ended at 1.527; finite-event and universal-collapse checks passed. The queue verifier and recomputed final-model hash passed. Diagnostic config 203 will supply pooled complete-selection exact-zero and product endpoints; S1 supports feasibility/collapse and within-stratum comparisons only.
+    notes: Completed twenty-eighth B1 scientific cell from clean launch commit e0228d7 with 42 training and 10 complete-selection validation events. Final train loss was 7.06533 and final/best selection loss was 7.01355. The final model SHA256 is 07b0856deed4eb24627ddc4ad5175b4bdaec34bc11815193dcfe38a457da2372; optimizer state was intentionally not saved. The immutable saved config and checkpoint review recovered ordinary a/m/h ReLU plus fixed Gpm kappa 0.10 at POST-RoPE Q only in all six layers, with K/V absent and the final LayerNorm ungated. Mean final logged exact-zero fractions were z_a 0.51189, z_m 0.51258, z_h 0.46050, and z_q_gate 0.08074. Gradient norm peaked at 2.067 at step 1650, recovered, and ended at 1.527; finite-event and universal-collapse checks passed. The queue verifier and recomputed final-model hash passed. Canonical diagnostic 203 supplies attached complete-selection exact-zero, direct-product, topology-ceiling, and U_arch endpoints; its POST-RoPE Q gate output equals the actual QK operand. S1 supports feasibility/collapse and within-stratum comparisons only.
   - design_id: S1-B1-ISO-GPM-POST-K-K010-S0
     config_id: 201-s1-b1-p14m-gpm-post-k-k010-s0
     run_id: 001-20260719-150955-18a75af8
@@ -4567,22 +4583,22 @@ records:
     resumed_from_run_id: null
     resume_checkpoint_sha256: null
     artifact_upload_verified_at: null
-    propagation_result_path: null
-    r_block: null
-    r_model: null
-    r_block_max: null
-    r_model_max: null
-    u_arch: null
-    z_a: null
-    z_m: null
-    z_h: null
+    propagation_result_path: results/203-s1-b1-post-site-isolation-selection-prop/001-20260719-160449-6ea5e005/activation_propagation.json
+    r_block: 0.24217910114274235
+    r_model: 0.07253839732615351
+    r_block_max: 0.6785216178521618
+    r_model_max: 0.20323335282813937
+    u_arch: 0.3569217174087282
+    z_a: 0.5114527794352749
+    z_m: 0.512019768095853
+    z_h: 0.46004812654696015
     z_q_gate: null
-    z_k_gate: null
+    z_k_gate: 0.16998150474146792
     z_v_gate: null
-    z_q_qk: null
-    z_k_qk: null
-    z_v_pv: null
-    z_context_wo: null
+    z_q_qk: 4.182782089501096e-09
+    z_k_qk: 0.16998150474146792
+    z_v_pv: 1.2548346268503289e-08
+    z_context_wo: 2.9279474626507674e-08
     clipping_result_paths: []
     figure_ids: []
     failure_type: null
@@ -4591,7 +4607,7 @@ records:
     artifact_manifest_uri: null
     artifact_manifest_sha256: null
     reviewed_at: 2026-07-19T15:41:10.8238004Z
-    notes: Completed twenty-ninth B1 scientific cell from clean launch commit e0228d7 with 42 training and 10 complete-selection validation events. Final train loss was 7.06552 and final/best selection loss was 7.01406. The final model SHA256 is 1e21e2a116ea5e13f69627c78cd6906a8bb799f154cc552d211bf9738b2dc050; optimizer state was intentionally not saved. The immutable saved config and checkpoint review recovered ordinary a/m/h ReLU plus fixed Gpm kappa 0.10 at POST-RoPE K only in all six layers, with Q/V absent and the final LayerNorm ungated. Mean final logged exact-zero fractions were z_a 0.51199, z_m 0.51254, z_h 0.46071, and z_k_gate 0.17562. Gradient norm peaked at 1.943 at step 1750, recovered, and ended at 1.386; finite-event and universal-collapse checks passed. The queue verifier and recomputed final-model hash passed. Diagnostic config 203 will supply pooled complete-selection exact-zero and product endpoints; S1 supports feasibility/collapse and within-stratum comparisons only.
+    notes: Completed twenty-ninth B1 scientific cell from clean launch commit e0228d7 with 42 training and 10 complete-selection validation events. Final train loss was 7.06552 and final/best selection loss was 7.01406. The final model SHA256 is 1e21e2a116ea5e13f69627c78cd6906a8bb799f154cc552d211bf9738b2dc050; optimizer state was intentionally not saved. The immutable saved config and checkpoint review recovered ordinary a/m/h ReLU plus fixed Gpm kappa 0.10 at POST-RoPE K only in all six layers, with Q/V absent and the final LayerNorm ungated. Mean final logged exact-zero fractions were z_a 0.51199, z_m 0.51254, z_h 0.46071, and z_k_gate 0.17562. Gradient norm peaked at 1.943 at step 1750, recovered, and ended at 1.386; finite-event and universal-collapse checks passed. The queue verifier and recomputed final-model hash passed. Canonical diagnostic 203 supplies attached complete-selection exact-zero, direct-product, topology-ceiling, and U_arch endpoints; its POST-RoPE K gate output equals the actual QK operand. S1 supports feasibility/collapse and within-stratum comparisons only.
 
   - design_id: S1-B1-ISO-GPM-POST-V-K010-S0
     config_id: 202-s1-b1-p14m-gpm-post-v-k010-s0
@@ -4650,22 +4666,22 @@ records:
     resumed_from_run_id: null
     resume_checkpoint_sha256: null
     artifact_upload_verified_at: null
-    propagation_result_path: null
-    r_block: null
-    r_model: null
-    r_block_max: null
-    r_model_max: null
-    u_arch: null
-    z_a: null
-    z_m: null
-    z_h: null
+    propagation_result_path: results/203-s1-b1-post-site-isolation-selection-prop/001-20260719-160449-6ea5e005/activation_propagation.json
+    r_block: 0.3311420875286472
+    r_model: 0.09918492637565379
+    r_block_max: 0.7142259414225941
+    r_model_max: 0.21392764641991813
+    u_arch: 0.4636377206757275
+    z_a: 0.5089866487603438
+    z_m: 0.5101365248362223
+    z_h: 0.460121726780607
     z_q_gate: null
     z_k_gate: null
-    z_v_gate: null
-    z_q_qk: null
-    z_k_qk: null
-    z_v_pv: null
-    z_context_wo: null
+    z_v_gate: 0.4829798874102141
+    z_q_qk: 1.2548346268503289e-08
+    z_k_qk: 1.2548346268503289e-08
+    z_v_pv: 0.4829798874102141
+    z_context_wo: 0.0006442613768995854
     clipping_result_paths: []
     figure_ids: []
     failure_type: null
@@ -4674,4 +4690,46 @@ records:
     artifact_manifest_uri: null
     artifact_manifest_sha256: null
     reviewed_at: 2026-07-19T15:48:38.6311043Z
-    notes: Completed thirtieth and final POST site-isolation B1 scientific cell from clean launch commit e0228d7 with 42 training and 10 complete-selection validation events. Final train loss was 7.06638 and final/best selection loss was 7.01501. The final model SHA256 is bc1e0c5b41f2433a43716124af49510005d7330057330365e7bad03e9806de37; optimizer state was intentionally not saved. The immutable saved config and checkpoint review recovered ordinary a/m/h ReLU plus fixed Gpm kappa 0.10 at post-split V only in all six layers, with Q/K gates absent and the final LayerNorm ungated. Mean final logged exact-zero fractions were z_a 0.50983, z_m 0.51104, z_h 0.46018, and z_v_gate 0.48521. Gradient norm peaked at 2.304 at step 1600, recovered, and ended at 1.353; finite-event and universal-collapse checks passed. The queue verifier and recomputed final-model hash passed. Diagnostic config 203 will supply pooled complete-selection exact-zero and product endpoints; S1 supports feasibility/collapse and within-stratum comparisons only.
+    notes: Completed thirtieth and final POST site-isolation B1 scientific cell from clean launch commit e0228d7 with 42 training and 10 complete-selection validation events. Final train loss was 7.06638 and final/best selection loss was 7.01501. The final model SHA256 is bc1e0c5b41f2433a43716124af49510005d7330057330365e7bad03e9806de37; optimizer state was intentionally not saved. The immutable saved config and checkpoint review recovered ordinary a/m/h ReLU plus fixed Gpm kappa 0.10 at post-split V only in all six layers, with Q/K gates absent and the final LayerNorm ungated. Mean final logged exact-zero fractions were z_a 0.50983, z_m 0.51104, z_h 0.46018, and z_v_gate 0.48521. Gradient norm peaked at 2.304 at step 1600, recovered, and ended at 1.353; finite-event and universal-collapse checks passed. The queue verifier and recomputed final-model hash passed. Canonical diagnostic 203 supplies attached complete-selection exact-zero, direct-product, topology-ceiling, and U_arch endpoints; the V gate output equals the PV operand, while Q/K remain ungated so Q/K placement is not applicable. S1 supports feasibility/collapse and within-stratum comparisons only.
+  - design_id: S1-B1-DIAG-POST-SITE-ISOLATION-SELECTION-S0
+    config_id: 203-s1-b1-post-site-isolation-selection-prop
+    run_id: 001-20260719-160449-6ea5e005
+    attempt: 1
+    mode: activation-propagation
+    result_path: results/203-s1-b1-post-site-isolation-selection-prop/001-20260719-160449-6ea5e005
+    log_path: null
+    lifecycle_status: statusless_complete
+    evidence_status: valid
+    canonical: true
+    started_at: 2026-07-19T16:04:49.000000Z
+    finished_at: 2026-07-19T16:05:12.880038Z
+    git_commit: f7c2d946204a72a71758bdac4293c91dc412ee72
+    git_dirty: false
+    completed_steps: 0
+    tokens_seen: 0
+    model_initialization_seed: 0
+    data_order_seed: 0
+    training_schedule_scheme: null
+    training_schedule_hash: null
+    effective_tokens_per_update: null
+    validation_partition: selection
+    validation_partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
+    validation_tokens: 311296
+    validation_loss: null
+    wall_hours: 0.00638781983334209
+    tokens_per_second: 81221.24295969975
+    peak_gpu_mb: 675.0244140625
+    execution_backend: local
+    cloud_provider: null
+    gpu_type: NVIDIA GeForce RTX 5070 Ti Laptop GPU
+    gpu_count: 1
+    python_version: 3.12.10
+    pytorch_version: 2.11.0+cu128
+    cuda_version: "12.8"
+    gpu_driver_version: "572.84"
+    token_cache_sha256: 22bb7c27864f0e5941548c572d6c75b1b5ba6a4c13e4cd26f40f4de546c5cc19
+    propagation_result_path: results/203-s1-b1-post-site-isolation-selection-prop/001-20260719-160449-6ea5e005/activation_propagation.json
+    failure_type: null
+    failure_message: null
+    reviewed_at: 2026-07-19T16:08:01.7622232Z
+    notes: Canonical statusless-complete schema-v3 diagnostic over the six exact completed checkpoints for configs 197--202. It pooled all 311296 complete selection tokens across 152 sequences and 38 batches, excluded 443 trailing cache tokens, and emitted exact-zero, direct-product, architecture-ceiling, and U_arch counts. Each topology recovered ordinary a/m/h ReLU plus one fixed G+ or Gpm kappa 0.10 attention gate in all six layers; Q-only and K-only gates are POST-RoPE, while V-only gates are post-split and have no Q/K placement. POST-RoPE Q/K gate outputs equal the corresponding QK operands, V gate outputs equal the PV operands, absent-gate fields are unavailable, and the six completed source manifests are pinned exactly. The five-file envelope, full-partition/product denominators, and activation artifact SHA256 04bf88fdd29e2e9ab436e9af862a1204deb3827a761f0c7ab9615741b2e0bfcb passed review.

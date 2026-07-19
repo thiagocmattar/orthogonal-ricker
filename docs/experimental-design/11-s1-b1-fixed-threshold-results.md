@@ -8,10 +8,9 @@ family `{G+, Gpm}`, Q/K placement `{PRE, POST}`, scope `{QK, QKV}`, and
 one-seed, 2,048-step screening evidence: it supports feasibility and matched
 within-stratum comparisons, not a global ranking or paper-level conclusion.
 
-All six site-isolation training cells, configs `197--202`, are complete. Their
-pooled selection-partition endpoints remain pending diagnostic `203` and are
-therefore excluded from the findings below. The remaining six branch-scope
-cells, configs `204--209`, are ready but have not launched.
+All six site-isolation training cells, configs `197--202`, and their pooled
+selection-partition diagnostic `203` are complete. The remaining six
+branch-scope cells, configs `204--209`, are ready but have not launched.
 
 ## 2. Methods and Denominators
 
@@ -135,33 +134,61 @@ The 24 training rows consumed 8.108 serial GPU-hours.
 - Every diagnostic pins its source config and exact run id. The table is read
   from those pooled counters and the training endpoints, not from final
   minibatch telemetry.
+- Config `203`, run `001-20260719-160449-6ea5e005`, is the canonical pooled
+  diagnostic for site-isolation configs `197--202`. It passed source-manifest,
+  topology, gate-operand identity, exact-zero, and product-count review over
+  all 311,296 complete selection tokens.
 - Config `190` attempt 2 is a retained accidental duplicate. It is
   noncanonical and excluded; attempt 1 supplies config `189`'s endpoint.
 - Exact run identities and review notes are in
   [`run-registry.yaml`](run-registry.yaml). Config identities are in
   [`config-registry.yaml`](config-registry.yaml).
 
-## 6. Completed Site-Isolation Training Rows
+## 6. Canonical Site-Isolation Results
 
-These rows have completed training artifacts, but no pooled endpoint diagnostic
-yet. `R_block`, `R_model`, and all `z` values remain pending; last-minibatch
-telemetry is intentionally not substituted. `Place` denotes Q/K placement and
-is therefore not applicable to the V-only rows.
+`Place` denotes Q/K placement and is therefore not applicable to V-only rows:
+those runs leave Q/K ungated and gate post-split V directly before PV.
+All six rows use fixed absolute `kappa=0.10` at the isolated attention site.
 
-| Config | Gate | Place | Site | `kappa` | Training run | Val. loss | Wall (h) | Tokens/s | Pooled `z/R` |
-| ---: | --- | --- | --- | ---: | --- | ---: | ---: | ---: | --- |
-| 197 | G+ | POST | Q | 0.10 | `001-20260719-134717-3cfc0e0f` | 7.021459 | 0.3261 | 114,335 | Pending |
-| 198 | G+ | POST | K | 0.10 | `001-20260719-141336-5d660aa4` | 7.024131 | 0.3157 | 118,087 | Pending |
-| 199 | G+ | — | V | 0.10 | `001-20260719-143237-b913af6d` | 7.015473 | 0.3101 | 120,227 | Pending |
-| 200 | Gpm | POST | Q | 0.10 | `001-20260719-145118-8455717e` | 7.013554 | 0.3090 | 120,670 | Pending |
-| 201 | Gpm | POST | K | 0.10 | `001-20260719-150955-18a75af8` | 7.014055 | 0.3099 | 120,296 | Pending |
-| 202 | Gpm | — | V | 0.10 | `001-20260719-152835-0369b367` | 7.015006 | 0.3112 | 119,813 | Pending |
+| Config | Gate | Place | Site | Training run | Val. loss | Wall (h) | Tokens/s |
+| ---: | --- | --- | --- | --- | ---: | ---: | ---: |
+| 197 | G+ | POST | Q | `001-20260719-134717-3cfc0e0f` | 7.021459 | 0.3261 | 114,335 |
+| 198 | G+ | POST | K | `001-20260719-141336-5d660aa4` | 7.024131 | 0.3157 | 118,087 |
+| 199 | G+ | — | V | `001-20260719-143237-b913af6d` | 7.015473 | 0.3101 | 120,227 |
+| 200 | Gpm | POST | Q | `001-20260719-145118-8455717e` | 7.013554 | 0.3090 | 120,670 |
+| 201 | Gpm | POST | K | `001-20260719-150955-18a75af8` | 7.014055 | 0.3099 | 120,296 |
+| 202 | Gpm | — | V | `001-20260719-152835-0369b367` | 7.015006 | 0.3112 | 119,813 |
+
+All endpoint columns below are pooled percentages from diagnostic `203`.
+An em dash means that the explicit gate is absent, not that its dense operand
+is unmeasured. The ungated Q/K/V operands contain at most four exact zeros in
+their 239,075,328-element pooled tensors.
+
+| Config | `R_block` | `R_model` | `R_block_max` | `R_model_max` | `U_arch` | `z_a` | `z_m` | `z_h` | `z_Q_gate` | `z_K_gate` | `z_V_gate` | `z_context_wo` |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 197 | 27.2430 | 8.1599 | 67.8522 | 20.3233 | 40.1506 | 51.1476 | 51.1904 | 45.9628 | 28.0312 | — | — | 0.0000 |
+| 198 | 30.2627 | 9.0644 | 67.8522 | 20.3233 | 44.6009 | 51.1246 | 51.1604 | 45.9654 | — | 38.2130 | — | 0.0000 |
+| 199 | 38.3045 | 11.4731 | 71.4226 | 21.3928 | 53.6308 | 50.9152 | 51.1259 | 46.0451 | — | — | 65.8719 | 4.1569 |
+| 200 | 21.6582 | 6.4871 | 67.8522 | 20.3233 | 31.9197 | 51.1172 | 51.1874 | 46.0077 | 8.0649 | — | — | 0.0000 |
+| 201 | 24.2179 | 7.2538 | 67.8522 | 20.3233 | 35.6922 | 51.1453 | 51.2020 | 46.0048 | — | 16.9982 | — | 0.0000 |
+| 202 | 33.1142 | 9.9185 | 71.4226 | 21.3928 | 46.3638 | 50.8987 | 51.0137 | 46.0122 | — | — | 48.2980 | 0.0644 |
+
+At this one seed and threshold:
+
+- Within each gate family, Q-only, K-only, and V-only increase `R_model` in
+  that order. V-only also has the larger topology ceiling because V zeros can
+  reach PV and Wo; this is a topology difference, not a global ranking.
+- `G+` realizes 1.5546--1.8105 more `R_model` percentage points than matched
+  `Gpm`, while `Gpm` has 0.000467--0.010075 lower selection loss. This repeats
+  the main-factorial quality--sparsity tradeoff without establishing a
+  population effect.
+- POST-RoPE Q/K gate outputs remain exact zeros at the corresponding QK
+  operands. Their context outputs are effectively dense. V-only zeros survive
+  exactly to the PV operand and produce 4.1569% (`G+`) or 0.0644% (`Gpm`)
+  exact-zero attention-context coordinates before Wo.
 
 ## TODO: Close S1-B1
 
-- Run pooled diagnostic config `203`, pinned to configs `197--202`, and append
-  their complete-selection `z` and `R` endpoints. Do not compare the current
-  training-only telemetry as if it were pooled evidence.
 - Launch the one-sided branch-scope configs `204--209`: topology
   `{A1-H, A3, A6-POST}` crossed with `kappa={0.03,0.10}`.
 - Run the next pooled branch-scope diagnostic (planned config `210`), audit its

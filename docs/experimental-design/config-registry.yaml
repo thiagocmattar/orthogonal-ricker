@@ -35,7 +35,7 @@ block_summary:
     materialized_cells: 36
     completed_cells: 30
     status: active
-    note: all 24 main-attention-factorial and six POST site-isolation cells are complete; pooled diagnostic 203 and the six one-sided branch-scope cells 204--209 are ready
+    note: all 24 main-attention-factorial and six POST site-isolation cells are complete; pooled diagnostic 203 is closed and the six one-sided branch-scope cells 204--209 are ready
   - block: S1-B2
     planned_cells: 26
     materialized_cells: 0
@@ -3724,7 +3724,7 @@ records:
     decision_status: pending
     release_tier: history
     canonical_run_id: 001-20260719-134717-3cfc0e0f
-    notes: Completed twenty-fifth B1 scientific cell and first POST site-isolation row. Fixed absolute G+ kappa 0.10 at POST-RoPE Q only, ordinary a/m/h ReLU, AdamW without pressure. Run 001-20260719-134717-3cfc0e0f completed all 2048 steps from clean commit 52cf42a and passed terminal review at selection loss 7.02146. Its matched ordinary-ReLU architecture parent is config 129 (A4-Q). The pooled site-isolation diagnostic at prefix 203 will attach complete-selection exact-zero and product endpoints; S1 supports feasibility/collapse and within-stratum comparisons only.
+    notes: Completed twenty-fifth B1 scientific cell and first POST site-isolation row. Fixed absolute G+ kappa 0.10 at POST-RoPE Q only, ordinary a/m/h ReLU, AdamW without pressure. Run 001-20260719-134717-3cfc0e0f completed all 2048 steps from clean commit 52cf42a and passed terminal review at selection loss 7.02146. Its matched ordinary-ReLU architecture parent is config 129 (A4-Q). Canonical diagnostic 203 run 001-20260719-160449-6ea5e005 supplies the complete-selection endpoints R_block=0.272430, R_model=0.081599, and U_arch=0.401506. S1 supports feasibility/collapse and within-stratum comparisons only.
   - design_id: S1-B1-ISO-GPLUS-POST-K-K010-S0
     config_id: 198-s1-b1-p14m-gplus-post-k-k010-s0
     config_path: configs/198-s1-b1-p14m-gplus-post-k-k010-s0.yaml
@@ -3771,7 +3771,7 @@ records:
     decision_status: pending
     release_tier: history
     canonical_run_id: 001-20260719-141336-5d660aa4
-    notes: Completed twenty-sixth B1 scientific cell; fixed absolute G+ kappa 0.10 at POST-RoPE K only, ordinary a/m/h ReLU, AdamW without pressure. Run 001-20260719-141336-5d660aa4 completed all 2048 steps from clean commit e0228d7 and passed terminal artifact, exact checkpoint-reload, and finite-event review at selection loss 7.02413. Its matched ordinary-ReLU architecture parent is config 130 (A4-K). Pooled complete-selection exact-zero and product endpoints remain pending diagnostic config 203; S1 supports feasibility/collapse and within-stratum comparisons only.
+    notes: Completed twenty-sixth B1 scientific cell; fixed absolute G+ kappa 0.10 at POST-RoPE K only, ordinary a/m/h ReLU, AdamW without pressure. Run 001-20260719-141336-5d660aa4 completed all 2048 steps from clean commit e0228d7 and passed terminal artifact, exact checkpoint-reload, and finite-event review at selection loss 7.02413. Its matched ordinary-ReLU architecture parent is config 130 (A4-K). Canonical diagnostic 203 run 001-20260719-160449-6ea5e005 supplies the complete-selection endpoints R_block=0.302627, R_model=0.090644, and U_arch=0.446009. S1 supports feasibility/collapse and within-stratum comparisons only.
   - design_id: S1-B1-ISO-GPLUS-POST-V-K010-S0
     config_id: 199-s1-b1-p14m-gplus-post-v-k010-s0
     config_path: configs/199-s1-b1-p14m-gplus-post-v-k010-s0.yaml
@@ -3818,7 +3818,7 @@ records:
     decision_status: pending
     release_tier: history
     canonical_run_id: 001-20260719-143237-b913af6d
-    notes: Completed twenty-seventh B1 scientific cell; fixed absolute G+ kappa 0.10 at post-split V only, ordinary a/m/h ReLU, AdamW without pressure. Run 001-20260719-143237-b913af6d completed all 2048 steps from clean commit e0228d7 and passed terminal artifact, exact checkpoint-reload, and finite-event review at selection loss 7.01547. Its matched ordinary-ReLU architecture parent is config 131 (A4-V). Pooled complete-selection exact-zero and product endpoints remain pending diagnostic config 203; S1 supports feasibility/collapse and within-stratum comparisons only.
+    notes: Completed twenty-seventh B1 scientific cell; fixed absolute G+ kappa 0.10 at post-split V only, ordinary a/m/h ReLU, AdamW without pressure. Run 001-20260719-143237-b913af6d completed all 2048 steps from clean commit e0228d7 and passed terminal artifact, exact checkpoint-reload, and finite-event review at selection loss 7.01547. Its matched ordinary-ReLU architecture parent is config 131 (A4-V); Q/K placement is not applicable because Q and K are ungated. Canonical diagnostic 203 run 001-20260719-160449-6ea5e005 supplies the complete-selection endpoints R_block=0.383045, R_model=0.114731, and U_arch=0.536308. S1 supports feasibility/collapse and within-stratum comparisons only.
   - design_id: S1-B1-ISO-GPM-POST-Q-K010-S0
     config_id: 200-s1-b1-p14m-gpm-post-q-k010-s0
     config_path: configs/200-s1-b1-p14m-gpm-post-q-k010-s0.yaml
@@ -3865,7 +3865,7 @@ records:
     decision_status: pending
     release_tier: history
     canonical_run_id: 001-20260719-145118-8455717e
-    notes: Completed twenty-eighth B1 scientific cell; fixed absolute Gpm kappa 0.10 at POST-RoPE Q only, ordinary a/m/h ReLU, AdamW without pressure. Run 001-20260719-145118-8455717e completed all 2048 steps from clean commit e0228d7 and passed terminal artifact, exact checkpoint-reload, and finite-event review at selection loss 7.01355. Its identity-parent matched control is config 125 (A3). Pooled complete-selection exact-zero and product endpoints remain pending diagnostic config 203; S1 supports feasibility/collapse and within-stratum comparisons only.
+    notes: Completed twenty-eighth B1 scientific cell; fixed absolute Gpm kappa 0.10 at POST-RoPE Q only, ordinary a/m/h ReLU, AdamW without pressure. Run 001-20260719-145118-8455717e completed all 2048 steps from clean commit e0228d7 and passed terminal artifact, exact checkpoint-reload, and finite-event review at selection loss 7.01355. Its identity-parent matched control is config 125 (A3). Canonical diagnostic 203 run 001-20260719-160449-6ea5e005 supplies the complete-selection endpoints R_block=0.216582, R_model=0.064871, and U_arch=0.319197. S1 supports feasibility/collapse and within-stratum comparisons only.
   - design_id: S1-B1-ISO-GPM-POST-K-K010-S0
     config_id: 201-s1-b1-p14m-gpm-post-k-k010-s0
     config_path: configs/201-s1-b1-p14m-gpm-post-k-k010-s0.yaml
@@ -3912,7 +3912,7 @@ records:
     decision_status: pending
     release_tier: history
     canonical_run_id: 001-20260719-150955-18a75af8
-    notes: Completed twenty-ninth B1 scientific cell; fixed absolute Gpm kappa 0.10 at POST-RoPE K only, ordinary a/m/h ReLU, AdamW without pressure. Run 001-20260719-150955-18a75af8 completed all 2048 steps from clean commit e0228d7 and passed terminal artifact, exact checkpoint-reload, and finite-event review at selection loss 7.01406. Its identity-parent matched control is config 125 (A3). Pooled complete-selection exact-zero and product endpoints remain pending diagnostic config 203; S1 supports feasibility/collapse and within-stratum comparisons only.
+    notes: Completed twenty-ninth B1 scientific cell; fixed absolute Gpm kappa 0.10 at POST-RoPE K only, ordinary a/m/h ReLU, AdamW without pressure. Run 001-20260719-150955-18a75af8 completed all 2048 steps from clean commit e0228d7 and passed terminal artifact, exact checkpoint-reload, and finite-event review at selection loss 7.01406. Its identity-parent matched control is config 125 (A3). Canonical diagnostic 203 run 001-20260719-160449-6ea5e005 supplies the complete-selection endpoints R_block=0.242179, R_model=0.072538, and U_arch=0.356922. S1 supports feasibility/collapse and within-stratum comparisons only.
   - design_id: S1-B1-ISO-GPM-POST-V-K010-S0
     config_id: 202-s1-b1-p14m-gpm-post-v-k010-s0
     config_path: configs/202-s1-b1-p14m-gpm-post-v-k010-s0.yaml
@@ -3959,7 +3959,7 @@ records:
     decision_status: pending
     release_tier: history
     canonical_run_id: 001-20260719-152835-0369b367
-    notes: Completed thirtieth B1 scientific cell and final POST site-isolation row; fixed absolute Gpm kappa 0.10 at post-split V only, ordinary a/m/h ReLU, AdamW without pressure. Run 001-20260719-152835-0369b367 completed all 2048 steps from clean commit e0228d7 and passed terminal artifact, exact checkpoint-reload, and finite-event review at selection loss 7.01501. Its identity-parent matched control is config 125 (A3). Pooled complete-selection exact-zero and product endpoints remain pending diagnostic config 203; S1 supports feasibility/collapse and within-stratum comparisons only.
+    notes: Completed thirtieth B1 scientific cell and final POST site-isolation row; fixed absolute Gpm kappa 0.10 at post-split V only, ordinary a/m/h ReLU, AdamW without pressure. Run 001-20260719-152835-0369b367 completed all 2048 steps from clean commit e0228d7 and passed terminal artifact, exact checkpoint-reload, and finite-event review at selection loss 7.01501. Its identity-parent matched control is config 125 (A3); Q/K placement is not applicable because Q and K are ungated. Canonical diagnostic 203 run 001-20260719-160449-6ea5e005 supplies the complete-selection endpoints R_block=0.331142, R_model=0.099185, and U_arch=0.463638. S1 supports feasibility/collapse and within-stratum comparisons only.
   - design_id: S1-B1-DIAG-POST-SITE-ISOLATION-SELECTION-S0
     config_id: 203-s1-b1-post-site-isolation-selection-prop
     config_path: configs/203-s1-b1-post-site-isolation-selection-prop.yaml
@@ -4002,11 +4002,11 @@ records:
     ricker_sigma: null
     step_budget: null
     matched_control_id: null
-    config_status: ready
+    config_status: closed
     decision_status: control
     release_tier: history
-    canonical_run_id: null
-    notes: Ready pooled complete-selection endpoint diagnostic pinned to the six exact canonical source runs for configs 197--202. It will evaluate all 311296 complete selection tokens and emit exact-zero, direct-product, architecture-ceiling, and U_arch endpoints; diagnostic-only and excluded from scientific-cell counts.
+    canonical_run_id: 001-20260719-160449-6ea5e005
+    notes: Canonical schema-v3 pooled endpoint diagnostic pinned to the six exact source runs for configs 197--202. Run 001-20260719-160449-6ea5e005 pooled all 311296 complete selection tokens and passed the five-file statusless artifact, source-manifest, topology, POST-RoPE identity, V-operand identity, exact-zero, and product-count review. Diagnostic-only and excluded from scientific-cell counts.
   - design_id: S1-B1-BRANCH-GPLUS-A1H-K003-S0
     config_id: 204-s1-b1-p14m-gplus-a1h-k003-s0
     config_path: configs/204-s1-b1-p14m-gplus-a1h-k003-s0.yaml

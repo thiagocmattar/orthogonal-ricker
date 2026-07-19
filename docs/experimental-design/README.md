@@ -11,9 +11,9 @@ work.
 - Planning date: 2026-07-18.
 - Current phase: all 20 executable S1-B0 cells, the 24-cell B1 main attention
   factorial, and all six B1 POST site-isolation cells are complete. Pooled
-  site-isolation diagnostic `203` and branch-scope configs `204--209` are
-  ready. The 2,048-step screen remains restricted to feasibility/collapse and
-  within-stratum comparisons.
+  site-isolation diagnostic `203` is closed; branch-scope configs `204--209`
+  are ready. The 2,048-step screen remains restricted to feasibility/collapse
+  and within-stratum comparisons.
 - Next unused config prefix: `210`, deferred for the pooled branch-scope
   diagnostic after configs `204--209` have canonical runs.
 - The five central B0 anchors, configs `123--127`, completed and passed
@@ -25,17 +25,22 @@ work.
 - Last completed scientific run: config `202`, fixed `Gpm` post-split V-only
   at `kappa=0.10`, run `001-20260719-152835-0369b367`, selection loss
   `7.01501`.
-- Active scientific run: none. Run diagnostic `203` next; only after its
-  closure launch branch-scope configs `204--209` as one fail-stop tranche.
+- Active scientific run: none. Launch branch-scope configs `204--209` next as
+  one fail-stop tranche, then materialize their pooled diagnostic at prefix
+  `210` from the exact canonical run ids.
 
-| Config | Gate/site | Canonical run | Selection loss |
-| ---: | --- | --- | ---: |
-| 197 | G+ POST Q-only | `001-20260719-134717-3cfc0e0f` | 7.02146 |
-| 198 | G+ POST K-only | `001-20260719-141336-5d660aa4` | 7.02413 |
-| 199 | G+ V-only | `001-20260719-143237-b913af6d` | 7.01547 |
-| 200 | Gpm POST Q-only | `001-20260719-145118-8455717e` | 7.01355 |
-| 201 | Gpm POST K-only | `001-20260719-150955-18a75af8` | 7.01406 |
-| 202 | Gpm V-only | `001-20260719-152835-0369b367` | 7.01501 |
+| Config | Gate/site | Canonical run | Selection loss | `R_block` | `R_model` |
+| ---: | --- | --- | ---: | ---: | ---: |
+| 197 | G+ POST Q-only | `001-20260719-134717-3cfc0e0f` | 7.02146 | 27.2430% | 8.1599% |
+| 198 | G+ POST K-only | `001-20260719-141336-5d660aa4` | 7.02413 | 30.2627% | 9.0644% |
+| 199 | G+ V-only | `001-20260719-143237-b913af6d` | 7.01547 | 38.3045% | 11.4731% |
+| 200 | Gpm POST Q-only | `001-20260719-145118-8455717e` | 7.01355 | 21.6582% | 6.4871% |
+| 201 | Gpm POST K-only | `001-20260719-150955-18a75af8` | 7.01406 | 24.2179% | 7.2538% |
+| 202 | Gpm V-only | `001-20260719-152835-0369b367` | 7.01501 | 33.1142% | 9.9185% |
+
+- Config `203`, run `001-20260719-160449-6ea5e005`, supplies these pooled
+  endpoints over all 311,296 complete selection tokens and passed artifact,
+  topology, gate-operand identity, exact-zero, and product-count review.
 - Config `196`, run `001-20260719-134214-2cfa55c7`, completed config `195`'s
   mandatory diagnostic at `R_block=0.65130` and `R_model=0.19508`.
 - Config `194`, run `001-20260719-130907-96667214`, completed config `193`'s
@@ -207,8 +212,8 @@ work.
   at `R_block=0.65130` and `R_model=0.19508` and passed artifact, endpoint, and
   POST-RoPE identity review. Configs `197--202` complete the six-cell POST
   site-isolation tranche at `kappa=0.10`; all six terminal runs passed artifact,
-  finite-event, and exact topology review. Config `203` is their ready pooled
-  complete-selection diagnostic.
+  finite-event, and exact topology review. Their pooled complete-selection
+  diagnostic is closed config `203`, run `001-20260719-160449-6ea5e005`.
 - B0 has completed all `20 / 20` currently executable scientific cells
   (`20 / 22` declared); the two post-PV context cells remain blocked. The
   declared S1 core has completed `50 / 134` cells (`50 / 132` executable).
