@@ -3129,7 +3129,65 @@ records:
     cuda_version: "12.8"
     gpu_driver_version: "572.84"
     token_cache_sha256: 22bb7c27864f0e5941548c572d6c75b1b5ba6a4c13e4cd26f40f4de546c5cc19
+    propagation_result_path: results/176-s1-b1-gpm-pre-qk-k010-selection-prop/001-20260719-080808-9b05f3e2/activation_propagation.json
+    r_block: 0.25387119648696865
+    r_model: 0.07604045779979803
+    r_block_max: 0.6785216178521618
+    r_model_max: 0.20323335282813937
+    u_arch: 0.37415343860463823
+    z_a: 0.5117096064383524
+    z_m: 0.5122920170164945
+    z_h: 0.4597529685288145
+    z_q_gate: 0.08939138629980255
+    z_k_gate: 0.1790663443113628
+    z_v_gate: null
+    z_q_qk: 0.07353802731162623
+    z_k_qk: 0.1571737716072484
+    z_v_pv: 4.182782089501096e-09
+    z_context_wo: 1.2548346268503289e-08
     failure_type: null
     failure_message: null
     reviewed_at: 2026-07-19T08:05:53.8121755Z
-    notes: Completed fourteenth B1 scientific cell from clean launch commit 2190b7c with 42 training and 10 complete-selection validation events. Final train loss was 7.06627 and final/best selection loss was 7.01434. The final model SHA256 is e9780580d3c624259ac62bd1a54b5e3bc7573b3da593f239c8c105056b48ad7d; optimizer state was intentionally not saved. Exact reload recovered ordinary a/m/h ReLU plus fixed Gpm kappa 0.10 at PRE-RoPE q/k, with no V gate and the final LayerNorm ungated. Mean final logged exact-zero fractions were z_a 0.51233, z_m 0.51286, z_h 0.46047, z_q_gate 0.09088, and z_k_gate 0.18473. Gradient norm peaked at 2.174 at step 1650, recovered, and ended at 1.456; collapse, stability, and final-quarter sparsity-evaporation checks passed. Q/K gate exact-zero fractions declined materially from initialization but remained above the matched kappa 0.03 endpoint; this is a scientific observation, not a formal failure. The mandatory complete-selection propagation diagnostic is pending; S1 supports feasibility/collapse and within-stratum comparisons only.
+    notes: Completed fourteenth B1 scientific cell from clean launch commit 2190b7c with 42 training and 10 complete-selection validation events. Final train loss was 7.06627 and final/best selection loss was 7.01434. The final model SHA256 is e9780580d3c624259ac62bd1a54b5e3bc7573b3da593f239c8c105056b48ad7d; optimizer state was intentionally not saved. Exact reload recovered ordinary a/m/h ReLU plus fixed Gpm kappa 0.10 at PRE-RoPE q/k, with no V gate and the final LayerNorm ungated. Mean final logged exact-zero fractions were z_a 0.51233, z_m 0.51286, z_h 0.46047, z_q_gate 0.09088, and z_k_gate 0.18473. Gradient norm peaked at 2.174 at step 1650, recovered, and ended at 1.456; collapse, stability, and final-quarter sparsity-evaporation checks passed. Q/K gate exact-zero fractions declined materially from initialization but remained above the matched kappa 0.03 endpoint; this is a scientific observation, not a formal failure. Canonical diagnostic config 176 supplies the attached complete-selection exact-zero and product endpoints; S1 supports feasibility/collapse and within-stratum comparisons only.
+  - design_id: S1-B1-DIAG-FIX-GPM-PRE-QK-K010-SELECTION-S0
+    config_id: 176-s1-b1-gpm-pre-qk-k010-selection-prop
+    run_id: 001-20260719-080808-9b05f3e2
+    attempt: 1
+    mode: activation-propagation
+    result_path: results/176-s1-b1-gpm-pre-qk-k010-selection-prop/001-20260719-080808-9b05f3e2
+    log_path: null
+    lifecycle_status: statusless_complete
+    evidence_status: valid
+    canonical: true
+    started_at: 2026-07-19T08:08:08.000000Z
+    finished_at: 2026-07-19T08:08:13.1739485Z
+    git_commit: b6f82f48e5d3fb555855f55007a0fac84134a683
+    git_dirty: false
+    completed_steps: 0
+    tokens_seen: 0
+    model_initialization_seed: 0
+    data_order_seed: 0
+    training_schedule_scheme: null
+    training_schedule_hash: null
+    effective_tokens_per_update: null
+    validation_partition: selection
+    validation_partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
+    validation_tokens: 311296
+    validation_loss: null
+    wall_hours: 0.001335932611109456
+    tokens_per_second: 64727.15045057489
+    peak_gpu_mb: 670.9775390625
+    execution_backend: local
+    cloud_provider: null
+    gpu_type: NVIDIA GeForce RTX 5070 Ti Laptop GPU
+    gpu_count: 1
+    python_version: 3.12.10
+    pytorch_version: 2.11.0+cu128
+    cuda_version: "12.8"
+    gpu_driver_version: "572.84"
+    token_cache_sha256: 22bb7c27864f0e5941548c572d6c75b1b5ba6a4c13e4cd26f40f4de546c5cc19
+    propagation_result_path: results/176-s1-b1-gpm-pre-qk-k010-selection-prop/001-20260719-080808-9b05f3e2/activation_propagation.json
+    failure_type: null
+    failure_message: null
+    reviewed_at: 2026-07-19T08:10:31.0538469Z
+    notes: Canonical statusless-complete schema-v3 diagnostic over the exact completed config 175 checkpoint. It pooled all 311296 complete selection tokens across 152 sequences and 38 batches, excluded 443 trailing cache tokens, recovered ordinary a/m/h ReLU plus fixed Gpm kappa 0.10 at PRE-RoPE q/k with V absent in all six layers, and emitted exact-zero, direct-product, architecture-ceiling, and PRE-RoPE survival counts. RoPE repopulated 94.25 percent of isolated Q rotary-coordinate zeros and 89.91 percent of isolated K rotary-coordinate zeros, while pass-through coordinates and all-zero rotary pairs preserved zeros exactly. The five-file envelope, completed source manifest, and activation artifact SHA256 defdf4b00631e482c33649e2aae5e1adc0b1e7d9d62a454d3161fb4576674e25 passed review.
