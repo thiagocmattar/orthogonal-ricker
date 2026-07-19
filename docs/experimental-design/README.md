@@ -10,11 +10,10 @@ work.
 - Campaign id: `pythia-sparsity-scaling-v1`.
 - Planning date: 2026-07-18.
 - Current phase: E0.1 and all currently executable S1-B0 cells are complete;
-  the fixed-gate engineering gate passed, and the first six S1-B1 cells plus
-  their diagnostics are complete; the seventh B1 training cell passed terminal
-  review. The 2,048-step screen remains restricted to feasibility/collapse and
-  within-stratum comparisons.
-- Next config prefix: `163`.
+  the fixed-gate engineering gate passed, and the first seven S1-B1 cells plus
+  their diagnostics are complete. The 2,048-step screen remains restricted to
+  feasibility/collapse and within-stratum comparisons.
+- Next config prefix: `164`.
 - The five central B0 anchors, configs `123--127`, completed and passed
   terminal review. Their final selection losses are `7.04913` (A0),
   `6.98875` (A1-H), `7.01310` (A3), `7.01645` (A6-PRE), and `7.03248`
@@ -85,8 +84,9 @@ work.
   `001-20260719-041422-bacaff99` completed at selection loss `7.03029` and
   passed terminal review. Its mandatory selection propagation diagnostic,
   config `162`, run `001-20260719-043828-c242eeb4`, completed at
-  `R_block=0.33881` and `R_model=0.10148`; the next B1 scientific cell may be
-  materialized.
+  `R_block=0.33881` and `R_model=0.10148`. Config `163` materializes the
+  matched fixed `G+` POST-RoPE QK-only, `kappa=0.10` cell and is ready to
+  launch.
 - B0 has completed all `20 / 20` currently executable scientific cells
   (`20 / 22` declared); the two post-PV context cells remain blocked. The
   declared S1 core has completed `27 / 134` cells (`27 / 132` executable).
