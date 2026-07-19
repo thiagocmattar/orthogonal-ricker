@@ -1,0 +1,49 @@
+experiment_name: s1_b1_gpm_pre_qk_k030_selection_propagation
+sweep:
+  name: pythia_sparsity_scaling_v1_s1_b1
+  role: fixed_gpm_pre_qk_k030_selection_endpoint_diagnostic
+  design_id: S1-B1-DIAG-FIX-GPM-PRE-QK-K030-SELECTION-S0
+  notes: Complete frozen selection-partition exact-zero and logical-product diagnostic for the canonical fixed Gpm PRE-RoPE QK kappa 0.30 run.
+model:
+  provider: huggingface
+  name: pythia-14m-random-gpm-pre-qk-k0p30-propagation
+  architecture: EleutherAI/pythia-14m-deduped
+  revision: 7386d9a4ae45aef494a6e704910394def3037fc5
+  initialization: random
+data:
+  name: JeanKaddour/minipile
+  revision: 18ad1b0c701eaa0de03d3cecfdd769cbc70ffbd0
+  split: validation
+  text_column: text
+  max_documents: 500
+evaluation:
+  metric: activation_propagation
+run:
+  seed: 0
+  max_examples: 500
+tokenizer:
+  name: EleutherAI/pythia-14m-deduped
+  revision: 7386d9a4ae45aef494a6e704910394def3037fc5
+preprocessing:
+  output_dir: data/tokenized
+  cache_id: 03-pythia-14m-minipile-random-full-10min
+  block_size: 2048
+  append_eos: true
+  overwrite: false
+validation:
+  enabled: true
+  split: validation
+  max_documents: 500
+  partition: selection
+  partition_scheme: shuffled_source_documents_half_v1
+  partition_seed: 20260718
+  partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
+  eval_batches: null
+  batch_size: 4
+activation_propagation:
+  selected_runs:
+    - label: Fixed Gpm PRE-RoPE QK kappa 0.30
+      config_id: 177-s1-b1-p14m-gpm-pre-qk-k030-s0
+      run_id: 001-20260719-081330-30489164
+output:
+  dir: results
