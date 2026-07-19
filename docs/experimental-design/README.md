@@ -11,10 +11,10 @@ work.
 - Planning date: 2026-07-18.
 - Current phase: E0.1 and all currently executable S1-B0 cells are complete;
   the fixed-gate engineering gate passed, and the first twenty S1-B1 cells
-  plus their mandatory complete-selection diagnostics are complete. The next
-  B1 scientific cell may be materialized. The 2,048-step screen remains restricted to
+  plus their mandatory complete-selection diagnostics are complete. The
+  twenty-first B1 scientific config, `189`, is ready. The 2,048-step screen remains restricted to
   feasibility/collapse and within-stratum comparisons.
-- Next config prefix: `189`.
+- Next config prefix: `190`.
 - The five central B0 anchors, configs `123--127`, completed and passed
   terminal review. Their final selection losses are `7.04913` (A0),
   `6.98875` (A1-H), `7.01310` (A3), `7.01645` (A6-PRE), and `7.03248`
