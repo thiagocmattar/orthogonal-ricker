@@ -152,7 +152,8 @@ work.
   `001-20260719-104856-93141c47`, completed at `R_block=0.22107` and
   `R_model=0.06622` and passed artifact, endpoint, and POST-RoPE identity review.
   Config `187` materializes the matched fixed `Gpm` POST-RoPE Q/K cell at
-  `kappa=0.10`; it is the next run to launch.
+  `kappa=0.10`; run `001-20260719-105711-4d2ba109` is active from clean commit
+  `0137ced`.
 - B0 has completed all `20 / 20` currently executable scientific cells
   (`20 / 22` declared); the two post-PV context cells remain blocked. The
   declared S1 core has completed `39 / 134` cells (`39 / 132` executable).
