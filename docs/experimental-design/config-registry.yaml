@@ -35,7 +35,7 @@ block_summary:
     materialized_cells: 24
     completed_cells: 23
     status: active
-    note: the first 23 B1 scientific cells, configs 149 through 193 at odd prefixes, plus their mandatory complete-selection propagation diagnostics are complete; config 195 materializes the final main-factorial cell and is ready
+    note: the first 23 B1 scientific cells, configs 149 through 193 at odd prefixes, plus their mandatory complete-selection propagation diagnostics are complete; config 195 is the active final main-factorial cell
   - block: S1-B2
     planned_cells: 26
     materialized_cells: 0
@@ -3626,8 +3626,8 @@ records:
     ricker_sigma: null
     step_budget: null
     matched_control_id: S1-B0-ARCH-A3-LR3EM5-S0
-    config_status: ready
+    config_status: active
     decision_status: pending
     release_tier: history
     canonical_run_id: null
-    notes: Twenty-fourth B1 scientific cell and final main-attention-factorial row; fixed absolute Gpm kappa 0.30 at POST-RoPE Q/K and post-split V, ordinary a/m/h ReLU, AdamW without pressure. Its identity-parent matched control is the Three-ReLU A3 config 125 because Gpm at kappa 0 is identity at Q/K/V. Launch only from a clean committed config; S1 supports feasibility/collapse and within-stratum comparisons only.
+    notes: Active twenty-fourth B1 scientific cell and final main-attention-factorial row. Fixed absolute Gpm kappa 0.30 at POST-RoPE Q/K and post-split V, ordinary a/m/h ReLU, AdamW without pressure. Run 001-20260719-131409-70c042d7 launched from clean commit 2b50fdf. Its identity-parent matched control is the Three-ReLU A3 config 125 because Gpm at kappa 0 is identity at Q/K/V; S1 supports feasibility/collapse and within-stratum comparisons only.

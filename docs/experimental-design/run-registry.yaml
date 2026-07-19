@@ -4124,3 +4124,43 @@ records:
     failure_message: null
     reviewed_at: 2026-07-19T13:11:07.9028829Z
     notes: Canonical statusless-complete schema-v3 diagnostic over the exact completed config 193 checkpoint. It pooled all 311296 complete selection tokens across 152 sequences and 38 batches, excluded 443 trailing cache tokens, recovered ordinary a/m/h ReLU plus fixed Gpm kappa 0.10 at POST-RoPE q/k and post-split V in all six layers, and emitted exact-zero, direct-product, and architecture-ceiling counts. POST-RoPE gate outputs equal the actual QK operands exactly, value gate output equals the PV operand exactly, and PRE-RoPE survival metrics are correctly unavailable. The five-file envelope, completed source manifest, and activation artifact SHA256 acbb132aadfad3c714ec8d2ef196cfbc436910f3223aa65111b64f99eca86b2b passed review.
+  - design_id: S1-B1-FIX-GPM-POST-QKV-K030-S0
+    config_id: 195-s1-b1-p14m-gpm-post-qkv-k030-s0
+    run_id: 001-20260719-131409-70c042d7
+    attempt: 1
+    mode: pretrain
+    result_path: results/195-s1-b1-p14m-gpm-post-qkv-k030-s0/001-20260719-131409-70c042d7
+    log_path: run-logs/195-s1-b1-p14m-gpm-post-qkv-k030-s0-attempt1.log
+    lifecycle_status: running
+    evidence_status: unreviewed
+    canonical: false
+    started_at: 2026-07-19T13:14:09.094583Z
+    finished_at: null
+    git_commit: 2b50fdf5be411eaf7eba20b82b2ac63ebd4d73d4
+    git_dirty: false
+    completed_steps: 0
+    tokens_seen: 0
+    model_initialization_seed: 0
+    data_order_seed: 0
+    training_schedule_scheme: random_contiguous_blocks_with_replacement_v1
+    training_schedule_hash: db4fa092d7092d29edc3bf1e2005af69f4a92b8bf6e6d88cbb6a166e12be02fc
+    effective_tokens_per_update: 65536
+    validation_partition: selection
+    validation_partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
+    validation_tokens: 311296
+    validation_loss: null
+    wall_hours: null
+    tokens_per_second: null
+    peak_gpu_mb: null
+    execution_backend: local
+    cloud_provider: null
+    gpu_type: NVIDIA GeForce RTX 5070 Ti Laptop GPU
+    gpu_count: 1
+    python_version: 3.12.10
+    pytorch_version: 2.11.0+cu128
+    cuda_version: "12.8"
+    gpu_driver_version: "572.84"
+    failure_type: null
+    failure_message: null
+    reviewed_at: null
+    notes: Active twenty-fourth B1 scientific cell and final main-attention-factorial row. Fixed absolute Gpm kappa 0.30 at POST-RoPE Q/K and post-split V, ordinary a/m/h ReLU, AdamW without pressure. Expected completion near 2026-07-19T13:35Z; S1 supports feasibility/collapse and within-stratum comparisons only. Standard error is recorded separately at run-logs/195-s1-b1-p14m-gpm-post-qkv-k030-s0-attempt1.err.log.
