@@ -1,6 +1,6 @@
 schema_version: 1
 campaign_id: pythia-sparsity-scaling-v1
-next_config_prefix: 210
+next_config_prefix: 211
 core_design_cells: 134
 core_executable_cells_without_context_gate: 132
 maximum_design_cells: 184
@@ -4289,3 +4289,50 @@ records:
     release_tier: history
     canonical_run_id: 001-20260719-174822-82abb149
     notes: Completed thirty-sixth and final B1 scientific cell; fixed absolute G+ kappa 0.10 at every A6-POST gate a/m/h/q/k/v with POST-RoPE Q/K, AdamW without pressure. Run 001-20260719-174822-82abb149 completed all 2048 steps from clean commit 5c17fa0 and passed terminal artifact, saved-config, checkpoint-hash, finite-event, and collapse review at selection loss 7.05266. Its matched ordinary-ReLU architecture parent is config 127 (A6-POST). Pooled complete-selection exact-zero and product endpoints remain pending diagnostic 210; S1 supports feasibility/collapse and within-stratum comparisons only.
+  - design_id: S1-B1-DIAG-BRANCH-SCOPE-SELECTION-S0
+    config_id: 210-s1-b1-branch-scope-selection-prop
+    config_path: configs/210-s1-b1-branch-scope-selection-prop.yaml
+    phase: S1
+    block: S1-B1-DIAGNOSTIC
+    comparison_id: S1-B1-BRANCH-SCOPE
+    pair_id: S1-B1-BRANCH-SCOPE-ENDPOINTS
+    promotion_family: null
+    kind: diagnostic
+    model_size: 14M
+    steps: 0
+    tokens: 311296
+    model_initialization_seed: 0
+    data_order_seed: 0
+    training_schedule_scheme: null
+    training_schedule_hash: null
+    effective_tokens_per_update: null
+    validation_partition: selection
+    validation_partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
+    architecture_id: mixed_branch_scope
+    gate_family: gplus
+    gate_sites: [a, m, h, q, k, v]
+    qk_placement: mixed
+    kappa_mode: fixed
+    kappa: null
+    kappa_init: null
+    kappa_scope: all_active_gates
+    threshold_scale: absolute
+    surrogate: null
+    temperature: null
+    threshold_learning_rate: null
+    optimizer_recipe: null
+    model_learning_rate: null
+    micro_batch_size: null
+    gradient_accumulation_steps: null
+    pressure_method: none
+    pressure_sites: []
+    pressure_weight: 0.0
+    ricker_c: null
+    ricker_sigma: null
+    step_budget: null
+    matched_control_id: null
+    config_status: ready
+    decision_status: control
+    release_tier: history
+    canonical_run_id: null
+    notes: Deferred pooled complete-selection endpoint diagnostic for the six one-sided branch-scope cells 204--209. Materialize only after all six exact canonical source run IDs exist; it will evaluate all 311296 complete selection tokens and emit exact-zero, direct-product, architecture-ceiling, and U_arch endpoints. Diagnostic-only and excluded from scientific-cell counts.

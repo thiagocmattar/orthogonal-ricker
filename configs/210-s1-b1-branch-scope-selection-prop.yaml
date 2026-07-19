@@ -1,0 +1,64 @@
+experiment_name: s1_b1_branch_scope_selection_propagation
+sweep:
+  name: pythia_sparsity_scaling_v1_s1_b1
+  role: branch_scope_selection_endpoint_diagnostic
+  design_id: S1-B1-DIAG-BRANCH-SCOPE-SELECTION-S0
+  notes: Complete frozen selection-partition exact-zero and logical-product diagnostic for the six B1 one-sided branch-scope cells; materialize only after configs 204--209 are terminal-reconciled.
+model:
+  provider: huggingface
+  name: pythia-14m-random-s1-b1-branch-scope-propagation
+  architecture: EleutherAI/pythia-14m-deduped
+  revision: 7386d9a4ae45aef494a6e704910394def3037fc5
+  initialization: random
+data:
+  name: JeanKaddour/minipile
+  revision: 18ad1b0c701eaa0de03d3cecfdd769cbc70ffbd0
+  split: validation
+  text_column: text
+  max_documents: 500
+evaluation:
+  metric: activation_propagation
+run:
+  seed: 0
+  max_examples: 500
+tokenizer:
+  name: EleutherAI/pythia-14m-deduped
+  revision: 7386d9a4ae45aef494a6e704910394def3037fc5
+preprocessing:
+  output_dir: data/tokenized
+  cache_id: 03-pythia-14m-minipile-random-full-10min
+  block_size: 2048
+  append_eos: true
+  overwrite: false
+validation:
+  enabled: true
+  split: validation
+  max_documents: 500
+  partition: selection
+  partition_scheme: shuffled_source_documents_half_v1
+  partition_seed: 20260718
+  partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
+  eval_batches: null
+  batch_size: 4
+activation_propagation:
+  selected_runs:
+    - label: G+ A1-H kappa 0.03
+      config_id: 204-s1-b1-p14m-gplus-a1h-k003-s0
+      run_id: 001-20260719-162004-acaa3c4d
+    - label: G+ A1-H kappa 0.10
+      config_id: 205-s1-b1-p14m-gplus-a1h-k010-s0
+      run_id: 001-20260719-163632-0ef57fc3
+    - label: G+ A3 kappa 0.03
+      config_id: 206-s1-b1-p14m-gplus-a3-k003-s0
+      run_id: 001-20260719-165244-cdb05be6
+    - label: G+ A3 kappa 0.10
+      config_id: 207-s1-b1-p14m-gplus-a3-k010-s0
+      run_id: 001-20260719-171028-3317c771
+    - label: G+ A6-POST kappa 0.03
+      config_id: 208-s1-b1-p14m-gplus-a6post-k003-s0
+      run_id: 001-20260719-172812-44207e36
+    - label: G+ A6-POST kappa 0.10
+      config_id: 209-s1-b1-p14m-gplus-a6post-k010-s0
+      run_id: 001-20260719-174822-82abb149
+output:
+  dir: results
