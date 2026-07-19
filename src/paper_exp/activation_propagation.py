@@ -474,30 +474,21 @@ def _post_qkv_relu_metadata(layers: list[Any]) -> dict[str, Any]:
     if (query or key) and placement not in {"pre_rope", "post_rope"}:
         raise ValueError("Q/K gates require qk_placement pre_rope or post_rope.")
 
-    gate_spec_signatures = {
-        tuple(
-            None
-            if row["gate_specs"][name] is None
-            else (
-                row["gate_specs"][name]["gate_family"],
-                row["gate_specs"][name]["gate_type"],
-                float(row["gate_specs"][name]["kappa"]),
-            )
-            for name in ("query", "key", "value")
-        )
+    entries = [
+        (row["layer"], {"query": "q", "key": "k", "value": "v"}[name], row["gate_specs"][name])
         for row in per_layer
+        for name in ("query", "key", "value")
+        if row["gate_specs"][name] is not None
+    ]
+    _validate_gate_spec_entries(entries, context="Post-QKV")
+    gate_specs = {
+        name: _summarize_gate_specs(
+            [row["gate_specs"][name] for row in per_layer if row["gate_specs"][name] is not None]
+        )
+        for name in ("query", "key", "value")
     }
-    if len(gate_spec_signatures) != 1:
-        raise ValueError("Post-QKV gate family and kappa must match across all layers.")
-    gate_specs = dict(per_layer[0]["gate_specs"])
-    enabled_specs = [spec for spec in gate_specs.values() if spec is not None]
-    common_specs = {
-        (spec["gate_family"], spec["gate_type"], float(spec["kappa"]))
-        for spec in enabled_specs
-    }
-    if len(common_specs) > 1:
-        raise ValueError("Enabled Q/K/V gates must share one gate family, type, and kappa.")
-    common_spec = enabled_specs[0] if enabled_specs else None
+    enabled_specs = [spec for _layer, _site, spec in entries]
+    common_spec = _summarize_gate_specs(enabled_specs)
     return {
         "enabled": bool(query or key or value),
         "query": query,
@@ -506,10 +497,109 @@ def _post_qkv_relu_metadata(layers: list[Any]) -> dict[str, Any]:
         "qk_placement": placement,
         "gate_family": common_spec["gate_family"] if common_spec is not None else None,
         "gate_type": common_spec["gate_type"] if common_spec is not None else None,
-        "kappa": float(common_spec["kappa"]) if common_spec is not None else None,
+        "kappa": common_spec.get("kappa") if common_spec is not None else None,
         "gate_specs": gate_specs,
         "layers": per_layer,
     }
+
+
+def _gate_is_learned(spec: dict[str, Any]) -> bool:
+    return str(spec.get("gate_type", "")).startswith("learned_")
+
+
+def _gate_structure(spec: dict[str, Any]) -> tuple[Any, ...]:
+    if not _gate_is_learned(spec):
+        return (
+            spec["gate_family"],
+            spec["gate_type"],
+            float(spec["kappa"]),
+        )
+    return (
+        spec["gate_family"],
+        spec["gate_type"],
+        float(spec["kappa_init"]),
+        spec["kappa_scope"],
+        spec["threshold_scale"],
+        spec["surrogate"],
+        float(spec["temperature"]),
+        float(spec["rms_epsilon"]),
+    )
+
+
+def _validate_gate_spec_entries(
+    entries: list[tuple[int, str, dict[str, Any]]],
+    *,
+    context: str,
+) -> None:
+    if not entries:
+        return
+    learned_flags = {_gate_is_learned(spec) for _layer, _site, spec in entries}
+    if len(learned_flags) != 1:
+        raise ValueError(f"{context} enabled gates must not mix fixed and learned gate types.")
+    structures = {_gate_structure(spec) for _layer, _site, spec in entries}
+    if len(structures) != 1:
+        if next(iter(learned_flags)):
+            raise ValueError(f"{context} learned gate structure must match across enabled sites and layers.")
+        raise ValueError(f"{context} gate family and kappa must match across enabled sites and layers.")
+    if not next(iter(learned_flags)):
+        return
+    _validate_learned_parameter_keys(entries, context=context)
+
+
+def _validate_learned_parameter_keys(
+    entries: list[tuple[int, str, dict[str, Any]]],
+    *,
+    context: str,
+) -> None:
+    by_key: dict[str, set[float]] = {}
+    structures_by_key: dict[str, set[tuple[Any, ...]]] = {}
+    for layer, site, spec in entries:
+        if not _gate_is_learned(spec):
+            continue
+        scope = spec["kappa_scope"]
+        expected_key = (
+            "global"
+            if scope == "global"
+            else site
+            if scope == "per_site"
+            else f"layer_{layer}__{site}"
+        )
+        actual_key = spec.get("parameter_key")
+        if actual_key != expected_key:
+            raise ValueError(
+                f"{context} learned gate parameter key mismatch for layer {layer}, site {site}: "
+                f"expected {expected_key!r}, got {actual_key!r}."
+            )
+        by_key.setdefault(str(actual_key), set()).add(float(spec["kappa"]))
+        structures_by_key.setdefault(str(actual_key), set()).add(_gate_structure(spec))
+    inconsistent = sorted(key for key, kappas in by_key.items() if len(kappas) != 1)
+    if inconsistent:
+        raise ValueError(
+            f"{context} learned gates sharing a parameter key report different kappa values: {inconsistent}."
+        )
+    structurally_inconsistent = sorted(
+        key for key, structures in structures_by_key.items() if len(structures) != 1
+    )
+    if structurally_inconsistent:
+        raise ValueError(
+            f"{context} learned gates sharing a parameter key report different structures: "
+            f"{structurally_inconsistent}."
+        )
+
+
+def _summarize_gate_specs(specs: list[dict[str, Any]]) -> dict[str, Any] | None:
+    if not specs:
+        return None
+    first = dict(specs[0])
+    if not _gate_is_learned(first):
+        return first
+    kappas = {float(spec["kappa"]) for spec in specs}
+    parameter_keys = {str(spec["parameter_key"]) for spec in specs}
+    first["kappa_uniform"] = len(kappas) == 1
+    first["parameter_key_uniform"] = len(parameter_keys) == 1
+    first["kappa"] = next(iter(kappas)) if len(kappas) == 1 else None
+    first["parameter_key"] = next(iter(parameter_keys)) if len(parameter_keys) == 1 else None
+    return first
 
 
 def _architecture_metadata(
@@ -546,21 +636,17 @@ def _architecture_metadata(
             "Branch and MLP-hidden gate presence must match across all layers."
         )
     attention_input, mlp_input, mlp_hidden = next(iter(branch_signatures))
-    branch_spec_signatures = {
-        tuple(
-            None
-            if specs[site] is None
-            else (
-                specs[site]["gate_family"],
-                specs[site]["gate_type"],
-                float(specs[site]["kappa"]),
-            )
-            for site in ("a", "m", "h")
+    branch_entries = [
+        (layer_index, site, specs[site])
+        for layer_index, specs in enumerate(branch_gate_specs_per_layer)
+        for site in ("a", "m", "h")
+        if specs[site] is not None
+    ]
+    for site in ("a", "m", "h"):
+        _validate_gate_spec_entries(
+            [entry for entry in branch_entries if entry[1] == site],
+            context=f"Branch site {site}",
         )
-        for specs in branch_gate_specs_per_layer
-    }
-    if len(branch_spec_signatures) != 1:
-        raise ValueError("Branch gate family and kappa must match across all layers.")
 
     projection_signatures = {
         (
@@ -626,13 +712,34 @@ def _architecture_metadata(
     placement = post_qkv_relu["qk_placement"] if active["q"] or active["k"] else None
     qkv_gate_specs = post_qkv_relu.get("gate_specs", {})
     gate_specs = {
-        "a": branch_gate_specs_per_layer[0]["a"],
-        "m": branch_gate_specs_per_layer[0]["m"],
-        "h": branch_gate_specs_per_layer[0]["h"],
+        "a": _summarize_gate_specs([specs["a"] for specs in branch_gate_specs_per_layer if specs["a"] is not None]),
+        "m": _summarize_gate_specs([specs["m"] for specs in branch_gate_specs_per_layer if specs["m"] is not None]),
+        "h": _summarize_gate_specs([specs["h"] for specs in branch_gate_specs_per_layer if specs["h"] is not None]),
         "q": qkv_gate_specs.get("query"),
         "k": qkv_gate_specs.get("key"),
         "v": qkv_gate_specs.get("value"),
     }
+    qkv_layers = post_qkv_relu.get("layers", [])
+    gate_specs_per_layer = []
+    combined_learned_entries = list(branch_entries)
+    for layer_index, branch_specs in enumerate(branch_gate_specs_per_layer):
+        attention_specs = qkv_layers[layer_index]["gate_specs"] if qkv_layers else {}
+        row = {
+            "layer": layer_index,
+            "a": branch_specs["a"],
+            "m": branch_specs["m"],
+            "h": branch_specs["h"],
+            "q": attention_specs.get("query"),
+            "k": attention_specs.get("key"),
+            "v": attention_specs.get("value"),
+        }
+        gate_specs_per_layer.append(row)
+        combined_learned_entries.extend(
+            (layer_index, site, row[site])
+            for site in ("q", "k", "v")
+            if row[site] is not None
+        )
+    _validate_learned_parameter_keys(combined_learned_entries, context="Architecture")
 
     attention_core_products = hidden_size * block_size * (block_size + 1) // 2
     operation_products_per_sequence_per_layer = {
@@ -652,6 +759,7 @@ def _architecture_metadata(
         "active_gate_sites": active_sites,
         "gate_presence": active,
         "gate_specs": gate_specs,
+        "gate_specs_per_layer": gate_specs_per_layer,
         "qk_gate_placement": placement,
         "hidden_activation": str(getattr(model.config, "hidden_act", "")),
         "num_layers": len(layers),

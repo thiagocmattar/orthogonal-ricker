@@ -32,21 +32,21 @@ measurement but does not dispatch the command.
 | Module | Owns | Look here when changing |
 | --- | --- | --- |
 | `cli.py` | Argument parsing and command dispatch | Command names, flags, or routing |
-| `config.py` | Shared filename and minimum-field validation; random-initialization invariant | Cross-workflow config rules |
+| `config.py` | Shared validation, random-initialization invariant, and learned-gate training/checkpoint contracts | Cross-workflow config rules |
 | `integrity.py` | Read-only checks for configs, run envelopes, document references, paper outputs, and figure numbering | Preflight and open-source release checks |
 | `run.py` | Experiment/run directory naming, smoke/calibration lifecycle, and the common config/metrics/manifest/predictions envelope | Launch snapshots, terminal status, and artifacts required of completed runs |
 | `pretrain_queue.py` | Clean-provenance, fail-stop serial execution of prespecified pretraining config tranches | Batched local launches, queue state, locking, and terminal artifact verification |
 | `utils.py` | JSON/JSONL helpers and environment, Git, GPU, package, and run provenance | Manifest contents and serialization |
 | `data.py` | Dataset loading, tokenization, cache metadata, and cache reuse checks | `data`, `tokenizer`, and `preprocessing` behavior |
 | `reproducibility.py` | Deterministic data-order schedules and document-disjoint validation partition definitions/hashes | Campaign seed, schedule, or validation comparability contracts |
-| `calibration.py` | Calibration and pretraining loops, validation, checkpoints, training events, and naive/orthogonal update routing | Optimizer or training-loop behavior |
-| `modeling.py` | Runtime model architecture modifications and checkpoint reconstruction | Post-LayerNorm and post-QKV Q/K/V ReLU behavior; treat as scientific code |
+| `calibration.py` | Calibration and pretraining loops, optimizer groups, validation, checkpoints, training events, and naive/orthogonal update routing | Optimizer or training-loop behavior |
+| `modeling.py` | Runtime ReLU/fixed/learned threshold architecture modifications and checkpoint reconstruction | Post-LayerNorm, MLP-hidden, and post-QKV Q/K/V gate behavior; treat as scientific code |
 | `activations.py` | Named activation sites, hooks, captured tensors, and post-hoc clipping | Where a site is measured or modified |
 | `activation_pressure.py` | Pressure config parsing, L1/Ricker losses, gradient diagnostics, and Adam-step orthogonal correction | Pressure mathematics and metrics |
 | `clipping.py` | Checkpoint-based clipping sweeps and logical projection-skip proxies | Post-hoc clipping evaluation |
 | `activation_histograms.py` | Activation-distribution diagnostics across selected checkpoints | `activation_histograms` runs |
 | `weight_histograms.py` | Checkpoint parameter-distribution diagnostics | `weight_histograms` runs |
-| `activation_propagation.py` | Exact-zero propagation and logical zero-product accounting | `activation_propagation` runs |
+| `activation_propagation.py` | Exact-zero propagation, dynamic gate metadata, and logical zero-product accounting | `activation_propagation` runs |
 | `sweeps.py` | The fixed-step pressure matrix, generated configs, and sequential sweep runners | Existing fixed-step sweep composition |
 | `plots.py` | Stable plotting facade, procedural dispatch, result selection, public wrappers, and legacy figure families | CLI compatibility, figure dependencies, output names, or a family not yet extracted |
 | `plot_api.py` | Count-derived panel grids, scoped one-build PDF/PNG export, and publication-profile validation | Shared final-size layout/export behavior that does not change scientific content |

@@ -1,19 +1,26 @@
 from __future__ import annotations
 
+import copy
 from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 import torch
 
-from paper_exp.calibration import _apply_model_architecture_overrides
+from paper_exp.calibration import _adamw_parameters, _apply_model_architecture_overrides, _set_optimizer_lr
 from paper_exp.modeling import (
+    AdaptiveThresholdController,
     FixedOneSidedThreshold,
     FixedSymmetricThreshold,
+    LearnedThresholdGate,
+    adaptive_threshold_parameter_items,
+    adaptive_threshold_parameter_snapshot,
+    adaptive_threshold_training_metrics,
     apply_mlp_hidden_gate,
     apply_post_layernorm_relu,
     apply_post_qkv_relu,
     load_checkpoint_model,
+    set_adaptive_threshold_stats_enabled,
 )
 
 
@@ -259,6 +266,246 @@ def test_fixed_one_sided_threshold_preserves_boundary_and_gradients() -> None:
 
     output.sum().backward()
     assert torch.equal(value.grad, torch.tensor([0.0, 0.0, 0.0, 1.0, 1.0]))
+
+
+@pytest.mark.parametrize(
+    ("gate_family", "expected"),
+    [
+        ("gplus", [0.0, 0.0, 0.0, 0.1, 0.2]),
+        ("gpm", [-0.2, -0.1, 0.0, 0.1, 0.2]),
+    ],
+)
+def test_learned_threshold_is_exact_hard_forward_with_threshold_only_soft_backward(
+    gate_family: str,
+    expected: list[float],
+) -> None:
+    controller = AdaptiveThresholdController()
+    rho = controller.parameter_for("layer_0__q", kappa_init=0.1)
+    gate = LearnedThresholdGate(
+        controller=controller,
+        parameter_key="layer_0__q",
+        metric_name="query_gate_outputs.layer_0",
+        gate_family=gate_family,
+        kappa_init=0.1,
+        kappa_scope="per_layer_site",
+        threshold_scale="absolute",
+        temperature=0.03,
+        rms_epsilon=1e-8,
+    )
+    value = torch.tensor([-0.2, -0.1, 0.05, 0.1, 0.2], requires_grad=True)
+
+    output = gate(value)
+    assert torch.equal(output, torch.tensor(expected))
+    output.sum().backward()
+
+    expected_input_gradient = (torch.tensor(expected) != 0).float()
+    assert torch.equal(value.grad, expected_input_gradient)
+    assert rho.dtype == torch.float32
+    assert rho.grad is not None
+    assert torch.isfinite(rho.grad)
+    assert float(rho.grad.abs()) > 0.0
+    assert gate.kappa().item() == pytest.approx(0.1)
+
+
+def test_learned_rms_relative_gate_is_scale_invariant_and_detaches_rms_statistic() -> None:
+    controller = AdaptiveThresholdController()
+    controller.parameter_for("v", kappa_init=0.8)
+    gate = LearnedThresholdGate(
+        controller=controller,
+        parameter_key="v",
+        metric_name="value_gate_outputs.layer_0",
+        gate_family="gpm",
+        kappa_init=0.8,
+        kappa_scope="per_site",
+        threshold_scale="rms_relative",
+        temperature=0.03,
+        rms_epsilon=1e-8,
+    )
+    base = torch.tensor([-2.0, -0.2, 0.1, 1.0], requires_grad=True)
+    scaled = (10.0 * base.detach()).requires_grad_(True)
+
+    base_output = gate(base)
+    scaled_output = gate(scaled)
+
+    assert torch.equal(base_output == 0, scaled_output == 0)
+    assert torch.allclose(scaled_output, 10.0 * base_output)
+    base_output.sum().backward()
+    assert torch.equal(base.grad, (base_output != 0).float())
+
+
+def test_adaptive_threshold_metrics_cover_gate_distribution_and_parameter_diagnostics() -> None:
+    class TinyLearnedModel(torch.nn.Module):
+        def __init__(self) -> None:
+            super().__init__()
+            self.adaptive_threshold_controller = AdaptiveThresholdController()
+            self.adaptive_threshold_controller.parameter_for("v", kappa_init=0.1)
+            self.gate = LearnedThresholdGate(
+                controller=self.adaptive_threshold_controller,
+                parameter_key="v",
+                metric_name="value_gate_outputs.layer_0",
+                gate_family="gpm",
+                kappa_init=0.1,
+                kappa_scope="per_site",
+                threshold_scale="absolute",
+                temperature=0.03,
+                rms_epsilon=1e-8,
+            )
+
+    model = TinyLearnedModel()
+    set_adaptive_threshold_stats_enabled(model, True)
+    parameter = adaptive_threshold_parameter_items(model)[0][1]
+    before_step = adaptive_threshold_parameter_snapshot(model)
+    value = torch.tensor([-2.0, -0.1, 0.0, 0.2, 1.0])
+    model.gate(value).sum().backward()
+    torch.optim.SGD([parameter], lr=0.01).step()
+
+    metrics = adaptive_threshold_training_metrics(model, before_step=before_step)
+    prefix = "atg/value_gate_outputs.layer_0"
+    assert metrics[f"{prefix}/forward_kappa"] == pytest.approx(0.1)
+    assert f"{prefix}/kappa" not in metrics
+    assert metrics[f"{prefix}/threshold_quantile"] == pytest.approx(0.2)
+    assert metrics[f"{prefix}/zero_fraction"] == pytest.approx(0.2)
+    assert metrics[f"{prefix}/positive_survivor_fraction"] == pytest.approx(0.5)
+    assert metrics[f"{prefix}/negative_survivor_fraction"] == pytest.approx(0.5)
+    assert metrics[f"{prefix}/survivor_sign_balance"] == pytest.approx(0.0)
+    assert metrics[f"{prefix}/survivor_rms"] == pytest.approx((5.05 / 4.0) ** 0.5)
+    assert metrics[f"{prefix}/all_zero_flag"] == 0.0
+    assert metrics[f"{prefix}/all_survive_flag"] == 0.0
+    assert metrics["atg/parameter/v/gradient_norm"] > 0.0
+    assert metrics["atg/parameter/v/step_norm"] > 0.0
+    assert metrics["atg/parameter/v/kappa_step_norm"] > 0.0
+    assert metrics["atg/parameter/v/kappa_over_init"] > 0.0
+    assert metrics["atg/parameter/v/zero_kappa_flag"] == 0.0
+    assert metrics["atg/parameter/v/nonfinite_threshold_flag"] == 0.0
+    assert metrics["atg/parameter/v/frozen_threshold_flag"] == 0.0
+
+
+def test_adaptive_threshold_optimizer_group_has_no_decay_and_preserves_lr_multiplier() -> None:
+    class TinyLearnedModel(torch.nn.Module):
+        def __init__(self) -> None:
+            super().__init__()
+            self.weight = torch.nn.Parameter(torch.tensor(1.0))
+            self.adaptive_threshold_controller = AdaptiveThresholdController()
+            self.adaptive_threshold_controller.parameter_for("global", kappa_init=0.1)
+
+    model = TinyLearnedModel()
+    groups = _adamw_parameters(
+        model,
+        weight_decay=0.01,
+        threshold_learning_rate_multiplier=10.0,
+    )
+    optimizer = torch.optim.AdamW(groups, lr=3e-5, weight_decay=0.01)
+    _set_optimizer_lr(optimizer, 2e-5)
+
+    by_name = {group["group_name"]: group for group in optimizer.param_groups}
+    assert by_name["model"]["lr"] == pytest.approx(2e-5)
+    assert by_name["model"]["weight_decay"] == pytest.approx(0.01)
+    assert by_name["adaptive_threshold"]["lr"] == pytest.approx(2e-4)
+    assert by_name["adaptive_threshold"]["weight_decay"] == 0.0
+    assert by_name["adaptive_threshold"]["lr_multiplier"] == 10.0
+    threshold_parameter = adaptive_threshold_parameter_items(model)[0][1]
+    assert by_name["adaptive_threshold"]["params"] == [threshold_parameter]
+
+
+@pytest.mark.parametrize(
+    ("scope", "expected_parameters"),
+    [("global", 1), ("per_site", 6), ("per_layer_site", 12)],
+)
+def test_learned_a6_threshold_sharing_scope_has_expected_parameter_count(
+    scope: str,
+    expected_parameters: int,
+) -> None:
+    from transformers import GPTNeoXConfig, GPTNeoXForCausalLM
+
+    gate = {
+        "gate_type": "learned_one_sided_threshold",
+        "kappa_init": 0.1,
+        "kappa_scope": scope,
+        "threshold_scale": "absolute",
+        "temperature": 0.03,
+    }
+    architecture = GPTNeoXConfig(
+        vocab_size=32,
+        hidden_size=8,
+        intermediate_size=16,
+        num_hidden_layers=2,
+        num_attention_heads=2,
+        max_position_embeddings=16,
+        rotary_pct=0.5,
+        hidden_act="relu",
+    )
+    architecture.post_layernorm_relu = True
+    architecture.post_layernorm_gate = dict(gate)
+    architecture.mlp_hidden_gate = dict(gate)
+    architecture.post_qkv_relu = {
+        "enabled": True,
+        "query": True,
+        "key": True,
+        "value": True,
+        "qk_placement": "post_rope",
+        **gate,
+    }
+    model = GPTNeoXForCausalLM(architecture)
+    apply_post_layernorm_relu(model, torch=torch)
+    apply_mlp_hidden_gate(model, torch=torch)
+    apply_post_qkv_relu(model, torch=torch)
+    # Exercise Module._apply: ordinary model parameters may change dtype, but
+    # rho remains FP32 and gates resolve the controller's current parameter.
+    model.to(dtype=torch.bfloat16)
+    assert model.gpt_neox.embed_in.weight.dtype == torch.bfloat16
+
+    assert len(adaptive_threshold_parameter_items(model)) == expected_parameters
+    for layer in model.gpt_neox.layers:
+        for gate_module in (
+            layer.attention_input_relu,
+            layer.mlp_input_relu,
+            layer.mlp.act,
+            layer.attention.query_relu,
+            layer.attention.key_relu,
+            layer.attention.value_relu,
+        ):
+            assert isinstance(gate_module, LearnedThresholdGate)
+            assert gate_module.rho.dtype == torch.float32
+            assert gate_module.rho is dict(adaptive_threshold_parameter_items(model))[gate_module.parameter_key]
+
+    model.to(dtype=torch.float32)
+    loss = model(
+        input_ids=torch.tensor([[1, 2, 3, 4]]),
+        labels=torch.tensor([[1, 2, 3, 4]]),
+        use_cache=False,
+    ).loss
+    loss.backward()
+    for _name, parameter in adaptive_threshold_parameter_items(model):
+        assert parameter.grad is not None
+        assert torch.isfinite(parameter.grad)
+
+
+def test_learned_gate_controller_relation_survives_whole_model_deepcopy() -> None:
+    class TinyLearnedModel(torch.nn.Module):
+        def __init__(self) -> None:
+            super().__init__()
+            self.adaptive_threshold_controller = AdaptiveThresholdController()
+            self.adaptive_threshold_controller.parameter_for("global", kappa_init=0.1)
+            self.gate = LearnedThresholdGate(
+                controller=self.adaptive_threshold_controller,
+                parameter_key="global",
+                metric_name="mlp_hiddens.layer_0",
+                gate_family="gplus",
+                kappa_init=0.1,
+                kappa_scope="global",
+                threshold_scale="absolute",
+                temperature=0.03,
+                rms_epsilon=1e-8,
+            )
+
+    original = TinyLearnedModel()
+    copied = copy.deepcopy(original)
+
+    assert copied.gate.rho is copied.adaptive_threshold_controller.rhos["global"]
+    assert copied.gate.rho is not original.gate.rho
+    with torch.no_grad():
+        copied.gate.rho.add_(1.0)
+    assert not torch.equal(copied.gate.rho, original.gate.rho)
 
 
 def test_fixed_one_sided_branch_gates_are_exact_downstream_inputs() -> None:
@@ -537,6 +784,145 @@ def test_real_gpt_neox_checkpoint_round_trip_preserves_all_fixed_gplus_sites(
     assert not hasattr(loaded.gpt_neox, "final_layer_norm_gate")
     output = loaded(input_ids=torch.tensor([[1, 2, 3]]), use_cache=True)
     assert torch.isfinite(output.logits).all()
+
+
+def test_real_gpt_neox_learned_threshold_and_optimizer_round_trip_is_exact(
+    tmp_path: Path,
+) -> None:
+    from transformers import GPTNeoXConfig, GPTNeoXForCausalLM
+
+    learned_gate = {
+        "gate_type": "learned_symmetric_threshold",
+        "kappa_init": 0.1,
+        "kappa_scope": "per_layer_site",
+        "threshold_scale": "absolute",
+        "surrogate": "hard_forward_soft_backward",
+        "temperature": 0.03,
+    }
+    architecture = GPTNeoXConfig(
+        vocab_size=32,
+        hidden_size=8,
+        intermediate_size=16,
+        num_hidden_layers=2,
+        num_attention_heads=2,
+        max_position_embeddings=16,
+        rotary_pct=0.5,
+        hidden_act="relu",
+        hidden_dropout=0.0,
+        attention_dropout=0.0,
+        use_cache=False,
+    )
+    architecture.post_qkv_relu = {
+        "enabled": True,
+        "query": True,
+        "key": True,
+        "value": True,
+        "qk_placement": "post_rope",
+        **learned_gate,
+    }
+    model = GPTNeoXForCausalLM(architecture)
+    apply_post_qkv_relu(model, torch=torch)
+    optimizer = torch.optim.AdamW(
+        _adamw_parameters(
+            model,
+            weight_decay=0.01,
+            threshold_learning_rate_multiplier=3.0,
+        ),
+        lr=3e-5,
+        weight_decay=0.01,
+    )
+    input_ids = torch.tensor([[1, 2, 3, 4]])
+    model.train()
+    loss = model(input_ids=input_ids, labels=input_ids, use_cache=False).loss
+    loss.backward()
+    optimizer.step()
+    optimizer.zero_grad(set_to_none=True)
+
+    model.eval()
+    before_logits, before_gate_outputs = _capture_learned_gate_outputs(model, input_ids)
+    before_parameters = {
+        name: parameter.detach().clone()
+        for name, parameter in adaptive_threshold_parameter_items(model)
+    }
+    before_optimizer_threshold_state = {
+        name: {
+            state_name: (
+                state_value.detach().clone()
+                if isinstance(state_value, torch.Tensor)
+                else state_value
+            )
+            for state_name, state_value in optimizer.state[parameter].items()
+        }
+        for name, parameter in adaptive_threshold_parameter_items(model)
+    }
+    model.save_pretrained(tmp_path, safe_serialization=True)
+    torch.save(optimizer.state_dict(), tmp_path / "optimizer.pt")
+
+    loaded = load_checkpoint_model(GPTNeoXForCausalLM, tmp_path, torch=torch)
+    loaded.eval()
+    after_logits, after_gate_outputs = _capture_learned_gate_outputs(loaded, input_ids)
+    after_parameters = dict(adaptive_threshold_parameter_items(loaded))
+
+    assert set(after_parameters) == set(before_parameters)
+    for name, before in before_parameters.items():
+        assert torch.equal(after_parameters[name].detach(), before)
+    assert torch.equal(after_logits, before_logits)
+    assert len(after_gate_outputs) == len(before_gate_outputs) == 6
+    for before, after in zip(before_gate_outputs, after_gate_outputs, strict=True):
+        assert torch.equal(after, before)
+        assert torch.equal(after == 0, before == 0)
+
+    loaded_optimizer = torch.optim.AdamW(
+        _adamw_parameters(
+            loaded,
+            weight_decay=0.01,
+            threshold_learning_rate_multiplier=3.0,
+        ),
+        lr=3e-5,
+        weight_decay=0.01,
+    )
+    loaded_optimizer.load_state_dict(
+        torch.load(tmp_path / "optimizer.pt", map_location="cpu", weights_only=True)
+    )
+    loaded_groups = {group["group_name"]: group for group in loaded_optimizer.param_groups}
+    assert loaded_groups["adaptive_threshold"]["lr_multiplier"] == 3.0
+    assert loaded_groups["adaptive_threshold"]["weight_decay"] == 0.0
+    loaded_threshold_parameters = dict(adaptive_threshold_parameter_items(loaded))
+    for name, parameter in loaded_threshold_parameters.items():
+        state = loaded_optimizer.state[parameter]
+        assert torch.isfinite(state["exp_avg"]).all()
+        assert torch.isfinite(state["exp_avg_sq"]).all()
+        before_state = before_optimizer_threshold_state[name]
+        assert set(state) == set(before_state)
+        for state_name, before_value in before_state.items():
+            after_value = state[state_name]
+            if isinstance(before_value, torch.Tensor):
+                assert torch.equal(after_value, before_value)
+            else:
+                assert after_value == before_value
+
+
+def _capture_learned_gate_outputs(
+    model: torch.nn.Module,
+    input_ids: torch.Tensor,
+) -> tuple[torch.Tensor, list[torch.Tensor]]:
+    outputs: list[torch.Tensor] = []
+    handles = []
+    for layer in model.gpt_neox.layers:
+        for name in ("query_relu", "key_relu", "value_relu"):
+            gate = getattr(layer.attention, name)
+            handles.append(
+                gate.register_forward_hook(
+                    lambda _module, _inputs, output: outputs.append(output.detach().clone())
+                )
+            )
+    try:
+        with torch.no_grad():
+            logits = model(input_ids=input_ids, use_cache=False).logits.detach().clone()
+    finally:
+        for handle in handles:
+            handle.remove()
+    return logits, outputs
 
 
 class _TinyPythiaLikeModel(torch.nn.Module):

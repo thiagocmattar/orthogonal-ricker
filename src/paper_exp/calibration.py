@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from contextlib import nullcontext
 import hashlib
+import math
 import time
 from pathlib import Path
 from typing import Any
@@ -16,7 +17,15 @@ from paper_exp.activation_pressure import pressure_loss
 from paper_exp.activations import ActivationCapture
 from paper_exp.config import validate_config
 from paper_exp.data import metadata_matches_config, tokenized_cache_dir, validation_metadata_path
-from paper_exp.modeling import apply_mlp_hidden_gate, apply_post_layernorm_relu, apply_post_qkv_relu
+from paper_exp.modeling import (
+    adaptive_threshold_parameter_items,
+    adaptive_threshold_parameter_snapshot,
+    adaptive_threshold_training_metrics,
+    apply_mlp_hidden_gate,
+    apply_post_layernorm_relu,
+    apply_post_qkv_relu,
+    set_adaptive_threshold_stats_enabled,
+)
 from paper_exp.reproducibility import TRAINING_SCHEDULE_SCHEME
 from paper_exp.reproducibility import build_training_schedule
 from paper_exp.run import RunHandle, complete_run, run_lifecycle
@@ -120,8 +129,13 @@ def _run_started_calibration(
 
     base_learning_rate = float(training["learning_rate"])
     optimizer_config = _optimizer_config(training)
+    optimizer_parameters = _adamw_parameters(
+        model,
+        weight_decay=optimizer_config["weight_decay"],
+        threshold_learning_rate_multiplier=optimizer_config["threshold_learning_rate_multiplier"],
+    )
     optimizer = torch.optim.AdamW(
-        model.parameters(),
+        optimizer_parameters,
         lr=base_learning_rate,
         betas=optimizer_config["betas"],
         eps=optimizer_config["eps"],
@@ -189,6 +203,12 @@ def _run_started_calibration(
             learning_rate = _learning_rate_for_step(step, base_learning_rate, warmup_steps)
             _set_optimizer_lr(optimizer, learning_rate)
 
+            should_log = step == 1 or step % log_every == 0 or step == max_steps
+            should_eval = (
+                validation_tokens is not None
+                and (step == 1 or step % int(validation_config["eval_every_steps"]) == 0 or step == max_steps)
+            )
+
             step_result = _run_training_step(
                 model=model,
                 optimizer=optimizer,
@@ -205,13 +225,9 @@ def _run_started_calibration(
                 activation_capture=activation_capture,
                 step=step,
                 schedule_step=(None if training_schedule is None else training_schedule[step - 1]),
+                record_threshold_metrics=should_log,
             )
 
-            should_log = step == 1 or step % log_every == 0 or step == max_steps
-            should_eval = (
-                validation_tokens is not None
-                and (step == 1 or step % int(validation_config["eval_every_steps"]) == 0 or step == max_steps)
-            )
             grad_norm = step_result["pressure/task_gradient_norm"] if should_log or should_eval else None
             weight_norm = _global_weight_norm(model) if should_log or should_eval else None
             mlp_weight_norm = _mlp_weight_norm(model) if should_log or should_eval else None
@@ -229,7 +245,7 @@ def _run_started_calibration(
                 final_pressure_metrics = {
                     key: value
                     for key, value in step_result.items()
-                    if key.startswith("pressure/") or key.startswith("activation/") or key in {
+                    if key.startswith(("pressure/", "activation/", "atg/")) or key in {
                         "pressure_loss",
                         "pressure_weight",
                         "weighted_pressure_loss",
@@ -399,6 +415,7 @@ def _run_started_calibration(
             "adamw_betas": list(optimizer_config["betas"]),
             "adamw_eps": optimizer_config["eps"],
             "weight_decay": optimizer_config["weight_decay"],
+            "threshold_learning_rate_multiplier": optimizer_config["threshold_learning_rate_multiplier"],
             "gradient_clipping": None,
         },
         "activation_pressure": {
@@ -436,6 +453,13 @@ def _run_started_calibration(
     post_qkv_relu = getattr(getattr(model, "config", None), "post_qkv_relu", None)
     if post_qkv_relu is not None:
         model_manifest["post_qkv_relu"] = dict(post_qkv_relu)
+    threshold_items = adaptive_threshold_parameter_items(model)
+    if threshold_items:
+        model_manifest["adaptive_threshold_parameter_count"] = len(threshold_items)
+        model_manifest["adaptive_threshold_parameters"] = {
+            name: float(torch.nn.functional.softplus(parameter.detach().float()).cpu())
+            for name, parameter in threshold_items
+        }
     manifest_updates["model"] = model_manifest
     validation_manifest = dict(validation_config)
     if validation_metadata is not None:
@@ -479,7 +503,9 @@ def _run_training_step(
     activation_capture: Any,
     step: int,
     schedule_step: Any = None,
+    record_threshold_metrics: bool = False,
 ) -> dict[str, Any]:
+    set_adaptive_threshold_stats_enabled(model, record_threshold_metrics)
     if pressure_config.enabled and activation_capture is None:
         raise ValueError("Activation pressure is enabled but no activation capture is registered.")
 
@@ -500,8 +526,14 @@ def _run_training_step(
             activation_capture=activation_capture,
             step=step,
             schedule_step=schedule_step,
+            record_threshold_metrics=record_threshold_metrics,
         )
 
+    threshold_before = (
+        adaptive_threshold_parameter_snapshot(model)
+        if record_threshold_metrics
+        else None
+    )
     optimizer.zero_grad(set_to_none=True)
     task_loss_total = 0.0
     pressure_loss_total = 0.0
@@ -525,7 +557,11 @@ def _run_training_step(
         with _autocast_context(torch, device, dtype):
             output = model(input_ids=batch, labels=batch)
             task_loss = output.loss
-            current_pressure_loss = pressure_loss(torch, activation_capture.activations, pressure_config) if pressure_active else None
+            current_pressure_loss = (
+                pressure_loss(torch, activation_capture.activations, pressure_config)
+                if pressure_active
+                else None
+            )
             augmented_loss = (
                 task_loss + pressure_config.weight * current_pressure_loss
                 if current_pressure_loss is not None
@@ -548,7 +584,10 @@ def _run_training_step(
             _require_finite_loss(torch, current_pressure_loss, f"pressure loss at step {step}")
             pressure_loss_total += float(current_pressure_loss.detach().cpu())
         if activation_capture is not None:
-            activation_metrics = activation_near_zero_metrics(activation_capture.activations, pressure_config.log_thresholds)
+            activation_metrics = activation_near_zero_metrics(
+                activation_capture.activations,
+                pressure_config.log_thresholds,
+            )
 
     task_grads = task_grads_for_metrics if pressure_active else clone_grads(params)
     pressure_grads = pressure_grads_for_metrics if pressure_active else [None for _ in params]
@@ -573,6 +612,11 @@ def _run_training_step(
         )
     if pressure_config.enabled:
         result.update(activation_metrics)
+    if record_threshold_metrics and threshold_before is not None:
+        result.update(
+            adaptive_threshold_training_metrics(model, before_step=threshold_before)
+        )
+    set_adaptive_threshold_stats_enabled(model, False)
     return result
 
 
@@ -593,7 +637,14 @@ def _run_orthogonal_pressure_step(
     activation_capture: Any,
     step: int,
     schedule_step: Any = None,
+    record_threshold_metrics: bool = False,
 ) -> dict[str, Any]:
+    set_adaptive_threshold_stats_enabled(model, record_threshold_metrics)
+    threshold_before = (
+        adaptive_threshold_parameter_snapshot(model)
+        if record_threshold_metrics
+        else None
+    )
     optimizer.zero_grad(set_to_none=True)
     task_loss_total = 0.0
     pressure_loss_total = 0.0
@@ -627,7 +678,10 @@ def _run_orthogonal_pressure_step(
         pressure_grads = accumulate_grads(pressure_grads, new_pressure_grads)
         task_loss_total += float(task_loss.detach().cpu())
         pressure_loss_total += float(current_pressure_loss.detach().cpu())
-        activation_metrics = activation_near_zero_metrics(activation_capture.activations, pressure_config.log_thresholds)
+        activation_metrics = activation_near_zero_metrics(
+            activation_capture.activations,
+            pressure_config.log_thresholds,
+        )
 
     task_grads = clone_grads(params)
     result = {
@@ -652,6 +706,11 @@ def _run_orthogonal_pressure_step(
         )
     )
     result.update(activation_metrics)
+    if record_threshold_metrics and threshold_before is not None:
+        result.update(
+            adaptive_threshold_training_metrics(model, before_step=threshold_before)
+        )
+    set_adaptive_threshold_stats_enabled(model, False)
     return result
 
 
@@ -829,17 +888,57 @@ def _optimizer_config(training: dict[str, Any]) -> dict[str, Any]:
     weight_decay = float(training.get("weight_decay", 0.01))
     if weight_decay < 0.0:
         raise ValueError("training.weight_decay must be non-negative.")
+    threshold_learning_rate_multiplier = float(
+        training.get("threshold_learning_rate_multiplier", 1.0)
+    )
+    if not math.isfinite(threshold_learning_rate_multiplier) or threshold_learning_rate_multiplier <= 0.0:
+        raise ValueError("training.threshold_learning_rate_multiplier must be finite and positive.")
     return {
         "name": name,
         "betas": (beta1, beta2),
         "eps": eps,
         "weight_decay": weight_decay,
+        "threshold_learning_rate_multiplier": threshold_learning_rate_multiplier,
     }
+
+
+def _adamw_parameters(
+    model: Any,
+    *,
+    weight_decay: float,
+    threshold_learning_rate_multiplier: float,
+) -> Any:
+    threshold_items = adaptive_threshold_parameter_items(model)
+    if not threshold_items:
+        return model.parameters()
+    threshold_parameters = [parameter for _name, parameter in threshold_items]
+    threshold_ids = {id(parameter) for parameter in threshold_parameters}
+    model_parameters = [
+        parameter
+        for parameter in model.parameters()
+        if id(parameter) not in threshold_ids
+    ]
+    if not model_parameters:
+        raise ValueError("AdamW model parameter group is empty.")
+    return [
+        {
+            "params": model_parameters,
+            "group_name": "model",
+            "lr_multiplier": 1.0,
+            "weight_decay": weight_decay,
+        },
+        {
+            "params": threshold_parameters,
+            "group_name": "adaptive_threshold",
+            "lr_multiplier": threshold_learning_rate_multiplier,
+            "weight_decay": 0.0,
+        },
+    ]
 
 
 def _set_optimizer_lr(optimizer: Any, learning_rate: float) -> None:
     for group in optimizer.param_groups:
-        group["lr"] = learning_rate
+        group["lr"] = learning_rate * float(group.get("lr_multiplier", 1.0))
 
 
 def _global_grad_norm(model: Any) -> float:
@@ -870,7 +969,13 @@ def _mlp_weight_norm(model: Any) -> float:
     return total**0.5
 
 
-def _save_final_checkpoint(config: dict[str, Any], run_dir: Path, model: Any, optimizer: Any, torch: Any) -> dict[str, Any]:
+def _save_final_checkpoint(
+    config: dict[str, Any],
+    run_dir: Path,
+    model: Any,
+    optimizer: Any,
+    torch: Any,
+) -> dict[str, Any]:
     checkpoint_config = config.get("checkpoint", {})
     if not checkpoint_config.get("save_final", False):
         return {"saved": False, "path": None, "size_mb": None}
@@ -878,13 +983,15 @@ def _save_final_checkpoint(config: dict[str, Any], run_dir: Path, model: Any, op
     checkpoint_dir = run_dir / "checkpoints" / "final"
     checkpoint_dir.mkdir(parents=True, exist_ok=True)
     model.save_pretrained(checkpoint_dir, safe_serialization=True)
-    if checkpoint_config.get("save_optimizer", False):
+    optimizer_saved = bool(checkpoint_config.get("save_optimizer", False))
+    if optimizer_saved:
         torch.save(optimizer.state_dict(), checkpoint_dir / "optimizer.pt")
 
     return {
         "saved": True,
         "path": str(checkpoint_dir),
         "size_mb": _directory_size_mb(checkpoint_dir),
+        "optimizer_saved": optimizer_saved,
     }
 
 

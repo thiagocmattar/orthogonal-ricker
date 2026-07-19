@@ -30,6 +30,7 @@ from paper_exp.activation_propagation import (
 )
 from paper_exp.modeling import (
     FixedOneSidedThreshold,
+    adaptive_threshold_parameter_items,
     apply_mlp_hidden_gate,
     apply_post_layernorm_relu,
     apply_post_qkv_relu,
@@ -685,6 +686,228 @@ def test_real_gpt_neox_diagnostic_preserves_fixed_gplus_metadata_and_ceiling() -
     assert endpoint["targetable_matmul_stages"] == MATMUL_STAGE_ORDER
     assert endpoint["R_block_max"] == pytest.approx(1.0)
     assert endpoint["zero_sites"]["z_h"]["available"] is True
+
+
+def test_dynamic_architecture_preserves_nonuniform_learned_a6_gate_metadata() -> None:
+    from transformers import GPTNeoXConfig, GPTNeoXForCausalLM
+
+    gate = {
+        "gate_type": "learned_one_sided_threshold",
+        "kappa_init": 0.1,
+        "kappa_scope": "per_layer_site",
+        "threshold_scale": "absolute",
+        "surrogate": "hard_forward_soft_backward",
+        "temperature": 0.03,
+    }
+    architecture = GPTNeoXConfig(
+        vocab_size=32,
+        hidden_size=8,
+        intermediate_size=16,
+        num_hidden_layers=2,
+        num_attention_heads=2,
+        max_position_embeddings=16,
+        rotary_pct=0.5,
+        hidden_act="relu",
+        use_parallel_residual=True,
+    )
+    architecture.post_layernorm_relu = True
+    architecture.post_layernorm_gate = dict(gate)
+    architecture.mlp_hidden_gate = dict(gate)
+    architecture.post_qkv_relu = {
+        "enabled": True,
+        "query": True,
+        "key": True,
+        "value": True,
+        "qk_placement": "post_rope",
+        **gate,
+    }
+    model = GPTNeoXForCausalLM(architecture)
+    apply_post_layernorm_relu(model, torch=torch)
+    apply_mlp_hidden_gate(model, torch=torch)
+    apply_post_qkv_relu(model, torch=torch)
+    with torch.no_grad():
+        for index, (_name, parameter) in enumerate(adaptive_threshold_parameter_items(model)):
+            parameter.add_(0.05 * index)
+
+    post_qkv = _post_qkv_relu_metadata(list(model.gpt_neox.layers))
+    metadata = _architecture_metadata(
+        model,
+        layers=list(model.gpt_neox.layers),
+        post_qkv_relu=post_qkv,
+        block_size=4,
+        torch=torch,
+    )
+
+    assert metadata["topology_id"] == "A6-POST"
+    assert post_qkv["kappa"] is None
+    assert metadata["gate_specs"]["a"]["kappa_uniform"] is False
+    assert len(metadata["gate_specs_per_layer"]) == 2
+    observed_keys = {
+        row[site]["parameter_key"]
+        for row in metadata["gate_specs_per_layer"]
+        for site in ("a", "m", "h", "q", "k", "v")
+    }
+    assert observed_keys == {
+        f"layer_{layer}__{site}"
+        for layer in range(2)
+        for site in ("a", "m", "h", "q", "k", "v")
+    }
+    observed_kappas = [
+        row[site]["kappa"]
+        for row in metadata["gate_specs_per_layer"]
+        for site in ("a", "m", "h", "q", "k", "v")
+    ]
+    assert len(set(observed_kappas)) == 12
+
+
+def test_dynamic_architecture_preserves_nonuniform_learned_a3_branch_metadata() -> None:
+    from transformers import GPTNeoXConfig, GPTNeoXForCausalLM
+
+    gate = {
+        "gate_type": "learned_one_sided_threshold",
+        "kappa_init": 0.1,
+        "kappa_scope": "per_layer_site",
+        "threshold_scale": "rms_relative",
+        "surrogate": "hard_forward_soft_backward",
+        "temperature": 0.03,
+    }
+    architecture = GPTNeoXConfig(
+        vocab_size=32,
+        hidden_size=8,
+        intermediate_size=16,
+        num_hidden_layers=2,
+        num_attention_heads=2,
+        max_position_embeddings=16,
+        rotary_pct=0.5,
+        hidden_act="relu",
+        use_parallel_residual=True,
+    )
+    architecture.post_layernorm_relu = True
+    architecture.post_layernorm_gate = dict(gate)
+    architecture.mlp_hidden_gate = dict(gate)
+    model = GPTNeoXForCausalLM(architecture)
+    apply_post_layernorm_relu(model, torch=torch)
+    apply_mlp_hidden_gate(model, torch=torch)
+    with torch.no_grad():
+        for index, (_name, parameter) in enumerate(adaptive_threshold_parameter_items(model)):
+            parameter.add_(0.03 * index)
+
+    post_qkv = _post_qkv_relu_metadata(list(model.gpt_neox.layers))
+    metadata = _architecture_metadata(
+        model,
+        layers=list(model.gpt_neox.layers),
+        post_qkv_relu=post_qkv,
+        block_size=4,
+        torch=torch,
+    )
+
+    assert metadata["topology_id"] == "A3"
+    assert metadata["gate_specs"]["a"]["threshold_scale"] == "rms_relative"
+    assert metadata["gate_specs"]["a"]["rms_epsilon"] == pytest.approx(1e-8)
+    assert metadata["gate_specs"]["a"]["kappa"] is None
+    assert all(row["q"] is None for row in metadata["gate_specs_per_layer"])
+
+
+def test_branch_metadata_allows_distinct_fixed_thresholds_at_distinct_sites() -> None:
+    from transformers import GPTNeoXConfig, GPTNeoXForCausalLM
+
+    architecture = GPTNeoXConfig(
+        vocab_size=32,
+        hidden_size=8,
+        intermediate_size=16,
+        num_hidden_layers=2,
+        num_attention_heads=2,
+        max_position_embeddings=16,
+        rotary_pct=0.5,
+        hidden_act="relu",
+        use_parallel_residual=True,
+    )
+    architecture.post_layernorm_relu = True
+    architecture.post_layernorm_gate = {
+        "gate_type": "one_sided_threshold",
+        "kappa": 0.1,
+    }
+    architecture.mlp_hidden_gate = {
+        "gate_type": "one_sided_threshold",
+        "kappa": 0.2,
+    }
+    model = GPTNeoXForCausalLM(architecture)
+    apply_post_layernorm_relu(model, torch=torch)
+    apply_mlp_hidden_gate(model, torch=torch)
+
+    post_qkv = _post_qkv_relu_metadata(list(model.gpt_neox.layers))
+    metadata = _architecture_metadata(
+        model,
+        layers=list(model.gpt_neox.layers),
+        post_qkv_relu=post_qkv,
+        block_size=4,
+        torch=torch,
+    )
+
+    assert metadata["gate_specs"]["a"]["kappa"] == pytest.approx(0.1)
+    assert metadata["gate_specs"]["m"]["kappa"] == pytest.approx(0.1)
+    assert metadata["gate_specs"]["h"]["kappa"] == pytest.approx(0.2)
+
+
+def test_post_qkv_metadata_keeps_fixed_kappa_consistency_check() -> None:
+    from transformers import GPTNeoXConfig, GPTNeoXForCausalLM
+
+    architecture = GPTNeoXConfig(
+        vocab_size=32,
+        hidden_size=8,
+        intermediate_size=16,
+        num_hidden_layers=2,
+        num_attention_heads=2,
+        max_position_embeddings=16,
+        rotary_pct=0.5,
+    )
+    architecture.post_qkv_relu = {
+        "enabled": True,
+        "query": True,
+        "key": False,
+        "value": False,
+        "qk_placement": "post_rope",
+        "gate_type": "one_sided_threshold",
+        "kappa": 0.1,
+    }
+    model = GPTNeoXForCausalLM(architecture)
+    apply_post_qkv_relu(model, torch=torch)
+    model.gpt_neox.layers[1].attention.query_relu = FixedOneSidedThreshold(0.2)
+
+    with pytest.raises(ValueError, match="family and kappa"):
+        _post_qkv_relu_metadata(list(model.gpt_neox.layers))
+
+
+def test_post_qkv_metadata_rejects_corrupt_learned_parameter_key() -> None:
+    from transformers import GPTNeoXConfig, GPTNeoXForCausalLM
+
+    architecture = GPTNeoXConfig(
+        vocab_size=32,
+        hidden_size=8,
+        intermediate_size=16,
+        num_hidden_layers=2,
+        num_attention_heads=2,
+        max_position_embeddings=16,
+        rotary_pct=0.5,
+    )
+    architecture.post_qkv_relu = {
+        "enabled": True,
+        "query": True,
+        "key": True,
+        "value": False,
+        "qk_placement": "post_rope",
+        "gate_type": "learned_symmetric_threshold",
+        "kappa_init": 0.1,
+        "kappa_scope": "per_site",
+        "threshold_scale": "absolute",
+        "temperature": 0.03,
+    }
+    model = GPTNeoXForCausalLM(architecture)
+    apply_post_qkv_relu(model, torch=torch)
+    model.gpt_neox.layers[1].attention.query_relu.parameter_key = "wrong"
+
+    with pytest.raises(ValueError, match="parameter key mismatch"):
+        _post_qkv_relu_metadata(list(model.gpt_neox.layers))
 
 
 @pytest.mark.parametrize(

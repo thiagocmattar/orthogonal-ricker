@@ -273,6 +273,63 @@ Fixed threshold-gate nomenclature for the scaling campaign:
 - These fixed gates provide exact-zero architecture paths. They do not by
   themselves imply sparse-kernel execution or measured speedup.
 
+Learned adaptive threshold gates (ATG):
+
+- Learned `G+` uses `gate_type: learned_one_sided_threshold`; learned `Gpm`
+  uses `gate_type: learned_symmetric_threshold`. For both families,
+  $\kappa=\operatorname{softplus}(\rho)$, with `rho` stored and updated in FP32.
+  A model-wide lower-precision dtype conversion leaves `rho` in FP32.
+- Let $s(x)=x$ for `G+` and $s(x)=|x|$ for `Gpm`. With
+  `threshold_scale: absolute`, the hard mask is
+  $m_h=\mathbf{1}[s(x)\geq\kappa]$. With `threshold_scale: rms_relative`,
+  $r=\max(\sqrt{\operatorname{mean}(x^2)},\epsilon)$ is computed over the full
+  current gate tensor and detached, and
+  $m_h=\mathbf{1}[s(x)/r\geq\kappa]$. The latter has effective activation-unit
+  threshold $\kappa r$ and does not backpropagate through the RMS statistic.
+  `rms_epsilon` defaults to `1e-8` and is saved in gate metadata.
+- The supported surrogate is hard-forward/soft-backward. Define
+  $m_s=\operatorname{sigmoid}((\tilde{s}-\kappa)/\tau)$, where
+  $\tilde{s}=s(x)$ for absolute gates and $s(x)/r$ for RMS-relative gates.
+  The implementation uses $m=m_s+(m_h-m_s)_{\mathrm{detach}}$ and returns
+  $x m$. Both $\tilde{s}$ and the RMS statistic are detached in the soft path,
+  so the surrogate supplies gradients only to `rho`; input gradients remain
+  the hard mask. Equality at the threshold survives and the forward mask
+  produces exact zeros.
+- `kappa_scope` is `global`, `per_site`, or `per_layer_site`. The corresponding
+  parameter keys are `global`, the stable site aliases `a/m/h/q/k/v`, or
+  `layer_<index>__<site>`. One controller owns each parameter exactly once;
+  gate modules reference that owner without duplicating state-dict entries.
+  A global threshold requires identical learned-gate settings at every active
+  learned gate group.
+- Learned-gate configs require positive `kappa_init` and `temperature`, an
+  explicit `training.threshold_learning_rate_multiplier`, and
+  `checkpoint.save_final: true` plus `checkpoint.save_optimizer: true`.
+  AdamW places `rho` in a separate zero-weight-decay group. Its learning rate
+  is the scheduled model learning rate times the configured multiplier.
+- Checkpoint loading reconstructs the gate topology from model config and then
+  restores the exact threshold parameters. Optimizer checkpoints retain the
+  threshold group, LR multiplier, zero weight decay, and Adam moments; the
+  model and optimizer round trip is covered by focused tests.
+- On logged training steps, parameter metrics report post-update `kappa`, raw
+  `kappa/init`, `rho` gradient and update norms, and the induced `kappa` update
+  norm. Per-layer/site distribution metrics use the last gradient-accumulation
+  microbatch and the pre-update `forward_kappa`: input RMS, `kappa/RMS`,
+  effective threshold, empirical threshold quantile, transition-band mass,
+  exact output-zero rate, positive/negative survivor fractions and balance,
+  and survivor RMS. These snapshots are not substitutes for pooled
+  full-validation exact-zero diagnostics.
+- Point flags have transparent definitions: exact all-zero/all-survive gate
+  output, exact zero `kappa`, non-finite `kappa`, and exact zero parameter
+  update. No arbitrary runaway cutoff is encoded; register such a cutoff before
+  using it for promotion, with the raw `kappa/init` trajectory as evidence.
+- The learned-ATG implementation and detached RMS-relative semantics are ready
+  for AdamW engineering pilots. Learned OR and OL1 remain blocked: their
+  projection and `step_budget` geometry currently use unscaled Adam directions,
+  then apply per-group learning rates. With a threshold LR multiplier other
+  than one, that is not the true update-space geometry. The orthogonal
+  calculation must include heterogeneous optimizer-group learning rates before
+  either method is launched on learned gates.
+
 ## Expected Scale Ladders
 
 TODO: after the Pythia-14M MiniPile random-init baseline is stable and calibrated, consider scaling within the Pythia family up to 160M if memory and runtime measurements justify it. Do not add scale-up configs until the 14M path is reproducible.

@@ -218,8 +218,9 @@ S1-B2-GRAN-<GPLUS|GPM>-POST-QKV-ABS-<GLOBAL|SITE>-K010-S0
 ```
 
 For learned branch scopes, `A1-H`, `A3`, and `A6-POST` again mean that every
-active gate in the topology is learned and thresholded. The exact `tau` and
-threshold-LR defaults above must pass the engineering pilot;
+active gate in the topology is learned and thresholded. The implementation is
+ready for AdamW engineering runs, including detached RMS-relative thresholds.
+The exact `tau` and threshold-LR defaults above must still pass the engineering pilot;
 a veto creates a documented design revision before any B2 config is launched.
 The pilot must not select these values by comparing validation endpoints.
 Learned-versus-fixed causal contrasts are restricted to absolute thresholds,
@@ -258,6 +259,24 @@ S1-B3-L1-<A3|A6POST>-<L1N|OL1>-W<...>-ALLACTIVE-S0
 S1-B3-RK-<A3|A6POST>-<RN|OR>-W<...>-C<...>-SG<...>-ALLACTIVE-S0
 ```
 
+Execute B3 as five prespecified eight-cell serial tranches. Within each
+architecture/parameter point, launch the naive member immediately before its
+matched orthogonal member; cover `A3` before `A6-POST`.
+
+| Tranche | Eight cells |
+| --- | --- |
+| `T1-CENTRAL` | L1 weight `1` and Ricker `(0.3,0.1,0.1)`, both methods and both architectures |
+| `T2-L1-FLANKS` | L1 weights `{0.15,5}`, both methods and both architectures |
+| `T3-RK-WEIGHT` | Ricker `(0.1,0.1,0.1)` and `(1,0.1,0.1)`, both methods and both architectures |
+| `T4-RK-BASIN` | Ricker `(0.3,0.05,0.05)` and `(0.3,0.5,0.5)`, both methods and both architectures |
+| `T5-RK-SHAPE` | Ricker `(0.3,0.1,0.05)` and `(0.3,0.1,0.2)`, both methods and both architectures |
+
+After each tranche, reconcile all eight terminal manifests and run one pooled
+complete-selection propagation diagnostic before starting the next tranche.
+`T1` is also the fail-fast runtime gate for simultaneous six-site pressure on
+`A6-POST`; it is not an additional scientific cell. Allocate each diagnostic
+prefix only after its eight canonical source run ids exist.
+
 ### B4: seed-pair-1 sentinels -- 10 cells
 
 These are short-run rank-noise sentinels, not confirmation evidence. Rerun the
@@ -270,6 +289,26 @@ following exact `0/0` cells with initialization/data-order seeds `1/1`:
 
 The method sentinels estimate whether pressure rankings are especially noisy;
 they are not substitutes for their matched orthogonal/naive confirmation pairs.
+Every B4 row changes only model-initialization/data-order seeds from `0/0` to
+`1/1` relative to its exact S0 source; validation remains on the same frozen
+selection partition. For 2,048 steps, block size 2,048, micro-batch 4, and
+accumulation 8, the required seed-1 schedule hash is
+`e3a2079b78a7816ae995c4289aa5946f28677ce50861b346605d42ca167e23a9`.
+The schedule is deterministically generated in memory; no separate schedule
+cache is required.
+
+| Seed-1 sentinel | Exact seed-0 source |
+| --- | --- |
+| `A0`, `A1-H`, `A3`, `A6-PRE`, `A6-POST` AdamW | `S1-B0-ARCH-<arch>-LR3EM5-S0` |
+| fixed `G+` POST-QKV `kappa=0.10` | `S1-B1-FIX-GPLUS-POST-QKV-K010-S0` |
+| fixed `Gpm` POST-QKV `kappa=0.10` | `S1-B1-FIX-GPM-POST-QKV-K010-S0` |
+| learned `Gpm` POST-QKV ABS PLS | `S1-B2-ATG-GPM-POST-QKV-ABS-PLS-K010-S0` |
+| `A6-POST` L1N weight `1` | `S1-B3-L1-A6POST-L1N-W1-ALLACTIVE-S0` |
+| `A6-POST` OR `(0.3,0.1,0.1)` | `S1-B3-RK-A6POST-OR-W0P3-C0P1-SG0P1-ALLACTIVE-S0` |
+
+Materialize B4 only after all ten source cells above are closed. Execute the
+ten sentinels as one fail-stop serial tranche and then run one pooled
+complete-selection propagation diagnostic pinned to their canonical run ids.
 
 ## 6. Conditional Controls -- At Most 50 Cells
 
@@ -287,8 +326,11 @@ scientific role must be recorded before activation.
 
 Learned or RMS-relative ATGs do not receive Ricker pressure until the Ricker
 geometry is defined in the same normalized units. Until C6 is complete, a
-learned ATG is eligible only for AdamW/L1N/OL1 architecture screening, not a
-five-method promotion panel. The inherited
+learned ATG is eligible only for AdamW architecture screening, not a
+five-method promotion panel. Once C6 is activated, its naive pressure rows may
+proceed under their registered semantics. Learned OR and OL1 remain blocked
+until orthogonal projection and `step_budget` are computed in the true update
+space with heterogeneous optimizer-group learning rates. The inherited
 `kappa=0.1,c=sigma=0.05` OR run remains a negative compatibility control, not a
 candidate default.
 
@@ -325,28 +367,32 @@ Complete these before the affected block launches:
    at branch and Q/K/V sites; fixed `Gpm` PRE/POST subsets, V-only placement,
    and checkpoint round trips are covered. V-only configs still set the
    validator-required harmless `qk_placement: post_rope`.
-2. `TODO:` implement learned ATG with exact hard-forward sparsity, safe soft backward,
-   FP32 threshold parameters, optimizer parameter groups, metrics, and exact
-   checkpoint reload. Learned-gate configs use `checkpoint.save_optimizer:
-   true` so optimizer-state round trips are actually tested. Run 128-step plumbing pilots over
-   `tau={0.01,0.03,0.10}` and threshold-LR multipliers `{0.1,1,10}`. Pilots are
-   engineering evidence only.
-3. `TODO:` implement RMS-relative threshold semantics without allowing gradients
-   through an unintended batch statistic.
-4. `TODO:` implement the optional post-PV context gate for `A4-C` and
+2. Completed 2026-07-19: learned ATG has exact hard-forward sparsity,
+   threshold-only soft backward, FP32 threshold parameters, zero-decay optimizer
+   groups with LR multipliers, training metrics, dynamic propagation metadata,
+   and exact model/optimizer checkpoint round trips. AdamW engineering is ready.
+   The 128-step `tau={0.01,0.03,0.10}` by threshold-LR multiplier
+   `{0.1,1,10}` pilot remains a launch gate and is engineering evidence only.
+3. Completed 2026-07-19: RMS-relative ATG uses a detached full-gate-tensor RMS
+   statistic, so threshold learning cannot flow through the normalization.
+4. `TODO:` before learned OR or OL1 launches, include heterogeneous optimizer-group
+   learning rates in orthogonal update-space projection, norms, and
+   `step_budget`. Pure AdamW learned-ATG pilots are unaffected.
+5. `TODO:` implement the optional post-PV context gate for `A4-C` and
    `A7-POST-C`, including a stable activation alias, pressure capture,
    checkpoint reconstruction, propagation/product accounting, graph-union
    ceiling logic, and tests.
-5. Selection and campaign-confirmation source-document lists are frozen 250/250
+6. Selection and campaign-confirmation source-document lists are frozen 250/250
    in `validation-partitions.yaml`. E0.1 must materialize both token caches and
    verify their realized document/token counts and hashes before acceptance.
-6. Model-initialization and data-order seeds plus a deterministic training
+7. Model-initialization and data-order seeds plus a deterministic training
    schedule hash are implemented. E0.1 must verify that changing only the model
    seed changes the initialization hash while preserving the schedule and
    validation hashes.
-7. `TODO:` add dynamic architecture metadata and compute ceilings to the new plotting
-   path; do not reuse Report 05's hard-coded `d=128` assumptions for scale plots.
-8. The historical budget backtest rejects 2,048 steps as a global rank selector
+8. `TODO:` wire saved dynamic gate metadata and scale-specific compute ceilings
+   into the new plotting path; do not reuse Report 05's hard-coded `d=128`
+   assumptions for scale plots.
+9. The historical budget backtest rejects 2,048 steps as a global rank selector
    (`rho=0.206` in the architecture/method stress cohort). The campaign approved
    the conservative feasibility/collapse and within-stratum rule on 2026-07-18;
    global top-k pruning is prohibited. See `06-s1-budget-backtest.md`.

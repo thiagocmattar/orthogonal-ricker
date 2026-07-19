@@ -298,6 +298,130 @@ def test_post_qkv_relu_accepts_fixed_one_sided_threshold(placement: str) -> None
 
 
 @pytest.mark.parametrize(
+    "gate_type",
+    ["learned_one_sided_threshold", "learned_symmetric_threshold"],
+)
+def test_post_qkv_relu_accepts_learned_threshold_contract(gate_type: str) -> None:
+    config = _post_qkv_config(
+        {
+            "enabled": True,
+            "query": True,
+            "key": True,
+            "value": True,
+            "qk_placement": "post_rope",
+            "gate_type": gate_type,
+            "kappa_init": 0.1,
+            "kappa_scope": "per_layer_site",
+            "threshold_scale": "rms_relative",
+            "surrogate": "hard_forward_soft_backward",
+            "temperature": 0.03,
+        }
+    )
+    config["training"] = {"threshold_learning_rate_multiplier": 1.0}
+    config["checkpoint"] = {"save_final": True, "save_optimizer": True}
+
+    validate_config(config, allow_todos=False)
+
+
+def test_learned_a6_global_gate_contract_is_accepted_only_when_shared_settings_match() -> None:
+    gate = {
+        "gate_type": "learned_one_sided_threshold",
+        "kappa_init": 0.1,
+        "kappa_scope": "global",
+        "threshold_scale": "absolute",
+        "surrogate": "hard_forward_soft_backward",
+        "temperature": 0.03,
+    }
+    config = _post_qkv_config(
+        {
+            "enabled": True,
+            "query": True,
+            "key": True,
+            "value": True,
+            "qk_placement": "post_rope",
+            **gate,
+        }
+    )
+    config["model"].update(
+        {
+            "hidden_act": "relu",
+            "post_layernorm_relu": True,
+            "post_layernorm_gate": dict(gate),
+            "mlp_hidden_gate": dict(gate),
+        }
+    )
+    config["training"] = {"threshold_learning_rate_multiplier": 1.0}
+    config["checkpoint"] = {"save_final": True, "save_optimizer": True}
+
+    validate_config(config, allow_todos=False)
+
+    config["model"]["mlp_hidden_gate"]["temperature"] = 0.1
+    with pytest.raises(ConfigError, match="identical learned gate settings"):
+        validate_config(config, allow_todos=False)
+
+
+@pytest.mark.parametrize(
+    ("mutation", "message"),
+    [
+        ({"kappa_init": 0.0}, "kappa_init"),
+        ({"temperature": 0.0}, "temperature"),
+        ({"kappa_scope": "channel"}, "kappa_scope"),
+        ({"threshold_scale": "batch"}, "threshold_scale"),
+        ({"surrogate": "identity_ste"}, "surrogate"),
+    ],
+)
+def test_learned_threshold_rejects_invalid_gate_fields(
+    mutation: dict[str, object],
+    message: str,
+) -> None:
+    gate = {
+        "enabled": True,
+        "query": True,
+        "key": True,
+        "value": True,
+        "qk_placement": "post_rope",
+        "gate_type": "learned_symmetric_threshold",
+        "kappa_init": 0.1,
+        "kappa_scope": "per_layer_site",
+        "threshold_scale": "absolute",
+        "temperature": 0.03,
+        **mutation,
+    }
+    config = _post_qkv_config(gate)
+    config["training"] = {"threshold_learning_rate_multiplier": 1.0}
+    config["checkpoint"] = {"save_final": True, "save_optimizer": True}
+
+    with pytest.raises(ConfigError, match=message):
+        validate_config(config, allow_todos=False)
+
+
+def test_learned_threshold_requires_dedicated_lr_and_optimizer_checkpoint() -> None:
+    config = _post_qkv_config(
+        {
+            "enabled": True,
+            "query": True,
+            "key": True,
+            "value": False,
+            "qk_placement": "pre_rope",
+            "gate_type": "learned_one_sided_threshold",
+            "kappa_init": 0.1,
+            "kappa_scope": "per_layer_site",
+            "threshold_scale": "absolute",
+            "temperature": 0.03,
+        }
+    )
+    config["training"] = {}
+    config["checkpoint"] = {"save_final": True, "save_optimizer": False}
+
+    with pytest.raises(ConfigError, match="threshold_learning_rate_multiplier"):
+        validate_config(config, allow_todos=False)
+
+    config["training"]["threshold_learning_rate_multiplier"] = 1.0
+    with pytest.raises(ConfigError, match="save_optimizer"):
+        validate_config(config, allow_todos=False)
+
+
+@pytest.mark.parametrize(
     ("extra", "message"),
     [
         ({"gate_type": "unknown"}, "gate_type"),
