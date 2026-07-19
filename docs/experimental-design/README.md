@@ -95,8 +95,8 @@ work.
   passed terminal review. Its mandatory selection propagation diagnostic,
   config `166`, run `001-20260719-053610-96aacd5d`, completed at
   `R_block=0.45968` and `R_model=0.13768`. Config `167` materializes the
-  matched fixed `G+` POST-RoPE Q/K plus post-split V, `kappa=0.03` cell and is
-  ready to launch.
+  matched fixed `G+` POST-RoPE Q/K plus post-split V, `kappa=0.03` cell; run
+  `001-20260719-054016-5e3f0e3d` is active from clean commit `0f81a0e`.
 - B0 has completed all `20 / 20` currently executable scientific cells
   (`20 / 22` declared); the two post-PV context cells remain blocked. The
   declared S1 core has completed `29 / 134` cells (`29 / 132` executable).
