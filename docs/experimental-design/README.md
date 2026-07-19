@@ -10,10 +10,9 @@ work.
 - Campaign id: `pythia-sparsity-scaling-v1`.
 - Planning date: 2026-07-18.
 - Current phase: E0.1 and all currently executable S1-B0 cells are complete;
-  the fixed-gate engineering gate passed, and the first eighteen S1-B1 cells
-  plus their mandatory complete-selection diagnostics are complete. The
-  nineteenth B1 scientific run passed terminal review; its mandatory diagnostic,
-  config `186`, is ready. The 2,048-step screen remains restricted to
+  the fixed-gate engineering gate passed, and the first nineteen S1-B1 cells
+  plus their mandatory complete-selection diagnostics are complete. The next
+  B1 scientific cell may be materialized. The 2,048-step screen remains restricted to
   feasibility/collapse and within-stratum comparisons.
 - Next config prefix: `187`.
 - The five central B0 anchors, configs `123--127`, completed and passed
@@ -148,8 +147,9 @@ work.
   review. Config `185` materializes fixed `Gpm`, POST-RoPE Q/K,
   `kappa=0.03`, with the Three-ReLU A3 identity parent as its matched control;
   run `001-20260719-101901-c6136a3e` completed at selection loss `7.01265` and
-  passed terminal review. Its mandatory selection diagnostic, config `186`, is
-  ready to run over the complete frozen selection partition.
+  passed terminal review. Its mandatory selection diagnostic, config `186`, run
+  `001-20260719-104856-93141c47`, completed at `R_block=0.22107` and
+  `R_model=0.06622` and passed artifact, endpoint, and POST-RoPE identity review.
 - B0 has completed all `20 / 20` currently executable scientific cells
   (`20 / 22` declared); the two post-PV context cells remain blocked. The
   declared S1 core has completed `39 / 134` cells (`39 / 132` executable).
