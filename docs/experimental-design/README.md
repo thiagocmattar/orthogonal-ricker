@@ -9,24 +9,33 @@ work.
 
 - Campaign id: `pythia-sparsity-scaling-v1`.
 - Planning date: 2026-07-18.
-- Current phase: E0.1 and all currently executable S1-B0 cells are complete;
-  the fixed-gate engineering gate passed, and the first twenty-four S1-B1
-  scientific cells and their mandatory complete-selection diagnostics are
-  complete. Config `197`, the first POST site-isolation cell, also completed;
-  configs `198--202` materialize the remaining five site-isolation cells for
-  the next serial-GPU tranche. The 2,048-step screen remains restricted to
-  feasibility/collapse and within-stratum comparisons.
-- Next config prefix: `203` (reserved for the pooled site-isolation diagnostic).
+- Current phase: all 20 executable S1-B0 cells, the 24-cell B1 main attention
+  factorial, and all six B1 POST site-isolation cells are complete. Pooled
+  site-isolation diagnostic `203` and branch-scope configs `204--209` are
+  ready. The 2,048-step screen remains restricted to feasibility/collapse and
+  within-stratum comparisons.
+- Next unused config prefix: `210`, deferred for the pooled branch-scope
+  diagnostic after configs `204--209` have canonical runs.
 - The five central B0 anchors, configs `123--127`, completed and passed
   terminal review. Their final selection losses are `7.04913` (A0),
   `6.98875` (A1-H), `7.01310` (A3), `7.01645` (A6-PRE), and `7.03248`
   (A6-POST). Config `128`, the combined selection-partition endpoint
   diagnostic, also completed and passed artifact review. Configs `121--122`
   remain accepted engineering controls.
-- Last completed scientific run: config `197`, fixed `G+` POST-RoPE Q-only at
-  `kappa=0.10`, run `001-20260719-134717-3cfc0e0f`, selection loss `7.02146`.
-- Active scientific run: none; configs `198--202` are the next committed
-  serial-GPU tranche after preflight.
+- Last completed scientific run: config `202`, fixed `Gpm` post-split V-only
+  at `kappa=0.10`, run `001-20260719-152835-0369b367`, selection loss
+  `7.01501`.
+- Active scientific run: none. Run diagnostic `203` next; only after its
+  closure launch branch-scope configs `204--209` as one fail-stop tranche.
+
+| Config | Gate/site | Canonical run | Selection loss |
+| ---: | --- | --- | ---: |
+| 197 | G+ POST Q-only | `001-20260719-134717-3cfc0e0f` | 7.02146 |
+| 198 | G+ POST K-only | `001-20260719-141336-5d660aa4` | 7.02413 |
+| 199 | G+ V-only | `001-20260719-143237-b913af6d` | 7.01547 |
+| 200 | Gpm POST Q-only | `001-20260719-145118-8455717e` | 7.01355 |
+| 201 | Gpm POST K-only | `001-20260719-150955-18a75af8` | 7.01406 |
+| 202 | Gpm V-only | `001-20260719-152835-0369b367` | 7.01501 |
 - Config `196`, run `001-20260719-134214-2cfa55c7`, completed config `195`'s
   mandatory diagnostic at `R_block=0.65130` and `R_model=0.19508`.
 - Config `194`, run `001-20260719-130907-96667214`, completed config `193`'s
@@ -196,12 +205,13 @@ work.
   passed terminal review. Its mandatory diagnostic, config `196`, run
   `001-20260719-134214-2cfa55c7`, completed over the frozen selection partition
   at `R_block=0.65130` and `R_model=0.19508` and passed artifact, endpoint, and
-  POST-RoPE identity review. Config `197` materializes fixed `G+` POST-RoPE
-  Q-only at `kappa=0.10`; run `001-20260719-134717-3cfc0e0f` is active from
-  clean commit `52cf42a`.
+  POST-RoPE identity review. Configs `197--202` complete the six-cell POST
+  site-isolation tranche at `kappa=0.10`; all six terminal runs passed artifact,
+  finite-event, and exact topology review. Config `203` is their ready pooled
+  complete-selection diagnostic.
 - B0 has completed all `20 / 20` currently executable scientific cells
   (`20 / 22` declared); the two post-PV context cells remain blocked. The
-  declared S1 core has completed `44 / 134` cells (`44 / 132` executable).
+  declared S1 core has completed `50 / 134` cells (`50 / 132` executable).
   Diagnostic configs do not count as scientific cells.
 - S1 must never use a global rank cutoff. Complete matched method panels from
   viable families advance to the 8,192-step rung under the frozen policy in
@@ -299,11 +309,14 @@ must not be used to rank methods.
 10. [`10-s1-b1-fixed-gate-engineering-results.md`](10-s1-b1-fixed-gate-engineering-results.md)
    records the fixed positive-threshold plumbing pilots, complete-selection
    endpoints, acceptance decision, and B1 handoff.
-11. [`validation-partitions.yaml`](validation-partitions.yaml) freezes the
+11. [`11-s1-b1-fixed-threshold-results.md`](11-s1-b1-fixed-threshold-results.md)
+   consolidates the fixed-threshold factorial, topology-normalized utilization,
+   completed site-isolation training endpoints, and remaining B1 diagnostics.
+12. [`validation-partitions.yaml`](validation-partitions.yaml) freezes the
    document-disjoint selection and confirmation source-document lists.
-12. [`config-registry.yaml`](config-registry.yaml) is the config-level source of
+13. [`config-registry.yaml`](config-registry.yaml) is the config-level source of
    truth for materialized campaign cells.
-13. [`run-registry.yaml`](run-registry.yaml) records every run attempt. It is
+14. [`run-registry.yaml`](run-registry.yaml) records every run attempt. It is
    intentionally separate because one immutable config can have more than one
    infrastructure attempt.
 
