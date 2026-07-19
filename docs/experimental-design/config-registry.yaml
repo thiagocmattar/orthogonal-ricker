@@ -33,9 +33,9 @@ block_summary:
   - block: S1-B1
     planned_cells: 36
     materialized_cells: 1
-    completed_cells: 0
+    completed_cells: 1
     status: active
-    note: fixed positive-kappa gate plumbing passed the frozen engineering gate; config 149 is the active first scientific cell
+    note: config 149 completed and passed terminal training review; its mandatory selection propagation diagnostic is pending before the next scientific launch
   - block: S1-B2
     planned_cells: 26
     materialized_cells: 0
@@ -1464,8 +1464,8 @@ records:
     ricker_sigma: null
     step_budget: null
     matched_control_id: S1-B0-ARCH-A5QKPRE-LR3EM5-S0
-    config_status: active
+    config_status: closed
     decision_status: pending
     release_tier: history
-    canonical_run_id: null
-    notes: First B1 scientific cell; fixed absolute G+ kappa 0.03 at PRE-RoPE Q/K, ordinary a/m/h ReLU, V absent, AdamW without pressure. S1 supports feasibility/collapse and within-stratum comparisons only.
+    canonical_run_id: 001-20260719-012122-d3b3c4f5
+    notes: First B1 scientific cell; fixed absolute G+ kappa 0.03 at PRE-RoPE Q/K, ordinary a/m/h ReLU, V absent, AdamW without pressure. Run 001-20260719-012122-d3b3c4f5 completed 2048 steps and passed terminal artifact and exact checkpoint-reload review at selection loss 7.01612. Its selection propagation diagnostic is pending. S1 supports feasibility/collapse and within-stratum comparisons only.
