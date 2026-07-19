@@ -49,8 +49,8 @@ work.
   controls, not members of the 36-cell B1 scientific matrix. Config `146`, run
   `001-20260719-010308-764e5074`, and config `147`, run
   `001-20260719-010858-a4a15700`, completed cleanly and passed individual
-  terminal review. Their pooled complete-selection propagation diagnostic is
-  next.
+  terminal review. Config `148` materializes their pooled complete-selection
+  propagation diagnostic and is next.
 - B0 has completed all `20 / 20` currently executable scientific cells
   (`20 / 22` declared); the two post-PV context cells remain blocked. The
   declared S1 core has completed `20 / 134` cells (`20 / 132` executable).
