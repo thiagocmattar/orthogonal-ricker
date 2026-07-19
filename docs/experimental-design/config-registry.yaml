@@ -1,6 +1,6 @@
 schema_version: 1
 campaign_id: pythia-sparsity-scaling-v1
-next_config_prefix: 197
+next_config_prefix: 198
 core_design_cells: 134
 core_executable_cells_without_context_gate: 132
 maximum_design_cells: 184
@@ -32,10 +32,10 @@ block_summary:
     note: both fixed-gate pilots and their pooled complete-selection propagation diagnostic passed all five engineering criteria. They are engineering-only and excluded from the 36-cell B1 and 134-cell primary scientific counts
   - block: S1-B1
     planned_cells: 36
-    materialized_cells: 24
+    materialized_cells: 25
     completed_cells: 24
     status: active
-    note: all 24 main-attention-factorial cells and their mandatory complete-selection diagnostics are complete; config 197 is next for the first POST site-isolation cell
+    note: all 24 main-attention-factorial cells and their mandatory complete-selection diagnostics are complete; config 197 materializes the first POST site-isolation cell and is ready
   - block: S1-B2
     planned_cells: 26
     materialized_cells: 0
@@ -3678,3 +3678,50 @@ records:
     release_tier: history
     canonical_run_id: 001-20260719-134214-2cfa55c7
     notes: Canonical schema-v3 complete-selection diagnostic pinned to config 195. Run 001-20260719-134214-2cfa55c7 pooled all 311296 complete selection tokens and passed the five-file statusless artifact, topology, POST-RoPE identity, exact-zero, and product-count review; diagnostic-only and excluded from scientific-cell counts.
+  - design_id: S1-B1-ISO-GPLUS-POST-Q-K010-S0
+    config_id: 197-s1-b1-p14m-gplus-post-q-k010-s0
+    config_path: configs/197-s1-b1-p14m-gplus-post-q-k010-s0.yaml
+    phase: S1
+    block: S1-B1
+    comparison_id: S1-B1-POST-SITE-ISOLATION
+    pair_id: S1-B1-ISO-POST-Q-K010
+    promotion_family: ISO-GPLUS-POST-Q
+    kind: scientific
+    model_size: 14M
+    steps: 2048
+    tokens: 134217728
+    model_initialization_seed: 0
+    data_order_seed: 0
+    training_schedule_scheme: random_contiguous_blocks_with_replacement_v1
+    training_schedule_hash: db4fa092d7092d29edc3bf1e2005af69f4a92b8bf6e6d88cbb6a166e12be02fc
+    effective_tokens_per_update: 65536
+    validation_partition: selection
+    validation_partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
+    architecture_id: A4-Q
+    gate_family: gplus
+    gate_sites: [a, m, h, q]
+    qk_placement: post_rope
+    kappa_mode: fixed
+    kappa: 0.1
+    kappa_init: null
+    kappa_scope: q_only
+    threshold_scale: absolute
+    surrogate: null
+    temperature: null
+    threshold_learning_rate: null
+    optimizer_recipe: harness_adamw
+    model_learning_rate: 3.0e-05
+    micro_batch_size: 4
+    gradient_accumulation_steps: 8
+    pressure_method: none
+    pressure_sites: [attention_inputs, mlp_inputs, mlp_hiddens, query_gate_outputs]
+    pressure_weight: 0.0
+    ricker_c: null
+    ricker_sigma: null
+    step_budget: null
+    matched_control_id: S1-B0-ARCH-A4Q-LR3EM5-S0
+    config_status: ready
+    decision_status: pending
+    release_tier: history
+    canonical_run_id: null
+    notes: Twenty-fifth B1 scientific cell and first POST site-isolation row; fixed absolute G+ kappa 0.10 at POST-RoPE Q only, ordinary a/m/h ReLU, AdamW without pressure. Its matched ordinary-ReLU architecture parent is config 129 (A4-Q). Launch only from a clean committed config; S1 supports feasibility/collapse and within-stratum comparisons only.
