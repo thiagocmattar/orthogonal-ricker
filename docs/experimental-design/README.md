@@ -69,7 +69,9 @@ work.
   be materialized. Config `155` materializes fixed `G+`, PRE-RoPE Q/K plus
   post-split V, `kappa=0.03`; run `001-20260719-024629-701ee0c3` completed at
   selection loss `7.01712` and passed terminal review. Its mandatory selection
-  propagation diagnostic is materialized as config `156` and is next.
+  propagation diagnostic, config `156`, run
+  `001-20260719-031106-0433709a`, completed at `R_block=0.44210` and
+  `R_model=0.13242`; the next B1 scientific cell may be materialized.
 - B0 has completed all `20 / 20` currently executable scientific cells
   (`20 / 22` declared); the two post-PV context cells remain blocked. The
   declared S1 core has completed `24 / 134` cells (`24 / 132` executable).
