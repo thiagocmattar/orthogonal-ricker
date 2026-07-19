@@ -11,10 +11,11 @@ work.
 - Planning date: 2026-07-18.
 - Current phase: E0.1 and all currently executable S1-B0 cells are complete;
   the fixed-gate engineering gate passed, the first eleven S1-B1 cells plus
-  their diagnostics are complete, and the twelfth S1-B1 training run passed
-  terminal review. The 2,048-step screen remains restricted to
-  feasibility/collapse and within-stratum comparisons.
-- Next config prefix: `172`.
+  their diagnostics are complete, the twelfth S1-B1 training run passed
+  terminal review, and its diagnostic config `172` is ready. The 2,048-step
+  screen remains restricted to feasibility/collapse and within-stratum
+  comparisons.
+- Next config prefix: `173`.
 - The five central B0 anchors, configs `123--127`, completed and passed
   terminal review. Their final selection losses are `7.04913` (A0),
   `6.98875` (A1-H), `7.01310` (A3), `7.01645` (A6-PRE), and `7.03248`
@@ -109,7 +110,8 @@ work.
   `R_block=0.56464` and `R_model=0.16912`. Config `171` materializes the
   matched fixed `G+` POST-RoPE Q/K plus post-split V, `kappa=0.30` cell; run
   `001-20260719-063931-ae5b970a` completed at selection loss `7.03405` and
-  passed terminal review. Its mandatory selection diagnostic is pending.
+  passed terminal review. Its mandatory selection diagnostic is materialized
+  as config `172` and is next to execute.
 - B0 has completed all `20 / 20` currently executable scientific cells
   (`20 / 22` declared); the two post-PV context cells remain blocked. The
   declared S1 core has completed `32 / 134` cells (`32 / 132` executable).
