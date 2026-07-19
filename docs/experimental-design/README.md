@@ -135,8 +135,8 @@ work.
   diagnostic, config `180`, run `001-20260719-091040-566be9ab`, completed at
   `R_block=0.26365` and `R_model=0.07897` and passed artifact, endpoint, and
   PRE-RoPE zero-survival review. Config `181` materializes the matched fixed
-  `Gpm` PRE-RoPE Q/K plus post-split V cell at `kappa=0.10`; it is the next run
-  to launch.
+  `Gpm` PRE-RoPE Q/K plus post-split V cell at `kappa=0.10`; run
+  `001-20260719-091515-36a71a24` is active from clean commit `e9b7252`.
 - B0 has completed all `20 / 20` currently executable scientific cells
   (`20 / 22` declared); the two post-PV context cells remain blocked. The
   declared S1 core has completed `36 / 134` cells (`36 / 132` executable).
