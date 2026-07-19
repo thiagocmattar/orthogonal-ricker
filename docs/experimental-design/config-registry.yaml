@@ -33,9 +33,9 @@ block_summary:
   - block: S1-B1
     planned_cells: 36
     materialized_cells: 10
-    completed_cells: 9
+    completed_cells: 10
     status: active
-    note: configs 149, 151, 153, 155, 157, 159, 161, 163, and 165 plus their mandatory complete-selection propagation diagnostics are complete; config 167 is the active fixed G+ POST-RoPE QKV kappa 0.03 cell
+    note: configs 149, 151, 153, 155, 157, 159, 161, 163, and 165 plus their mandatory complete-selection propagation diagnostics are complete; config 167 passed terminal review and its mandatory diagnostic is pending
   - block: S1-B2
     planned_cells: 26
     materialized_cells: 0
@@ -2310,8 +2310,8 @@ records:
     ricker_sigma: null
     step_budget: null
     matched_control_id: S1-B0-ARCH-A6POST-LR3EM5-S0
-    config_status: active
+    config_status: closed
     decision_status: pending
     release_tier: history
-    canonical_run_id: null
-    notes: Tenth B1 scientific cell; fixed absolute G+ kappa 0.03 at POST-RoPE Q/K and post-split V, ordinary a/m/h ReLU, AdamW without pressure. S1 supports feasibility/collapse and within-stratum comparisons only.
+    canonical_run_id: 001-20260719-054016-5e3f0e3d
+    notes: Tenth B1 scientific cell; fixed absolute G+ kappa 0.03 at POST-RoPE Q/K and post-split V, ordinary a/m/h ReLU, AdamW without pressure. Run 001-20260719-054016-5e3f0e3d completed all 2048 steps from clean commit 0f81a0e and passed terminal review at selection loss 7.03290. Its mandatory complete-selection propagation diagnostic is pending. S1 supports feasibility/collapse and within-stratum comparisons only.
