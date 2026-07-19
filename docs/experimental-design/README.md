@@ -12,8 +12,9 @@ work.
 - Current phase: E0.1 and all currently executable S1-B0 cells are complete;
   the fixed-gate engineering gate passed, and the first twenty S1-B1 cells
   plus their mandatory complete-selection diagnostics are complete. The
-  twenty-first B1 scientific config, `189`, is ready. The 2,048-step screen remains restricted to
-  feasibility/collapse and within-stratum comparisons.
+  twenty-first B1 scientific config, `189`, is active from clean commit
+  `abab687`. The 2,048-step screen remains restricted to feasibility/collapse
+  and within-stratum comparisons.
 - Next config prefix: `190`.
 - The five central B0 anchors, configs `123--127`, completed and passed
   terminal review. Their final selection losses are `7.04913` (A0),
@@ -25,6 +26,8 @@ work.
   `kappa=0.10`, run `001-20260719-105711-4d2ba109`, selection loss `7.01402`.
 - Config `188`, run `001-20260719-112516-267933ce`, completed config `187`'s
   mandatory selection diagnostic at `R_block=0.26142` and `R_model=0.07830`.
+- Active scientific run: config `189`, fixed `Gpm` POST-RoPE Q/K at
+  `kappa=0.30`, run `001-20260719-113001-536f9230`.
 - Config `134`, run `001-20260718-205354-8821b592`, completed the pooled
   exact-zero diagnostic over canonical configs `129--133`.
 - All ten LR-flank training runs, configs `135--144`, are complete and passed
@@ -155,8 +158,11 @@ work.
   Config `187` materializes the matched fixed `Gpm` POST-RoPE Q/K cell at
   `kappa=0.10`; run `001-20260719-105711-4d2ba109` completed at selection loss
   `7.01402` and passed terminal review. Its mandatory selection diagnostic is
-  materialized as config `188` and ready to run over the complete frozen
-  selection partition.
+  config `188`, run `001-20260719-112516-267933ce`, which completed over the
+  frozen selection partition at `R_block=0.26142` and `R_model=0.07830` and
+  passed artifact, endpoint, and POST-RoPE identity review. Config `189`
+  materializes the matched fixed `Gpm` POST-RoPE Q/K cell at `kappa=0.30`;
+  run `001-20260719-113001-536f9230` is active from clean commit `abab687`.
 - B0 has completed all `20 / 20` currently executable scientific cells
   (`20 / 22` declared); the two post-PV context cells remain blocked. The
   declared S1 core has completed `40 / 134` cells (`40 / 132` executable).
