@@ -10,11 +10,10 @@ work.
 - Campaign id: `pythia-sparsity-scaling-v1`.
 - Planning date: 2026-07-18.
 - Current phase: E0.1 and all currently executable S1-B0 cells are complete;
-  the fixed-gate engineering gate passed, and the first twenty S1-B1 cells
-  plus their mandatory complete-selection diagnostics are complete. The
-  twenty-first B1 scientific run passed terminal review; its mandatory
-  diagnostic, config `190`, is ready. The 2,048-step screen remains restricted
-  to feasibility/collapse and within-stratum comparisons.
+  the fixed-gate engineering gate passed, and the first twenty-one S1-B1 cells
+  plus their mandatory complete-selection diagnostics are complete. Config
+  `191` is next to materialize. The 2,048-step screen remains restricted to
+  feasibility/collapse and within-stratum comparisons.
 - Next config prefix: `191`.
 - The five central B0 anchors, configs `123--127`, completed and passed
   terminal review. Their final selection losses are `7.04913` (A0),
@@ -26,8 +25,11 @@ work.
   `kappa=0.30`, run `001-20260719-113001-536f9230`, selection loss `7.02492`.
 - Config `188`, run `001-20260719-112516-267933ce`, completed config `187`'s
   mandatory selection diagnostic at `R_block=0.26142` and `R_model=0.07830`.
-- Config `190` materializes config `189`'s mandatory complete-selection
-  propagation diagnostic and is ready to run.
+- Config `190`, run `001-20260719-115604-facf4ade`, completed config `189`'s
+  mandatory diagnostic at `R_block=0.40495` and `R_model=0.12129`.
+- Config `190` attempt 2, run `002-20260719-115631-82d0c870`, is an accidental
+  duplicate from an automatic-continuation handoff race. Its scientific payload
+  is identical to attempt 1; it is retained but excluded as noncanonical.
 - Config `134`, run `001-20260718-205354-8821b592`, completed the pooled
   exact-zero diagnostic over canonical configs `129--133`.
 - All ten LR-flank training runs, configs `135--144`, are complete and passed
@@ -164,7 +166,10 @@ work.
   materializes the matched fixed `Gpm` POST-RoPE Q/K cell at `kappa=0.30`;
   run `001-20260719-113001-536f9230` completed at selection loss `7.02492` and
   passed terminal review. Its mandatory selection diagnostic is materialized
-  as config `190` and ready to run over the complete frozen selection partition.
+  config `190`, run `001-20260719-115604-facf4ade`, completed over the frozen
+  selection partition at `R_block=0.40495` and `R_model=0.12129` and passed
+  artifact, endpoint, and POST-RoPE identity review. Config `191` is next to
+  materialize.
 - B0 has completed all `20 / 20` currently executable scientific cells
   (`20 / 22` declared); the two post-PV context cells remain blocked. The
   declared S1 core has completed `41 / 134` cells (`41 / 132` executable).
