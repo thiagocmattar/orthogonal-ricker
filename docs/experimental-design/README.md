@@ -12,10 +12,10 @@ work.
 - Current phase: E0.1 and all currently executable S1-B0 cells are complete;
   the fixed-gate engineering gate passed, and the first twenty-four S1-B1
   scientific cells are complete. Their first twenty-three mandatory
-  complete-selection diagnostics are complete; config `196` is pending for
+  complete-selection diagnostics are complete; config `196` is ready for
   config `195`. The 2,048-step screen remains restricted to
   feasibility/collapse and within-stratum comparisons.
-- Next config prefix: `196`.
+- Next config prefix: `197`.
 - The five central B0 anchors, configs `123--127`, completed and passed
   terminal review. Their final selection losses are `7.04913` (A0),
   `6.98875` (A1-H), `7.01310` (A3), `7.01645` (A6-PRE), and `7.03248`
@@ -25,8 +25,8 @@ work.
 - Last completed scientific run: config `195`, fixed `Gpm` POST-RoPE Q/K plus
   post-split V at `kappa=0.30`, run `001-20260719-131409-70c042d7`, selection
   loss `7.02043`.
-- Active scientific run: none. Config `196`, config `195`'s mandatory
-  complete-selection propagation diagnostic, is next.
+- Active scientific run: none. Config `196` materializes config `195`'s
+  mandatory complete-selection propagation diagnostic and is ready to run.
 - Config `194`, run `001-20260719-130907-96667214`, completed config `193`'s
   mandatory diagnostic at `R_block=0.39646` and `R_model=0.11875`.
 - Config `192`, run `001-20260719-123504-77673d45`, completed config `191`'s
@@ -191,7 +191,8 @@ work.
   POST-RoPE identity review. Config `195` materializes the matched fixed `Gpm`
   POST-RoPE Q/K plus post-split V cell at `kappa=0.30`; run
   `001-20260719-131409-70c042d7` completed at selection loss `7.02043` and
-  passed terminal review. Its mandatory diagnostic is pending as config `196`.
+  passed terminal review. Its mandatory diagnostic is materialized as config
+  `196` and ready to run over the complete frozen selection partition.
 - B0 has completed all `20 / 20` currently executable scientific cells
   (`20 / 22` declared); the two post-PV context cells remain blocked. The
   declared S1 core has completed `44 / 134` cells (`44 / 132` executable).
