@@ -14,7 +14,7 @@ work.
   their diagnostics are complete, and the eleventh S1-B1 training run passed
   terminal review. The 2,048-step screen remains restricted to
   feasibility/collapse and within-stratum comparisons.
-- Next config prefix: `170`.
+- Next config prefix: `171`.
 - The five central B0 anchors, configs `123--127`, completed and passed
   terminal review. Their final selection losses are `7.04913` (A0),
   `6.98875` (A1-H), `7.01310` (A3), `7.01645` (A6-PRE), and `7.03248`
@@ -104,7 +104,8 @@ work.
   `R_block=0.48716` and `R_model=0.14592`. Config `169` materializes the
   matched fixed `G+` POST-RoPE Q/K plus post-split V, `kappa=0.10` cell; run
   `001-20260719-060936-1cfd8103` completed at selection loss `7.03408` and
-  passed terminal review. Its mandatory selection diagnostic is pending.
+  passed terminal review. Its mandatory selection diagnostic is materialized
+  as config `170` and is next.
 - B0 has completed all `20 / 20` currently executable scientific cells
   (`20 / 22` declared); the two post-PV context cells remain blocked. The
   declared S1 core has completed `31 / 134` cells (`31 / 132` executable).
