@@ -10,11 +10,10 @@ work.
 - Campaign id: `pythia-sparsity-scaling-v1`.
 - Planning date: 2026-07-18.
 - Current phase: E0.1 and all currently executable S1-B0 cells are complete;
-  the fixed-gate engineering gate passed, and the first twenty-one S1-B1 cells
-  plus their mandatory complete-selection diagnostics are complete. The
-  twenty-second B1 scientific cell and its mandatory diagnostic are also
-  complete; the twenty-third B1 scientific config, `193`, is active from clean
-  commit `1e83a14`. The 2,048-step screen remains restricted to
+  the fixed-gate engineering gate passed, and the first twenty-three S1-B1
+  scientific cells are complete. Their first twenty-two mandatory
+  complete-selection diagnostics are complete; config `194` is the pending
+  diagnostic for config `193`. The 2,048-step screen remains restricted to
   feasibility/collapse and within-stratum comparisons.
 - Next config prefix: `194`.
 - The five central B0 anchors, configs `123--127`, completed and passed
@@ -23,11 +22,11 @@ work.
   (A6-POST). Config `128`, the combined selection-partition endpoint
   diagnostic, also completed and passed artifact review. Configs `121--122`
   remain accepted engineering controls.
-- Last completed scientific run: config `191`, fixed `Gpm` POST-RoPE Q/K plus
-  post-split V at `kappa=0.03`, run `001-20260719-120542-cff469cc`, selection
-  loss `7.01313`.
-- Active scientific run: config `193`, fixed `Gpm` POST-RoPE Q/K plus
-  post-split V at `kappa=0.10`, run `001-20260719-124320-952d526f`.
+- Last completed scientific run: config `193`, fixed `Gpm` POST-RoPE Q/K plus
+  post-split V at `kappa=0.10`, run `001-20260719-124320-952d526f`, selection
+  loss `7.01688`.
+- Active scientific run: none. Config `194`, config `193`'s mandatory
+  complete-selection propagation diagnostic, is next.
 - Config `192`, run `001-20260719-123504-77673d45`, completed config `191`'s
   mandatory diagnostic at `R_block=0.26652` and `R_model=0.07983`.
 - Config `188`, run `001-20260719-112516-267933ce`, completed config `187`'s
@@ -183,10 +182,11 @@ work.
   at `R_block=0.26652` and `R_model=0.07983` and passed artifact, endpoint, and
   POST-RoPE identity review. Config `193` materializes the matched fixed `Gpm`
   POST-RoPE Q/K plus post-split V cell at `kappa=0.10`; run
-  `001-20260719-124320-952d526f` is active from clean commit `1e83a14`.
+  `001-20260719-124320-952d526f` completed at selection loss `7.01688` and
+  passed terminal review. Its mandatory diagnostic is pending as config `194`.
 - B0 has completed all `20 / 20` currently executable scientific cells
   (`20 / 22` declared); the two post-PV context cells remain blocked. The
-  declared S1 core has completed `42 / 134` cells (`42 / 132` executable).
+  declared S1 core has completed `43 / 134` cells (`43 / 132` executable).
   Diagnostic configs do not count as scientific cells.
 - S1 must never use a global rank cutoff. Complete matched method panels from
   viable families advance to the 8,192-step rung under the frozen policy in
