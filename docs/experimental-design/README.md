@@ -129,7 +129,8 @@ work.
   `R_block=0.40069` and `R_model=0.12002` and passed artifact, endpoint, and
   PRE-RoPE zero-survival review. Config `179` materializes fixed `Gpm`,
   PRE-RoPE Q/K plus post-split V, `kappa=0.03`, with the Three-ReLU A3 identity
-  parent as its matched control; it is the next run to launch.
+  parent as its matched control; run `001-20260719-084406-a4fee547` is active
+  from clean commit `fac7ff8`.
 - B0 has completed all `20 / 20` currently executable scientific cells
   (`20 / 22` declared); the two post-PV context cells remain blocked. The
   declared S1 core has completed `35 / 134` cells (`35 / 132` executable).
