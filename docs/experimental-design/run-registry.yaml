@@ -2832,7 +2832,65 @@ records:
     cuda_version: "12.8"
     gpu_driver_version: "572.84"
     token_cache_sha256: 22bb7c27864f0e5941548c572d6c75b1b5ba6a4c13e4cd26f40f4de546c5cc19
+    propagation_result_path: results/170-s1-b1-gplus-post-qkv-k010-selection-prop/001-20260719-063500-541b449d/activation_propagation.json
+    r_block: 0.5646352729313397
+    r_model: 0.16912168547571668
+    r_block_max: 1.0
+    r_model_max: 0.2995237697384911
+    u_arch: 0.5646352729313397
+    z_a: 0.5096398571081329
+    z_m: 0.5108284531978139
+    z_h: 0.4609168705187346
+    z_q_gate: 0.37115038905227393
+    z_k_gate: 0.5023186541440194
+    z_v_gate: 0.6615781491262871
+    z_q_qk: 0.37115038905227393
+    z_k_qk: 0.5023186541440194
+    z_v_pv: 0.6615781491262871
+    z_context_wo: 0.04760647238346569
     failure_type: null
     failure_message: null
     reviewed_at: 2026-07-19T06:32:36.0055457Z
-    notes: Completed eleventh B1 scientific cell from clean launch commit 81b6739 with 42 training and 10 complete-selection validation events. Final train loss was 7.08432 and final/best selection loss was 7.03408. The final model SHA256 is fc2af9533b3d9ff86081024dee3dd16947b71419929f20d018dd7f163566541f; optimizer state was intentionally not saved. Exact reload recovered ordinary a/m/h ReLU plus fixed G+ kappa 0.10 at POST-RoPE q/k and post-split V in all six layers, with the final LayerNorm ungated. Mean final logged exact-zero fractions were z_a 0.50928, z_m 0.51046, z_h 0.46257, z_q_gate 0.37148, z_k_gate 0.50788, and z_v_gate 0.66247. Gradient norms briefly reached 2.810 at step 1800 and recovered; collapse, stability, and sparsity-evaporation checks passed. The mandatory complete-selection propagation diagnostic is pending; S1 supports feasibility/collapse and within-stratum comparisons only.
+    notes: Completed eleventh B1 scientific cell from clean launch commit 81b6739 with 42 training and 10 complete-selection validation events. Final train loss was 7.08432 and final/best selection loss was 7.03408. The final model SHA256 is fc2af9533b3d9ff86081024dee3dd16947b71419929f20d018dd7f163566541f; optimizer state was intentionally not saved. Exact reload recovered ordinary a/m/h ReLU plus fixed G+ kappa 0.10 at POST-RoPE q/k and post-split V in all six layers, with the final LayerNorm ungated. Mean final logged exact-zero fractions were z_a 0.50928, z_m 0.51046, z_h 0.46257, z_q_gate 0.37148, z_k_gate 0.50788, and z_v_gate 0.66247. Gradient norms briefly reached 2.810 at step 1800 and recovered; collapse, stability, and sparsity-evaporation checks passed. Canonical diagnostic config 170 supplies the attached complete-selection exact-zero and product endpoints; S1 supports feasibility/collapse and within-stratum comparisons only.
+  - design_id: S1-B1-DIAG-FIX-GPLUS-POST-QKV-K010-SELECTION-S0
+    config_id: 170-s1-b1-gplus-post-qkv-k010-selection-prop
+    run_id: 001-20260719-063500-541b449d
+    attempt: 1
+    mode: activation-propagation
+    result_path: results/170-s1-b1-gplus-post-qkv-k010-selection-prop/001-20260719-063500-541b449d
+    log_path: null
+    lifecycle_status: statusless_complete
+    evidence_status: valid
+    canonical: true
+    started_at: 2026-07-19T06:35:00.000000Z
+    finished_at: 2026-07-19T06:35:05.6222646Z
+    git_commit: 28b2001c366b459a80c4b6d4b0d0e170b251ea8f
+    git_dirty: false
+    completed_steps: 0
+    tokens_seen: 0
+    model_initialization_seed: 0
+    data_order_seed: 0
+    training_schedule_scheme: null
+    training_schedule_hash: null
+    effective_tokens_per_update: null
+    validation_partition: selection
+    validation_partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
+    validation_tokens: 311296
+    validation_loss: null
+    wall_hours: 0.001269756750003176
+    tokens_per_second: 68100.53272872526
+    peak_gpu_mb: 668.9775390625
+    execution_backend: local
+    cloud_provider: null
+    gpu_type: NVIDIA GeForce RTX 5070 Ti Laptop GPU
+    gpu_count: 1
+    python_version: 3.12.10
+    pytorch_version: 2.11.0+cu128
+    cuda_version: "12.8"
+    gpu_driver_version: "572.84"
+    token_cache_sha256: 22bb7c27864f0e5941548c572d6c75b1b5ba6a4c13e4cd26f40f4de546c5cc19
+    propagation_result_path: results/170-s1-b1-gplus-post-qkv-k010-selection-prop/001-20260719-063500-541b449d/activation_propagation.json
+    failure_type: null
+    failure_message: null
+    reviewed_at: 2026-07-19T06:35:57.5397316Z
+    notes: Canonical statusless-complete schema-v3 diagnostic over the exact completed config 169 checkpoint. It pooled all 311296 complete selection tokens across 152 sequences and 38 batches, excluded 443 trailing cache tokens, recovered ordinary a/m/h ReLU plus fixed G+ kappa 0.10 at POST-RoPE q/k and post-split V in all six layers, and emitted exact-zero, direct-product, and architecture-ceiling counts. RoPE survival metrics are correctly unavailable because gating occurs after RoPE. The five-file envelope, completed source manifest, and activation artifact SHA256 6d72f0b937ddc996263fb0b43c84e09475e21e285c7cb7f7026623f8d781bbfb passed review.
