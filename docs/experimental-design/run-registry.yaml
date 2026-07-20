@@ -6087,3 +6087,85 @@ records:
     artifact_manifest_sha256: null
     reviewed_at: '2026-07-19T19:10:00Z'
     notes: 'Canonical statusless-complete schema-v3 diagnostic over the nine exact completed checkpoints for configs 211--219 in center-first order. It pooled all 311296 complete selection tokens across 152 sequences and 38 batches, excluded 443 trailing cache tokens, and emitted exact-zero, direct-product, architecture-ceiling, U_arch, and final learned-threshold metadata. Every source recovered learned G+ at all six A6-POST sites a/m/h/q/k/v with absolute per-layer/site thresholds, POST-RoPE Q/K placement, 36 distinct threshold parameters, and an ungated final LayerNorm. All nine completed source manifests are pinned exactly. The five-file envelope, partition identity, topology, gate-operand identity, exact-zero/product denominators, ceilings, endpoint arithmetic, and activation artifact SHA256 f603130384684092ccd78c4c842d8ea0e8357a4546ff4c8f1360eed4010a22bf passed review. This is engineering evidence only. The 2026-07-19 registered revision retained tau 0.03 and selected config 213 at TLRM 10 solely by the original no_frozen criterion; validation loss was never ranked or used. Configs 221--246 are materialized and S1-B2 is active at 0/26.'
+  - design_id: S1-B2-ATG-GPLUS-POST-A6POST-ABS-PLS-K010-S0
+    config_id: 241-s1-b2-p14m-atg-gplus-a6post-abs-pls-k010-s0
+    run_id: 001-20260720-022211-bb0dbb78
+    attempt: 1
+    mode: pretrain
+    result_path: results/241-s1-b2-p14m-atg-gplus-a6post-abs-pls-k010-s0/001-20260720-022211-bb0dbb78
+    log_path: run-logs/s1-b2-science-221-246/241-s1-b2-p14m-atg-gplus-a6post-abs-pls-k010-s0-queue-20260720-022210-ce47b268.log
+    lifecycle_status: partial
+    evidence_status: invalid
+    canonical: false
+    started_at: '2026-07-20T02:22:11.768905+00:00'
+    finished_at: null
+    git_commit: 33e44495472434f357fa67bfa1a23a8c85d45710
+    git_dirty: false
+    completed_steps: 1250
+    tokens_seen: 81920000
+    model_initialization_seed: 0
+    data_order_seed: 0
+    training_schedule_scheme: random_contiguous_blocks_with_replacement_v1
+    training_schedule_hash: db4fa092d7092d29edc3bf1e2005af69f4a92b8bf6e6d88cbb6a166e12be02fc
+    initial_parameter_sha256: null
+    effective_tokens_per_update: 65536
+    validation_partition: selection
+    validation_partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
+    validation_tokens: 311296
+    validation_loss: 7.606434596212287
+    wall_hours: null
+    tokens_per_second: null
+    peak_gpu_mb: null
+    execution_backend: local
+    cloud_provider: null
+    cloud_tier: null
+    provisioning_type: null
+    interruptible: false
+    pod_id: null
+    region: null
+    datacenter_id: null
+    gpu_type: NVIDIA GeForce RTX 5070 Ti Laptop GPU
+    gpu_count: 1
+    container_image_ref: null
+    container_image_digest: null
+    environment_lock_sha256: null
+    python_version: 3.12.10
+    pytorch_version: 2.11.0+cu128
+    cuda_version: '12.8'
+    cudnn_version: null
+    gpu_driver_version: '572.84'
+    token_cache_sha256: 22bb7c27864f0e5941548c572d6c75b1b5ba6a4c13e4cd26f40f4de546c5cc19
+    hourly_rate_usd: null
+    rate_snapshot_date: null
+    rate_source_url: null
+    billed_gpu_seconds: null
+    compute_cost_usd: null
+    storage_cost_usd: null
+    resumed_from_run_id: null
+    resume_checkpoint_sha256: null
+    artifact_upload_verified_at: null
+    propagation_result_path: null
+    r_block: null
+    r_model: null
+    r_block_max: null
+    r_model_max: null
+    u_arch: null
+    z_a: null
+    z_m: null
+    z_h: null
+    z_q_gate: null
+    z_k_gate: null
+    z_v_gate: null
+    z_q_qk: null
+    z_k_qk: null
+    z_v_pv: null
+    z_context_wo: null
+    clipping_result_paths: null
+    figure_ids: null
+    failure_type: infrastructure_operator_process_misidentification
+    failure_message: An audit agent misidentified the live config-241 training process as stale and forcibly terminated PID 35252. The serial queue observed child exit 4294967295 while the immutable manifest remained status running.
+    artifact_uri: null
+    artifact_manifest_uri: null
+    artifact_manifest_sha256: null
+    reviewed_at: '2026-07-19T23:58:00-03:00'
+    notes: 'Invalid noncanonical infrastructure attempt retained byte-for-byte; its running manifest must not be rewritten. It contains 26 finite train events and six complete-selection validation events through step 1250 (81920000 tokens), but is excluded from scientific endpoints and promotion. No resume is permitted: retry attempt 002 must be a fresh random-initialized pretrain from a clean committed tree with the identical config, seed-0 initialization, data-order schedule, and selection partition. PRETRAIN_QUEUE_RETRY_AUTHORIZATION_V1 failed_attempt=001 authorized_next_attempt=002 inventory_sha256=489fc1ffb9164b314eca2dcc35835b9ff8ed2a844ee9505d29f0351e5afadc27 predecessor_queue_id=53ee05984e8c4a5c81f0252c1b727a5b predecessor_queue_sha256=2ca815e60f8dd4fbf81b02a7246b2ce79961025143f4eb93afe77f5ee39a7cbf stdout_sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 stderr_sha256=f9f93ff2470236f242566acb17880e4ba7995a2bb767f7dcf5259a3807952820 terminated_pid=35252'

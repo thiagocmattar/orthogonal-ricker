@@ -69,6 +69,24 @@ def build_parser() -> argparse.ArgumentParser:
         default="run-logs",
         help="Directory for separate child stdout and stderr logs.",
     )
+    pretrain_queue.add_argument(
+        "--recovery-of-state-path",
+        help="Exact failed predecessor queue; required for a reviewed retry.",
+    )
+    pretrain_queue.add_argument(
+        "--reviewed-retry-run-id",
+        help="Single registry-authorized invalid running-manifest attempt to bypass.",
+    )
+    pretrain_queue.add_argument(
+        "--confirm-reviewed-retry-process-exited",
+        action="store_true",
+        help="Confirm that no process can still write the exact reviewed retry attempt.",
+    )
+    pretrain_queue.add_argument(
+        "--reviewed-retry-terminated-pid",
+        type=int,
+        help="Reviewed external-termination PID, which must be absent before retry.",
+    )
 
     plots = subparsers.add_parser("plots", help="Regenerate paper-style plots from saved results.")
     plots.add_argument("--results", default="results")
@@ -267,6 +285,10 @@ def main(argv: list[str] | None = None) -> int:
                 args.config,
                 state_path=args.state_path,
                 logs_dir=args.logs_dir,
+                recovery_of_state_path=args.recovery_of_state_path,
+                reviewed_retry_run_id=args.reviewed_retry_run_id,
+                confirm_reviewed_retry_process_exited=args.confirm_reviewed_retry_process_exited,
+                reviewed_retry_terminated_pid=args.reviewed_retry_terminated_pid,
             )
             print(
                 f"Pretraining queue {state['queue_id']} completed "

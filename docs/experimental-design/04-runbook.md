@@ -182,6 +182,15 @@ logs are orchestration aids; result manifests and artifacts remain
 authoritative. Reusing a failed queue state is forbidden: inspect the terminal
 artifacts and use a new state path for an explicit retry.
 
+Process ownership is exact, not inferred. While a queue is active, its
+blocking child handle is the sole authority for that training process. External
+monitors are read-only: they must not use `Stop-Process`, `taskkill`, process
+name matching, parent-PID guesses, GPU-owner guesses, or elapsed-time heuristics
+to terminate Python processes. Only the code that created and still owns an
+exact process handle may terminate it. If ownership cannot be proven, leave the
+process untouched and inspect queue state, manifests, and logs. Do not run
+auxiliary model-loading audits concurrently with a live local training queue.
+
 Do not edit the queue's execution checkout while it is active. If engineering
 continues concurrently, run the tranche from a separate clean Git worktree at
 the committed launch SHA. Ensure `PYTHONPATH` resolves to that worktree's
@@ -268,6 +277,18 @@ training config.
 
 Before a retry, record `failure_type`, the exact failure message, the proposed
 infrastructure correction, and whether numerical comparability is preserved.
+If an infrastructure interruption leaves a `status: running` manifest, retain
+that attempt byte-for-byte and register it as invalid and noncanonical; never
+rewrite the manifest to manufacture a terminal state. A retry is eligible only
+after an independently reviewed authorization is committed. That authorization
+binds the failed run id, attempt inventory, predecessor queue identity and hash,
+logs, terminated process identity when relevant, immutable scientific config,
+and the next expected attempt number. Launch from a clean commit, restart from
+step zero, and use new queue-state and log paths. A second interruption requires
+a new adjudication and another unique recovery queue; authorization is never
+implicitly reusable. Chained recovery is currently fail-closed rather than
+automatic: do not relaunch until the additional attempt has been preserved and
+the new recovery lineage is implemented and reviewed.
 
 ## 9. Diagnostics and Standard Handoff
 
