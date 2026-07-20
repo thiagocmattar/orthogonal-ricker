@@ -9,11 +9,10 @@ work.
 
 - Campaign id: `pythia-sparsity-scaling-v1`.
 - Planning date: 2026-07-18.
-- Scientific training-row accounting is 82/132 (62.12%): S1-B0 is 20/20,
-  S1-B1 is 36/36, and all 26 S1-B2 training cells are reconciled. The formal
-  campaign auditor remains at 56/132 until diagnostic `247` attaches the
-  pooled exact-zero and logical-product endpoints. The 2,048-step screen
-  remains restricted to feasibility/collapse and within-stratum comparisons.
+- Scientific completion is 82/132 (62.12%): S1-B0 is 20/20, S1-B1 is 36/36,
+  and S1-B2 is closed at 26/26 after reviewed pooled diagnostic `247`. The
+  2,048-step screen remains restricted to feasibility/collapse and
+  within-stratum comparisons.
 - Learned-ATG engineering configs `211--219` completed all nine 128-step runs
   and passed the hard checkpoint/optimizer contract. Config `220`, run
   `001-20260719-190523-f28590eb`, completed and passed the exact center-first
@@ -30,9 +29,14 @@ work.
   invalid, and noncanonical. Reviewed recovery queue
   `09b88220c82e415a9099b2c0781e6a10` completed unchanged config `241` from
   step zero as canonical attempt `002` and then completed configs `242--246`
-  as attempt `001`. B2 remains active until pooled diagnostic `247` closes.
-- Next unused config prefix: `247`; its strict diagnostic config is prepared
-  for a separate registration commit pinned to all 26 canonical run IDs.
+  as attempt `001`. Diagnostic `247`, run
+  `001-20260720-062718-d9765000`, closed B2 after pooling exact-zero and
+  logical-product endpoints over all 26 canonical checkpoints and 311,296
+  complete selection tokens.
+- S1-B3 tranche `t1-central` configs `248--255` are materialized and ready.
+  B3 is 8/40 materialized and 0/40 complete. Next unused prefix: `256`; its
+  pooled diagnostic remains deferred until all eight tranche runs are
+  terminal, audited, and reconciled.
 - The five central B0 anchors, configs `123--127`, completed and passed
   terminal review. Their final selection losses are `7.04913` (A0),
   `6.98875` (A1-H), `7.01310` (A3), `7.01645` (A6-PRE), and `7.03248`
@@ -42,9 +46,8 @@ work.
 - Last durably completed scientific run: config `246`, learned-ATG `Gpm` on
   A6-POST with absolute per-site thresholds, run
   `001-20260720-053531-613da146`, selection loss `7.01657`.
-- Active scientific run: none. The next action is a clean, separate commit
-  registering diagnostic `247`, followed by its pooled selection evaluation
-  and B2 closure. B3 must not launch before that closure.
+- Active scientific run: none. The next action is the fail-stop launch of
+  S1-B3 `t1-central` in exact config order `248--255`.
 
 | Config | Gate/site | Canonical run | Selection loss | `R_block` | `R_model` |
 | ---: | --- | --- | ---: | ---: | ---: |

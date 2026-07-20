@@ -1,0 +1,87 @@
+experiment_name: s1_b3_p14m_a3_l1n_w1_s0
+sweep:
+  name: pythia_sparsity_scaling_v1_s1_b3
+  role: t1_central_a3_l1n
+  design_id: S1-B3-L1-A3-L1N-W1-ALLACTIVE-S0
+  planned_steps: 2048
+  planned_tokens: 134217728
+  notes: B3 T1_CENTRAL ordinary-ReLU A3 pressure calibration; L1N pressure targets every active compute-facing gate. S1 supports
+    feasibility/collapse and within-stratum comparisons only.
+model:
+  provider: huggingface
+  name: pythia-14m-random-a3-l1n-w1
+  architecture: EleutherAI/pythia-14m-deduped
+  revision: 7386d9a4ae45aef494a6e704910394def3037fc5
+  initialization: random
+  hidden_act: relu
+  post_layernorm_relu: true
+data:
+  name: JeanKaddour/minipile
+  revision: 18ad1b0c701eaa0de03d3cecfdd769cbc70ffbd0
+  split: train
+  text_column: text
+  max_documents: null
+evaluation:
+  metric: training_loss
+run:
+  seed: 0
+  model_initialization_seed: 0
+  data_order_seed: 0
+  training_schedule_scheme: random_contiguous_blocks_with_replacement_v1
+  training_schedule_hash: db4fa092d7092d29edc3bf1e2005af69f4a92b8bf6e6d88cbb6a166e12be02fc
+  max_examples: 1000000
+tokenizer:
+  name: EleutherAI/pythia-14m-deduped
+  revision: 7386d9a4ae45aef494a6e704910394def3037fc5
+preprocessing:
+  output_dir: data/tokenized
+  cache_id: 03-pythia-14m-minipile-random-full-10min
+  block_size: 2048
+  append_eos: true
+  overwrite: false
+training:
+  max_steps: 2048
+  max_wall_seconds: null
+  warmup_steps: 100
+  micro_batch_size: 4
+  gradient_accumulation_steps: 8
+  learning_rate: 3.0e-05
+  optimizer: adamw
+  adamw_betas:
+  - 0.9
+  - 0.999
+  adamw_eps: 1.0e-08
+  weight_decay: 0.01
+  precision: auto
+  device: auto
+  log_every: 50
+validation:
+  enabled: true
+  split: validation
+  max_documents: 500
+  partition: selection
+  partition_scheme: shuffled_source_documents_half_v1
+  partition_seed: 20260718
+  partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
+  eval_every_steps: 250
+  eval_batches: null
+  batch_size: 4
+checkpoint:
+  save_final: true
+  save_optimizer: false
+output:
+  dir: results
+activation_pressure:
+  enabled: true
+  method: l1_naive
+  sites:
+  - attention_inputs
+  - mlp_inputs
+  - mlp_hiddens
+  weight: 1.0
+  log_thresholds:
+  - 0.0
+  - 0.001
+  - 0.003
+  - 0.01
+  - 0.03

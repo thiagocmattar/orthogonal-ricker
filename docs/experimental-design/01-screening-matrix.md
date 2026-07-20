@@ -312,6 +312,9 @@ matched orthogonal member; cover `A3` before `A6-POST`.
 | `T4-RK-BASIN` | Ricker `(0.3,0.05,0.05)` and `(0.3,0.5,0.5)`, both methods and both architectures |
 | `T5-RK-SHAPE` | Ricker `(0.3,0.1,0.05)` and `(0.3,0.1,0.2)`, both methods and both architectures |
 
+> Active tranche: `t1-central` (`248--255`); B3 materialized/completed:
+> `8/40` / `0/40`. Diagnostic `256` is deliberately not materialized.
+
 After each tranche, reconcile all eight terminal manifests and run one pooled
 complete-selection propagation diagnostic before starting the next tranche.
 `T1` is also the fail-fast runtime gate for simultaneous six-site pressure on
