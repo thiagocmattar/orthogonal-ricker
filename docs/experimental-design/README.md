@@ -32,7 +32,9 @@ work.
   as attempt `001`. Diagnostic `247`, run
   `001-20260720-062718-d9765000`, closed B2 after pooling exact-zero and
   logical-product endpoints over all 26 canonical checkpoints and 311,296
-  complete selection tokens.
+  complete selection tokens. The canonical table, prespecified matched
+  contrasts, safety checks, and interpretation boundary are consolidated in
+  [`13-s1-b2-learned-atg-results.md`](13-s1-b2-learned-atg-results.md).
 - S1-B3 tranche `t1-central` configs `248--255` are materialized and ready.
   B3 is 8/40 materialized and 0/40 complete. Next unused prefix: `256`; its
   pooled diagnostic remains deferred until all eight tranche runs are
@@ -281,23 +283,12 @@ registry rows explicitly marked as valid are campaign evidence.
 
 ## Latest Completed Launch Set
 
-The S1-B0 learning-rate controls completed locally across 2026-07-18 and
-2026-07-19. Each architecture now has matched `1e-5`, `3e-5`, and `1e-4`
-endpoints at 2,048 steps; config `145` measured exact-zero and logical-product
-endpoints for both flank slices. The consolidated evidence and handoff are in
-[`09-s1-b0-learning-rate-flank-results.md`](09-s1-b0-learning-rate-flank-results.md).
-
-| Architecture | Loss at `1e-5` | Loss at `3e-5` | Loss at `1e-4` |
-| --- | ---: | ---: | ---: |
-| A0 | 8.35104 | 7.04913 | 5.93887 |
-| A1-H | 8.38652 | 6.98875 | 5.87474 |
-| A3 | 8.40015 | 7.01310 | 5.91768 |
-| A6-PRE | 8.38739 | 7.01645 | 5.93539 |
-| A6-POST | 8.38743 | 7.03248 | 6.06320 |
-
-B0 has completed all 20 currently executable scientific cells. Two post-PV
-context cells remain dependency-gated; they are not silently counted as
-complete.
+S1-B2 completed locally across 2026-07-19 and 2026-07-20. All 26 learned-ATG
+AdamW cells reached 2,048 steps, passed exact checkpoint/optimizer and campaign
+safety review, and were pooled by diagnostic `247` over 311,296 complete
+selection tokens. B2 is closed without a global ranking or promotion decision;
+the canonical endpoint table and matched contrasts are in
+[`13-s1-b2-learned-atg-results.md`](13-s1-b2-learned-atg-results.md).
 
 ## Latest Completed Engineering Launch Set
 
@@ -357,15 +348,19 @@ must not be used to rank methods.
     consolidates the fixed-threshold factorial, topology-normalized utilization,
     site-isolation and branch-scope endpoints, and the reviewed B1 closure.
 12. [`12-s1-b2-learned-atg-engineering-results.md`](12-s1-b2-learned-atg-engineering-results.md)
-    records the nine learned-gate pilots, pooled endpoints, failed default
-    acceptance condition, update-resolution pattern, and pending decision.
-13. [`validation-partitions.yaml`](validation-partitions.yaml) freezes the
-    document-disjoint selection and confirmation source-document lists.
-14. [`config-registry.yaml`](config-registry.yaml) is the config-level source of
-    truth for materialized campaign cells.
-15. [`run-registry.yaml`](run-registry.yaml) records every run attempt. It is
-   intentionally separate because one immutable config can have more than one
-   infrastructure attempt.
+     records the nine learned-gate pilots, pooled endpoints, failed default
+     acceptance condition, update-resolution pattern, and pending decision.
+13. [`13-s1-b2-learned-atg-results.md`](13-s1-b2-learned-atg-results.md)
+     consolidates the 26 learned-ATG AdamW cells, pooled exact-zero and logical
+     compute endpoints, matched fixed/learned and scale/granularity contrasts,
+     limitations, and the reviewed B2 closure.
+14. [`validation-partitions.yaml`](validation-partitions.yaml) freezes the
+     document-disjoint selection and confirmation source-document lists.
+15. [`config-registry.yaml`](config-registry.yaml) is the config-level source of
+     truth for materialized campaign cells.
+16. [`run-registry.yaml`](run-registry.yaml) records every run attempt. It is
+    intentionally separate because one immutable config can have more than one
+    infrastructure attempt.
 
 ## Non-Negotiable Controls
 
