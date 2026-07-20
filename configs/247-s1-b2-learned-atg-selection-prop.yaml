@@ -1,0 +1,126 @@
+experiment_name: s1_b2_learned_atg_selection_propagation
+sweep:
+  name: pythia_sparsity_scaling_v1_s1_b2
+  role: learned_atg_selection_endpoint_diagnostic
+  design_id: S1-B2-DIAG-LEARNED-ATG-SELECTION-S0
+  notes: Complete frozen selection-partition exact-zero, learned-threshold, and logical-product
+    diagnostic for the 26 canonical B2 scientific runs under the registered tau=0.03,
+    threshold/model LR multiplier=10 revision.
+model:
+  provider: huggingface
+  name: pythia-14m-random-s1-b2-learned-atg-propagation
+  architecture: EleutherAI/pythia-14m-deduped
+  revision: 7386d9a4ae45aef494a6e704910394def3037fc5
+  initialization: random
+data:
+  name: JeanKaddour/minipile
+  revision: 18ad1b0c701eaa0de03d3cecfdd769cbc70ffbd0
+  split: validation
+  text_column: text
+  max_documents: 500
+evaluation:
+  metric: activation_propagation
+run:
+  seed: 0
+  max_examples: 500
+tokenizer:
+  name: EleutherAI/pythia-14m-deduped
+  revision: 7386d9a4ae45aef494a6e704910394def3037fc5
+preprocessing:
+  output_dir: data/tokenized
+  cache_id: 03-pythia-14m-minipile-random-full-10min
+  block_size: 2048
+  append_eos: true
+  overwrite: false
+validation:
+  enabled: true
+  split: validation
+  max_documents: 500
+  partition: selection
+  partition_scheme: shuffled_source_documents_half_v1
+  partition_seed: 20260718
+  partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
+  eval_batches: null
+  batch_size: 4
+activation_propagation:
+  selected_runs:
+  - label: ATG-GPLUS-PRE-QK-ABS-PLS-K010-S0
+    config_id: 221-s1-b2-p14m-atg-gplus-pre-qk-abs-pls-k010-s0
+    run_id: 001-20260719-193319-0dc31fc3
+  - label: ATG-GPM-PRE-QK-ABS-PLS-K010-S0
+    config_id: 222-s1-b2-p14m-atg-gpm-pre-qk-abs-pls-k010-s0
+    run_id: 001-20260719-195338-636d28fc
+  - label: ATG-GPLUS-PRE-QKV-ABS-PLS-K010-S0
+    config_id: 223-s1-b2-p14m-atg-gplus-pre-qkv-abs-pls-k010-s0
+    run_id: 001-20260719-201401-6e3d7a67
+  - label: ATG-GPM-PRE-QKV-ABS-PLS-K010-S0
+    config_id: 224-s1-b2-p14m-atg-gpm-pre-qkv-abs-pls-k010-s0
+    run_id: 001-20260719-203526-edb6dc24
+  - label: ATG-GPLUS-POST-QK-ABS-PLS-K010-S0
+    config_id: 225-s1-b2-p14m-atg-gplus-post-qk-abs-pls-k010-s0
+    run_id: 001-20260719-205659-86a28a4b
+  - label: ATG-GPM-POST-QK-ABS-PLS-K010-S0
+    config_id: 226-s1-b2-p14m-atg-gpm-post-qk-abs-pls-k010-s0
+    run_id: 001-20260719-211706-4dd8c70e
+  - label: ATG-GPLUS-POST-QKV-ABS-PLS-K010-S0
+    config_id: 227-s1-b2-p14m-atg-gplus-post-qkv-abs-pls-k010-s0
+    run_id: 001-20260719-213712-a5ae7170
+  - label: ATG-GPM-POST-QKV-ABS-PLS-K010-S0
+    config_id: 228-s1-b2-p14m-atg-gpm-post-qkv-abs-pls-k010-s0
+    run_id: 001-20260719-215833-7f53014c
+  - label: ATG-GPLUS-PRE-QK-RMS-PLS-K010-S0
+    config_id: 229-s1-b2-p14m-atg-gplus-pre-qk-rms-pls-k010-s0
+    run_id: 001-20260719-221956-bac8c4af
+  - label: ATG-GPM-PRE-QK-RMS-PLS-K010-S0
+    config_id: 230-s1-b2-p14m-atg-gpm-pre-qk-rms-pls-k010-s0
+    run_id: 001-20260719-224029-ccf0674c
+  - label: ATG-GPLUS-PRE-QKV-RMS-PLS-K010-S0
+    config_id: 231-s1-b2-p14m-atg-gplus-pre-qkv-rms-pls-k010-s0
+    run_id: 001-20260719-230109-30c0977a
+  - label: ATG-GPM-PRE-QKV-RMS-PLS-K010-S0
+    config_id: 232-s1-b2-p14m-atg-gpm-pre-qkv-rms-pls-k010-s0
+    run_id: 001-20260719-232256-a1743da1
+  - label: ATG-GPLUS-POST-QK-RMS-PLS-K010-S0
+    config_id: 233-s1-b2-p14m-atg-gplus-post-qk-rms-pls-k010-s0
+    run_id: 001-20260719-234446-32adc479
+  - label: ATG-GPM-POST-QK-RMS-PLS-K010-S0
+    config_id: 234-s1-b2-p14m-atg-gpm-post-qk-rms-pls-k010-s0
+    run_id: 001-20260720-000502-819590d4
+  - label: ATG-GPLUS-POST-QKV-RMS-PLS-K010-S0
+    config_id: 235-s1-b2-p14m-atg-gplus-post-qkv-rms-pls-k010-s0
+    run_id: 001-20260720-002524-b51e4a62
+  - label: ATG-GPM-POST-QKV-RMS-PLS-K010-S0
+    config_id: 236-s1-b2-p14m-atg-gpm-post-qkv-rms-pls-k010-s0
+    run_id: 001-20260720-004701-994692e6
+  - label: ATG-GPLUS-POST-A1H-ABS-PLS-K010-S0
+    config_id: 237-s1-b2-p14m-atg-gplus-a1h-abs-pls-k010-s0
+    run_id: 001-20260720-010843-204ac9e3
+  - label: ATG-GPLUS-POST-A1H-RMS-PLS-K010-S0
+    config_id: 238-s1-b2-p14m-atg-gplus-a1h-rms-pls-k010-s0
+    run_id: 001-20260720-012552-f4e5b550
+  - label: ATG-GPLUS-POST-A3-ABS-PLS-K010-S0
+    config_id: 239-s1-b2-p14m-atg-gplus-a3-abs-pls-k010-s0
+    run_id: 001-20260720-014311-55a91292
+  - label: ATG-GPLUS-POST-A3-RMS-PLS-K010-S0
+    config_id: 240-s1-b2-p14m-atg-gplus-a3-rms-pls-k010-s0
+    run_id: 001-20260720-020230-307b2324
+  - label: ATG-GPLUS-POST-A6POST-ABS-PLS-K010-S0
+    config_id: 241-s1-b2-p14m-atg-gplus-a6post-abs-pls-k010-s0
+    run_id: 002-20260720-034639-7c90a013
+  - label: ATG-GPLUS-POST-A6POST-RMS-PLS-K010-S0
+    config_id: 242-s1-b2-p14m-atg-gplus-a6post-rms-pls-k010-s0
+    run_id: 001-20260720-040917-6c614f01
+  - label: GRAN-GPLUS-POST-QKV-ABS-GLOBAL-K010-S0
+    config_id: 243-s1-b2-p14m-atg-gran-gplus-post-qkv-abs-global-k010-s0
+    run_id: 001-20260720-043230-ce8ca0d0
+  - label: GRAN-GPLUS-POST-QKV-ABS-SITE-K010-S0
+    config_id: 244-s1-b2-p14m-atg-gran-gplus-post-qkv-abs-site-k010-s0
+    run_id: 001-20260720-045326-debca9b2
+  - label: GRAN-GPM-POST-QKV-ABS-GLOBAL-K010-S0
+    config_id: 245-s1-b2-p14m-atg-gran-gpm-post-qkv-abs-global-k010-s0
+    run_id: 001-20260720-051426-f8caba45
+  - label: GRAN-GPM-POST-QKV-ABS-SITE-K010-S0
+    config_id: 246-s1-b2-p14m-atg-gran-gpm-post-qkv-abs-site-k010-s0
+    run_id: 001-20260720-053531-613da146
+output:
+  dir: results

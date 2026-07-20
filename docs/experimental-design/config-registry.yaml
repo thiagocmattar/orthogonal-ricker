@@ -1,6 +1,6 @@
 schema_version: 1
 campaign_id: pythia-sparsity-scaling-v1
-next_config_prefix: 247
+next_config_prefix: 248
 core_design_cells: 134
 core_executable_cells_without_context_gate: 132
 maximum_design_cells: 184
@@ -7769,3 +7769,59 @@ records:
     criteria. Decision remains pending; S1 permits only feasibility/collapse and within-stratum
     comparisons. Pooled exact-zero/product endpoints remain pending diagnostic 247;
     validation loss was not used to select canonical identity or rank cells.
+- design_id: S1-B2-DIAG-LEARNED-ATG-SELECTION-S0
+  config_id: 247-s1-b2-learned-atg-selection-prop
+  config_path: configs/247-s1-b2-learned-atg-selection-prop.yaml
+  phase: S1
+  block: S1-B2-DIAGNOSTIC
+  comparison_id: S1-B2-LEARNED-ATG
+  pair_id: S1-B2-LEARNED-ATG-ALL
+  promotion_family: null
+  kind: diagnostic
+  model_size: 14M
+  steps: 0
+  tokens: 311296
+  model_initialization_seed: 0
+  data_order_seed: 0
+  training_schedule_scheme: null
+  training_schedule_hash: null
+  effective_tokens_per_update: null
+  validation_partition: selection
+  validation_partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
+  architecture_id: mixed_learned_atg
+  gate_family: mixed
+  gate_sites:
+  - a
+  - m
+  - h
+  - q
+  - k
+  - v
+  qk_placement: mixed
+  kappa_mode: learned
+  kappa: null
+  kappa_init: 0.1
+  kappa_scope: mixed
+  threshold_scale: mixed
+  surrogate: hard_forward_soft_backward
+  temperature: 0.03
+  threshold_learning_rate: 0.0003
+  optimizer_recipe: null
+  model_learning_rate: null
+  micro_batch_size: null
+  gradient_accumulation_steps: null
+  pressure_method: none
+  pressure_sites: []
+  pressure_weight: 0.0
+  ricker_c: null
+  ricker_sigma: null
+  step_budget: null
+  matched_control_id: null
+  config_status: ready
+  decision_status: control
+  release_tier: history
+  canonical_run_id: null
+  notes: Ready pooled complete-selection diagnostic pinned to the exact 26 queue-reconciled
+    canonical B2 run ids under the registered tau=0.03, threshold/model LR multiplier=10
+    revision. Materialize and commit this filled config and registry row together
+    before launch.
