@@ -17,50 +17,44 @@ block_summary:
   materialized_cells: 2
   completed_cells: 2
   status: completed
-  note: document-disjoint validation, independent seeds, schedule hash, and initialization
-    hash
+  note: document-disjoint validation, independent seeds, schedule hash, and initialization hash
 - block: S1-B0
   planned_cells: 22
   materialized_cells: 20
   completed_cells: 20
   status: blocked
-  note: all 20 executable B0 cells are materialized, comprising 10 central/ordinary
-    architecture controls and 10 model-LR flanks; two post-PV context cells remain
-    dependency-gated
+  note: all 20 executable B0 cells are materialized, comprising 10 central/ordinary architecture controls and 10 model-LR
+    flanks; two post-PV context cells remain dependency-gated
 - block: S1-B1-ENGINEERING
   planned_cells: 2
   materialized_cells: 2
   completed_cells: 2
   status: completed
-  note: both fixed-gate pilots and their pooled complete-selection propagation diagnostic
-    passed all five engineering criteria. They are engineering-only and excluded from
-    the 36-cell B1 and 134-cell primary scientific counts
+  note: both fixed-gate pilots and their pooled complete-selection propagation diagnostic passed all five engineering criteria.
+    They are engineering-only and excluded from the 36-cell B1 and 134-cell primary scientific counts
 - block: S1-B1
   planned_cells: 36
   materialized_cells: 36
   completed_cells: 36
   status: completed
-  note: all 36 scientific cells and both pooled selection diagnostics are complete
-    and reviewed; diagnostic 203 closes site isolation and diagnostic 210 closes branch
-    scope
+  note: all 36 scientific cells and both pooled selection diagnostics are complete and reviewed; diagnostic 203 closes site
+    isolation and diagnostic 210 closes branch scope
 - block: S1-B2-ENGINEERING
   planned_cells: 9
   materialized_cells: 9
   completed_cells: 9
   status: completed
-  note: All nine 128-step learned-ATG plumbing pilots and pooled diagnostic 220 completed
-    and passed their hard artifact contracts. The 2026-07-19 registered revision retained
-    tau 0.03 and selected config 213's TLRM 10 (threshold LR 3e-4) solely because
-    it passed the original final-quarter no_frozen_flag criterion at 96/112/128; validation
-    loss was never ranked or used for this decision.
+  note: All nine 128-step learned-ATG plumbing pilots and pooled diagnostic 220 completed and passed their hard artifact contracts.
+    The 2026-07-19 registered revision retained tau 0.03 and selected config 213's TLRM 10 (threshold LR 3e-4) solely because
+    it passed the original final-quarter no_frozen_flag criterion at 96/112/128; validation loss was never ranked or used
+    for this decision.
 - block: S1-B2
   planned_cells: 26
   materialized_cells: 26
   completed_cells: 26
-  status: active
-  note: all 26 learned-ATG scientific training cells are terminal, audited, and reconciled;
-    pooled selection diagnostic 247 remains to be materialized and reviewed before
-    B2 closure
+  status: completed
+  note: Scientific cells are closed through b2-learned-atg (26/26); pooled complete-selection diagnostic 247 is closed with
+    reviewed canonical evidence.
 - block: S1-B3
   planned_cells: 40
   materialized_cells: 0
@@ -172,9 +166,9 @@ records:
   decision_status: control
   release_tier: history
   canonical_run_id: 004-20260718-145119-0106c58b
-  notes: Engineering-only contract pilot; not selection evidence. Both validation
-    partitions were materialized and verified by prepare-data run 003-20260718-144833-a9e5ac30.
-    Pretraining run 004-20260718-145119-0106c58b completed and passed terminal review.
+  notes: Engineering-only contract pilot; not selection evidence. Both validation partitions were materialized and verified
+    by prepare-data run 003-20260718-144833-a9e5ac30. Pretraining run 004-20260718-145119-0106c58b completed and passed terminal
+    review.
 - design_id: E0-CONTRACT-A0-I1-D0-ST128
   config_id: 122-e0-p14m-contract-a0-i1-d0-st128
   config_path: configs/122-e0-p14m-contract-a0-i1-d0-st128.yaml
@@ -222,10 +216,9 @@ records:
   decision_status: control
   release_tier: history
   canonical_run_id: 001-20260718-145419-e88ac5f4
-  notes: Same schedule and validation as config 121; only model initialization seed
-    changes. Pretraining run 001-20260718-145419-e88ac5f4 completed and passed terminal
-    review; the initialization hash differs while schedule and validation hashes match
-    config 121.
+  notes: Same schedule and validation as config 121; only model initialization seed changes. Pretraining run 001-20260718-145419-e88ac5f4
+    completed and passed terminal review; the initialization hash differs while schedule and validation hashes match config
+    121.
 - design_id: S1-B0-ARCH-A0-LR3EM5-S0
   config_id: 123-s1-b0-p14m-a0-adamw-lr3em5-s0
   config_path: configs/123-s1-b0-p14m-a0-adamw-lr3em5-s0.yaml
@@ -273,9 +266,8 @@ records:
   decision_status: control
   release_tier: history
   canonical_run_id: 001-20260718-165523-9f3b9b91
-  notes: Stock-GELU scientific control. The mlp_hiddens capture is a distribution
-    reference, not an active gate or pressure target. Run 001-20260718-165523-9f3b9b91
-    completed 2048 steps and passed terminal review at selection loss 7.04913. S1
+  notes: Stock-GELU scientific control. The mlp_hiddens capture is a distribution reference, not an active gate or pressure
+    target. Run 001-20260718-165523-9f3b9b91 completed 2048 steps and passed terminal review at selection loss 7.04913. S1
     is feasibility/within-stratum only.
 - design_id: S1-B0-ARCH-A1H-LR3EM5-S0
   config_id: 124-s1-b0-p14m-a1h-adamw-lr3em5-s0
@@ -325,9 +317,8 @@ records:
   decision_status: control
   release_tier: history
   canonical_run_id: 001-20260718-171535-c9b88552
-  notes: One-ReLU MLP-hidden AdamW architecture control; no pressure. Run 001-20260718-171535-c9b88552
-    completed 2048 steps and passed terminal review at selection loss 6.98875. S1
-    is feasibility/within-stratum only.
+  notes: One-ReLU MLP-hidden AdamW architecture control; no pressure. Run 001-20260718-171535-c9b88552 completed 2048 steps
+    and passed terminal review at selection loss 6.98875. S1 is feasibility/within-stratum only.
 - design_id: S1-B0-ARCH-A3-LR3EM5-S0
   config_id: 125-s1-b0-p14m-a3-adamw-lr3em5-s0
   config_path: configs/125-s1-b0-p14m-a3-adamw-lr3em5-s0.yaml
@@ -380,9 +371,8 @@ records:
   decision_status: control
   release_tier: history
   canonical_run_id: 001-20260718-173453-33ecfcac
-  notes: Three-ReLU projection-path AdamW architecture control; no pressure. Run 001-20260718-173453-33ecfcac
-    completed 2048 steps and passed terminal review at selection loss 7.01310. S1
-    is feasibility/within-stratum only.
+  notes: Three-ReLU projection-path AdamW architecture control; no pressure. Run 001-20260718-173453-33ecfcac completed 2048
+    steps and passed terminal review at selection loss 7.01310. S1 is feasibility/within-stratum only.
 - design_id: S1-B0-ARCH-A6PRE-LR3EM5-S0
   config_id: 126-s1-b0-p14m-a6pre-adamw-lr3em5-s0
   config_path: configs/126-s1-b0-p14m-a6pre-adamw-lr3em5-s0.yaml
@@ -441,10 +431,9 @@ records:
   decision_status: control
   release_tier: history
   canonical_run_id: 001-20260718-175512-d98db007
-  notes: Six-ReLU PRE-RoPE AdamW architecture control; no pressure. Run 001-20260718-175512-d98db007
-    completed 2048 steps and passed terminal review at selection loss 7.01645. Its
-    direct parent will be materialized later in B0, so the direct architecture delta
-    remains unavailable. S1 is feasibility/within-stratum only.
+  notes: Six-ReLU PRE-RoPE AdamW architecture control; no pressure. Run 001-20260718-175512-d98db007 completed 2048 steps
+    and passed terminal review at selection loss 7.01645. Its direct parent will be materialized later in B0, so the direct
+    architecture delta remains unavailable. S1 is feasibility/within-stratum only.
 - design_id: S1-B0-ARCH-A6POST-LR3EM5-S0
   config_id: 127-s1-b0-p14m-a6post-adamw-lr3em5-s0
   config_path: configs/127-s1-b0-p14m-a6post-adamw-lr3em5-s0.yaml
@@ -503,10 +492,9 @@ records:
   decision_status: control
   release_tier: history
   canonical_run_id: 001-20260718-181755-c71b5faf
-  notes: Six-ReLU POST-RoPE AdamW architecture control; no pressure. Run 001-20260718-181755-c71b5faf
-    completed 2048 steps and passed terminal review at selection loss 7.03248. Its
-    direct parent will be materialized later in B0, so the direct architecture delta
-    remains unavailable. S1 is feasibility/within-stratum only.
+  notes: Six-ReLU POST-RoPE AdamW architecture control; no pressure. Run 001-20260718-181755-c71b5faf completed 2048 steps
+    and passed terminal review at selection loss 7.03248. Its direct parent will be materialized later in B0, so the direct
+    architecture delta remains unavailable. S1 is feasibility/within-stratum only.
 - design_id: S1-B0-DIAG-ARCH-ANCHORS-SELECTION-S0
   config_id: 128-s1-b0-p14m-architecture-anchors-selection-propagation
   config_path: configs/128-s1-b0-p14m-architecture-anchors-selection-propagation.yaml
@@ -559,11 +547,9 @@ records:
   decision_status: control
   release_tier: history
   canonical_run_id: 001-20260718-184159-f73e2c80
-  notes: Combined complete-selection propagation diagnostic pinned to the exact canonical
-    run ids for configs 123--127. Run 001-20260718-184159-f73e2c80 completed over
-    311296 validation tokens and passed terminal artifact review. It emits pooled
-    z-sites, direct per-operation zero products, R_block, R_model, topology ceilings,
-    and U_arch.
+  notes: Combined complete-selection propagation diagnostic pinned to the exact canonical run ids for configs 123--127. Run
+    001-20260718-184159-f73e2c80 completed over 311296 validation tokens and passed terminal artifact review. It emits pooled
+    z-sites, direct per-operation zero products, R_block, R_model, topology ceilings, and U_arch.
 - design_id: S1-B0-ARCH-A4Q-LR3EM5-S0
   config_id: 129-s1-b0-p14m-a4q-adamw-lr3em5-s0
   config_path: configs/129-s1-b0-p14m-a4q-adamw-lr3em5-s0.yaml
@@ -618,10 +604,9 @@ records:
   decision_status: control
   release_tier: history
   canonical_run_id: 002-20260718-190411-3c1c6719
-  notes: Q-only POST-RoPE AdamW architecture control; no pressure. Run 002-20260718-190411-3c1c6719
-    completed 2048 steps and passed terminal review at selection loss 7.02126, 0.00816
-    above its matched Three-ReLU A3 control. Attempt 1 is retained as an invalid zero-step
-    infrastructure partial. S1 is feasibility/within-stratum only.
+  notes: Q-only POST-RoPE AdamW architecture control; no pressure. Run 002-20260718-190411-3c1c6719 completed 2048 steps and
+    passed terminal review at selection loss 7.02126, 0.00816 above its matched Three-ReLU A3 control. Attempt 1 is retained
+    as an invalid zero-step infrastructure partial. S1 is feasibility/within-stratum only.
 - design_id: S1-B0-ARCH-A4K-LR3EM5-S0
   config_id: 130-s1-b0-p14m-a4k-adamw-lr3em5-s0
   config_path: configs/130-s1-b0-p14m-a4k-adamw-lr3em5-s0.yaml
@@ -676,9 +661,9 @@ records:
   decision_status: control
   release_tier: history
   canonical_run_id: 001-20260718-192601-b1795544
-  notes: K-only POST-RoPE AdamW architecture control; no pressure. Run 001-20260718-192601-b1795544
-    completed 2048 steps and passed terminal review at selection loss 7.02441, 0.01131
-    above its matched Three-ReLU A3 control. S1 is feasibility/within-stratum only.
+  notes: K-only POST-RoPE AdamW architecture control; no pressure. Run 001-20260718-192601-b1795544 completed 2048 steps and
+    passed terminal review at selection loss 7.02441, 0.01131 above its matched Three-ReLU A3 control. S1 is feasibility/within-stratum
+    only.
 - design_id: S1-B0-ARCH-A4V-LR3EM5-S0
   config_id: 131-s1-b0-p14m-a4v-adamw-lr3em5-s0
   config_path: configs/131-s1-b0-p14m-a4v-adamw-lr3em5-s0.yaml
@@ -733,10 +718,9 @@ records:
   decision_status: control
   release_tier: history
   canonical_run_id: 001-20260718-194713-d1dc3486
-  notes: V-only AdamW architecture control; no pressure and Q/K placement is not applicable.
-    Run 001-20260718-194713-d1dc3486 completed 2048 steps and passed terminal review
-    at selection loss 7.01615, 0.00305 above its matched Three-ReLU A3 control. S1
-    is feasibility/within-stratum only.
+  notes: V-only AdamW architecture control; no pressure and Q/K placement is not applicable. Run 001-20260718-194713-d1dc3486
+    completed 2048 steps and passed terminal review at selection loss 7.01615, 0.00305 above its matched Three-ReLU A3 control.
+    S1 is feasibility/within-stratum only.
 - design_id: S1-B0-ARCH-A5QKPRE-LR3EM5-S0
   config_id: 132-s1-b0-p14m-a5qkpre-adamw-lr3em5-s0
   config_path: configs/132-s1-b0-p14m-a5qkpre-adamw-lr3em5-s0.yaml
@@ -793,10 +777,9 @@ records:
   decision_status: control
   release_tier: history
   canonical_run_id: 001-20260718-200813-81b1dd63
-  notes: Q/K PRE-RoPE AdamW architecture control; no pressure. Run 001-20260718-200813-81b1dd63
-    completed 2048 steps and passed terminal review at selection loss 7.01586, 0.00276
-    above its matched Three-ReLU A3 control. It is the direct parent of A6-PRE config
-    126. S1 is feasibility/within-stratum only.
+  notes: Q/K PRE-RoPE AdamW architecture control; no pressure. Run 001-20260718-200813-81b1dd63 completed 2048 steps and passed
+    terminal review at selection loss 7.01586, 0.00276 above its matched Three-ReLU A3 control. It is the direct parent of
+    A6-PRE config 126. S1 is feasibility/within-stratum only.
 - design_id: S1-B0-ARCH-A5QKPOST-LR3EM5-S0
   config_id: 133-s1-b0-p14m-a5qkpost-adamw-lr3em5-s0
   config_path: configs/133-s1-b0-p14m-a5qkpost-adamw-lr3em5-s0.yaml
@@ -853,10 +836,9 @@ records:
   decision_status: control
   release_tier: history
   canonical_run_id: 001-20260718-203020-55473d96
-  notes: Q/K POST-RoPE AdamW architecture control; no pressure. Run 001-20260718-203020-55473d96
-    completed 2048 steps and passed terminal review at selection loss 7.03064, 0.01754
-    above its matched Three-ReLU A3 control. It is the direct parent of A6-POST config
-    127. S1 is feasibility/within-stratum only.
+  notes: Q/K POST-RoPE AdamW architecture control; no pressure. Run 001-20260718-203020-55473d96 completed 2048 steps and
+    passed terminal review at selection loss 7.03064, 0.01754 above its matched Three-ReLU A3 control. It is the direct parent
+    of A6-POST config 127. S1 is feasibility/within-stratum only.
 - design_id: S1-B0-DIAG-ATTN-PARENTS-SELECTION-S0
   config_id: 134-s1-b0-p14m-attention-parents-selection-propagation
   config_path: configs/134-s1-b0-p14m-attention-parents-selection-propagation.yaml
@@ -909,10 +891,9 @@ records:
   decision_status: control
   release_tier: history
   canonical_run_id: 001-20260718-205354-8821b592
-  notes: Combined complete-selection propagation diagnostic pinned to the exact canonical
-    run ids for configs 129--133. Run 001-20260718-205354-8821b592 evaluated 311296
-    tokens and passed terminal artifact review; it emits pooled z-sites, direct per-operation
-    zero products, R_block, R_model, topology ceilings, RoPE survival, and U_arch.
+  notes: Combined complete-selection propagation diagnostic pinned to the exact canonical run ids for configs 129--133. Run
+    001-20260718-205354-8821b592 evaluated 311296 tokens and passed terminal artifact review; it emits pooled z-sites, direct
+    per-operation zero products, R_block, R_model, topology ceilings, RoPE survival, and U_arch.
 - design_id: S1-B0-LR-A0-LR1EM5-S0
   config_id: 135-s1-b0-p14m-a0-adamw-lr1em5-s0
   config_path: configs/135-s1-b0-p14m-a0-adamw-lr1em5-s0.yaml
@@ -960,9 +941,9 @@ records:
   decision_status: control
   release_tier: history
   canonical_run_id: 001-20260718-210843-fd04a711
-  notes: A0 AdamW model-learning-rate flank at 1.0e-05; no pressure. Run 001-20260718-210843-fd04a711
-    completed 2048 steps and passed terminal review at selection loss 8.35104, 1.30190
-    above its matched central LR3EM5 control. S1 is feasibility/within-stratum only.
+  notes: A0 AdamW model-learning-rate flank at 1.0e-05; no pressure. Run 001-20260718-210843-fd04a711 completed 2048 steps
+    and passed terminal review at selection loss 8.35104, 1.30190 above its matched central LR3EM5 control. S1 is feasibility/within-stratum
+    only.
 - design_id: S1-B0-LR-A1H-LR1EM5-S0
   config_id: 136-s1-b0-p14m-a1h-adamw-lr1em5-s0
   config_path: configs/136-s1-b0-p14m-a1h-adamw-lr1em5-s0.yaml
@@ -1011,9 +992,9 @@ records:
   decision_status: control
   release_tier: history
   canonical_run_id: 001-20260718-212731-d350d541
-  notes: A1H AdamW model-learning-rate flank at 1.0e-05; no pressure. Run 001-20260718-212731-d350d541
-    completed 2048 steps and passed terminal review at selection loss 8.38652, 1.39777
-    above its matched central LR3EM5 control. S1 is feasibility/within-stratum only.
+  notes: A1H AdamW model-learning-rate flank at 1.0e-05; no pressure. Run 001-20260718-212731-d350d541 completed 2048 steps
+    and passed terminal review at selection loss 8.38652, 1.39777 above its matched central LR3EM5 control. S1 is feasibility/within-stratum
+    only.
 - design_id: S1-B0-LR-A3-LR1EM5-S0
   config_id: 137-s1-b0-p14m-a3-adamw-lr1em5-s0
   config_path: configs/137-s1-b0-p14m-a3-adamw-lr1em5-s0.yaml
@@ -1066,9 +1047,9 @@ records:
   decision_status: control
   release_tier: history
   canonical_run_id: 001-20260718-214625-4c3a46fa
-  notes: A3 AdamW model-learning-rate flank at 1.0e-05; no pressure. Run 001-20260718-214625-4c3a46fa
-    completed 2048 steps and passed terminal review at selection loss 8.40015, 1.38705
-    above its matched central LR3EM5 control. S1 is feasibility/within-stratum only.
+  notes: A3 AdamW model-learning-rate flank at 1.0e-05; no pressure. Run 001-20260718-214625-4c3a46fa completed 2048 steps
+    and passed terminal review at selection loss 8.40015, 1.38705 above its matched central LR3EM5 control. S1 is feasibility/within-stratum
+    only.
 - design_id: S1-B0-LR-A6PRE-LR1EM5-S0
   config_id: 138-s1-b0-p14m-a6pre-adamw-lr1em5-s0
   config_path: configs/138-s1-b0-p14m-a6pre-adamw-lr1em5-s0.yaml
@@ -1127,9 +1108,9 @@ records:
   decision_status: control
   release_tier: history
   canonical_run_id: 001-20260718-220621-c6efb587
-  notes: A6PRE AdamW model-learning-rate flank at 1.0e-05; no pressure. Run 001-20260718-220621-c6efb587
-    completed 2048 steps and passed terminal review at selection loss 8.38739, 1.37094
-    above its matched central LR3EM5 control. S1 is feasibility/within-stratum only.
+  notes: A6PRE AdamW model-learning-rate flank at 1.0e-05; no pressure. Run 001-20260718-220621-c6efb587 completed 2048 steps
+    and passed terminal review at selection loss 8.38739, 1.37094 above its matched central LR3EM5 control. S1 is feasibility/within-stratum
+    only.
 - design_id: S1-B0-LR-A6POST-LR1EM5-S0
   config_id: 139-s1-b0-p14m-a6post-adamw-lr1em5-s0
   config_path: configs/139-s1-b0-p14m-a6post-adamw-lr1em5-s0.yaml
@@ -1188,9 +1169,9 @@ records:
   decision_status: control
   release_tier: history
   canonical_run_id: 001-20260718-222908-79d618fa
-  notes: A6POST AdamW model-learning-rate flank at 1.0e-05; no pressure. Run 001-20260718-222908-79d618fa
-    completed 2048 steps and passed terminal review at selection loss 8.38743, 1.35496
-    above its matched central LR3EM5 control. S1 is feasibility/within-stratum only.
+  notes: A6POST AdamW model-learning-rate flank at 1.0e-05; no pressure. Run 001-20260718-222908-79d618fa completed 2048 steps
+    and passed terminal review at selection loss 8.38743, 1.35496 above its matched central LR3EM5 control. S1 is feasibility/within-stratum
+    only.
 - design_id: S1-B0-LR-A0-LR1EM4-S0
   config_id: 140-s1-b0-p14m-a0-adamw-lr1em4-s0
   config_path: configs/140-s1-b0-p14m-a0-adamw-lr1em4-s0.yaml
@@ -1238,9 +1219,9 @@ records:
   decision_status: control
   release_tier: history
   canonical_run_id: 001-20260718-225228-b8972e8d
-  notes: A0 AdamW model-learning-rate flank at 1.0e-04; no pressure. Run 001-20260718-225228-b8972e8d
-    completed 2048 steps and passed terminal review at selection loss 5.93887, 1.11026
-    below its matched central LR3EM5 control. S1 is feasibility/within-stratum only.
+  notes: A0 AdamW model-learning-rate flank at 1.0e-04; no pressure. Run 001-20260718-225228-b8972e8d completed 2048 steps
+    and passed terminal review at selection loss 5.93887, 1.11026 below its matched central LR3EM5 control. S1 is feasibility/within-stratum
+    only.
 - design_id: S1-B0-LR-A1H-LR1EM4-S0
   config_id: 141-s1-b0-p14m-a1h-adamw-lr1em4-s0
   config_path: configs/141-s1-b0-p14m-a1h-adamw-lr1em4-s0.yaml
@@ -1289,9 +1270,9 @@ records:
   decision_status: control
   release_tier: history
   canonical_run_id: 001-20260718-231051-25bf322c
-  notes: A1H AdamW model-learning-rate flank at 1.0e-04; no pressure. Run 001-20260718-231051-25bf322c
-    completed 2048 steps and passed terminal review at selection loss 5.87474, 1.11401
-    below its matched central LR3EM5 control. S1 is feasibility/within-stratum only.
+  notes: A1H AdamW model-learning-rate flank at 1.0e-04; no pressure. Run 001-20260718-231051-25bf322c completed 2048 steps
+    and passed terminal review at selection loss 5.87474, 1.11401 below its matched central LR3EM5 control. S1 is feasibility/within-stratum
+    only.
 - design_id: S1-B0-LR-A3-LR1EM4-S0
   config_id: 142-s1-b0-p14m-a3-adamw-lr1em4-s0
   config_path: configs/142-s1-b0-p14m-a3-adamw-lr1em4-s0.yaml
@@ -1344,9 +1325,9 @@ records:
   decision_status: control
   release_tier: history
   canonical_run_id: 001-20260718-232919-f14b6c84
-  notes: A3 AdamW model-learning-rate flank at 1.0e-04; no pressure. Run 001-20260718-232919-f14b6c84
-    completed 2048 steps and passed terminal review at selection loss 5.91768, 1.09541
-    below its matched central LR3EM5 control. S1 is feasibility/within-stratum only.
+  notes: A3 AdamW model-learning-rate flank at 1.0e-04; no pressure. Run 001-20260718-232919-f14b6c84 completed 2048 steps
+    and passed terminal review at selection loss 5.91768, 1.09541 below its matched central LR3EM5 control. S1 is feasibility/within-stratum
+    only.
 - design_id: S1-B0-LR-A6PRE-LR1EM4-S0
   config_id: 143-s1-b0-p14m-a6pre-adamw-lr1em4-s0
   config_path: configs/143-s1-b0-p14m-a6pre-adamw-lr1em4-s0.yaml
@@ -1405,9 +1386,9 @@ records:
   decision_status: control
   release_tier: history
   canonical_run_id: 001-20260718-234920-d1bc5ad6
-  notes: A6PRE AdamW model-learning-rate flank at 1.0e-04; no pressure. Run 001-20260718-234920-d1bc5ad6
-    completed 2048 steps and passed terminal review at selection loss 5.93539, 1.08106
-    below its matched central LR3EM5 control. S1 is feasibility/within-stratum only.
+  notes: A6PRE AdamW model-learning-rate flank at 1.0e-04; no pressure. Run 001-20260718-234920-d1bc5ad6 completed 2048 steps
+    and passed terminal review at selection loss 5.93539, 1.08106 below its matched central LR3EM5 control. S1 is feasibility/within-stratum
+    only.
 - design_id: S1-B0-LR-A6POST-LR1EM4-S0
   config_id: 144-s1-b0-p14m-a6post-adamw-lr1em4-s0
   config_path: configs/144-s1-b0-p14m-a6post-adamw-lr1em4-s0.yaml
@@ -1466,9 +1447,9 @@ records:
   decision_status: control
   release_tier: history
   canonical_run_id: 001-20260719-001147-1cf26b02
-  notes: A6POST AdamW model-learning-rate flank at 1.0e-04; no pressure. Run 001-20260719-001147-1cf26b02
-    completed 2048 steps and passed terminal review at selection loss 6.06320, 0.96927
-    below its matched central LR3EM5 control. S1 is feasibility/within-stratum only.
+  notes: A6POST AdamW model-learning-rate flank at 1.0e-04; no pressure. Run 001-20260719-001147-1cf26b02 completed 2048 steps
+    and passed terminal review at selection loss 6.06320, 0.96927 below its matched central LR3EM5 control. S1 is feasibility/within-stratum
+    only.
 - design_id: S1-B0-DIAG-LR-FLANKS-SELECTION-S0
   config_id: 145-s1-b0-p14m-lr-flanks-selection-propagation
   config_path: configs/145-s1-b0-p14m-lr-flanks-selection-propagation.yaml
@@ -1521,10 +1502,9 @@ records:
   decision_status: control
   release_tier: history
   canonical_run_id: 001-20260719-003521-94d90e97
-  notes: Complete-selection schema-v3 propagation diagnostic pinned to the exact canonical
-    run ids for configs 135--144. Run 001-20260719-003521-94d90e97 evaluated all 311296
-    complete selection-partition tokens and passed five-file statusless artifact and
-    source-manifest review.
+  notes: Complete-selection schema-v3 propagation diagnostic pinned to the exact canonical run ids for configs 135--144. Run
+    001-20260719-003521-94d90e97 evaluated all 311296 complete selection-partition tokens and passed five-file statusless
+    artifact and source-manifest review.
 - design_id: S1-B1-ENG-GPLUS-A6POST-K010-ST128-S0
   config_id: 146-s1-b1-eng-gplus-a6post-k010-st128
   config_path: configs/146-s1-b1-eng-gplus-a6post-k010-st128.yaml
@@ -1583,9 +1563,8 @@ records:
   decision_status: control
   release_tier: history
   canonical_run_id: 001-20260719-010308-764e5074
-  notes: Completed engineering-only fixed absolute G+ kappa 0.10 pilot at all A6-POST
-    gates. The run passed terminal artifact and exact checkpoint-reload review without
-    universal collapse; it remains excluded from scientific-cell counts and validation
+  notes: Completed engineering-only fixed absolute G+ kappa 0.10 pilot at all A6-POST gates. The run passed terminal artifact
+    and exact checkpoint-reload review without universal collapse; it remains excluded from scientific-cell counts and validation
     ranking.
 - design_id: S1-B1-ENG-GPM-A5QKPRE-K010-ST128-S0
   config_id: 147-s1-b1-eng-gpm-a5qkpre-k010-st128
@@ -1643,10 +1622,9 @@ records:
   decision_status: control
   release_tier: history
   canonical_run_id: 001-20260719-010858-a4a15700
-  notes: Completed engineering-only fixed absolute Gpm kappa 0.10 PRE-RoPE Q/K-subset
-    pilot with ordinary a/m/h gates. The run passed terminal artifact and exact checkpoint-reload
-    review without universal collapse; it remains excluded from scientific-cell counts
-    and validation ranking.
+  notes: Completed engineering-only fixed absolute Gpm kappa 0.10 PRE-RoPE Q/K-subset pilot with ordinary a/m/h gates. The
+    run passed terminal artifact and exact checkpoint-reload review without universal collapse; it remains excluded from scientific-cell
+    counts and validation ranking.
 - design_id: S1-B1-ENG-FIXED-GATES-SELECTION-S0
   config_id: 148-s1-b1-eng-fixed-gates-selection-propagation
   config_path: configs/148-s1-b1-eng-fixed-gates-selection-propagation.yaml
@@ -1699,11 +1677,10 @@ records:
   decision_status: control
   release_tier: history
   canonical_run_id: 001-20260719-011324-dd965e29
-  notes: Complete-selection schema-v3 engineering diagnostic pinned to the exact canonical
-    run ids for configs 146 and 147. Run 001-20260719-011324-dd965e29 evaluated all
-    311296 complete selection tokens and passed the five-file statusless artifact,
-    gate-topology, direct-product, and noncollapse review; it remains excluded from
-    scientific-cell counts and validation ranking.
+  notes: Complete-selection schema-v3 engineering diagnostic pinned to the exact canonical run ids for configs 146 and 147.
+    Run 001-20260719-011324-dd965e29 evaluated all 311296 complete selection tokens and passed the five-file statusless artifact,
+    gate-topology, direct-product, and noncollapse review; it remains excluded from scientific-cell counts and validation
+    ranking.
 - design_id: S1-B1-FIX-GPLUS-PRE-QK-K003-S0
   config_id: 149-s1-b1-p14m-gplus-pre-qk-k003-s0
   config_path: configs/149-s1-b1-p14m-gplus-pre-qk-k003-s0.yaml
@@ -1760,11 +1737,10 @@ records:
   decision_status: pending
   release_tier: history
   canonical_run_id: 001-20260719-012122-d3b3c4f5
-  notes: First B1 scientific cell; fixed absolute G+ kappa 0.03 at PRE-RoPE Q/K, ordinary
-    a/m/h ReLU, V absent, AdamW without pressure. Run 001-20260719-012122-d3b3c4f5
-    completed 2048 steps and passed terminal and complete-selection propagation review
-    at selection loss 7.01612, R_block 0.29067, and R_model 0.08706. S1 supports feasibility/collapse
-    and within-stratum comparisons only.
+  notes: First B1 scientific cell; fixed absolute G+ kappa 0.03 at PRE-RoPE Q/K, ordinary a/m/h ReLU, V absent, AdamW without
+    pressure. Run 001-20260719-012122-d3b3c4f5 completed 2048 steps and passed terminal and complete-selection propagation
+    review at selection loss 7.01612, R_block 0.29067, and R_model 0.08706. S1 supports feasibility/collapse and within-stratum
+    comparisons only.
 - design_id: S1-B1-DIAG-FIX-GPLUS-PRE-QK-K003-SELECTION-S0
   config_id: 150-s1-b1-gplus-pre-qk-k003-selection-prop
   config_path: configs/150-s1-b1-gplus-pre-qk-k003-selection-prop.yaml
@@ -1816,10 +1792,9 @@ records:
   decision_status: control
   release_tier: history
   canonical_run_id: 001-20260719-014532-32cc5f54
-  notes: Canonical schema-v3 complete-selection diagnostic pinned to config 149. Run
-    001-20260719-014532-32cc5f54 pooled all 311296 complete selection tokens and passed
-    the five-file statusless artifact, topology, exact-zero, and product-count review;
-    diagnostic-only and excluded from scientific-cell counts.
+  notes: Canonical schema-v3 complete-selection diagnostic pinned to config 149. Run 001-20260719-014532-32cc5f54 pooled all
+    311296 complete selection tokens and passed the five-file statusless artifact, topology, exact-zero, and product-count
+    review; diagnostic-only and excluded from scientific-cell counts.
 - design_id: S1-B1-FIX-GPLUS-PRE-QK-K010-S0
   config_id: 151-s1-b1-p14m-gplus-pre-qk-k010-s0
   config_path: configs/151-s1-b1-p14m-gplus-pre-qk-k010-s0.yaml
@@ -1876,12 +1851,10 @@ records:
   decision_status: pending
   release_tier: history
   canonical_run_id: 001-20260719-014816-62d42778
-  notes: Second B1 scientific cell; fixed absolute G+ kappa 0.10 at PRE-RoPE Q/K,
-    ordinary a/m/h ReLU, V absent, AdamW without pressure. Run 001-20260719-014816-62d42778
-    completed 2048 steps and passed terminal artifact and exact checkpoint-reload
-    review at selection loss 7.01905. Canonical diagnostic config 152 measured R_block
-    0.32972 and R_model 0.09876 over the complete selection partition. S1 supports
-    feasibility/collapse and within-stratum comparisons only.
+  notes: Second B1 scientific cell; fixed absolute G+ kappa 0.10 at PRE-RoPE Q/K, ordinary a/m/h ReLU, V absent, AdamW without
+    pressure. Run 001-20260719-014816-62d42778 completed 2048 steps and passed terminal artifact and exact checkpoint-reload
+    review at selection loss 7.01905. Canonical diagnostic config 152 measured R_block 0.32972 and R_model 0.09876 over the
+    complete selection partition. S1 supports feasibility/collapse and within-stratum comparisons only.
 - design_id: S1-B1-DIAG-FIX-GPLUS-PRE-QK-K010-SELECTION-S0
   config_id: 152-s1-b1-gplus-pre-qk-k010-selection-prop
   config_path: configs/152-s1-b1-gplus-pre-qk-k010-selection-prop.yaml
@@ -1933,10 +1906,9 @@ records:
   decision_status: control
   release_tier: history
   canonical_run_id: 001-20260719-021127-8e8a8e3c
-  notes: Canonical schema-v3 complete-selection diagnostic pinned to config 151. Run
-    001-20260719-021127-8e8a8e3c pooled all 311296 complete selection tokens and passed
-    the five-file statusless artifact, topology, exact-zero, and product-count review;
-    diagnostic-only and excluded from scientific-cell counts.
+  notes: Canonical schema-v3 complete-selection diagnostic pinned to config 151. Run 001-20260719-021127-8e8a8e3c pooled all
+    311296 complete selection tokens and passed the five-file statusless artifact, topology, exact-zero, and product-count
+    review; diagnostic-only and excluded from scientific-cell counts.
 - design_id: S1-B1-FIX-GPLUS-PRE-QK-K030-S0
   config_id: 153-s1-b1-p14m-gplus-pre-qk-k030-s0
   config_path: configs/153-s1-b1-p14m-gplus-pre-qk-k030-s0.yaml
@@ -1993,12 +1965,11 @@ records:
   decision_status: pending
   release_tier: history
   canonical_run_id: 001-20260719-021803-600ff4f4
-  notes: Third B1 scientific cell; fixed absolute G+ kappa 0.30 at PRE-RoPE Q/K, ordinary
-    a/m/h ReLU, V absent, AdamW without pressure. Run 001-20260719-021803-600ff4f4
-    completed 2048 steps and passed terminal artifact, stability, collapse, and exact
-    checkpoint-reload review at selection loss 7.03079. Canonical diagnostic config
-    154 measured R_block 0.45622 and R_model 0.13665 over the complete selection partition.
-    S1 supports feasibility/collapse and within-stratum comparisons only.
+  notes: Third B1 scientific cell; fixed absolute G+ kappa 0.30 at PRE-RoPE Q/K, ordinary a/m/h ReLU, V absent, AdamW without
+    pressure. Run 001-20260719-021803-600ff4f4 completed 2048 steps and passed terminal artifact, stability, collapse, and
+    exact checkpoint-reload review at selection loss 7.03079. Canonical diagnostic config 154 measured R_block 0.45622 and
+    R_model 0.13665 over the complete selection partition. S1 supports feasibility/collapse and within-stratum comparisons
+    only.
 - design_id: S1-B1-DIAG-FIX-GPLUS-PRE-QK-K030-SELECTION-S0
   config_id: 154-s1-b1-gplus-pre-qk-k030-selection-prop
   config_path: configs/154-s1-b1-gplus-pre-qk-k030-selection-prop.yaml
@@ -2050,10 +2021,9 @@ records:
   decision_status: control
   release_tier: history
   canonical_run_id: 001-20260719-024218-dcb80f3f
-  notes: Canonical schema-v3 complete-selection diagnostic pinned to config 153. Run
-    001-20260719-024218-dcb80f3f pooled all 311296 complete selection tokens and passed
-    the five-file statusless artifact, topology, exact-zero, and product-count review;
-    diagnostic-only and excluded from scientific-cell counts.
+  notes: Canonical schema-v3 complete-selection diagnostic pinned to config 153. Run 001-20260719-024218-dcb80f3f pooled all
+    311296 complete selection tokens and passed the five-file statusless artifact, topology, exact-zero, and product-count
+    review; diagnostic-only and excluded from scientific-cell counts.
 - design_id: S1-B1-FIX-GPLUS-PRE-QKV-K003-S0
   config_id: 155-s1-b1-p14m-gplus-pre-qkv-k003-s0
   config_path: configs/155-s1-b1-p14m-gplus-pre-qkv-k003-s0.yaml
@@ -2112,12 +2082,11 @@ records:
   decision_status: pending
   release_tier: history
   canonical_run_id: 001-20260719-024629-701ee0c3
-  notes: Fourth B1 scientific cell; fixed absolute G+ kappa 0.03 at PRE-RoPE Q/K and
-    post-split V, ordinary a/m/h ReLU, AdamW without pressure. Run 001-20260719-024629-701ee0c3
-    completed 2048 steps and passed terminal artifact, stability, collapse, and exact
-    checkpoint-reload review at selection loss 7.01712. Canonical diagnostic config
-    156 measured R_block 0.44210 and R_model 0.13242 over the complete selection partition.
-    S1 supports feasibility/collapse and within-stratum comparisons only.
+  notes: Fourth B1 scientific cell; fixed absolute G+ kappa 0.03 at PRE-RoPE Q/K and post-split V, ordinary a/m/h ReLU, AdamW
+    without pressure. Run 001-20260719-024629-701ee0c3 completed 2048 steps and passed terminal artifact, stability, collapse,
+    and exact checkpoint-reload review at selection loss 7.01712. Canonical diagnostic config 156 measured R_block 0.44210
+    and R_model 0.13242 over the complete selection partition. S1 supports feasibility/collapse and within-stratum comparisons
+    only.
 - design_id: S1-B1-DIAG-FIX-GPLUS-PRE-QKV-K003-SELECTION-S0
   config_id: 156-s1-b1-gplus-pre-qkv-k003-selection-prop
   config_path: configs/156-s1-b1-gplus-pre-qkv-k003-selection-prop.yaml
@@ -2170,10 +2139,9 @@ records:
   decision_status: control
   release_tier: history
   canonical_run_id: 001-20260719-031106-0433709a
-  notes: Canonical schema-v3 complete-selection diagnostic pinned to config 155. Run
-    001-20260719-031106-0433709a pooled all 311296 complete selection tokens and passed
-    the five-file statusless artifact, topology, exact-zero, and product-count review;
-    diagnostic-only and excluded from scientific-cell counts.
+  notes: Canonical schema-v3 complete-selection diagnostic pinned to config 155. Run 001-20260719-031106-0433709a pooled all
+    311296 complete selection tokens and passed the five-file statusless artifact, topology, exact-zero, and product-count
+    review; diagnostic-only and excluded from scientific-cell counts.
 - design_id: S1-B1-FIX-GPLUS-PRE-QKV-K010-S0
   config_id: 157-s1-b1-p14m-gplus-pre-qkv-k010-s0
   config_path: configs/157-s1-b1-p14m-gplus-pre-qkv-k010-s0.yaml
@@ -2232,12 +2200,11 @@ records:
   decision_status: pending
   release_tier: history
   canonical_run_id: 001-20260719-031452-66d62b47
-  notes: Fifth B1 scientific cell; fixed absolute G+ kappa 0.10 at PRE-RoPE Q/K and
-    post-split V, ordinary a/m/h ReLU, AdamW without pressure. Run 001-20260719-031452-66d62b47
-    completed 2048 steps and passed terminal artifact, stability, collapse, and exact
-    checkpoint-reload review at selection loss 7.02195. Canonical diagnostic config
-    158 measured R_block 0.52409 and R_model 0.15698 over the complete selection partition.
-    S1 supports feasibility/collapse and within-stratum comparisons only.
+  notes: Fifth B1 scientific cell; fixed absolute G+ kappa 0.10 at PRE-RoPE Q/K and post-split V, ordinary a/m/h ReLU, AdamW
+    without pressure. Run 001-20260719-031452-66d62b47 completed 2048 steps and passed terminal artifact, stability, collapse,
+    and exact checkpoint-reload review at selection loss 7.02195. Canonical diagnostic config 158 measured R_block 0.52409
+    and R_model 0.15698 over the complete selection partition. S1 supports feasibility/collapse and within-stratum comparisons
+    only.
 - design_id: S1-B1-DIAG-FIX-GPLUS-PRE-QKV-K010-SELECTION-S0
   config_id: 158-s1-b1-gplus-pre-qkv-k010-selection-prop
   config_path: configs/158-s1-b1-gplus-pre-qkv-k010-selection-prop.yaml
@@ -2290,10 +2257,9 @@ records:
   decision_status: control
   release_tier: history
   canonical_run_id: 001-20260719-033946-134ea0ae
-  notes: Canonical schema-v3 complete-selection diagnostic pinned to config 157. Run
-    001-20260719-033946-134ea0ae pooled all 311296 complete selection tokens and passed
-    the five-file statusless artifact, topology, exact-zero, and product-count review;
-    diagnostic-only and excluded from scientific-cell counts.
+  notes: Canonical schema-v3 complete-selection diagnostic pinned to config 157. Run 001-20260719-033946-134ea0ae pooled all
+    311296 complete selection tokens and passed the five-file statusless artifact, topology, exact-zero, and product-count
+    review; diagnostic-only and excluded from scientific-cell counts.
 - design_id: S1-B1-FIX-GPLUS-PRE-QKV-K030-S0
   config_id: 159-s1-b1-p14m-gplus-pre-qkv-k030-s0
   config_path: configs/159-s1-b1-p14m-gplus-pre-qkv-k030-s0.yaml
@@ -2352,12 +2318,11 @@ records:
   decision_status: pending
   release_tier: history
   canonical_run_id: 001-20260719-034439-ee5194a7
-  notes: Sixth B1 scientific cell; fixed absolute G+ kappa 0.30 at PRE-RoPE Q/K and
-    post-split V, ordinary a/m/h ReLU, AdamW without pressure. Run 001-20260719-034439-ee5194a7
-    completed 2048 steps and passed terminal artifact, stability, collapse, and exact
-    checkpoint-reload review at selection loss 7.03369. Canonical diagnostic config
-    160 measured R_block 0.72831 and R_model 0.21815 over the complete selection partition.
-    S1 supports feasibility/collapse and within-stratum comparisons only.
+  notes: Sixth B1 scientific cell; fixed absolute G+ kappa 0.30 at PRE-RoPE Q/K and post-split V, ordinary a/m/h ReLU, AdamW
+    without pressure. Run 001-20260719-034439-ee5194a7 completed 2048 steps and passed terminal artifact, stability, collapse,
+    and exact checkpoint-reload review at selection loss 7.03369. Canonical diagnostic config 160 measured R_block 0.72831
+    and R_model 0.21815 over the complete selection partition. S1 supports feasibility/collapse and within-stratum comparisons
+    only.
 - design_id: S1-B1-DIAG-FIX-GPLUS-PRE-QKV-K030-SELECTION-S0
   config_id: 160-s1-b1-gplus-pre-qkv-k030-selection-prop
   config_path: configs/160-s1-b1-gplus-pre-qkv-k030-selection-prop.yaml
@@ -2410,10 +2375,9 @@ records:
   decision_status: control
   release_tier: history
   canonical_run_id: 001-20260719-040928-dd0f5070
-  notes: Canonical schema-v3 complete-selection diagnostic pinned to config 159. Run
-    001-20260719-040928-dd0f5070 pooled all 311296 complete selection tokens and passed
-    the five-file statusless artifact, topology, exact-zero, and product-count review;
-    diagnostic-only and excluded from scientific-cell counts.
+  notes: Canonical schema-v3 complete-selection diagnostic pinned to config 159. Run 001-20260719-040928-dd0f5070 pooled all
+    311296 complete selection tokens and passed the five-file statusless artifact, topology, exact-zero, and product-count
+    review; diagnostic-only and excluded from scientific-cell counts.
 - design_id: S1-B1-FIX-GPLUS-POST-QK-K003-S0
   config_id: 161-s1-b1-p14m-gplus-post-qk-k003-s0
   config_path: configs/161-s1-b1-p14m-gplus-post-qk-k003-s0.yaml
@@ -2470,12 +2434,11 @@ records:
   decision_status: pending
   release_tier: history
   canonical_run_id: 001-20260719-041422-bacaff99
-  notes: Seventh B1 scientific cell; fixed absolute G+ kappa 0.03 at POST-RoPE Q/K,
-    ordinary a/m/h ReLU, V absent, AdamW without pressure. Run 001-20260719-041422-bacaff99
-    completed 2048 steps and passed terminal artifact, stability, collapse, and exact
-    checkpoint-reload review at selection loss 7.03029. Canonical diagnostic config
-    162 measured R_block 0.33881 and R_model 0.10148 over the complete selection partition.
-    S1 supports feasibility/collapse and within-stratum comparisons only.
+  notes: Seventh B1 scientific cell; fixed absolute G+ kappa 0.03 at POST-RoPE Q/K, ordinary a/m/h ReLU, V absent, AdamW without
+    pressure. Run 001-20260719-041422-bacaff99 completed 2048 steps and passed terminal artifact, stability, collapse, and
+    exact checkpoint-reload review at selection loss 7.03029. Canonical diagnostic config 162 measured R_block 0.33881 and
+    R_model 0.10148 over the complete selection partition. S1 supports feasibility/collapse and within-stratum comparisons
+    only.
 - design_id: S1-B1-DIAG-FIX-GPLUS-POST-QK-K003-SELECTION-S0
   config_id: 162-s1-b1-gplus-post-qk-k003-selection-prop
   config_path: configs/162-s1-b1-gplus-post-qk-k003-selection-prop.yaml
@@ -2527,10 +2490,9 @@ records:
   decision_status: control
   release_tier: history
   canonical_run_id: 001-20260719-043828-c242eeb4
-  notes: Canonical schema-v3 complete-selection diagnostic pinned to config 161. Run
-    001-20260719-043828-c242eeb4 pooled all 311296 complete selection tokens and passed
-    the five-file statusless artifact, topology, exact-zero, and product-count review;
-    diagnostic-only and excluded from scientific-cell counts.
+  notes: Canonical schema-v3 complete-selection diagnostic pinned to config 161. Run 001-20260719-043828-c242eeb4 pooled all
+    311296 complete selection tokens and passed the five-file statusless artifact, topology, exact-zero, and product-count
+    review; diagnostic-only and excluded from scientific-cell counts.
 - design_id: S1-B1-FIX-GPLUS-POST-QK-K010-S0
   config_id: 163-s1-b1-p14m-gplus-post-qk-k010-s0
   config_path: configs/163-s1-b1-p14m-gplus-post-qk-k010-s0.yaml
@@ -2587,12 +2549,11 @@ records:
   decision_status: pending
   release_tier: history
   canonical_run_id: 001-20260719-044217-970e86ca
-  notes: Eighth B1 scientific cell; fixed absolute G+ kappa 0.10 at POST-RoPE Q/K,
-    ordinary a/m/h ReLU, V absent, AdamW without pressure. Run 001-20260719-044217-970e86ca
-    completed 2048 steps and passed terminal artifact, stability, collapse, and exact
-    checkpoint-reload review at selection loss 7.03090. Canonical diagnostic config
-    164 measured R_block 0.37056 and R_model 0.11099 over the complete selection partition.
-    S1 supports feasibility/collapse and within-stratum comparisons only.
+  notes: Eighth B1 scientific cell; fixed absolute G+ kappa 0.10 at POST-RoPE Q/K, ordinary a/m/h ReLU, V absent, AdamW without
+    pressure. Run 001-20260719-044217-970e86ca completed 2048 steps and passed terminal artifact, stability, collapse, and
+    exact checkpoint-reload review at selection loss 7.03090. Canonical diagnostic config 164 measured R_block 0.37056 and
+    R_model 0.11099 over the complete selection partition. S1 supports feasibility/collapse and within-stratum comparisons
+    only.
 - design_id: S1-B1-DIAG-FIX-GPLUS-POST-QK-K010-SELECTION-S0
   config_id: 164-s1-b1-gplus-post-qk-k010-selection-prop
   config_path: configs/164-s1-b1-gplus-post-qk-k010-selection-prop.yaml
@@ -2644,10 +2605,9 @@ records:
   decision_status: control
   release_tier: history
   canonical_run_id: 001-20260719-050552-f4f3f4e9
-  notes: Canonical schema-v3 complete-selection diagnostic pinned to config 163. Run
-    001-20260719-050552-f4f3f4e9 pooled all 311296 complete selection tokens and passed
-    the five-file statusless artifact, topology, exact-zero, and product-count review;
-    diagnostic-only and excluded from scientific-cell counts.
+  notes: Canonical schema-v3 complete-selection diagnostic pinned to config 163. Run 001-20260719-050552-f4f3f4e9 pooled all
+    311296 complete selection tokens and passed the five-file statusless artifact, topology, exact-zero, and product-count
+    review; diagnostic-only and excluded from scientific-cell counts.
 - design_id: S1-B1-FIX-GPLUS-POST-QK-K030-S0
   config_id: 165-s1-b1-p14m-gplus-post-qk-k030-s0
   config_path: configs/165-s1-b1-p14m-gplus-post-qk-k030-s0.yaml
@@ -2704,12 +2664,10 @@ records:
   decision_status: pending
   release_tier: history
   canonical_run_id: 001-20260719-051008-59f8fe4c
-  notes: Ninth B1 scientific cell; fixed absolute G+ kappa 0.30 at POST-RoPE Q/K,
-    ordinary a/m/h ReLU, V absent, AdamW without pressure. Run 001-20260719-051008-59f8fe4c
-    completed all 2048 steps from clean commit d60a4a7 and passed terminal review
-    at selection loss 7.03559. Canonical diagnostic config 166 measured R_block 0.45968
-    and R_model 0.13768 over the complete selection partition. S1 supports feasibility/collapse
-    and within-stratum comparisons only.
+  notes: Ninth B1 scientific cell; fixed absolute G+ kappa 0.30 at POST-RoPE Q/K, ordinary a/m/h ReLU, V absent, AdamW without
+    pressure. Run 001-20260719-051008-59f8fe4c completed all 2048 steps from clean commit d60a4a7 and passed terminal review
+    at selection loss 7.03559. Canonical diagnostic config 166 measured R_block 0.45968 and R_model 0.13768 over the complete
+    selection partition. S1 supports feasibility/collapse and within-stratum comparisons only.
 - design_id: S1-B1-DIAG-FIX-GPLUS-POST-QK-K030-SELECTION-S0
   config_id: 166-s1-b1-gplus-post-qk-k030-selection-prop
   config_path: configs/166-s1-b1-gplus-post-qk-k030-selection-prop.yaml
@@ -2761,10 +2719,9 @@ records:
   decision_status: control
   release_tier: history
   canonical_run_id: 001-20260719-053610-96aacd5d
-  notes: Canonical schema-v3 complete-selection diagnostic pinned to config 165. Run
-    001-20260719-053610-96aacd5d pooled all 311296 complete selection tokens and passed
-    the five-file statusless artifact, topology, exact-zero, and product-count review;
-    diagnostic-only and excluded from scientific-cell counts.
+  notes: Canonical schema-v3 complete-selection diagnostic pinned to config 165. Run 001-20260719-053610-96aacd5d pooled all
+    311296 complete selection tokens and passed the five-file statusless artifact, topology, exact-zero, and product-count
+    review; diagnostic-only and excluded from scientific-cell counts.
 - design_id: S1-B1-FIX-GPLUS-POST-QKV-K003-S0
   config_id: 167-s1-b1-p14m-gplus-post-qkv-k003-s0
   config_path: configs/167-s1-b1-p14m-gplus-post-qkv-k003-s0.yaml
@@ -2823,12 +2780,10 @@ records:
   decision_status: pending
   release_tier: history
   canonical_run_id: 001-20260719-054016-5e3f0e3d
-  notes: Tenth B1 scientific cell; fixed absolute G+ kappa 0.03 at POST-RoPE Q/K and
-    post-split V, ordinary a/m/h ReLU, AdamW without pressure. Run 001-20260719-054016-5e3f0e3d
-    completed all 2048 steps from clean commit 0f81a0e and passed terminal review
-    at selection loss 7.03290. Canonical diagnostic config 168 measured R_block 0.48716
-    and R_model 0.14592 over the complete selection partition. S1 supports feasibility/collapse
-    and within-stratum comparisons only.
+  notes: Tenth B1 scientific cell; fixed absolute G+ kappa 0.03 at POST-RoPE Q/K and post-split V, ordinary a/m/h ReLU, AdamW
+    without pressure. Run 001-20260719-054016-5e3f0e3d completed all 2048 steps from clean commit 0f81a0e and passed terminal
+    review at selection loss 7.03290. Canonical diagnostic config 168 measured R_block 0.48716 and R_model 0.14592 over the
+    complete selection partition. S1 supports feasibility/collapse and within-stratum comparisons only.
 - design_id: S1-B1-DIAG-FIX-GPLUS-POST-QKV-K003-SELECTION-S0
   config_id: 168-s1-b1-gplus-post-qkv-k003-selection-prop
   config_path: configs/168-s1-b1-gplus-post-qkv-k003-selection-prop.yaml
@@ -2881,10 +2836,9 @@ records:
   decision_status: control
   release_tier: history
   canonical_run_id: 001-20260719-060544-6394fcab
-  notes: Canonical schema-v3 complete-selection diagnostic pinned to config 167. Run
-    001-20260719-060544-6394fcab pooled all 311296 complete selection tokens and passed
-    the five-file statusless artifact, topology, exact-zero, and product-count review;
-    diagnostic-only and excluded from scientific-cell counts.
+  notes: Canonical schema-v3 complete-selection diagnostic pinned to config 167. Run 001-20260719-060544-6394fcab pooled all
+    311296 complete selection tokens and passed the five-file statusless artifact, topology, exact-zero, and product-count
+    review; diagnostic-only and excluded from scientific-cell counts.
 - design_id: S1-B1-FIX-GPLUS-POST-QKV-K010-S0
   config_id: 169-s1-b1-p14m-gplus-post-qkv-k010-s0
   config_path: configs/169-s1-b1-p14m-gplus-post-qkv-k010-s0.yaml
@@ -2943,12 +2897,10 @@ records:
   decision_status: pending
   release_tier: history
   canonical_run_id: 001-20260719-060936-1cfd8103
-  notes: Eleventh B1 scientific cell; fixed absolute G+ kappa 0.10 at POST-RoPE Q/K
-    and post-split V, ordinary a/m/h ReLU, AdamW without pressure. Run 001-20260719-060936-1cfd8103
-    completed all 2048 steps from clean commit 81b6739 and passed terminal review
-    at selection loss 7.03408. Canonical diagnostic config 170 measured R_block 0.56464
-    and R_model 0.16912 over the complete selection partition. S1 supports feasibility/collapse
-    and within-stratum comparisons only.
+  notes: Eleventh B1 scientific cell; fixed absolute G+ kappa 0.10 at POST-RoPE Q/K and post-split V, ordinary a/m/h ReLU,
+    AdamW without pressure. Run 001-20260719-060936-1cfd8103 completed all 2048 steps from clean commit 81b6739 and passed
+    terminal review at selection loss 7.03408. Canonical diagnostic config 170 measured R_block 0.56464 and R_model 0.16912
+    over the complete selection partition. S1 supports feasibility/collapse and within-stratum comparisons only.
 - design_id: S1-B1-DIAG-FIX-GPLUS-POST-QKV-K010-SELECTION-S0
   config_id: 170-s1-b1-gplus-post-qkv-k010-selection-prop
   config_path: configs/170-s1-b1-gplus-post-qkv-k010-selection-prop.yaml
@@ -3001,10 +2953,9 @@ records:
   decision_status: control
   release_tier: history
   canonical_run_id: 001-20260719-063500-541b449d
-  notes: Canonical schema-v3 complete-selection diagnostic pinned to config 169. Run
-    001-20260719-063500-541b449d pooled all 311296 complete selection tokens and passed
-    the five-file statusless artifact, topology, exact-zero, and product-count review;
-    diagnostic-only and excluded from scientific-cell counts.
+  notes: Canonical schema-v3 complete-selection diagnostic pinned to config 169. Run 001-20260719-063500-541b449d pooled all
+    311296 complete selection tokens and passed the five-file statusless artifact, topology, exact-zero, and product-count
+    review; diagnostic-only and excluded from scientific-cell counts.
 - design_id: S1-B1-FIX-GPLUS-POST-QKV-K030-S0
   config_id: 171-s1-b1-p14m-gplus-post-qkv-k030-s0
   config_path: configs/171-s1-b1-p14m-gplus-post-qkv-k030-s0.yaml
@@ -3063,12 +3014,10 @@ records:
   decision_status: pending
   release_tier: history
   canonical_run_id: 001-20260719-063931-ae5b970a
-  notes: Twelfth B1 scientific cell; fixed absolute G+ kappa 0.30 at POST-RoPE Q/K
-    and post-split V, ordinary a/m/h ReLU, AdamW without pressure. Run 001-20260719-063931-ae5b970a
-    completed all 2048 steps from clean commit 319d4ac and passed terminal review
-    at selection loss 7.03405. Canonical diagnostic config 172 measured R_block 0.73260
-    and R_model 0.21943 over the complete selection partition. S1 supports feasibility/collapse
-    and within-stratum comparisons only.
+  notes: Twelfth B1 scientific cell; fixed absolute G+ kappa 0.30 at POST-RoPE Q/K and post-split V, ordinary a/m/h ReLU,
+    AdamW without pressure. Run 001-20260719-063931-ae5b970a completed all 2048 steps from clean commit 319d4ac and passed
+    terminal review at selection loss 7.03405. Canonical diagnostic config 172 measured R_block 0.73260 and R_model 0.21943
+    over the complete selection partition. S1 supports feasibility/collapse and within-stratum comparisons only.
 - design_id: S1-B1-DIAG-FIX-GPLUS-POST-QKV-K030-SELECTION-S0
   config_id: 172-s1-b1-gplus-post-qkv-k030-selection-prop
   config_path: configs/172-s1-b1-gplus-post-qkv-k030-selection-prop.yaml
@@ -3121,10 +3070,9 @@ records:
   decision_status: control
   release_tier: history
   canonical_run_id: 001-20260719-070611-60dbfac9
-  notes: Canonical schema-v3 complete-selection diagnostic pinned to config 171. Run
-    001-20260719-070611-60dbfac9 pooled all 311296 complete selection tokens and passed
-    the five-file statusless artifact, topology, exact-zero, and product-count review;
-    diagnostic-only and excluded from scientific-cell counts.
+  notes: Canonical schema-v3 complete-selection diagnostic pinned to config 171. Run 001-20260719-070611-60dbfac9 pooled all
+    311296 complete selection tokens and passed the five-file statusless artifact, topology, exact-zero, and product-count
+    review; diagnostic-only and excluded from scientific-cell counts.
 - design_id: S1-B1-FIX-GPM-PRE-QK-K003-S0
   config_id: 173-s1-b1-p14m-gpm-pre-qk-k003-s0
   config_path: configs/173-s1-b1-p14m-gpm-pre-qk-k003-s0.yaml
@@ -3181,13 +3129,11 @@ records:
   decision_status: pending
   release_tier: history
   canonical_run_id: 001-20260719-071126-022f081f
-  notes: Thirteenth B1 scientific cell; fixed absolute Gpm kappa 0.03 at PRE-RoPE
-    Q/K, ordinary a/m/h ReLU, V absent, AdamW without pressure. Run 001-20260719-071126-022f081f
-    completed all 2048 steps from clean commit 10f1667 and passed terminal review
-    at selection loss 7.01319. Its identity-parent matched control is the Three-ReLU
-    A3 config 125 because Gpm at kappa 0 is identity. Canonical diagnostic config
-    174 measured R_block 0.21885 and R_model 0.06555 over the complete selection partition.
-    S1 supports feasibility/collapse and within-stratum comparisons only.
+  notes: Thirteenth B1 scientific cell; fixed absolute Gpm kappa 0.03 at PRE-RoPE Q/K, ordinary a/m/h ReLU, V absent, AdamW
+    without pressure. Run 001-20260719-071126-022f081f completed all 2048 steps from clean commit 10f1667 and passed terminal
+    review at selection loss 7.01319. Its identity-parent matched control is the Three-ReLU A3 config 125 because Gpm at kappa
+    0 is identity. Canonical diagnostic config 174 measured R_block 0.21885 and R_model 0.06555 over the complete selection
+    partition. S1 supports feasibility/collapse and within-stratum comparisons only.
 - design_id: S1-B1-DIAG-FIX-GPM-PRE-QK-K003-SELECTION-S0
   config_id: 174-s1-b1-gpm-pre-qk-k003-selection-prop
   config_path: configs/174-s1-b1-gpm-pre-qk-k003-selection-prop.yaml
@@ -3239,10 +3185,9 @@ records:
   decision_status: control
   release_tier: history
   canonical_run_id: 001-20260719-073848-15430afb
-  notes: Canonical schema-v3 complete-selection diagnostic pinned to config 173. Run
-    001-20260719-073848-15430afb pooled all 311296 complete selection tokens and passed
-    the five-file statusless artifact, topology, PRE-RoPE survival, exact-zero, and
-    product-count review; diagnostic-only and excluded from scientific-cell counts.
+  notes: Canonical schema-v3 complete-selection diagnostic pinned to config 173. Run 001-20260719-073848-15430afb pooled all
+    311296 complete selection tokens and passed the five-file statusless artifact, topology, PRE-RoPE survival, exact-zero,
+    and product-count review; diagnostic-only and excluded from scientific-cell counts.
 - design_id: S1-B1-FIX-GPM-PRE-QK-K010-S0
   config_id: 175-s1-b1-p14m-gpm-pre-qk-k010-s0
   config_path: configs/175-s1-b1-p14m-gpm-pre-qk-k010-s0.yaml
@@ -3299,13 +3244,11 @@ records:
   decision_status: pending
   release_tier: history
   canonical_run_id: 001-20260719-074413-02346f45
-  notes: Fourteenth B1 scientific cell; fixed absolute Gpm kappa 0.10 at PRE-RoPE
-    Q/K, ordinary a/m/h ReLU, V absent, AdamW without pressure. Run 001-20260719-074413-02346f45
-    completed all 2048 steps from clean commit 2190b7c and passed terminal review
-    at selection loss 7.01434. Its identity-parent matched control is the Three-ReLU
-    A3 config 125 because Gpm at kappa 0 is identity. Canonical diagnostic config
-    176 measured R_block 0.25387 and R_model 0.07604 over the complete selection partition.
-    S1 supports feasibility/collapse and within-stratum comparisons only.
+  notes: Fourteenth B1 scientific cell; fixed absolute Gpm kappa 0.10 at PRE-RoPE Q/K, ordinary a/m/h ReLU, V absent, AdamW
+    without pressure. Run 001-20260719-074413-02346f45 completed all 2048 steps from clean commit 2190b7c and passed terminal
+    review at selection loss 7.01434. Its identity-parent matched control is the Three-ReLU A3 config 125 because Gpm at kappa
+    0 is identity. Canonical diagnostic config 176 measured R_block 0.25387 and R_model 0.07604 over the complete selection
+    partition. S1 supports feasibility/collapse and within-stratum comparisons only.
 - design_id: S1-B1-DIAG-FIX-GPM-PRE-QK-K010-SELECTION-S0
   config_id: 176-s1-b1-gpm-pre-qk-k010-selection-prop
   config_path: configs/176-s1-b1-gpm-pre-qk-k010-selection-prop.yaml
@@ -3357,10 +3300,9 @@ records:
   decision_status: control
   release_tier: history
   canonical_run_id: 001-20260719-080808-9b05f3e2
-  notes: Canonical schema-v3 complete-selection diagnostic pinned to config 175. Run
-    001-20260719-080808-9b05f3e2 pooled all 311296 complete selection tokens and passed
-    the five-file statusless artifact, topology, PRE-RoPE survival, exact-zero, and
-    product-count review; diagnostic-only and excluded from scientific-cell counts.
+  notes: Canonical schema-v3 complete-selection diagnostic pinned to config 175. Run 001-20260719-080808-9b05f3e2 pooled all
+    311296 complete selection tokens and passed the five-file statusless artifact, topology, PRE-RoPE survival, exact-zero,
+    and product-count review; diagnostic-only and excluded from scientific-cell counts.
 - design_id: S1-B1-FIX-GPM-PRE-QK-K030-S0
   config_id: 177-s1-b1-p14m-gpm-pre-qk-k030-s0
   config_path: configs/177-s1-b1-p14m-gpm-pre-qk-k030-s0.yaml
@@ -3417,13 +3359,11 @@ records:
   decision_status: pending
   release_tier: history
   canonical_run_id: 001-20260719-081330-30489164
-  notes: Fifteenth B1 scientific cell; fixed absolute Gpm kappa 0.30 at PRE-RoPE Q/K,
-    ordinary a/m/h ReLU, V absent, AdamW without pressure. Run 001-20260719-081330-30489164
-    completed all 2048 steps from clean commit 374eabd and passed terminal review
-    at selection loss 7.02590. Its identity-parent matched control is the Three-ReLU
-    A3 config 125 because Gpm at kappa 0 is identity. Canonical diagnostic config
-    178 measured R_block 0.40069 and R_model 0.12002 over the complete selection partition.
-    S1 supports feasibility/collapse and within-stratum comparisons only.
+  notes: Fifteenth B1 scientific cell; fixed absolute Gpm kappa 0.30 at PRE-RoPE Q/K, ordinary a/m/h ReLU, V absent, AdamW
+    without pressure. Run 001-20260719-081330-30489164 completed all 2048 steps from clean commit 374eabd and passed terminal
+    review at selection loss 7.02590. Its identity-parent matched control is the Three-ReLU A3 config 125 because Gpm at kappa
+    0 is identity. Canonical diagnostic config 178 measured R_block 0.40069 and R_model 0.12002 over the complete selection
+    partition. S1 supports feasibility/collapse and within-stratum comparisons only.
 - design_id: S1-B1-DIAG-FIX-GPM-PRE-QK-K030-SELECTION-S0
   config_id: 178-s1-b1-gpm-pre-qk-k030-selection-prop
   config_path: configs/178-s1-b1-gpm-pre-qk-k030-selection-prop.yaml
@@ -3475,10 +3415,9 @@ records:
   decision_status: control
   release_tier: history
   canonical_run_id: 001-20260719-083904-4dbd36ba
-  notes: Canonical schema-v3 complete-selection diagnostic pinned to config 177. Run
-    001-20260719-083904-4dbd36ba pooled all 311296 complete selection tokens and passed
-    the five-file statusless artifact, topology, PRE-RoPE survival, exact-zero, and
-    product-count review; diagnostic-only and excluded from scientific-cell counts.
+  notes: Canonical schema-v3 complete-selection diagnostic pinned to config 177. Run 001-20260719-083904-4dbd36ba pooled all
+    311296 complete selection tokens and passed the five-file statusless artifact, topology, PRE-RoPE survival, exact-zero,
+    and product-count review; diagnostic-only and excluded from scientific-cell counts.
 - design_id: S1-B1-FIX-GPM-PRE-QKV-K003-S0
   config_id: 179-s1-b1-p14m-gpm-pre-qkv-k003-s0
   config_path: configs/179-s1-b1-p14m-gpm-pre-qkv-k003-s0.yaml
@@ -3537,13 +3476,11 @@ records:
   decision_status: pending
   release_tier: history
   canonical_run_id: 001-20260719-084406-a4fee547
-  notes: Sixteenth B1 scientific cell; fixed absolute Gpm kappa 0.03 at PRE-RoPE Q/K
-    and post-split V, ordinary a/m/h ReLU, AdamW without pressure. Run 001-20260719-084406-a4fee547
-    completed all 2048 steps from clean commit fac7ff8 and passed terminal review
-    at selection loss 7.01432. Its identity-parent matched control is the Three-ReLU
-    A3 config 125 because Gpm at kappa 0 is identity. Canonical diagnostic config
-    180 measured R_block 0.26365 and R_model 0.07897 over the complete selection partition.
-    S1 supports feasibility/collapse and within-stratum comparisons only.
+  notes: Sixteenth B1 scientific cell; fixed absolute Gpm kappa 0.03 at PRE-RoPE Q/K and post-split V, ordinary a/m/h ReLU,
+    AdamW without pressure. Run 001-20260719-084406-a4fee547 completed all 2048 steps from clean commit fac7ff8 and passed
+    terminal review at selection loss 7.01432. Its identity-parent matched control is the Three-ReLU A3 config 125 because
+    Gpm at kappa 0 is identity. Canonical diagnostic config 180 measured R_block 0.26365 and R_model 0.07897 over the complete
+    selection partition. S1 supports feasibility/collapse and within-stratum comparisons only.
 - design_id: S1-B1-DIAG-FIX-GPM-PRE-QKV-K003-SELECTION-S0
   config_id: 180-s1-b1-gpm-pre-qkv-k003-selection-prop
   config_path: configs/180-s1-b1-gpm-pre-qkv-k003-selection-prop.yaml
@@ -3596,10 +3533,9 @@ records:
   decision_status: control
   release_tier: history
   canonical_run_id: 001-20260719-091040-566be9ab
-  notes: Canonical schema-v3 complete-selection diagnostic pinned to config 179. Run
-    001-20260719-091040-566be9ab pooled all 311296 complete selection tokens and passed
-    the five-file statusless artifact, topology, PRE-RoPE survival, exact-zero, and
-    product-count review; diagnostic-only and excluded from scientific-cell counts.
+  notes: Canonical schema-v3 complete-selection diagnostic pinned to config 179. Run 001-20260719-091040-566be9ab pooled all
+    311296 complete selection tokens and passed the five-file statusless artifact, topology, PRE-RoPE survival, exact-zero,
+    and product-count review; diagnostic-only and excluded from scientific-cell counts.
 - design_id: S1-B1-FIX-GPM-PRE-QKV-K010-S0
   config_id: 181-s1-b1-p14m-gpm-pre-qkv-k010-s0
   config_path: configs/181-s1-b1-p14m-gpm-pre-qkv-k010-s0.yaml
@@ -3658,13 +3594,11 @@ records:
   decision_status: pending
   release_tier: history
   canonical_run_id: 001-20260719-091515-36a71a24
-  notes: Seventeenth B1 scientific cell; fixed absolute Gpm kappa 0.10 at PRE-RoPE
-    Q/K and post-split V, ordinary a/m/h ReLU, AdamW without pressure. Run 001-20260719-091515-36a71a24
-    completed all 2048 steps from clean commit e9b7252 and passed terminal review
-    at selection loss 7.01775. Its identity-parent matched control is the Three-ReLU
-    A3 config 125 because Gpm at kappa 0 is identity. Canonical diagnostic config
-    182 measured R_block 0.38896 and R_model 0.11650 over the complete selection partition.
-    S1 supports feasibility/collapse and within-stratum comparisons only.
+  notes: Seventeenth B1 scientific cell; fixed absolute Gpm kappa 0.10 at PRE-RoPE Q/K and post-split V, ordinary a/m/h ReLU,
+    AdamW without pressure. Run 001-20260719-091515-36a71a24 completed all 2048 steps from clean commit e9b7252 and passed
+    terminal review at selection loss 7.01775. Its identity-parent matched control is the Three-ReLU A3 config 125 because
+    Gpm at kappa 0 is identity. Canonical diagnostic config 182 measured R_block 0.38896 and R_model 0.11650 over the complete
+    selection partition. S1 supports feasibility/collapse and within-stratum comparisons only.
 - design_id: S1-B1-DIAG-FIX-GPM-PRE-QKV-K010-SELECTION-S0
   config_id: 182-s1-b1-gpm-pre-qkv-k010-selection-prop
   config_path: configs/182-s1-b1-gpm-pre-qkv-k010-selection-prop.yaml
@@ -3717,10 +3651,9 @@ records:
   decision_status: control
   release_tier: history
   canonical_run_id: 001-20260719-094101-86e1b7ca
-  notes: Canonical schema-v3 complete-selection diagnostic pinned to config 181. Run
-    001-20260719-094101-86e1b7ca pooled all 311296 complete selection tokens and passed
-    the five-file statusless artifact, topology, PRE-RoPE survival, exact-zero, and
-    product-count review; diagnostic-only and excluded from scientific-cell counts.
+  notes: Canonical schema-v3 complete-selection diagnostic pinned to config 181. Run 001-20260719-094101-86e1b7ca pooled all
+    311296 complete selection tokens and passed the five-file statusless artifact, topology, PRE-RoPE survival, exact-zero,
+    and product-count review; diagnostic-only and excluded from scientific-cell counts.
 - design_id: S1-B1-FIX-GPM-PRE-QKV-K030-S0
   config_id: 183-s1-b1-p14m-gpm-pre-qkv-k030-s0
   config_path: configs/183-s1-b1-p14m-gpm-pre-qkv-k030-s0.yaml
@@ -3779,13 +3712,11 @@ records:
   decision_status: pending
   release_tier: history
   canonical_run_id: 001-20260719-094646-118743a1
-  notes: Eighteenth B1 scientific cell; fixed absolute Gpm kappa 0.30 at PRE-RoPE
-    Q/K and post-split V, ordinary a/m/h ReLU, AdamW without pressure. Run 001-20260719-094646-118743a1
-    completed all 2048 steps from clean commit a2380f1 and passed terminal review
-    at selection loss 7.02352. Its identity-parent matched control is the Three-ReLU
-    A3 config 125 because Gpm at kappa 0 is identity. Canonical diagnostic config
-    184 measured R_block 0.63897 and R_model 0.19139 over the complete selection partition.
-    S1 supports feasibility/collapse and within-stratum comparisons only.
+  notes: Eighteenth B1 scientific cell; fixed absolute Gpm kappa 0.30 at PRE-RoPE Q/K and post-split V, ordinary a/m/h ReLU,
+    AdamW without pressure. Run 001-20260719-094646-118743a1 completed all 2048 steps from clean commit a2380f1 and passed
+    terminal review at selection loss 7.02352. Its identity-parent matched control is the Three-ReLU A3 config 125 because
+    Gpm at kappa 0 is identity. Canonical diagnostic config 184 measured R_block 0.63897 and R_model 0.19139 over the complete
+    selection partition. S1 supports feasibility/collapse and within-stratum comparisons only.
 - design_id: S1-B1-DIAG-FIX-GPM-PRE-QKV-K030-SELECTION-S0
   config_id: 184-s1-b1-gpm-pre-qkv-k030-selection-prop
   config_path: configs/184-s1-b1-gpm-pre-qkv-k030-selection-prop.yaml
@@ -3838,10 +3769,9 @@ records:
   decision_status: control
   release_tier: history
   canonical_run_id: 001-20260719-101310-a220dcd4
-  notes: Canonical schema-v3 complete-selection diagnostic pinned to config 183. Run
-    001-20260719-101310-a220dcd4 pooled all 311296 complete selection tokens and passed
-    the five-file statusless artifact, topology, PRE-RoPE survival, exact-zero, and
-    product-count review; diagnostic-only and excluded from scientific-cell counts.
+  notes: Canonical schema-v3 complete-selection diagnostic pinned to config 183. Run 001-20260719-101310-a220dcd4 pooled all
+    311296 complete selection tokens and passed the five-file statusless artifact, topology, PRE-RoPE survival, exact-zero,
+    and product-count review; diagnostic-only and excluded from scientific-cell counts.
 - design_id: S1-B1-FIX-GPM-POST-QK-K003-S0
   config_id: 185-s1-b1-p14m-gpm-post-qk-k003-s0
   config_path: configs/185-s1-b1-p14m-gpm-post-qk-k003-s0.yaml
@@ -3898,13 +3828,11 @@ records:
   decision_status: pending
   release_tier: history
   canonical_run_id: 001-20260719-101901-c6136a3e
-  notes: Nineteenth B1 scientific cell; fixed absolute Gpm kappa 0.03 at POST-RoPE
-    Q/K, ordinary a/m/h ReLU, V absent, AdamW without pressure. Run 001-20260719-101901-c6136a3e
-    completed all 2048 steps from clean commit edd47b9 and passed terminal review
-    at selection loss 7.01265. Its identity-parent matched control is the Three-ReLU
-    A3 config 125 because Gpm at kappa 0 is identity. Canonical diagnostic config
-    186 measured R_block 0.22107 and R_model 0.06622 over the complete selection partition.
-    S1 supports feasibility/collapse and within-stratum comparisons only.
+  notes: Nineteenth B1 scientific cell; fixed absolute Gpm kappa 0.03 at POST-RoPE Q/K, ordinary a/m/h ReLU, V absent, AdamW
+    without pressure. Run 001-20260719-101901-c6136a3e completed all 2048 steps from clean commit edd47b9 and passed terminal
+    review at selection loss 7.01265. Its identity-parent matched control is the Three-ReLU A3 config 125 because Gpm at kappa
+    0 is identity. Canonical diagnostic config 186 measured R_block 0.22107 and R_model 0.06622 over the complete selection
+    partition. S1 supports feasibility/collapse and within-stratum comparisons only.
 - design_id: S1-B1-DIAG-FIX-GPM-POST-QK-K003-SELECTION-S0
   config_id: 186-s1-b1-gpm-post-qk-k003-selection-prop
   config_path: configs/186-s1-b1-gpm-post-qk-k003-selection-prop.yaml
@@ -3956,10 +3884,9 @@ records:
   decision_status: control
   release_tier: history
   canonical_run_id: 001-20260719-104856-93141c47
-  notes: Canonical schema-v3 complete-selection diagnostic pinned to config 185. Run
-    001-20260719-104856-93141c47 pooled all 311296 complete selection tokens and passed
-    the five-file statusless artifact, topology, POST-RoPE identity, exact-zero, and
-    product-count review; diagnostic-only and excluded from scientific-cell counts.
+  notes: Canonical schema-v3 complete-selection diagnostic pinned to config 185. Run 001-20260719-104856-93141c47 pooled all
+    311296 complete selection tokens and passed the five-file statusless artifact, topology, POST-RoPE identity, exact-zero,
+    and product-count review; diagnostic-only and excluded from scientific-cell counts.
 - design_id: S1-B1-FIX-GPM-POST-QK-K010-S0
   config_id: 187-s1-b1-p14m-gpm-post-qk-k010-s0
   config_path: configs/187-s1-b1-p14m-gpm-post-qk-k010-s0.yaml
@@ -4016,13 +3943,11 @@ records:
   decision_status: pending
   release_tier: history
   canonical_run_id: 001-20260719-105711-4d2ba109
-  notes: Twentieth B1 scientific cell; fixed absolute Gpm kappa 0.10 at POST-RoPE
-    Q/K, ordinary a/m/h ReLU, V absent, AdamW without pressure. Run 001-20260719-105711-4d2ba109
-    completed all 2048 steps from clean commit 0137ced and passed terminal review
-    at selection loss 7.01402. Its identity-parent matched control is the Three-ReLU
-    A3 config 125 because Gpm at kappa 0 is identity. Canonical diagnostic config
-    188 measured R_block 0.26142 and R_model 0.07830 over the complete selection partition.
-    S1 supports feasibility/collapse and within-stratum comparisons only.
+  notes: Twentieth B1 scientific cell; fixed absolute Gpm kappa 0.10 at POST-RoPE Q/K, ordinary a/m/h ReLU, V absent, AdamW
+    without pressure. Run 001-20260719-105711-4d2ba109 completed all 2048 steps from clean commit 0137ced and passed terminal
+    review at selection loss 7.01402. Its identity-parent matched control is the Three-ReLU A3 config 125 because Gpm at kappa
+    0 is identity. Canonical diagnostic config 188 measured R_block 0.26142 and R_model 0.07830 over the complete selection
+    partition. S1 supports feasibility/collapse and within-stratum comparisons only.
 - design_id: S1-B1-DIAG-FIX-GPM-POST-QK-K010-SELECTION-S0
   config_id: 188-s1-b1-gpm-post-qk-k010-selection-prop
   config_path: configs/188-s1-b1-gpm-post-qk-k010-selection-prop.yaml
@@ -4074,10 +3999,9 @@ records:
   decision_status: control
   release_tier: history
   canonical_run_id: 001-20260719-112516-267933ce
-  notes: Canonical schema-v3 complete-selection diagnostic pinned to config 187. Run
-    001-20260719-112516-267933ce pooled all 311296 complete selection tokens and passed
-    the five-file statusless artifact, topology, POST-RoPE identity, exact-zero, and
-    product-count review; diagnostic-only and excluded from scientific-cell counts.
+  notes: Canonical schema-v3 complete-selection diagnostic pinned to config 187. Run 001-20260719-112516-267933ce pooled all
+    311296 complete selection tokens and passed the five-file statusless artifact, topology, POST-RoPE identity, exact-zero,
+    and product-count review; diagnostic-only and excluded from scientific-cell counts.
 - design_id: S1-B1-FIX-GPM-POST-QK-K030-S0
   config_id: 189-s1-b1-p14m-gpm-post-qk-k030-s0
   config_path: configs/189-s1-b1-p14m-gpm-post-qk-k030-s0.yaml
@@ -4134,13 +4058,11 @@ records:
   decision_status: pending
   release_tier: history
   canonical_run_id: 001-20260719-113001-536f9230
-  notes: Twenty-first B1 scientific cell; fixed absolute Gpm kappa 0.30 at POST-RoPE
-    Q/K, ordinary a/m/h ReLU, V absent, AdamW without pressure. Run 001-20260719-113001-536f9230
-    completed all 2048 steps from clean commit abab687 and passed terminal review
-    at selection loss 7.02492. Its identity-parent matched control is the Three-ReLU
-    A3 config 125 because Gpm at kappa 0 is identity. Canonical diagnostic config
-    190 measured R_block 0.40495 and R_model 0.12129 over the complete selection partition.
-    S1 supports feasibility/collapse and within-stratum comparisons only.
+  notes: Twenty-first B1 scientific cell; fixed absolute Gpm kappa 0.30 at POST-RoPE Q/K, ordinary a/m/h ReLU, V absent, AdamW
+    without pressure. Run 001-20260719-113001-536f9230 completed all 2048 steps from clean commit abab687 and passed terminal
+    review at selection loss 7.02492. Its identity-parent matched control is the Three-ReLU A3 config 125 because Gpm at kappa
+    0 is identity. Canonical diagnostic config 190 measured R_block 0.40495 and R_model 0.12129 over the complete selection
+    partition. S1 supports feasibility/collapse and within-stratum comparisons only.
 - design_id: S1-B1-DIAG-FIX-GPM-POST-QK-K030-SELECTION-S0
   config_id: 190-s1-b1-gpm-post-qk-k030-selection-prop
   config_path: configs/190-s1-b1-gpm-post-qk-k030-selection-prop.yaml
@@ -4192,12 +4114,10 @@ records:
   decision_status: control
   release_tier: history
   canonical_run_id: 001-20260719-115604-facf4ade
-  notes: Canonical schema-v3 complete-selection diagnostic pinned to config 189. Run
-    001-20260719-115604-facf4ade pooled all 311296 complete selection tokens and passed
-    the five-file statusless artifact, topology, POST-RoPE identity, exact-zero, and
-    product-count review. Attempt 2 is retained as a noncanonical accidental duplicate
-    with an identical scientific payload; diagnostic-only and excluded from scientific-cell
-    counts.
+  notes: Canonical schema-v3 complete-selection diagnostic pinned to config 189. Run 001-20260719-115604-facf4ade pooled all
+    311296 complete selection tokens and passed the five-file statusless artifact, topology, POST-RoPE identity, exact-zero,
+    and product-count review. Attempt 2 is retained as a noncanonical accidental duplicate with an identical scientific payload;
+    diagnostic-only and excluded from scientific-cell counts.
 - design_id: S1-B1-FIX-GPM-POST-QKV-K003-S0
   config_id: 191-s1-b1-p14m-gpm-post-qkv-k003-s0
   config_path: configs/191-s1-b1-p14m-gpm-post-qkv-k003-s0.yaml
@@ -4256,13 +4176,11 @@ records:
   decision_status: pending
   release_tier: history
   canonical_run_id: 001-20260719-120542-cff469cc
-  notes: Twenty-second B1 scientific cell; fixed absolute Gpm kappa 0.03 at POST-RoPE
-    Q/K and post-split V, ordinary a/m/h ReLU, AdamW without pressure. Run 001-20260719-120542-cff469cc
-    completed all 2048 steps from clean commit 982fde9 and passed terminal review
-    at selection loss 7.01313. Its identity-parent matched control is the Three-ReLU
-    A3 config 125 because Gpm at kappa 0 is identity at Q/K/V. Canonical diagnostic
-    config 192 measured R_block 0.26652 and R_model 0.07983 over the complete selection
-    partition. S1 supports feasibility/collapse and within-stratum comparisons only.
+  notes: Twenty-second B1 scientific cell; fixed absolute Gpm kappa 0.03 at POST-RoPE Q/K and post-split V, ordinary a/m/h
+    ReLU, AdamW without pressure. Run 001-20260719-120542-cff469cc completed all 2048 steps from clean commit 982fde9 and
+    passed terminal review at selection loss 7.01313. Its identity-parent matched control is the Three-ReLU A3 config 125
+    because Gpm at kappa 0 is identity at Q/K/V. Canonical diagnostic config 192 measured R_block 0.26652 and R_model 0.07983
+    over the complete selection partition. S1 supports feasibility/collapse and within-stratum comparisons only.
 - design_id: S1-B1-DIAG-FIX-GPM-POST-QKV-K003-SELECTION-S0
   config_id: 192-s1-b1-gpm-post-qkv-k003-selection-prop
   config_path: configs/192-s1-b1-gpm-post-qkv-k003-selection-prop.yaml
@@ -4315,10 +4233,9 @@ records:
   decision_status: control
   release_tier: history
   canonical_run_id: 001-20260719-123504-77673d45
-  notes: Canonical schema-v3 complete-selection diagnostic pinned to config 191. Run
-    001-20260719-123504-77673d45 pooled all 311296 complete selection tokens and passed
-    the five-file statusless artifact, topology, POST-RoPE identity, exact-zero, and
-    product-count review; diagnostic-only and excluded from scientific-cell counts.
+  notes: Canonical schema-v3 complete-selection diagnostic pinned to config 191. Run 001-20260719-123504-77673d45 pooled all
+    311296 complete selection tokens and passed the five-file statusless artifact, topology, POST-RoPE identity, exact-zero,
+    and product-count review; diagnostic-only and excluded from scientific-cell counts.
 - design_id: S1-B1-FIX-GPM-POST-QKV-K010-S0
   config_id: 193-s1-b1-p14m-gpm-post-qkv-k010-s0
   config_path: configs/193-s1-b1-p14m-gpm-post-qkv-k010-s0.yaml
@@ -4377,13 +4294,11 @@ records:
   decision_status: pending
   release_tier: history
   canonical_run_id: 001-20260719-124320-952d526f
-  notes: Twenty-third B1 scientific cell; fixed absolute Gpm kappa 0.10 at POST-RoPE
-    Q/K and post-split V, ordinary a/m/h ReLU, AdamW without pressure. Run 001-20260719-124320-952d526f
-    completed all 2048 steps from clean commit 1e83a14 and passed terminal review
-    at selection loss 7.01688. Its identity-parent matched control is the Three-ReLU
-    A3 config 125 because Gpm at kappa 0 is identity at Q/K/V. Canonical diagnostic
-    config 194 measured R_block 0.39646 and R_model 0.11875 over the complete selection
-    partition. S1 supports feasibility/collapse and within-stratum comparisons only.
+  notes: Twenty-third B1 scientific cell; fixed absolute Gpm kappa 0.10 at POST-RoPE Q/K and post-split V, ordinary a/m/h
+    ReLU, AdamW without pressure. Run 001-20260719-124320-952d526f completed all 2048 steps from clean commit 1e83a14 and
+    passed terminal review at selection loss 7.01688. Its identity-parent matched control is the Three-ReLU A3 config 125
+    because Gpm at kappa 0 is identity at Q/K/V. Canonical diagnostic config 194 measured R_block 0.39646 and R_model 0.11875
+    over the complete selection partition. S1 supports feasibility/collapse and within-stratum comparisons only.
 - design_id: S1-B1-DIAG-FIX-GPM-POST-QKV-K010-SELECTION-S0
   config_id: 194-s1-b1-gpm-post-qkv-k010-selection-prop
   config_path: configs/194-s1-b1-gpm-post-qkv-k010-selection-prop.yaml
@@ -4436,10 +4351,9 @@ records:
   decision_status: control
   release_tier: history
   canonical_run_id: 001-20260719-130907-96667214
-  notes: Canonical schema-v3 complete-selection diagnostic pinned to config 193. Run
-    001-20260719-130907-96667214 pooled all 311296 complete selection tokens and passed
-    the five-file statusless artifact, topology, POST-RoPE identity, exact-zero, and
-    product-count review; diagnostic-only and excluded from scientific-cell counts.
+  notes: Canonical schema-v3 complete-selection diagnostic pinned to config 193. Run 001-20260719-130907-96667214 pooled all
+    311296 complete selection tokens and passed the five-file statusless artifact, topology, POST-RoPE identity, exact-zero,
+    and product-count review; diagnostic-only and excluded from scientific-cell counts.
 - design_id: S1-B1-FIX-GPM-POST-QKV-K030-S0
   config_id: 195-s1-b1-p14m-gpm-post-qkv-k030-s0
   config_path: configs/195-s1-b1-p14m-gpm-post-qkv-k030-s0.yaml
@@ -4498,14 +4412,12 @@ records:
   decision_status: pending
   release_tier: history
   canonical_run_id: 001-20260719-131409-70c042d7
-  notes: Twenty-fourth B1 scientific cell and final main-attention-factorial row;
-    fixed absolute Gpm kappa 0.30 at POST-RoPE Q/K and post-split V, ordinary a/m/h
-    ReLU, AdamW without pressure. Run 001-20260719-131409-70c042d7 completed all 2048
-    steps from clean commit 2b50fdf and passed terminal review at selection loss 7.02043.
-    Its identity-parent matched control is the Three-ReLU A3 config 125 because Gpm
-    at kappa 0 is identity at Q/K/V. Canonical diagnostic config 196 measured R_block
-    0.65130 and R_model 0.19508 over the complete selection partition. S1 supports
-    feasibility/collapse and within-stratum comparisons only.
+  notes: Twenty-fourth B1 scientific cell and final main-attention-factorial row; fixed absolute Gpm kappa 0.30 at POST-RoPE
+    Q/K and post-split V, ordinary a/m/h ReLU, AdamW without pressure. Run 001-20260719-131409-70c042d7 completed all 2048
+    steps from clean commit 2b50fdf and passed terminal review at selection loss 7.02043. Its identity-parent matched control
+    is the Three-ReLU A3 config 125 because Gpm at kappa 0 is identity at Q/K/V. Canonical diagnostic config 196 measured
+    R_block 0.65130 and R_model 0.19508 over the complete selection partition. S1 supports feasibility/collapse and within-stratum
+    comparisons only.
 - design_id: S1-B1-DIAG-FIX-GPM-POST-QKV-K030-SELECTION-S0
   config_id: 196-s1-b1-gpm-post-qkv-k030-selection-prop
   config_path: configs/196-s1-b1-gpm-post-qkv-k030-selection-prop.yaml
@@ -4558,10 +4470,9 @@ records:
   decision_status: control
   release_tier: history
   canonical_run_id: 001-20260719-134214-2cfa55c7
-  notes: Canonical schema-v3 complete-selection diagnostic pinned to config 195. Run
-    001-20260719-134214-2cfa55c7 pooled all 311296 complete selection tokens and passed
-    the five-file statusless artifact, topology, POST-RoPE identity, exact-zero, and
-    product-count review; diagnostic-only and excluded from scientific-cell counts.
+  notes: Canonical schema-v3 complete-selection diagnostic pinned to config 195. Run 001-20260719-134214-2cfa55c7 pooled all
+    311296 complete selection tokens and passed the five-file statusless artifact, topology, POST-RoPE identity, exact-zero,
+    and product-count review; diagnostic-only and excluded from scientific-cell counts.
 - design_id: S1-B1-ISO-GPLUS-POST-Q-K010-S0
   config_id: 197-s1-b1-p14m-gplus-post-q-k010-s0
   config_path: configs/197-s1-b1-p14m-gplus-post-q-k010-s0.yaml
@@ -4616,14 +4527,12 @@ records:
   decision_status: pending
   release_tier: history
   canonical_run_id: 001-20260719-134717-3cfc0e0f
-  notes: Completed twenty-fifth B1 scientific cell and first POST site-isolation row.
-    Fixed absolute G+ kappa 0.10 at POST-RoPE Q only, ordinary a/m/h ReLU, AdamW without
-    pressure. Run 001-20260719-134717-3cfc0e0f completed all 2048 steps from clean
-    commit 52cf42a and passed terminal review at selection loss 7.02146. Its matched
-    ordinary-ReLU architecture parent is config 129 (A4-Q). Canonical diagnostic 203
-    run 001-20260719-160449-6ea5e005 supplies the complete-selection endpoints R_block=0.272430,
-    R_model=0.081599, and U_arch=0.401506. S1 supports feasibility/collapse and within-stratum
-    comparisons only.
+  notes: Completed twenty-fifth B1 scientific cell and first POST site-isolation row. Fixed absolute G+ kappa 0.10 at POST-RoPE
+    Q only, ordinary a/m/h ReLU, AdamW without pressure. Run 001-20260719-134717-3cfc0e0f completed all 2048 steps from clean
+    commit 52cf42a and passed terminal review at selection loss 7.02146. Its matched ordinary-ReLU architecture parent is
+    config 129 (A4-Q). Canonical diagnostic 203 run 001-20260719-160449-6ea5e005 supplies the complete-selection endpoints
+    R_block=0.272430, R_model=0.081599, and U_arch=0.401506. S1 supports feasibility/collapse and within-stratum comparisons
+    only.
 - design_id: S1-B1-ISO-GPLUS-POST-K-K010-S0
   config_id: 198-s1-b1-p14m-gplus-post-k-k010-s0
   config_path: configs/198-s1-b1-p14m-gplus-post-k-k010-s0.yaml
@@ -4678,14 +4587,12 @@ records:
   decision_status: pending
   release_tier: history
   canonical_run_id: 001-20260719-141336-5d660aa4
-  notes: Completed twenty-sixth B1 scientific cell; fixed absolute G+ kappa 0.10 at
-    POST-RoPE K only, ordinary a/m/h ReLU, AdamW without pressure. Run 001-20260719-141336-5d660aa4
-    completed all 2048 steps from clean commit e0228d7 and passed terminal artifact,
-    exact checkpoint-reload, and finite-event review at selection loss 7.02413. Its
-    matched ordinary-ReLU architecture parent is config 130 (A4-K). Canonical diagnostic
-    203 run 001-20260719-160449-6ea5e005 supplies the complete-selection endpoints
-    R_block=0.302627, R_model=0.090644, and U_arch=0.446009. S1 supports feasibility/collapse
-    and within-stratum comparisons only.
+  notes: Completed twenty-sixth B1 scientific cell; fixed absolute G+ kappa 0.10 at POST-RoPE K only, ordinary a/m/h ReLU,
+    AdamW without pressure. Run 001-20260719-141336-5d660aa4 completed all 2048 steps from clean commit e0228d7 and passed
+    terminal artifact, exact checkpoint-reload, and finite-event review at selection loss 7.02413. Its matched ordinary-ReLU
+    architecture parent is config 130 (A4-K). Canonical diagnostic 203 run 001-20260719-160449-6ea5e005 supplies the complete-selection
+    endpoints R_block=0.302627, R_model=0.090644, and U_arch=0.446009. S1 supports feasibility/collapse and within-stratum
+    comparisons only.
 - design_id: S1-B1-ISO-GPLUS-POST-V-K010-S0
   config_id: 199-s1-b1-p14m-gplus-post-v-k010-s0
   config_path: configs/199-s1-b1-p14m-gplus-post-v-k010-s0.yaml
@@ -4740,15 +4647,12 @@ records:
   decision_status: pending
   release_tier: history
   canonical_run_id: 001-20260719-143237-b913af6d
-  notes: Completed twenty-seventh B1 scientific cell; fixed absolute G+ kappa 0.10
-    at post-split V only, ordinary a/m/h ReLU, AdamW without pressure. Run 001-20260719-143237-b913af6d
-    completed all 2048 steps from clean commit e0228d7 and passed terminal artifact,
-    exact checkpoint-reload, and finite-event review at selection loss 7.01547. Its
-    matched ordinary-ReLU architecture parent is config 131 (A4-V); Q/K placement
-    is not applicable because Q and K are ungated. Canonical diagnostic 203 run 001-20260719-160449-6ea5e005
-    supplies the complete-selection endpoints R_block=0.383045, R_model=0.114731,
-    and U_arch=0.536308. S1 supports feasibility/collapse and within-stratum comparisons
-    only.
+  notes: Completed twenty-seventh B1 scientific cell; fixed absolute G+ kappa 0.10 at post-split V only, ordinary a/m/h ReLU,
+    AdamW without pressure. Run 001-20260719-143237-b913af6d completed all 2048 steps from clean commit e0228d7 and passed
+    terminal artifact, exact checkpoint-reload, and finite-event review at selection loss 7.01547. Its matched ordinary-ReLU
+    architecture parent is config 131 (A4-V); Q/K placement is not applicable because Q and K are ungated. Canonical diagnostic
+    203 run 001-20260719-160449-6ea5e005 supplies the complete-selection endpoints R_block=0.383045, R_model=0.114731, and
+    U_arch=0.536308. S1 supports feasibility/collapse and within-stratum comparisons only.
 - design_id: S1-B1-ISO-GPM-POST-Q-K010-S0
   config_id: 200-s1-b1-p14m-gpm-post-q-k010-s0
   config_path: configs/200-s1-b1-p14m-gpm-post-q-k010-s0.yaml
@@ -4803,13 +4707,11 @@ records:
   decision_status: pending
   release_tier: history
   canonical_run_id: 001-20260719-145118-8455717e
-  notes: Completed twenty-eighth B1 scientific cell; fixed absolute Gpm kappa 0.10
-    at POST-RoPE Q only, ordinary a/m/h ReLU, AdamW without pressure. Run 001-20260719-145118-8455717e
-    completed all 2048 steps from clean commit e0228d7 and passed terminal artifact,
-    exact checkpoint-reload, and finite-event review at selection loss 7.01355. Its
-    identity-parent matched control is config 125 (A3). Canonical diagnostic 203 run
-    001-20260719-160449-6ea5e005 supplies the complete-selection endpoints R_block=0.216582,
-    R_model=0.064871, and U_arch=0.319197. S1 supports feasibility/collapse and within-stratum
+  notes: Completed twenty-eighth B1 scientific cell; fixed absolute Gpm kappa 0.10 at POST-RoPE Q only, ordinary a/m/h ReLU,
+    AdamW without pressure. Run 001-20260719-145118-8455717e completed all 2048 steps from clean commit e0228d7 and passed
+    terminal artifact, exact checkpoint-reload, and finite-event review at selection loss 7.01355. Its identity-parent matched
+    control is config 125 (A3). Canonical diagnostic 203 run 001-20260719-160449-6ea5e005 supplies the complete-selection
+    endpoints R_block=0.216582, R_model=0.064871, and U_arch=0.319197. S1 supports feasibility/collapse and within-stratum
     comparisons only.
 - design_id: S1-B1-ISO-GPM-POST-K-K010-S0
   config_id: 201-s1-b1-p14m-gpm-post-k-k010-s0
@@ -4865,13 +4767,11 @@ records:
   decision_status: pending
   release_tier: history
   canonical_run_id: 001-20260719-150955-18a75af8
-  notes: Completed twenty-ninth B1 scientific cell; fixed absolute Gpm kappa 0.10
-    at POST-RoPE K only, ordinary a/m/h ReLU, AdamW without pressure. Run 001-20260719-150955-18a75af8
-    completed all 2048 steps from clean commit e0228d7 and passed terminal artifact,
-    exact checkpoint-reload, and finite-event review at selection loss 7.01406. Its
-    identity-parent matched control is config 125 (A3). Canonical diagnostic 203 run
-    001-20260719-160449-6ea5e005 supplies the complete-selection endpoints R_block=0.242179,
-    R_model=0.072538, and U_arch=0.356922. S1 supports feasibility/collapse and within-stratum
+  notes: Completed twenty-ninth B1 scientific cell; fixed absolute Gpm kappa 0.10 at POST-RoPE K only, ordinary a/m/h ReLU,
+    AdamW without pressure. Run 001-20260719-150955-18a75af8 completed all 2048 steps from clean commit e0228d7 and passed
+    terminal artifact, exact checkpoint-reload, and finite-event review at selection loss 7.01406. Its identity-parent matched
+    control is config 125 (A3). Canonical diagnostic 203 run 001-20260719-160449-6ea5e005 supplies the complete-selection
+    endpoints R_block=0.242179, R_model=0.072538, and U_arch=0.356922. S1 supports feasibility/collapse and within-stratum
     comparisons only.
 - design_id: S1-B1-ISO-GPM-POST-V-K010-S0
   config_id: 202-s1-b1-p14m-gpm-post-v-k010-s0
@@ -4927,15 +4827,12 @@ records:
   decision_status: pending
   release_tier: history
   canonical_run_id: 001-20260719-152835-0369b367
-  notes: Completed thirtieth B1 scientific cell and final POST site-isolation row;
-    fixed absolute Gpm kappa 0.10 at post-split V only, ordinary a/m/h ReLU, AdamW
-    without pressure. Run 001-20260719-152835-0369b367 completed all 2048 steps from
-    clean commit e0228d7 and passed terminal artifact, exact checkpoint-reload, and
-    finite-event review at selection loss 7.01501. Its identity-parent matched control
-    is config 125 (A3); Q/K placement is not applicable because Q and K are ungated.
-    Canonical diagnostic 203 run 001-20260719-160449-6ea5e005 supplies the complete-selection
-    endpoints R_block=0.331142, R_model=0.099185, and U_arch=0.463638. S1 supports
-    feasibility/collapse and within-stratum comparisons only.
+  notes: Completed thirtieth B1 scientific cell and final POST site-isolation row; fixed absolute Gpm kappa 0.10 at post-split
+    V only, ordinary a/m/h ReLU, AdamW without pressure. Run 001-20260719-152835-0369b367 completed all 2048 steps from clean
+    commit e0228d7 and passed terminal artifact, exact checkpoint-reload, and finite-event review at selection loss 7.01501.
+    Its identity-parent matched control is config 125 (A3); Q/K placement is not applicable because Q and K are ungated. Canonical
+    diagnostic 203 run 001-20260719-160449-6ea5e005 supplies the complete-selection endpoints R_block=0.331142, R_model=0.099185,
+    and U_arch=0.463638. S1 supports feasibility/collapse and within-stratum comparisons only.
 - design_id: S1-B1-DIAG-POST-SITE-ISOLATION-SELECTION-S0
   config_id: 203-s1-b1-post-site-isolation-selection-prop
   config_path: configs/203-s1-b1-post-site-isolation-selection-prop.yaml
@@ -4988,11 +4885,10 @@ records:
   decision_status: control
   release_tier: history
   canonical_run_id: 001-20260719-160449-6ea5e005
-  notes: Canonical schema-v3 pooled endpoint diagnostic pinned to the six exact source
-    runs for configs 197--202. Run 001-20260719-160449-6ea5e005 pooled all 311296
-    complete selection tokens and passed the five-file statusless artifact, source-manifest,
-    topology, POST-RoPE identity, V-operand identity, exact-zero, and product-count
-    review. Diagnostic-only and excluded from scientific-cell counts.
+  notes: Canonical schema-v3 pooled endpoint diagnostic pinned to the six exact source runs for configs 197--202. Run 001-20260719-160449-6ea5e005
+    pooled all 311296 complete selection tokens and passed the five-file statusless artifact, source-manifest, topology, POST-RoPE
+    identity, V-operand identity, exact-zero, and product-count review. Diagnostic-only and excluded from scientific-cell
+    counts.
 - design_id: S1-B1-BRANCH-GPLUS-A1H-K003-S0
   config_id: 204-s1-b1-p14m-gplus-a1h-k003-s0
   config_path: configs/204-s1-b1-p14m-gplus-a1h-k003-s0.yaml
@@ -5041,14 +4937,11 @@ records:
   decision_status: pending
   release_tier: history
   canonical_run_id: 001-20260719-162004-acaa3c4d
-  notes: Completed thirty-first B1 scientific cell; fixed absolute G+ kappa 0.03 at
-    the sole A1-H MLP-hidden gate, AdamW without pressure. Run 001-20260719-162004-acaa3c4d
-    completed all 2048 steps from clean commit 5c17fa0 and passed terminal artifact,
-    saved-config, checkpoint-hash, finite-event, and collapse review at selection
-    loss 6.98927. Its matched ordinary-ReLU architecture parent is config 124 (A1-H).
-    Canonical diagnostic 210 measured R_block 0.08442 and R_model 0.02529 over the
-    complete selection partition. S1 supports feasibility/collapse and within-stratum
-    comparisons only.
+  notes: Completed thirty-first B1 scientific cell; fixed absolute G+ kappa 0.03 at the sole A1-H MLP-hidden gate, AdamW without
+    pressure. Run 001-20260719-162004-acaa3c4d completed all 2048 steps from clean commit 5c17fa0 and passed terminal artifact,
+    saved-config, checkpoint-hash, finite-event, and collapse review at selection loss 6.98927. Its matched ordinary-ReLU
+    architecture parent is config 124 (A1-H). Canonical diagnostic 210 measured R_block 0.08442 and R_model 0.02529 over the
+    complete selection partition. S1 supports feasibility/collapse and within-stratum comparisons only.
 - design_id: S1-B1-BRANCH-GPLUS-A1H-K010-S0
   config_id: 205-s1-b1-p14m-gplus-a1h-k010-s0
   config_path: configs/205-s1-b1-p14m-gplus-a1h-k010-s0.yaml
@@ -5097,14 +4990,11 @@ records:
   decision_status: pending
   release_tier: history
   canonical_run_id: 001-20260719-163632-0ef57fc3
-  notes: Completed thirty-second B1 scientific cell; fixed absolute G+ kappa 0.10
-    at the sole A1-H MLP-hidden gate, AdamW without pressure. Run 001-20260719-163632-0ef57fc3
-    completed all 2048 steps from clean commit 5c17fa0 and passed terminal artifact,
-    saved-config, checkpoint-hash, finite-event, and collapse review at selection
-    loss 6.99409. Its matched ordinary-ReLU architecture parent is config 124 (A1-H).
-    Canonical diagnostic 210 measured R_block 0.11184 and R_model 0.03350 over the
-    complete selection partition. S1 supports feasibility/collapse and within-stratum
-    comparisons only.
+  notes: Completed thirty-second B1 scientific cell; fixed absolute G+ kappa 0.10 at the sole A1-H MLP-hidden gate, AdamW
+    without pressure. Run 001-20260719-163632-0ef57fc3 completed all 2048 steps from clean commit 5c17fa0 and passed terminal
+    artifact, saved-config, checkpoint-hash, finite-event, and collapse review at selection loss 6.99409. Its matched ordinary-ReLU
+    architecture parent is config 124 (A1-H). Canonical diagnostic 210 measured R_block 0.11184 and R_model 0.03350 over the
+    complete selection partition. S1 supports feasibility/collapse and within-stratum comparisons only.
 - design_id: S1-B1-BRANCH-GPLUS-A3-K003-S0
   config_id: 206-s1-b1-p14m-gplus-a3-k003-s0
   config_path: configs/206-s1-b1-p14m-gplus-a3-k003-s0.yaml
@@ -5157,14 +5047,11 @@ records:
   decision_status: pending
   release_tier: history
   canonical_run_id: 001-20260719-165244-cdb05be6
-  notes: Completed thirty-third B1 scientific cell; fixed absolute G+ kappa 0.03 at
-    every A3 gate a/m/h, AdamW without pressure. Run 001-20260719-165244-cdb05be6
-    completed all 2048 steps from clean commit 5c17fa0 and passed terminal artifact,
-    saved-config, checkpoint-hash, finite-event, and collapse review at selection
-    loss 7.00780. Its matched ordinary-ReLU architecture parent is config 125 (A3).
-    Canonical diagnostic 210 measured R_block 0.22066 and R_model 0.06609 over the
-    complete selection partition. S1 supports feasibility/collapse and within-stratum
-    comparisons only.
+  notes: Completed thirty-third B1 scientific cell; fixed absolute G+ kappa 0.03 at every A3 gate a/m/h, AdamW without pressure.
+    Run 001-20260719-165244-cdb05be6 completed all 2048 steps from clean commit 5c17fa0 and passed terminal artifact, saved-config,
+    checkpoint-hash, finite-event, and collapse review at selection loss 7.00780. Its matched ordinary-ReLU architecture parent
+    is config 125 (A3). Canonical diagnostic 210 measured R_block 0.22066 and R_model 0.06609 over the complete selection
+    partition. S1 supports feasibility/collapse and within-stratum comparisons only.
 - design_id: S1-B1-BRANCH-GPLUS-A3-K010-S0
   config_id: 207-s1-b1-p14m-gplus-a3-k010-s0
   config_path: configs/207-s1-b1-p14m-gplus-a3-k010-s0.yaml
@@ -5217,14 +5104,11 @@ records:
   decision_status: pending
   release_tier: history
   canonical_run_id: 001-20260719-171028-3317c771
-  notes: Completed thirty-fourth B1 scientific cell; fixed absolute G+ kappa 0.10
-    at every A3 gate a/m/h, AdamW without pressure. Run 001-20260719-171028-3317c771
-    completed all 2048 steps from clean commit 5c17fa0 and passed terminal artifact,
-    saved-config, checkpoint-hash, finite-event, and collapse review at selection
-    loss 7.02685. Its matched ordinary-ReLU architecture parent is config 125 (A3).
-    Canonical diagnostic 210 measured R_block 0.26477 and R_model 0.07931 over the
-    complete selection partition. S1 supports feasibility/collapse and within-stratum
-    comparisons only.
+  notes: Completed thirty-fourth B1 scientific cell; fixed absolute G+ kappa 0.10 at every A3 gate a/m/h, AdamW without pressure.
+    Run 001-20260719-171028-3317c771 completed all 2048 steps from clean commit 5c17fa0 and passed terminal artifact, saved-config,
+    checkpoint-hash, finite-event, and collapse review at selection loss 7.02685. Its matched ordinary-ReLU architecture parent
+    is config 125 (A3). Canonical diagnostic 210 measured R_block 0.26477 and R_model 0.07931 over the complete selection
+    partition. S1 supports feasibility/collapse and within-stratum comparisons only.
 - design_id: S1-B1-BRANCH-GPLUS-A6POST-K003-S0
   config_id: 208-s1-b1-p14m-gplus-a6post-k003-s0
   config_path: configs/208-s1-b1-p14m-gplus-a6post-k003-s0.yaml
@@ -5283,14 +5167,11 @@ records:
   decision_status: pending
   release_tier: history
   canonical_run_id: 001-20260719-172812-44207e36
-  notes: Completed thirty-fifth B1 scientific cell; fixed absolute G+ kappa 0.03 at
-    every A6-POST gate a/m/h/q/k/v with POST-RoPE Q/K, AdamW without pressure. Run
-    001-20260719-172812-44207e36 completed all 2048 steps from clean commit 5c17fa0
-    and passed terminal artifact, saved-config, checkpoint-hash, finite-event, and
-    collapse review at selection loss 7.02389. Its matched ordinary-ReLU architecture
-    parent is config 127 (A6-POST). Canonical diagnostic 210 measured R_block 0.51553
-    and R_model 0.15441 over the complete selection partition. S1 supports feasibility/collapse
-    and within-stratum comparisons only.
+  notes: Completed thirty-fifth B1 scientific cell; fixed absolute G+ kappa 0.03 at every A6-POST gate a/m/h/q/k/v with POST-RoPE
+    Q/K, AdamW without pressure. Run 001-20260719-172812-44207e36 completed all 2048 steps from clean commit 5c17fa0 and passed
+    terminal artifact, saved-config, checkpoint-hash, finite-event, and collapse review at selection loss 7.02389. Its matched
+    ordinary-ReLU architecture parent is config 127 (A6-POST). Canonical diagnostic 210 measured R_block 0.51553 and R_model
+    0.15441 over the complete selection partition. S1 supports feasibility/collapse and within-stratum comparisons only.
 - design_id: S1-B1-BRANCH-GPLUS-A6POST-K010-S0
   config_id: 209-s1-b1-p14m-gplus-a6post-k010-s0
   config_path: configs/209-s1-b1-p14m-gplus-a6post-k010-s0.yaml
@@ -5349,14 +5230,12 @@ records:
   decision_status: pending
   release_tier: history
   canonical_run_id: 001-20260719-174822-82abb149
-  notes: Completed thirty-sixth and final B1 scientific cell; fixed absolute G+ kappa
-    0.10 at every A6-POST gate a/m/h/q/k/v with POST-RoPE Q/K, AdamW without pressure.
-    Run 001-20260719-174822-82abb149 completed all 2048 steps from clean commit 5c17fa0
-    and passed terminal artifact, saved-config, checkpoint-hash, finite-event, and
-    collapse review at selection loss 7.05266. Its matched ordinary-ReLU architecture
-    parent is config 127 (A6-POST). Canonical diagnostic 210 measured R_block 0.62147
-    and R_model 0.18615 over the complete selection partition. S1 supports feasibility/collapse
-    and within-stratum comparisons only.
+  notes: Completed thirty-sixth and final B1 scientific cell; fixed absolute G+ kappa 0.10 at every A6-POST gate a/m/h/q/k/v
+    with POST-RoPE Q/K, AdamW without pressure. Run 001-20260719-174822-82abb149 completed all 2048 steps from clean commit
+    5c17fa0 and passed terminal artifact, saved-config, checkpoint-hash, finite-event, and collapse review at selection loss
+    7.05266. Its matched ordinary-ReLU architecture parent is config 127 (A6-POST). Canonical diagnostic 210 measured R_block
+    0.62147 and R_model 0.18615 over the complete selection partition. S1 supports feasibility/collapse and within-stratum
+    comparisons only.
 - design_id: S1-B1-DIAG-BRANCH-SCOPE-SELECTION-S0
   config_id: 210-s1-b1-branch-scope-selection-prop
   config_path: configs/210-s1-b1-branch-scope-selection-prop.yaml
@@ -5409,11 +5288,10 @@ records:
   decision_status: control
   release_tier: history
   canonical_run_id: 001-20260719-182227-8a286ad9
-  notes: Canonical schema-v3 pooled endpoint diagnostic pinned to the six exact source
-    runs for configs 204--209. Run 001-20260719-182227-8a286ad9 pooled all 311296
-    complete selection tokens and passed the five-file statusless artifact, source-manifest,
-    topology, POST-RoPE gate-operand identity, exact-zero, product-count, architecture-ceiling,
-    and U_arch review. Diagnostic-only and excluded from scientific-cell counts.
+  notes: Canonical schema-v3 pooled endpoint diagnostic pinned to the six exact source runs for configs 204--209. Run 001-20260719-182227-8a286ad9
+    pooled all 311296 complete selection tokens and passed the five-file statusless artifact, source-manifest, topology, POST-RoPE
+    gate-operand identity, exact-zero, product-count, architecture-ceiling, and U_arch review. Diagnostic-only and excluded
+    from scientific-cell counts.
 - design_id: S1-B2-ENG-ATG-GPLUS-A6POST-ABS-PLS-K010-T003-TLRM1-ST128-S0
   config_id: 211-s1-b2-eng-atg-gplus-a6post-abs-pls-t003-tlrm1-st128-s0
   config_path: configs/211-s1-b2-eng-atg-gplus-a6post-abs-pls-t003-tlrm1-st128-s0.yaml
@@ -5472,16 +5350,13 @@ records:
   decision_status: screened_out
   release_tier: history
   canonical_run_id: 001-20260719-183813-92a4d493
-  notes: Queue 1/9 preregistered center completed 128 steps. Exact model/optimizer
-    reload passed with 36 unique FP32 rho parameters in a separate zero-weight-decay
-    group. The preregistered default failed dynamic acceptance solely at no_frozen_flag
-    because final-quarter steps 96 and 128 reported frozen_threshold_flag 1 (step
-    112 reported 0); aggregate threshold gradients and updates were finite and nonzero,
-    nonfinite flags were zero, final training-minibatch pooled active-site exact-zero
-    telemetry was 68.5076%, and no universal collapse occurred. The 2026-07-19 registered
-    revision therefore vetoed config 211 and selected same-temperature config 213
-    at TLRM 10 solely because it passed the original no_frozen criterion at 96/112/128.
-    Validation loss was checked only for finiteness and was never ranked or used.
+  notes: Queue 1/9 preregistered center completed 128 steps. Exact model/optimizer reload passed with 36 unique FP32 rho parameters
+    in a separate zero-weight-decay group. The preregistered default failed dynamic acceptance solely at no_frozen_flag because
+    final-quarter steps 96 and 128 reported frozen_threshold_flag 1 (step 112 reported 0); aggregate threshold gradients and
+    updates were finite and nonzero, nonfinite flags were zero, final training-minibatch pooled active-site exact-zero telemetry
+    was 68.5076%, and no universal collapse occurred. The 2026-07-19 registered revision therefore vetoed config 211 and selected
+    same-temperature config 213 at TLRM 10 solely because it passed the original no_frozen criterion at 96/112/128. Validation
+    loss was checked only for finiteness and was never ranked or used.
 - design_id: S1-B2-ENG-ATG-GPLUS-A6POST-ABS-PLS-K010-T003-TLRM0P1-ST128-S0
   config_id: 212-s1-b2-eng-atg-gplus-a6post-abs-pls-t003-tlrm0p1-st128-s0
   config_path: configs/212-s1-b2-eng-atg-gplus-a6post-abs-pls-t003-tlrm0p1-st128-s0.yaml
@@ -5540,11 +5415,10 @@ records:
   decision_status: pending
   release_tier: history
   canonical_run_id: 001-20260719-183947-cff2e4c7
-  notes: Queue 2/9 temperature-center low-TLR observation completed 128 steps and
-    passed the hard model/optimizer round-trip contract; final training-minibatch
-    pooled active-site exact-zero telemetry was 68.5065%. It is engineering-only boundary
-    evidence, not a replacement selected by validation loss; pooled diagnostic 220
-    passed and supplies the canonical complete-selection endpoints.
+  notes: Queue 2/9 temperature-center low-TLR observation completed 128 steps and passed the hard model/optimizer round-trip
+    contract; final training-minibatch pooled active-site exact-zero telemetry was 68.5065%. It is engineering-only boundary
+    evidence, not a replacement selected by validation loss; pooled diagnostic 220 passed and supplies the canonical complete-selection
+    endpoints.
 - design_id: S1-B2-ENG-ATG-GPLUS-A6POST-ABS-PLS-K010-T003-TLRM10-ST128-S0
   config_id: 213-s1-b2-eng-atg-gplus-a6post-abs-pls-t003-tlrm10-st128-s0
   config_path: configs/213-s1-b2-eng-atg-gplus-a6post-abs-pls-t003-tlrm10-st128-s0.yaml
@@ -5603,14 +5477,11 @@ records:
   decision_status: promote_tokens
   release_tier: history
   canonical_run_id: 001-20260719-184119-7f35517f
-  notes: Queue 3/9 temperature-center high-TLR observation completed 128 steps and
-    passed the hard model/optimizer round-trip contract; final training-minibatch
-    pooled active-site exact-zero telemetry was 68.5462%. The 2026-07-19 registered
-    revision selected its tau 0.03, TLRM 10 setting (threshold LR 3e-4) as the smallest
-    same-temperature correction to config 211, solely because it passed the original
-    no_frozen criterion at steps 96/112/128. Validation loss was checked only for
-    finiteness and was never ranked or used; pooled diagnostic 220 supplies the canonical
-    complete-selection endpoints.
+  notes: Queue 3/9 temperature-center high-TLR observation completed 128 steps and passed the hard model/optimizer round-trip
+    contract; final training-minibatch pooled active-site exact-zero telemetry was 68.5462%. The 2026-07-19 registered revision
+    selected its tau 0.03, TLRM 10 setting (threshold LR 3e-4) as the smallest same-temperature correction to config 211,
+    solely because it passed the original no_frozen criterion at steps 96/112/128. Validation loss was checked only for finiteness
+    and was never ranked or used; pooled diagnostic 220 supplies the canonical complete-selection endpoints.
 - design_id: S1-B2-ENG-ATG-GPLUS-A6POST-ABS-PLS-K010-T001-TLRM1-ST128-S0
   config_id: 214-s1-b2-eng-atg-gplus-a6post-abs-pls-t001-tlrm1-st128-s0
   config_path: configs/214-s1-b2-eng-atg-gplus-a6post-abs-pls-t001-tlrm1-st128-s0.yaml
@@ -5669,11 +5540,10 @@ records:
   decision_status: pending
   release_tier: history
   canonical_run_id: 001-20260719-184252-f0eaa457
-  notes: Queue 4/9 low-temperature center-TLR observation completed 128 steps and
-    passed the hard model/optimizer round-trip contract; final training-minibatch
-    pooled active-site exact-zero telemetry was 68.5267%. It is engineering-only boundary
-    evidence, not a replacement selected by validation loss; pooled diagnostic 220
-    passed and supplies the canonical complete-selection endpoints.
+  notes: Queue 4/9 low-temperature center-TLR observation completed 128 steps and passed the hard model/optimizer round-trip
+    contract; final training-minibatch pooled active-site exact-zero telemetry was 68.5267%. It is engineering-only boundary
+    evidence, not a replacement selected by validation loss; pooled diagnostic 220 passed and supplies the canonical complete-selection
+    endpoints.
 - design_id: S1-B2-ENG-ATG-GPLUS-A6POST-ABS-PLS-K010-T010-TLRM1-ST128-S0
   config_id: 215-s1-b2-eng-atg-gplus-a6post-abs-pls-t010-tlrm1-st128-s0
   config_path: configs/215-s1-b2-eng-atg-gplus-a6post-abs-pls-t010-tlrm1-st128-s0.yaml
@@ -5732,11 +5602,10 @@ records:
   decision_status: pending
   release_tier: history
   canonical_run_id: 001-20260719-184425-50d9d788
-  notes: Queue 5/9 high-temperature center-TLR observation completed 128 steps and
-    passed the hard model/optimizer round-trip contract; final training-minibatch
-    pooled active-site exact-zero telemetry was 68.5001%. It is engineering-only boundary
-    evidence, not a replacement selected by validation loss; pooled diagnostic 220
-    passed and supplies the canonical complete-selection endpoints.
+  notes: Queue 5/9 high-temperature center-TLR observation completed 128 steps and passed the hard model/optimizer round-trip
+    contract; final training-minibatch pooled active-site exact-zero telemetry was 68.5001%. It is engineering-only boundary
+    evidence, not a replacement selected by validation loss; pooled diagnostic 220 passed and supplies the canonical complete-selection
+    endpoints.
 - design_id: S1-B2-ENG-ATG-GPLUS-A6POST-ABS-PLS-K010-T001-TLRM0P1-ST128-S0
   config_id: 216-s1-b2-eng-atg-gplus-a6post-abs-pls-t001-tlrm0p1-st128-s0
   config_path: configs/216-s1-b2-eng-atg-gplus-a6post-abs-pls-t001-tlrm0p1-st128-s0.yaml
@@ -5795,11 +5664,10 @@ records:
   decision_status: pending
   release_tier: history
   canonical_run_id: 001-20260719-184557-95cc237f
-  notes: Queue 6/9 low-temperature low-TLR corner completed 128 steps and passed the
-    hard model/optimizer round-trip contract; final training-minibatch pooled active-site
-    exact-zero telemetry was 68.4897%. It is engineering-only boundary evidence and
-    cannot replace the preregistered default; pooled diagnostic 220 passed and supplies
-    the canonical complete-selection endpoints.
+  notes: Queue 6/9 low-temperature low-TLR corner completed 128 steps and passed the hard model/optimizer round-trip contract;
+    final training-minibatch pooled active-site exact-zero telemetry was 68.4897%. It is engineering-only boundary evidence
+    and cannot replace the preregistered default; pooled diagnostic 220 passed and supplies the canonical complete-selection
+    endpoints.
 - design_id: S1-B2-ENG-ATG-GPLUS-A6POST-ABS-PLS-K010-T001-TLRM10-ST128-S0
   config_id: 217-s1-b2-eng-atg-gplus-a6post-abs-pls-t001-tlrm10-st128-s0
   config_path: configs/217-s1-b2-eng-atg-gplus-a6post-abs-pls-t001-tlrm10-st128-s0.yaml
@@ -5858,11 +5726,10 @@ records:
   decision_status: pending
   release_tier: history
   canonical_run_id: 001-20260719-184729-7ab8bb47
-  notes: Queue 7/9 low-temperature high-TLR corner completed 128 steps and passed
-    the hard model/optimizer round-trip contract; final training-minibatch pooled
-    active-site exact-zero telemetry was 68.6433%. It is engineering-only boundary
-    evidence and cannot replace the preregistered default; pooled diagnostic 220 passed
-    and supplies the canonical complete-selection endpoints.
+  notes: Queue 7/9 low-temperature high-TLR corner completed 128 steps and passed the hard model/optimizer round-trip contract;
+    final training-minibatch pooled active-site exact-zero telemetry was 68.6433%. It is engineering-only boundary evidence
+    and cannot replace the preregistered default; pooled diagnostic 220 passed and supplies the canonical complete-selection
+    endpoints.
 - design_id: S1-B2-ENG-ATG-GPLUS-A6POST-ABS-PLS-K010-T010-TLRM0P1-ST128-S0
   config_id: 218-s1-b2-eng-atg-gplus-a6post-abs-pls-t010-tlrm0p1-st128-s0
   config_path: configs/218-s1-b2-eng-atg-gplus-a6post-abs-pls-t010-tlrm0p1-st128-s0.yaml
@@ -5921,11 +5788,10 @@ records:
   decision_status: pending
   release_tier: history
   canonical_run_id: 001-20260719-184902-92fbe493
-  notes: Queue 8/9 high-temperature low-TLR corner completed 128 steps and passed
-    the hard model/optimizer round-trip contract; final training-minibatch pooled
-    active-site exact-zero telemetry was 68.4768%. It is engineering-only boundary
-    evidence and cannot replace the preregistered default; pooled diagnostic 220 passed
-    and supplies the canonical complete-selection endpoints.
+  notes: Queue 8/9 high-temperature low-TLR corner completed 128 steps and passed the hard model/optimizer round-trip contract;
+    final training-minibatch pooled active-site exact-zero telemetry was 68.4768%. It is engineering-only boundary evidence
+    and cannot replace the preregistered default; pooled diagnostic 220 passed and supplies the canonical complete-selection
+    endpoints.
 - design_id: S1-B2-ENG-ATG-GPLUS-A6POST-ABS-PLS-K010-T010-TLRM10-ST128-S0
   config_id: 219-s1-b2-eng-atg-gplus-a6post-abs-pls-t010-tlrm10-st128-s0
   config_path: configs/219-s1-b2-eng-atg-gplus-a6post-abs-pls-t010-tlrm10-st128-s0.yaml
@@ -5984,11 +5850,10 @@ records:
   decision_status: pending
   release_tier: history
   canonical_run_id: 001-20260719-185034-0c473337
-  notes: Queue 9/9 high-temperature high-TLR corner completed 128 steps and passed
-    the hard model/optimizer round-trip contract; final training-minibatch pooled
-    active-site exact-zero telemetry was 68.4626%. It is engineering-only boundary
-    evidence and cannot replace the preregistered default; pooled diagnostic 220 passed
-    and supplies the canonical complete-selection endpoints.
+  notes: Queue 9/9 high-temperature high-TLR corner completed 128 steps and passed the hard model/optimizer round-trip contract;
+    final training-minibatch pooled active-site exact-zero telemetry was 68.4626%. It is engineering-only boundary evidence
+    and cannot replace the preregistered default; pooled diagnostic 220 passed and supplies the canonical complete-selection
+    endpoints.
 - design_id: S1-B2-ENG-ATG-PILOT-SELECTION-S0
   config_id: 220-s1-b2-eng-atg-selection-propagation
   config_path: configs/220-s1-b2-eng-atg-selection-propagation.yaml
@@ -6041,14 +5906,12 @@ records:
   decision_status: control
   release_tier: history
   canonical_run_id: 001-20260719-190523-f28590eb
-  notes: Canonical schema-v3 complete-selection propagation diagnostic for the nine
-    128-step learned-ATG engineering pilots in exact center-first order. Run 001-20260719-190523-f28590eb
-    pooled all 311296 complete selection tokens and passed the five-file statusless
-    artifact, source-manifest, learned-topology, threshold-metadata, exact-zero, product-count,
-    architecture-ceiling, and endpoint-arithmetic review. It is plumbing evidence
-    only. The 2026-07-19 registered revision selected config 213 at tau 0.03 and TLRM
-    10 solely by the original no_frozen engineering criterion, never by validation
-    loss; configs 221--246 are materialized and S1-B2 is active at 0/26.
+  notes: Canonical schema-v3 complete-selection propagation diagnostic for the nine 128-step learned-ATG engineering pilots
+    in exact center-first order. Run 001-20260719-190523-f28590eb pooled all 311296 complete selection tokens and passed the
+    five-file statusless artifact, source-manifest, learned-topology, threshold-metadata, exact-zero, product-count, architecture-ceiling,
+    and endpoint-arithmetic review. It is plumbing evidence only. The 2026-07-19 registered revision selected config 213 at
+    tau 0.03 and TLRM 10 solely by the original no_frozen engineering criterion, never by validation loss; configs 221--246
+    are materialized and S1-B2 is active at 0/26.
 - design_id: S1-B2-ATG-GPLUS-PRE-QK-ABS-PLS-K010-S0
   config_id: 221-s1-b2-p14m-atg-gplus-pre-qk-abs-pls-k010-s0
   config_path: configs/221-s1-b2-p14m-atg-gplus-pre-qk-abs-pls-k010-s0.yaml
@@ -6105,16 +5968,13 @@ records:
   decision_status: pending
   release_tier: history
   canonical_run_id: 001-20260719-193319-0dc31fc3
-  notes: Completed S1-B2 learned-ATG AdamW cell at 2048 steps and 134217728 tokens.
-    Canonical run 001-20260719-193319-0dc31fc3 launched cleanly at commit 33e4449
-    and passed immutable-config, finite artifact/event, exact model/optimizer reload,
-    FP32 threshold, zero-decay optimizer-group, and budget review at selection loss
-    7.01955. Campaign flags were universal_collapse=False, loss_instability=False,
-    sparsity_evaporation=False, persistent_frozen=[], and zero_kappa_steps=[]; additional
-    ATG review flags=none. The ATG review flags are observations rather than new promotion
-    criteria. Decision remains pending; S1 permits only feasibility/collapse and within-stratum
-    comparisons. Pooled exact-zero/product endpoints remain pending diagnostic 247;
-    validation loss was not used to select canonical identity or rank cells.
+  notes: Completed S1-B2 learned-ATG AdamW cell at 2048 steps and 134217728 tokens. Canonical run 001-20260719-193319-0dc31fc3
+    launched cleanly at commit 33e4449 and passed immutable-config, finite artifact/event, exact model/optimizer reload, FP32
+    threshold, zero-decay optimizer-group, and budget review at selection loss 7.01955. Campaign flags were universal_collapse=False,
+    loss_instability=False, sparsity_evaporation=False, persistent_frozen=[], and zero_kappa_steps=[]; additional ATG review
+    flags=none. The ATG review flags are observations rather than new promotion criteria. Decision remains pending; S1 permits
+    only feasibility/collapse and within-stratum comparisons. Pooled exact-zero/product endpoints remain pending diagnostic
+    247; validation loss was not used to select canonical identity or rank cells.
 - design_id: S1-B2-ATG-GPM-PRE-QK-ABS-PLS-K010-S0
   config_id: 222-s1-b2-p14m-atg-gpm-pre-qk-abs-pls-k010-s0
   config_path: configs/222-s1-b2-p14m-atg-gpm-pre-qk-abs-pls-k010-s0.yaml
@@ -6171,16 +6031,13 @@ records:
   decision_status: pending
   release_tier: history
   canonical_run_id: 001-20260719-195338-636d28fc
-  notes: Completed S1-B2 learned-ATG AdamW cell at 2048 steps and 134217728 tokens.
-    Canonical run 001-20260719-195338-636d28fc launched cleanly at commit 33e4449
-    and passed immutable-config, finite artifact/event, exact model/optimizer reload,
-    FP32 threshold, zero-decay optimizer-group, and budget review at selection loss
-    7.01458. Campaign flags were universal_collapse=False, loss_instability=False,
-    sparsity_evaporation=False, persistent_frozen=[], and zero_kappa_steps=[]; additional
-    ATG review flags=none. The ATG review flags are observations rather than new promotion
-    criteria. Decision remains pending; S1 permits only feasibility/collapse and within-stratum
-    comparisons. Pooled exact-zero/product endpoints remain pending diagnostic 247;
-    validation loss was not used to select canonical identity or rank cells.
+  notes: Completed S1-B2 learned-ATG AdamW cell at 2048 steps and 134217728 tokens. Canonical run 001-20260719-195338-636d28fc
+    launched cleanly at commit 33e4449 and passed immutable-config, finite artifact/event, exact model/optimizer reload, FP32
+    threshold, zero-decay optimizer-group, and budget review at selection loss 7.01458. Campaign flags were universal_collapse=False,
+    loss_instability=False, sparsity_evaporation=False, persistent_frozen=[], and zero_kappa_steps=[]; additional ATG review
+    flags=none. The ATG review flags are observations rather than new promotion criteria. Decision remains pending; S1 permits
+    only feasibility/collapse and within-stratum comparisons. Pooled exact-zero/product endpoints remain pending diagnostic
+    247; validation loss was not used to select canonical identity or rank cells.
 - design_id: S1-B2-ATG-GPLUS-PRE-QKV-ABS-PLS-K010-S0
   config_id: 223-s1-b2-p14m-atg-gplus-pre-qkv-abs-pls-k010-s0
   config_path: configs/223-s1-b2-p14m-atg-gplus-pre-qkv-abs-pls-k010-s0.yaml
@@ -6239,16 +6096,13 @@ records:
   decision_status: pending
   release_tier: history
   canonical_run_id: 001-20260719-201401-6e3d7a67
-  notes: Completed S1-B2 learned-ATG AdamW cell at 2048 steps and 134217728 tokens.
-    Canonical run 001-20260719-201401-6e3d7a67 launched cleanly at commit 33e4449
-    and passed immutable-config, finite artifact/event, exact model/optimizer reload,
-    FP32 threshold, zero-decay optimizer-group, and budget review at selection loss
-    7.02197. Campaign flags were universal_collapse=False, loss_instability=False,
-    sparsity_evaporation=False, persistent_frozen=[], and zero_kappa_steps=[]; additional
-    ATG review flags=none. The ATG review flags are observations rather than new promotion
-    criteria. Decision remains pending; S1 permits only feasibility/collapse and within-stratum
-    comparisons. Pooled exact-zero/product endpoints remain pending diagnostic 247;
-    validation loss was not used to select canonical identity or rank cells.
+  notes: Completed S1-B2 learned-ATG AdamW cell at 2048 steps and 134217728 tokens. Canonical run 001-20260719-201401-6e3d7a67
+    launched cleanly at commit 33e4449 and passed immutable-config, finite artifact/event, exact model/optimizer reload, FP32
+    threshold, zero-decay optimizer-group, and budget review at selection loss 7.02197. Campaign flags were universal_collapse=False,
+    loss_instability=False, sparsity_evaporation=False, persistent_frozen=[], and zero_kappa_steps=[]; additional ATG review
+    flags=none. The ATG review flags are observations rather than new promotion criteria. Decision remains pending; S1 permits
+    only feasibility/collapse and within-stratum comparisons. Pooled exact-zero/product endpoints remain pending diagnostic
+    247; validation loss was not used to select canonical identity or rank cells.
 - design_id: S1-B2-ATG-GPM-PRE-QKV-ABS-PLS-K010-S0
   config_id: 224-s1-b2-p14m-atg-gpm-pre-qkv-abs-pls-k010-s0
   config_path: configs/224-s1-b2-p14m-atg-gpm-pre-qkv-abs-pls-k010-s0.yaml
@@ -6307,16 +6161,13 @@ records:
   decision_status: pending
   release_tier: history
   canonical_run_id: 001-20260719-203526-edb6dc24
-  notes: Completed S1-B2 learned-ATG AdamW cell at 2048 steps and 134217728 tokens.
-    Canonical run 001-20260719-203526-edb6dc24 launched cleanly at commit 33e4449
-    and passed immutable-config, finite artifact/event, exact model/optimizer reload,
-    FP32 threshold, zero-decay optimizer-group, and budget review at selection loss
-    7.01763. Campaign flags were universal_collapse=False, loss_instability=False,
-    sparsity_evaporation=False, persistent_frozen=[], and zero_kappa_steps=[]; additional
-    ATG review flags=none. The ATG review flags are observations rather than new promotion
-    criteria. Decision remains pending; S1 permits only feasibility/collapse and within-stratum
-    comparisons. Pooled exact-zero/product endpoints remain pending diagnostic 247;
-    validation loss was not used to select canonical identity or rank cells.
+  notes: Completed S1-B2 learned-ATG AdamW cell at 2048 steps and 134217728 tokens. Canonical run 001-20260719-203526-edb6dc24
+    launched cleanly at commit 33e4449 and passed immutable-config, finite artifact/event, exact model/optimizer reload, FP32
+    threshold, zero-decay optimizer-group, and budget review at selection loss 7.01763. Campaign flags were universal_collapse=False,
+    loss_instability=False, sparsity_evaporation=False, persistent_frozen=[], and zero_kappa_steps=[]; additional ATG review
+    flags=none. The ATG review flags are observations rather than new promotion criteria. Decision remains pending; S1 permits
+    only feasibility/collapse and within-stratum comparisons. Pooled exact-zero/product endpoints remain pending diagnostic
+    247; validation loss was not used to select canonical identity or rank cells.
 - design_id: S1-B2-ATG-GPLUS-POST-QK-ABS-PLS-K010-S0
   config_id: 225-s1-b2-p14m-atg-gplus-post-qk-abs-pls-k010-s0
   config_path: configs/225-s1-b2-p14m-atg-gplus-post-qk-abs-pls-k010-s0.yaml
@@ -6373,16 +6224,13 @@ records:
   decision_status: pending
   release_tier: history
   canonical_run_id: 001-20260719-205659-86a28a4b
-  notes: Completed S1-B2 learned-ATG AdamW cell at 2048 steps and 134217728 tokens.
-    Canonical run 001-20260719-205659-86a28a4b launched cleanly at commit 33e4449
-    and passed immutable-config, finite artifact/event, exact model/optimizer reload,
-    FP32 threshold, zero-decay optimizer-group, and budget review at selection loss
-    7.03098. Campaign flags were universal_collapse=False, loss_instability=False,
-    sparsity_evaporation=False, persistent_frozen=[], and zero_kappa_steps=[]; additional
-    ATG review flags=none. The ATG review flags are observations rather than new promotion
-    criteria. Decision remains pending; S1 permits only feasibility/collapse and within-stratum
-    comparisons. Pooled exact-zero/product endpoints remain pending diagnostic 247;
-    validation loss was not used to select canonical identity or rank cells.
+  notes: Completed S1-B2 learned-ATG AdamW cell at 2048 steps and 134217728 tokens. Canonical run 001-20260719-205659-86a28a4b
+    launched cleanly at commit 33e4449 and passed immutable-config, finite artifact/event, exact model/optimizer reload, FP32
+    threshold, zero-decay optimizer-group, and budget review at selection loss 7.03098. Campaign flags were universal_collapse=False,
+    loss_instability=False, sparsity_evaporation=False, persistent_frozen=[], and zero_kappa_steps=[]; additional ATG review
+    flags=none. The ATG review flags are observations rather than new promotion criteria. Decision remains pending; S1 permits
+    only feasibility/collapse and within-stratum comparisons. Pooled exact-zero/product endpoints remain pending diagnostic
+    247; validation loss was not used to select canonical identity or rank cells.
 - design_id: S1-B2-ATG-GPM-POST-QK-ABS-PLS-K010-S0
   config_id: 226-s1-b2-p14m-atg-gpm-post-qk-abs-pls-k010-s0
   config_path: configs/226-s1-b2-p14m-atg-gpm-post-qk-abs-pls-k010-s0.yaml
@@ -6439,16 +6287,13 @@ records:
   decision_status: pending
   release_tier: history
   canonical_run_id: 001-20260719-211706-4dd8c70e
-  notes: Completed S1-B2 learned-ATG AdamW cell at 2048 steps and 134217728 tokens.
-    Canonical run 001-20260719-211706-4dd8c70e launched cleanly at commit 33e4449
-    and passed immutable-config, finite artifact/event, exact model/optimizer reload,
-    FP32 threshold, zero-decay optimizer-group, and budget review at selection loss
-    7.01430. Campaign flags were universal_collapse=False, loss_instability=False,
-    sparsity_evaporation=False, persistent_frozen=[], and zero_kappa_steps=[]; additional
-    ATG review flags=none. The ATG review flags are observations rather than new promotion
-    criteria. Decision remains pending; S1 permits only feasibility/collapse and within-stratum
-    comparisons. Pooled exact-zero/product endpoints remain pending diagnostic 247;
-    validation loss was not used to select canonical identity or rank cells.
+  notes: Completed S1-B2 learned-ATG AdamW cell at 2048 steps and 134217728 tokens. Canonical run 001-20260719-211706-4dd8c70e
+    launched cleanly at commit 33e4449 and passed immutable-config, finite artifact/event, exact model/optimizer reload, FP32
+    threshold, zero-decay optimizer-group, and budget review at selection loss 7.01430. Campaign flags were universal_collapse=False,
+    loss_instability=False, sparsity_evaporation=False, persistent_frozen=[], and zero_kappa_steps=[]; additional ATG review
+    flags=none. The ATG review flags are observations rather than new promotion criteria. Decision remains pending; S1 permits
+    only feasibility/collapse and within-stratum comparisons. Pooled exact-zero/product endpoints remain pending diagnostic
+    247; validation loss was not used to select canonical identity or rank cells.
 - design_id: S1-B2-ATG-GPLUS-POST-QKV-ABS-PLS-K010-S0
   config_id: 227-s1-b2-p14m-atg-gplus-post-qkv-abs-pls-k010-s0
   config_path: configs/227-s1-b2-p14m-atg-gplus-post-qkv-abs-pls-k010-s0.yaml
@@ -6507,16 +6352,13 @@ records:
   decision_status: pending
   release_tier: history
   canonical_run_id: 001-20260719-213712-a5ae7170
-  notes: Completed S1-B2 learned-ATG AdamW cell at 2048 steps and 134217728 tokens.
-    Canonical run 001-20260719-213712-a5ae7170 launched cleanly at commit 33e4449
-    and passed immutable-config, finite artifact/event, exact model/optimizer reload,
-    FP32 threshold, zero-decay optimizer-group, and budget review at selection loss
-    7.03411. Campaign flags were universal_collapse=False, loss_instability=False,
-    sparsity_evaporation=False, persistent_frozen=[], and zero_kappa_steps=[]; additional
-    ATG review flags=none. The ATG review flags are observations rather than new promotion
-    criteria. Decision remains pending; S1 permits only feasibility/collapse and within-stratum
-    comparisons. Pooled exact-zero/product endpoints remain pending diagnostic 247;
-    validation loss was not used to select canonical identity or rank cells.
+  notes: Completed S1-B2 learned-ATG AdamW cell at 2048 steps and 134217728 tokens. Canonical run 001-20260719-213712-a5ae7170
+    launched cleanly at commit 33e4449 and passed immutable-config, finite artifact/event, exact model/optimizer reload, FP32
+    threshold, zero-decay optimizer-group, and budget review at selection loss 7.03411. Campaign flags were universal_collapse=False,
+    loss_instability=False, sparsity_evaporation=False, persistent_frozen=[], and zero_kappa_steps=[]; additional ATG review
+    flags=none. The ATG review flags are observations rather than new promotion criteria. Decision remains pending; S1 permits
+    only feasibility/collapse and within-stratum comparisons. Pooled exact-zero/product endpoints remain pending diagnostic
+    247; validation loss was not used to select canonical identity or rank cells.
 - design_id: S1-B2-ATG-GPM-POST-QKV-ABS-PLS-K010-S0
   config_id: 228-s1-b2-p14m-atg-gpm-post-qkv-abs-pls-k010-s0
   config_path: configs/228-s1-b2-p14m-atg-gpm-post-qkv-abs-pls-k010-s0.yaml
@@ -6575,16 +6417,13 @@ records:
   decision_status: pending
   release_tier: history
   canonical_run_id: 001-20260719-215833-7f53014c
-  notes: Completed S1-B2 learned-ATG AdamW cell at 2048 steps and 134217728 tokens.
-    Canonical run 001-20260719-215833-7f53014c launched cleanly at commit 33e4449
-    and passed immutable-config, finite artifact/event, exact model/optimizer reload,
-    FP32 threshold, zero-decay optimizer-group, and budget review at selection loss
-    7.01617. Campaign flags were universal_collapse=False, loss_instability=False,
-    sparsity_evaporation=False, persistent_frozen=[], and zero_kappa_steps=[]; additional
-    ATG review flags=none. The ATG review flags are observations rather than new promotion
-    criteria. Decision remains pending; S1 permits only feasibility/collapse and within-stratum
-    comparisons. Pooled exact-zero/product endpoints remain pending diagnostic 247;
-    validation loss was not used to select canonical identity or rank cells.
+  notes: Completed S1-B2 learned-ATG AdamW cell at 2048 steps and 134217728 tokens. Canonical run 001-20260719-215833-7f53014c
+    launched cleanly at commit 33e4449 and passed immutable-config, finite artifact/event, exact model/optimizer reload, FP32
+    threshold, zero-decay optimizer-group, and budget review at selection loss 7.01617. Campaign flags were universal_collapse=False,
+    loss_instability=False, sparsity_evaporation=False, persistent_frozen=[], and zero_kappa_steps=[]; additional ATG review
+    flags=none. The ATG review flags are observations rather than new promotion criteria. Decision remains pending; S1 permits
+    only feasibility/collapse and within-stratum comparisons. Pooled exact-zero/product endpoints remain pending diagnostic
+    247; validation loss was not used to select canonical identity or rank cells.
 - design_id: S1-B2-ATG-GPLUS-PRE-QK-RMS-PLS-K010-S0
   config_id: 229-s1-b2-p14m-atg-gplus-pre-qk-rms-pls-k010-s0
   config_path: configs/229-s1-b2-p14m-atg-gplus-pre-qk-rms-pls-k010-s0.yaml
@@ -6641,16 +6480,13 @@ records:
   decision_status: pending
   release_tier: history
   canonical_run_id: 001-20260719-221956-bac8c4af
-  notes: Completed S1-B2 learned-ATG AdamW cell at 2048 steps and 134217728 tokens.
-    Canonical run 001-20260719-221956-bac8c4af launched cleanly at commit 33e4449
-    and passed immutable-config, finite artifact/event, exact model/optimizer reload,
-    FP32 threshold, zero-decay optimizer-group, and budget review at selection loss
-    7.01594. Campaign flags were universal_collapse=False, loss_instability=False,
-    sparsity_evaporation=False, persistent_frozen=[], and zero_kappa_steps=[]; additional
-    ATG review flags=none. The ATG review flags are observations rather than new promotion
-    criteria. Decision remains pending; S1 permits only feasibility/collapse and within-stratum
-    comparisons. Pooled exact-zero/product endpoints remain pending diagnostic 247;
-    validation loss was not used to select canonical identity or rank cells.
+  notes: Completed S1-B2 learned-ATG AdamW cell at 2048 steps and 134217728 tokens. Canonical run 001-20260719-221956-bac8c4af
+    launched cleanly at commit 33e4449 and passed immutable-config, finite artifact/event, exact model/optimizer reload, FP32
+    threshold, zero-decay optimizer-group, and budget review at selection loss 7.01594. Campaign flags were universal_collapse=False,
+    loss_instability=False, sparsity_evaporation=False, persistent_frozen=[], and zero_kappa_steps=[]; additional ATG review
+    flags=none. The ATG review flags are observations rather than new promotion criteria. Decision remains pending; S1 permits
+    only feasibility/collapse and within-stratum comparisons. Pooled exact-zero/product endpoints remain pending diagnostic
+    247; validation loss was not used to select canonical identity or rank cells.
 - design_id: S1-B2-ATG-GPM-PRE-QK-RMS-PLS-K010-S0
   config_id: 230-s1-b2-p14m-atg-gpm-pre-qk-rms-pls-k010-s0
   config_path: configs/230-s1-b2-p14m-atg-gpm-pre-qk-rms-pls-k010-s0.yaml
@@ -6707,16 +6543,13 @@ records:
   decision_status: pending
   release_tier: history
   canonical_run_id: 001-20260719-224029-ccf0674c
-  notes: Completed S1-B2 learned-ATG AdamW cell at 2048 steps and 134217728 tokens.
-    Canonical run 001-20260719-224029-ccf0674c launched cleanly at commit 33e4449
-    and passed immutable-config, finite artifact/event, exact model/optimizer reload,
-    FP32 threshold, zero-decay optimizer-group, and budget review at selection loss
-    7.01283. Campaign flags were universal_collapse=False, loss_instability=False,
-    sparsity_evaporation=False, persistent_frozen=[], and zero_kappa_steps=[]; additional
-    ATG review flags=none. The ATG review flags are observations rather than new promotion
-    criteria. Decision remains pending; S1 permits only feasibility/collapse and within-stratum
-    comparisons. Pooled exact-zero/product endpoints remain pending diagnostic 247;
-    validation loss was not used to select canonical identity or rank cells.
+  notes: Completed S1-B2 learned-ATG AdamW cell at 2048 steps and 134217728 tokens. Canonical run 001-20260719-224029-ccf0674c
+    launched cleanly at commit 33e4449 and passed immutable-config, finite artifact/event, exact model/optimizer reload, FP32
+    threshold, zero-decay optimizer-group, and budget review at selection loss 7.01283. Campaign flags were universal_collapse=False,
+    loss_instability=False, sparsity_evaporation=False, persistent_frozen=[], and zero_kappa_steps=[]; additional ATG review
+    flags=none. The ATG review flags are observations rather than new promotion criteria. Decision remains pending; S1 permits
+    only feasibility/collapse and within-stratum comparisons. Pooled exact-zero/product endpoints remain pending diagnostic
+    247; validation loss was not used to select canonical identity or rank cells.
 - design_id: S1-B2-ATG-GPLUS-PRE-QKV-RMS-PLS-K010-S0
   config_id: 231-s1-b2-p14m-atg-gplus-pre-qkv-rms-pls-k010-s0
   config_path: configs/231-s1-b2-p14m-atg-gplus-pre-qkv-rms-pls-k010-s0.yaml
@@ -6775,16 +6608,13 @@ records:
   decision_status: pending
   release_tier: history
   canonical_run_id: 001-20260719-230109-30c0977a
-  notes: Completed S1-B2 learned-ATG AdamW cell at 2048 steps and 134217728 tokens.
-    Canonical run 001-20260719-230109-30c0977a launched cleanly at commit 33e4449
-    and passed immutable-config, finite artifact/event, exact model/optimizer reload,
-    FP32 threshold, zero-decay optimizer-group, and budget review at selection loss
-    7.01330. Campaign flags were universal_collapse=False, loss_instability=False,
-    sparsity_evaporation=False, persistent_frozen=[], and zero_kappa_steps=[]; additional
-    ATG review flags=none. The ATG review flags are observations rather than new promotion
-    criteria. Decision remains pending; S1 permits only feasibility/collapse and within-stratum
-    comparisons. Pooled exact-zero/product endpoints remain pending diagnostic 247;
-    validation loss was not used to select canonical identity or rank cells.
+  notes: Completed S1-B2 learned-ATG AdamW cell at 2048 steps and 134217728 tokens. Canonical run 001-20260719-230109-30c0977a
+    launched cleanly at commit 33e4449 and passed immutable-config, finite artifact/event, exact model/optimizer reload, FP32
+    threshold, zero-decay optimizer-group, and budget review at selection loss 7.01330. Campaign flags were universal_collapse=False,
+    loss_instability=False, sparsity_evaporation=False, persistent_frozen=[], and zero_kappa_steps=[]; additional ATG review
+    flags=none. The ATG review flags are observations rather than new promotion criteria. Decision remains pending; S1 permits
+    only feasibility/collapse and within-stratum comparisons. Pooled exact-zero/product endpoints remain pending diagnostic
+    247; validation loss was not used to select canonical identity or rank cells.
 - design_id: S1-B2-ATG-GPM-PRE-QKV-RMS-PLS-K010-S0
   config_id: 232-s1-b2-p14m-atg-gpm-pre-qkv-rms-pls-k010-s0
   config_path: configs/232-s1-b2-p14m-atg-gpm-pre-qkv-rms-pls-k010-s0.yaml
@@ -6843,16 +6673,13 @@ records:
   decision_status: pending
   release_tier: history
   canonical_run_id: 001-20260719-232256-a1743da1
-  notes: Completed S1-B2 learned-ATG AdamW cell at 2048 steps and 134217728 tokens.
-    Canonical run 001-20260719-232256-a1743da1 launched cleanly at commit 33e4449
-    and passed immutable-config, finite artifact/event, exact model/optimizer reload,
-    FP32 threshold, zero-decay optimizer-group, and budget review at selection loss
-    7.01309. Campaign flags were universal_collapse=False, loss_instability=False,
-    sparsity_evaporation=False, persistent_frozen=[], and zero_kappa_steps=[]; additional
-    ATG review flags=none. The ATG review flags are observations rather than new promotion
-    criteria. Decision remains pending; S1 permits only feasibility/collapse and within-stratum
-    comparisons. Pooled exact-zero/product endpoints remain pending diagnostic 247;
-    validation loss was not used to select canonical identity or rank cells.
+  notes: Completed S1-B2 learned-ATG AdamW cell at 2048 steps and 134217728 tokens. Canonical run 001-20260719-232256-a1743da1
+    launched cleanly at commit 33e4449 and passed immutable-config, finite artifact/event, exact model/optimizer reload, FP32
+    threshold, zero-decay optimizer-group, and budget review at selection loss 7.01309. Campaign flags were universal_collapse=False,
+    loss_instability=False, sparsity_evaporation=False, persistent_frozen=[], and zero_kappa_steps=[]; additional ATG review
+    flags=none. The ATG review flags are observations rather than new promotion criteria. Decision remains pending; S1 permits
+    only feasibility/collapse and within-stratum comparisons. Pooled exact-zero/product endpoints remain pending diagnostic
+    247; validation loss was not used to select canonical identity or rank cells.
 - design_id: S1-B2-ATG-GPLUS-POST-QK-RMS-PLS-K010-S0
   config_id: 233-s1-b2-p14m-atg-gplus-post-qk-rms-pls-k010-s0
   config_path: configs/233-s1-b2-p14m-atg-gplus-post-qk-rms-pls-k010-s0.yaml
@@ -6909,16 +6736,13 @@ records:
   decision_status: pending
   release_tier: history
   canonical_run_id: 001-20260719-234446-32adc479
-  notes: Completed S1-B2 learned-ATG AdamW cell at 2048 steps and 134217728 tokens.
-    Canonical run 001-20260719-234446-32adc479 launched cleanly at commit 33e4449
-    and passed immutable-config, finite artifact/event, exact model/optimizer reload,
-    FP32 threshold, zero-decay optimizer-group, and budget review at selection loss
-    7.03041. Campaign flags were universal_collapse=False, loss_instability=False,
-    sparsity_evaporation=False, persistent_frozen=[], and zero_kappa_steps=[]; additional
-    ATG review flags=none. The ATG review flags are observations rather than new promotion
-    criteria. Decision remains pending; S1 permits only feasibility/collapse and within-stratum
-    comparisons. Pooled exact-zero/product endpoints remain pending diagnostic 247;
-    validation loss was not used to select canonical identity or rank cells.
+  notes: Completed S1-B2 learned-ATG AdamW cell at 2048 steps and 134217728 tokens. Canonical run 001-20260719-234446-32adc479
+    launched cleanly at commit 33e4449 and passed immutable-config, finite artifact/event, exact model/optimizer reload, FP32
+    threshold, zero-decay optimizer-group, and budget review at selection loss 7.03041. Campaign flags were universal_collapse=False,
+    loss_instability=False, sparsity_evaporation=False, persistent_frozen=[], and zero_kappa_steps=[]; additional ATG review
+    flags=none. The ATG review flags are observations rather than new promotion criteria. Decision remains pending; S1 permits
+    only feasibility/collapse and within-stratum comparisons. Pooled exact-zero/product endpoints remain pending diagnostic
+    247; validation loss was not used to select canonical identity or rank cells.
 - design_id: S1-B2-ATG-GPM-POST-QK-RMS-PLS-K010-S0
   config_id: 234-s1-b2-p14m-atg-gpm-post-qk-rms-pls-k010-s0
   config_path: configs/234-s1-b2-p14m-atg-gpm-post-qk-rms-pls-k010-s0.yaml
@@ -6975,16 +6799,13 @@ records:
   decision_status: pending
   release_tier: history
   canonical_run_id: 001-20260720-000502-819590d4
-  notes: Completed S1-B2 learned-ATG AdamW cell at 2048 steps and 134217728 tokens.
-    Canonical run 001-20260720-000502-819590d4 launched cleanly at commit 33e4449
-    and passed immutable-config, finite artifact/event, exact model/optimizer reload,
-    FP32 threshold, zero-decay optimizer-group, and budget review at selection loss
-    7.01226. Campaign flags were universal_collapse=False, loss_instability=False,
-    sparsity_evaporation=False, persistent_frozen=[], and zero_kappa_steps=[]; additional
-    ATG review flags=none. The ATG review flags are observations rather than new promotion
-    criteria. Decision remains pending; S1 permits only feasibility/collapse and within-stratum
-    comparisons. Pooled exact-zero/product endpoints remain pending diagnostic 247;
-    validation loss was not used to select canonical identity or rank cells.
+  notes: Completed S1-B2 learned-ATG AdamW cell at 2048 steps and 134217728 tokens. Canonical run 001-20260720-000502-819590d4
+    launched cleanly at commit 33e4449 and passed immutable-config, finite artifact/event, exact model/optimizer reload, FP32
+    threshold, zero-decay optimizer-group, and budget review at selection loss 7.01226. Campaign flags were universal_collapse=False,
+    loss_instability=False, sparsity_evaporation=False, persistent_frozen=[], and zero_kappa_steps=[]; additional ATG review
+    flags=none. The ATG review flags are observations rather than new promotion criteria. Decision remains pending; S1 permits
+    only feasibility/collapse and within-stratum comparisons. Pooled exact-zero/product endpoints remain pending diagnostic
+    247; validation loss was not used to select canonical identity or rank cells.
 - design_id: S1-B2-ATG-GPLUS-POST-QKV-RMS-PLS-K010-S0
   config_id: 235-s1-b2-p14m-atg-gplus-post-qkv-rms-pls-k010-s0
   config_path: configs/235-s1-b2-p14m-atg-gplus-post-qkv-rms-pls-k010-s0.yaml
@@ -7043,16 +6864,13 @@ records:
   decision_status: pending
   release_tier: history
   canonical_run_id: 001-20260720-002524-b51e4a62
-  notes: Completed S1-B2 learned-ATG AdamW cell at 2048 steps and 134217728 tokens.
-    Canonical run 001-20260720-002524-b51e4a62 launched cleanly at commit 33e4449
-    and passed immutable-config, finite artifact/event, exact model/optimizer reload,
-    FP32 threshold, zero-decay optimizer-group, and budget review at selection loss
-    7.02936. Campaign flags were universal_collapse=False, loss_instability=False,
-    sparsity_evaporation=False, persistent_frozen=[], and zero_kappa_steps=[]; additional
-    ATG review flags=none. The ATG review flags are observations rather than new promotion
-    criteria. Decision remains pending; S1 permits only feasibility/collapse and within-stratum
-    comparisons. Pooled exact-zero/product endpoints remain pending diagnostic 247;
-    validation loss was not used to select canonical identity or rank cells.
+  notes: Completed S1-B2 learned-ATG AdamW cell at 2048 steps and 134217728 tokens. Canonical run 001-20260720-002524-b51e4a62
+    launched cleanly at commit 33e4449 and passed immutable-config, finite artifact/event, exact model/optimizer reload, FP32
+    threshold, zero-decay optimizer-group, and budget review at selection loss 7.02936. Campaign flags were universal_collapse=False,
+    loss_instability=False, sparsity_evaporation=False, persistent_frozen=[], and zero_kappa_steps=[]; additional ATG review
+    flags=none. The ATG review flags are observations rather than new promotion criteria. Decision remains pending; S1 permits
+    only feasibility/collapse and within-stratum comparisons. Pooled exact-zero/product endpoints remain pending diagnostic
+    247; validation loss was not used to select canonical identity or rank cells.
 - design_id: S1-B2-ATG-GPM-POST-QKV-RMS-PLS-K010-S0
   config_id: 236-s1-b2-p14m-atg-gpm-post-qkv-rms-pls-k010-s0
   config_path: configs/236-s1-b2-p14m-atg-gpm-post-qkv-rms-pls-k010-s0.yaml
@@ -7111,16 +6929,13 @@ records:
   decision_status: pending
   release_tier: history
   canonical_run_id: 001-20260720-004701-994692e6
-  notes: Completed S1-B2 learned-ATG AdamW cell at 2048 steps and 134217728 tokens.
-    Canonical run 001-20260720-004701-994692e6 launched cleanly at commit 33e4449
-    and passed immutable-config, finite artifact/event, exact model/optimizer reload,
-    FP32 threshold, zero-decay optimizer-group, and budget review at selection loss
-    7.01146. Campaign flags were universal_collapse=False, loss_instability=False,
-    sparsity_evaporation=False, persistent_frozen=[], and zero_kappa_steps=[]; additional
-    ATG review flags=none. The ATG review flags are observations rather than new promotion
-    criteria. Decision remains pending; S1 permits only feasibility/collapse and within-stratum
-    comparisons. Pooled exact-zero/product endpoints remain pending diagnostic 247;
-    validation loss was not used to select canonical identity or rank cells.
+  notes: Completed S1-B2 learned-ATG AdamW cell at 2048 steps and 134217728 tokens. Canonical run 001-20260720-004701-994692e6
+    launched cleanly at commit 33e4449 and passed immutable-config, finite artifact/event, exact model/optimizer reload, FP32
+    threshold, zero-decay optimizer-group, and budget review at selection loss 7.01146. Campaign flags were universal_collapse=False,
+    loss_instability=False, sparsity_evaporation=False, persistent_frozen=[], and zero_kappa_steps=[]; additional ATG review
+    flags=none. The ATG review flags are observations rather than new promotion criteria. Decision remains pending; S1 permits
+    only feasibility/collapse and within-stratum comparisons. Pooled exact-zero/product endpoints remain pending diagnostic
+    247; validation loss was not used to select canonical identity or rank cells.
 - design_id: S1-B2-ATG-GPLUS-POST-A1H-ABS-PLS-K010-S0
   config_id: 237-s1-b2-p14m-atg-gplus-a1h-abs-pls-k010-s0
   config_path: configs/237-s1-b2-p14m-atg-gplus-a1h-abs-pls-k010-s0.yaml
@@ -7169,16 +6984,13 @@ records:
   decision_status: pending
   release_tier: history
   canonical_run_id: 001-20260720-010843-204ac9e3
-  notes: Completed S1-B2 learned-ATG AdamW cell at 2048 steps and 134217728 tokens.
-    Canonical run 001-20260720-010843-204ac9e3 launched cleanly at commit 33e4449
-    and passed immutable-config, finite artifact/event, exact model/optimizer reload,
-    FP32 threshold, zero-decay optimizer-group, and budget review at selection loss
-    7.00088. Campaign flags were universal_collapse=False, loss_instability=False,
-    sparsity_evaporation=False, persistent_frozen=[], and zero_kappa_steps=[]; additional
-    ATG review flags=none. The ATG review flags are observations rather than new promotion
-    criteria. Decision remains pending; S1 permits only feasibility/collapse and within-stratum
-    comparisons. Pooled exact-zero/product endpoints remain pending diagnostic 247;
-    validation loss was not used to select canonical identity or rank cells.
+  notes: Completed S1-B2 learned-ATG AdamW cell at 2048 steps and 134217728 tokens. Canonical run 001-20260720-010843-204ac9e3
+    launched cleanly at commit 33e4449 and passed immutable-config, finite artifact/event, exact model/optimizer reload, FP32
+    threshold, zero-decay optimizer-group, and budget review at selection loss 7.00088. Campaign flags were universal_collapse=False,
+    loss_instability=False, sparsity_evaporation=False, persistent_frozen=[], and zero_kappa_steps=[]; additional ATG review
+    flags=none. The ATG review flags are observations rather than new promotion criteria. Decision remains pending; S1 permits
+    only feasibility/collapse and within-stratum comparisons. Pooled exact-zero/product endpoints remain pending diagnostic
+    247; validation loss was not used to select canonical identity or rank cells.
 - design_id: S1-B2-ATG-GPLUS-POST-A1H-RMS-PLS-K010-S0
   config_id: 238-s1-b2-p14m-atg-gplus-a1h-rms-pls-k010-s0
   config_path: configs/238-s1-b2-p14m-atg-gplus-a1h-rms-pls-k010-s0.yaml
@@ -7227,16 +7039,13 @@ records:
   decision_status: pending
   release_tier: history
   canonical_run_id: 001-20260720-012552-f4e5b550
-  notes: Completed S1-B2 learned-ATG AdamW cell at 2048 steps and 134217728 tokens.
-    Canonical run 001-20260720-012552-f4e5b550 launched cleanly at commit 33e4449
-    and passed immutable-config, finite artifact/event, exact model/optimizer reload,
-    FP32 threshold, zero-decay optimizer-group, and budget review at selection loss
-    6.99136. Campaign flags were universal_collapse=False, loss_instability=False,
-    sparsity_evaporation=False, persistent_frozen=[], and zero_kappa_steps=[]; additional
-    ATG review flags=none. The ATG review flags are observations rather than new promotion
-    criteria. Decision remains pending; S1 permits only feasibility/collapse and within-stratum
-    comparisons. Pooled exact-zero/product endpoints remain pending diagnostic 247;
-    validation loss was not used to select canonical identity or rank cells.
+  notes: Completed S1-B2 learned-ATG AdamW cell at 2048 steps and 134217728 tokens. Canonical run 001-20260720-012552-f4e5b550
+    launched cleanly at commit 33e4449 and passed immutable-config, finite artifact/event, exact model/optimizer reload, FP32
+    threshold, zero-decay optimizer-group, and budget review at selection loss 6.99136. Campaign flags were universal_collapse=False,
+    loss_instability=False, sparsity_evaporation=False, persistent_frozen=[], and zero_kappa_steps=[]; additional ATG review
+    flags=none. The ATG review flags are observations rather than new promotion criteria. Decision remains pending; S1 permits
+    only feasibility/collapse and within-stratum comparisons. Pooled exact-zero/product endpoints remain pending diagnostic
+    247; validation loss was not used to select canonical identity or rank cells.
 - design_id: S1-B2-ATG-GPLUS-POST-A3-ABS-PLS-K010-S0
   config_id: 239-s1-b2-p14m-atg-gplus-a3-abs-pls-k010-s0
   config_path: configs/239-s1-b2-p14m-atg-gplus-a3-abs-pls-k010-s0.yaml
@@ -7289,16 +7098,13 @@ records:
   decision_status: pending
   release_tier: history
   canonical_run_id: 001-20260720-014311-55a91292
-  notes: Completed S1-B2 learned-ATG AdamW cell at 2048 steps and 134217728 tokens.
-    Canonical run 001-20260720-014311-55a91292 launched cleanly at commit 33e4449
-    and passed immutable-config, finite artifact/event, exact model/optimizer reload,
-    FP32 threshold, zero-decay optimizer-group, and budget review at selection loss
-    7.04232. Campaign flags were universal_collapse=False, loss_instability=False,
-    sparsity_evaporation=False, persistent_frozen=[], and zero_kappa_steps=[]; additional
-    ATG review flags=none. The ATG review flags are observations rather than new promotion
-    criteria. Decision remains pending; S1 permits only feasibility/collapse and within-stratum
-    comparisons. Pooled exact-zero/product endpoints remain pending diagnostic 247;
-    validation loss was not used to select canonical identity or rank cells.
+  notes: Completed S1-B2 learned-ATG AdamW cell at 2048 steps and 134217728 tokens. Canonical run 001-20260720-014311-55a91292
+    launched cleanly at commit 33e4449 and passed immutable-config, finite artifact/event, exact model/optimizer reload, FP32
+    threshold, zero-decay optimizer-group, and budget review at selection loss 7.04232. Campaign flags were universal_collapse=False,
+    loss_instability=False, sparsity_evaporation=False, persistent_frozen=[], and zero_kappa_steps=[]; additional ATG review
+    flags=none. The ATG review flags are observations rather than new promotion criteria. Decision remains pending; S1 permits
+    only feasibility/collapse and within-stratum comparisons. Pooled exact-zero/product endpoints remain pending diagnostic
+    247; validation loss was not used to select canonical identity or rank cells.
 - design_id: S1-B2-ATG-GPLUS-POST-A3-RMS-PLS-K010-S0
   config_id: 240-s1-b2-p14m-atg-gplus-a3-rms-pls-k010-s0
   config_path: configs/240-s1-b2-p14m-atg-gplus-a3-rms-pls-k010-s0.yaml
@@ -7351,16 +7157,13 @@ records:
   decision_status: pending
   release_tier: history
   canonical_run_id: 001-20260720-020230-307b2324
-  notes: Completed S1-B2 learned-ATG AdamW cell at 2048 steps and 134217728 tokens.
-    Canonical run 001-20260720-020230-307b2324 launched cleanly at commit 33e4449
-    and passed immutable-config, finite artifact/event, exact model/optimizer reload,
-    FP32 threshold, zero-decay optimizer-group, and budget review at selection loss
-    7.01449. Campaign flags were universal_collapse=False, loss_instability=False,
-    sparsity_evaporation=False, persistent_frozen=[], and zero_kappa_steps=[]; additional
-    ATG review flags=none. The ATG review flags are observations rather than new promotion
-    criteria. Decision remains pending; S1 permits only feasibility/collapse and within-stratum
-    comparisons. Pooled exact-zero/product endpoints remain pending diagnostic 247;
-    validation loss was not used to select canonical identity or rank cells.
+  notes: Completed S1-B2 learned-ATG AdamW cell at 2048 steps and 134217728 tokens. Canonical run 001-20260720-020230-307b2324
+    launched cleanly at commit 33e4449 and passed immutable-config, finite artifact/event, exact model/optimizer reload, FP32
+    threshold, zero-decay optimizer-group, and budget review at selection loss 7.01449. Campaign flags were universal_collapse=False,
+    loss_instability=False, sparsity_evaporation=False, persistent_frozen=[], and zero_kappa_steps=[]; additional ATG review
+    flags=none. The ATG review flags are observations rather than new promotion criteria. Decision remains pending; S1 permits
+    only feasibility/collapse and within-stratum comparisons. Pooled exact-zero/product endpoints remain pending diagnostic
+    247; validation loss was not used to select canonical identity or rank cells.
 - design_id: S1-B2-ATG-GPLUS-POST-A6POST-ABS-PLS-K010-S0
   config_id: 241-s1-b2-p14m-atg-gplus-a6post-abs-pls-k010-s0
   config_path: configs/241-s1-b2-p14m-atg-gplus-a6post-abs-pls-k010-s0.yaml
@@ -7419,16 +7222,13 @@ records:
   decision_status: pending
   release_tier: history
   canonical_run_id: 002-20260720-034639-7c90a013
-  notes: Completed S1-B2 learned-ATG AdamW cell at 2048 steps and 134217728 tokens.
-    Canonical run 002-20260720-034639-7c90a013 launched cleanly at commit 134d74e
-    and passed immutable-config, finite artifact/event, exact model/optimizer reload,
-    FP32 threshold, zero-decay optimizer-group, and budget review at selection loss
-    7.06515. Campaign flags were universal_collapse=False, loss_instability=False,
-    sparsity_evaporation=False, persistent_frozen=[], and zero_kappa_steps=[]; additional
-    ATG review flags=none. The ATG review flags are observations rather than new promotion
-    criteria. Decision remains pending; S1 permits only feasibility/collapse and within-stratum
-    comparisons. Pooled exact-zero/product endpoints remain pending diagnostic 247;
-    validation loss was not used to select canonical identity or rank cells.
+  notes: Completed S1-B2 learned-ATG AdamW cell at 2048 steps and 134217728 tokens. Canonical run 002-20260720-034639-7c90a013
+    launched cleanly at commit 134d74e and passed immutable-config, finite artifact/event, exact model/optimizer reload, FP32
+    threshold, zero-decay optimizer-group, and budget review at selection loss 7.06515. Campaign flags were universal_collapse=False,
+    loss_instability=False, sparsity_evaporation=False, persistent_frozen=[], and zero_kappa_steps=[]; additional ATG review
+    flags=none. The ATG review flags are observations rather than new promotion criteria. Decision remains pending; S1 permits
+    only feasibility/collapse and within-stratum comparisons. Pooled exact-zero/product endpoints remain pending diagnostic
+    247; validation loss was not used to select canonical identity or rank cells.
 - design_id: S1-B2-ATG-GPLUS-POST-A6POST-RMS-PLS-K010-S0
   config_id: 242-s1-b2-p14m-atg-gplus-a6post-rms-pls-k010-s0
   config_path: configs/242-s1-b2-p14m-atg-gplus-a6post-rms-pls-k010-s0.yaml
@@ -7487,16 +7287,13 @@ records:
   decision_status: pending
   release_tier: history
   canonical_run_id: 001-20260720-040917-6c614f01
-  notes: Completed S1-B2 learned-ATG AdamW cell at 2048 steps and 134217728 tokens.
-    Canonical run 001-20260720-040917-6c614f01 launched cleanly at commit 134d74e
-    and passed immutable-config, finite artifact/event, exact model/optimizer reload,
-    FP32 threshold, zero-decay optimizer-group, and budget review at selection loss
-    7.03240. Campaign flags were universal_collapse=False, loss_instability=False,
-    sparsity_evaporation=False, persistent_frozen=[], and zero_kappa_steps=[]; additional
-    ATG review flags=none. The ATG review flags are observations rather than new promotion
-    criteria. Decision remains pending; S1 permits only feasibility/collapse and within-stratum
-    comparisons. Pooled exact-zero/product endpoints remain pending diagnostic 247;
-    validation loss was not used to select canonical identity or rank cells.
+  notes: Completed S1-B2 learned-ATG AdamW cell at 2048 steps and 134217728 tokens. Canonical run 001-20260720-040917-6c614f01
+    launched cleanly at commit 134d74e and passed immutable-config, finite artifact/event, exact model/optimizer reload, FP32
+    threshold, zero-decay optimizer-group, and budget review at selection loss 7.03240. Campaign flags were universal_collapse=False,
+    loss_instability=False, sparsity_evaporation=False, persistent_frozen=[], and zero_kappa_steps=[]; additional ATG review
+    flags=none. The ATG review flags are observations rather than new promotion criteria. Decision remains pending; S1 permits
+    only feasibility/collapse and within-stratum comparisons. Pooled exact-zero/product endpoints remain pending diagnostic
+    247; validation loss was not used to select canonical identity or rank cells.
 - design_id: S1-B2-GRAN-GPLUS-POST-QKV-ABS-GLOBAL-K010-S0
   config_id: 243-s1-b2-p14m-atg-gran-gplus-post-qkv-abs-global-k010-s0
   config_path: configs/243-s1-b2-p14m-atg-gran-gplus-post-qkv-abs-global-k010-s0.yaml
@@ -7555,16 +7352,13 @@ records:
   decision_status: pending
   release_tier: history
   canonical_run_id: 001-20260720-043230-ce8ca0d0
-  notes: Completed S1-B2 learned-ATG AdamW cell at 2048 steps and 134217728 tokens.
-    Canonical run 001-20260720-043230-ce8ca0d0 launched cleanly at commit 134d74e
-    and passed immutable-config, finite artifact/event, exact model/optimizer reload,
-    FP32 threshold, zero-decay optimizer-group, and budget review at selection loss
-    7.03386. Campaign flags were universal_collapse=False, loss_instability=False,
-    sparsity_evaporation=False, persistent_frozen=[], and zero_kappa_steps=[]; additional
-    ATG review flags=none. The ATG review flags are observations rather than new promotion
-    criteria. Decision remains pending; S1 permits only feasibility/collapse and within-stratum
-    comparisons. Pooled exact-zero/product endpoints remain pending diagnostic 247;
-    validation loss was not used to select canonical identity or rank cells.
+  notes: Completed S1-B2 learned-ATG AdamW cell at 2048 steps and 134217728 tokens. Canonical run 001-20260720-043230-ce8ca0d0
+    launched cleanly at commit 134d74e and passed immutable-config, finite artifact/event, exact model/optimizer reload, FP32
+    threshold, zero-decay optimizer-group, and budget review at selection loss 7.03386. Campaign flags were universal_collapse=False,
+    loss_instability=False, sparsity_evaporation=False, persistent_frozen=[], and zero_kappa_steps=[]; additional ATG review
+    flags=none. The ATG review flags are observations rather than new promotion criteria. Decision remains pending; S1 permits
+    only feasibility/collapse and within-stratum comparisons. Pooled exact-zero/product endpoints remain pending diagnostic
+    247; validation loss was not used to select canonical identity or rank cells.
 - design_id: S1-B2-GRAN-GPLUS-POST-QKV-ABS-SITE-K010-S0
   config_id: 244-s1-b2-p14m-atg-gran-gplus-post-qkv-abs-site-k010-s0
   config_path: configs/244-s1-b2-p14m-atg-gran-gplus-post-qkv-abs-site-k010-s0.yaml
@@ -7623,16 +7417,13 @@ records:
   decision_status: pending
   release_tier: history
   canonical_run_id: 001-20260720-045326-debca9b2
-  notes: Completed S1-B2 learned-ATG AdamW cell at 2048 steps and 134217728 tokens.
-    Canonical run 001-20260720-045326-debca9b2 launched cleanly at commit 134d74e
-    and passed immutable-config, finite artifact/event, exact model/optimizer reload,
-    FP32 threshold, zero-decay optimizer-group, and budget review at selection loss
-    7.03378. Campaign flags were universal_collapse=False, loss_instability=False,
-    sparsity_evaporation=False, persistent_frozen=[], and zero_kappa_steps=[]; additional
-    ATG review flags=none. The ATG review flags are observations rather than new promotion
-    criteria. Decision remains pending; S1 permits only feasibility/collapse and within-stratum
-    comparisons. Pooled exact-zero/product endpoints remain pending diagnostic 247;
-    validation loss was not used to select canonical identity or rank cells.
+  notes: Completed S1-B2 learned-ATG AdamW cell at 2048 steps and 134217728 tokens. Canonical run 001-20260720-045326-debca9b2
+    launched cleanly at commit 134d74e and passed immutable-config, finite artifact/event, exact model/optimizer reload, FP32
+    threshold, zero-decay optimizer-group, and budget review at selection loss 7.03378. Campaign flags were universal_collapse=False,
+    loss_instability=False, sparsity_evaporation=False, persistent_frozen=[], and zero_kappa_steps=[]; additional ATG review
+    flags=none. The ATG review flags are observations rather than new promotion criteria. Decision remains pending; S1 permits
+    only feasibility/collapse and within-stratum comparisons. Pooled exact-zero/product endpoints remain pending diagnostic
+    247; validation loss was not used to select canonical identity or rank cells.
 - design_id: S1-B2-GRAN-GPM-POST-QKV-ABS-GLOBAL-K010-S0
   config_id: 245-s1-b2-p14m-atg-gran-gpm-post-qkv-abs-global-k010-s0
   config_path: configs/245-s1-b2-p14m-atg-gran-gpm-post-qkv-abs-global-k010-s0.yaml
@@ -7691,16 +7482,13 @@ records:
   decision_status: pending
   release_tier: history
   canonical_run_id: 001-20260720-051426-f8caba45
-  notes: Completed S1-B2 learned-ATG AdamW cell at 2048 steps and 134217728 tokens.
-    Canonical run 001-20260720-051426-f8caba45 launched cleanly at commit 134d74e
-    and passed immutable-config, finite artifact/event, exact model/optimizer reload,
-    FP32 threshold, zero-decay optimizer-group, and budget review at selection loss
-    7.01623. Campaign flags were universal_collapse=False, loss_instability=False,
-    sparsity_evaporation=False, persistent_frozen=[], and zero_kappa_steps=[]; additional
-    ATG review flags=none. The ATG review flags are observations rather than new promotion
-    criteria. Decision remains pending; S1 permits only feasibility/collapse and within-stratum
-    comparisons. Pooled exact-zero/product endpoints remain pending diagnostic 247;
-    validation loss was not used to select canonical identity or rank cells.
+  notes: Completed S1-B2 learned-ATG AdamW cell at 2048 steps and 134217728 tokens. Canonical run 001-20260720-051426-f8caba45
+    launched cleanly at commit 134d74e and passed immutable-config, finite artifact/event, exact model/optimizer reload, FP32
+    threshold, zero-decay optimizer-group, and budget review at selection loss 7.01623. Campaign flags were universal_collapse=False,
+    loss_instability=False, sparsity_evaporation=False, persistent_frozen=[], and zero_kappa_steps=[]; additional ATG review
+    flags=none. The ATG review flags are observations rather than new promotion criteria. Decision remains pending; S1 permits
+    only feasibility/collapse and within-stratum comparisons. Pooled exact-zero/product endpoints remain pending diagnostic
+    247; validation loss was not used to select canonical identity or rank cells.
 - design_id: S1-B2-GRAN-GPM-POST-QKV-ABS-SITE-K010-S0
   config_id: 246-s1-b2-p14m-atg-gran-gpm-post-qkv-abs-site-k010-s0
   config_path: configs/246-s1-b2-p14m-atg-gran-gpm-post-qkv-abs-site-k010-s0.yaml
@@ -7759,16 +7547,13 @@ records:
   decision_status: pending
   release_tier: history
   canonical_run_id: 001-20260720-053531-613da146
-  notes: Completed S1-B2 learned-ATG AdamW cell at 2048 steps and 134217728 tokens.
-    Canonical run 001-20260720-053531-613da146 launched cleanly at commit 134d74e
-    and passed immutable-config, finite artifact/event, exact model/optimizer reload,
-    FP32 threshold, zero-decay optimizer-group, and budget review at selection loss
-    7.01657. Campaign flags were universal_collapse=False, loss_instability=False,
-    sparsity_evaporation=False, persistent_frozen=[], and zero_kappa_steps=[]; additional
-    ATG review flags=none. The ATG review flags are observations rather than new promotion
-    criteria. Decision remains pending; S1 permits only feasibility/collapse and within-stratum
-    comparisons. Pooled exact-zero/product endpoints remain pending diagnostic 247;
-    validation loss was not used to select canonical identity or rank cells.
+  notes: Completed S1-B2 learned-ATG AdamW cell at 2048 steps and 134217728 tokens. Canonical run 001-20260720-053531-613da146
+    launched cleanly at commit 134d74e and passed immutable-config, finite artifact/event, exact model/optimizer reload, FP32
+    threshold, zero-decay optimizer-group, and budget review at selection loss 7.01657. Campaign flags were universal_collapse=False,
+    loss_instability=False, sparsity_evaporation=False, persistent_frozen=[], and zero_kappa_steps=[]; additional ATG review
+    flags=none. The ATG review flags are observations rather than new promotion criteria. Decision remains pending; S1 permits
+    only feasibility/collapse and within-stratum comparisons. Pooled exact-zero/product endpoints remain pending diagnostic
+    247; validation loss was not used to select canonical identity or rank cells.
 - design_id: S1-B2-DIAG-LEARNED-ATG-SELECTION-S0
   config_id: 247-s1-b2-learned-atg-selection-prop
   config_path: configs/247-s1-b2-learned-atg-selection-prop.yaml
@@ -7817,11 +7602,9 @@ records:
   ricker_sigma: null
   step_budget: null
   matched_control_id: null
-  config_status: ready
+  config_status: closed
   decision_status: control
   release_tier: history
-  canonical_run_id: null
-  notes: Ready pooled complete-selection diagnostic pinned to the exact 26 queue-reconciled
-    canonical B2 run ids under the registered tau=0.03, threshold/model LR multiplier=10
-    revision. Materialize and commit this filled config and registry row together
-    before launch.
+  canonical_run_id: 001-20260720-062718-d9765000
+  notes: Canonical diagnostic 001-20260720-062718-d9765000 passed complete-selection source, topology, exact-zero, integer
+    logical-product, architecture-ceiling, and endpoint-attachment review for all 26 sources.
