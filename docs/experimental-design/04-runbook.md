@@ -335,6 +335,17 @@ valid, and canonical. Prefix `265` remains reserved for the pooled diagnostic
 and must not be materialized until all eight tranche runs are terminal,
 audited, and reconciled.
 
+Prepared local runner: `C:\tmp\osp-s1-b3-t2-runner` at launch commit
+`23247f860d474718bf888a2a11ad2f9132059912`. Its eight result junctions and
+token-cache junction are verified. Queue state
+`run-logs\s1-b3-t2-l1-flanks-257-264-queue.json` and child-log directory
+`run-logs\s1-b3-t2-l1-flanks-257-264\` must remain absent until an approved
+launch. The largest dependency-valid campaign below the 12-hour cap is T2
+followed, only after reconciliation and diagnostic `265`, by `t3-rk-weight`
+configs `266--273`. Measured-equivalent training is approximately 7 h 57 min;
+the conservative envelope including both pooled diagnostics and commit gates is
+10 h 55 min. T4 is excluded because T2+T3+T4 exceeds 12 hours before gates.
+
 ## 11. Open-Source and Archive Policy
 
 1. Track every launched campaign config before launch, including negative and
