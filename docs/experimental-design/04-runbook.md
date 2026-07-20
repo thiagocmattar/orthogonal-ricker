@@ -329,9 +329,9 @@ runs remaining, and ETC for both the current run and the full set.
 The receiving agent independently verifies process state and manifests. A chat
 message is not sufficient evidence that a run completed.
 
-Current handoff: S1-B3 `t1-central` is in prelaunch state with configs
-`248--255` materialized in exact queue order. Diagnostic `247` is closed,
-valid, and canonical. Prefix `256` remains reserved for the pooled diagnostic
+Current handoff: S1-B3 `t2-l1-flanks` is in prelaunch state with configs
+`257--264` materialized in exact queue order. Diagnostic `256` is closed,
+valid, and canonical. Prefix `265` remains reserved for the pooled diagnostic
 and must not be materialized until all eight tranche runs are terminal,
 audited, and reconciled.
 

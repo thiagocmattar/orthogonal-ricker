@@ -9,10 +9,10 @@ work.
 
 - Campaign id: `pythia-sparsity-scaling-v1`.
 - Planning date: 2026-07-18.
-- Scientific completion is 82/132 (62.12%): S1-B0 is 20/20, S1-B1 is 36/36,
-  and S1-B2 is closed at 26/26 after reviewed pooled diagnostic `247`. The
-  2,048-step screen remains restricted to feasibility/collapse and
-  within-stratum comparisons.
+- Scientific completion is 90/132 (68.18%): S1-B0 is 20/20, S1-B1 is 36/36,
+  S1-B2 is 26/26, and S1-B3 is closed through `t1-central` at 8/40 after
+  reviewed pooled diagnostic `256`. The 2,048-step screen remains restricted
+  to feasibility/collapse and within-stratum comparisons.
 - Learned-ATG engineering configs `211--219` completed all nine 128-step runs
   and passed the hard checkpoint/optimizer contract. Config `220`, run
   `001-20260719-190523-f28590eb`, completed and passed the exact center-first
@@ -35,9 +35,13 @@ work.
   complete selection tokens. The canonical table, prespecified matched
   contrasts, safety checks, and interpretation boundary are consolidated in
   [`13-s1-b2-learned-atg-results.md`](13-s1-b2-learned-atg-results.md).
-- S1-B3 tranche `t1-central` configs `248--255` are materialized and ready.
-  B3 is 8/40 materialized and 0/40 complete. Next unused prefix: `256`; its
-  pooled diagnostic remains deferred until all eight tranche runs are
+- S1-B3 tranche `t1-central` configs `248--255` and pooled diagnostic `256`
+  are closed and canonical. Their complete-selection endpoints and matched
+  contrasts are consolidated in
+  [`14-s1-b3-t1-central-pressure-results.md`](14-s1-b3-t1-central-pressure-results.md).
+  Tranche `t2-l1-flanks` configs `257--264` are materialized and ready. B3 is
+  16/40 materialized and 8/40 complete. Next prefix `265` is reserved for the
+  deferred pooled diagnostic and remains absent until all eight T2 runs are
   terminal, audited, and reconciled.
 - The five central B0 anchors, configs `123--127`, completed and passed
   terminal review. Their final selection losses are `7.04913` (A0),
@@ -45,11 +49,11 @@ work.
   (A6-POST). Config `128`, the combined selection-partition endpoint
   diagnostic, also completed and passed artifact review. Configs `121--122`
   remain accepted engineering controls.
-- Last durably completed scientific run: config `246`, learned-ATG `Gpm` on
-  A6-POST with absolute per-site thresholds, run
-  `001-20260720-053531-613da146`, selection loss `7.01657`.
+- Last durably completed scientific run: config `255`, A6-POST OR at
+  `(weight,c,sigma)=(0.3,0.1,0.1)`, run
+  `001-20260720-102054-fa81151f`, selection loss `7.03930`.
 - Active scientific run: none. The next action is the fail-stop launch of
-  S1-B3 `t1-central` in exact config order `248--255`.
+  S1-B3 `t2-l1-flanks` in exact config order `257--264`.
 
 | Config | Gate/site | Canonical run | Selection loss | `R_block` | `R_model` |
 | ---: | --- | --- | ---: | ---: | ---: |
