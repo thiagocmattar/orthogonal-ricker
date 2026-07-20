@@ -9,13 +9,11 @@ work.
 
 - Campaign id: `pythia-sparsity-scaling-v1`.
 - Planning date: 2026-07-18.
-- Current phase: 56 of 132 executable S1 scientific cells are formally closed
-  (42.42%): S1-B0 is 20/20 and S1-B1 is 36/36. An additional 20 B2 cells,
-  configs `221--240`, have durable completed training artifacts awaiting the
-  B2 set-level reconciliation and pooled diagnostic. Thus durable completed
-  training is 76/132 (57.58%), while the formal campaign count remains 56/132.
-  The 2,048-step screen remains restricted to feasibility/collapse and
-  within-stratum comparisons.
+- Scientific training-row accounting is 82/132 (62.12%): S1-B0 is 20/20,
+  S1-B1 is 36/36, and all 26 S1-B2 training cells are reconciled. The formal
+  campaign auditor remains at 56/132 until diagnostic `247` attaches the
+  pooled exact-zero and logical-product endpoints. The 2,048-step screen
+  remains restricted to feasibility/collapse and within-stratum comparisons.
 - Learned-ATG engineering configs `211--219` completed all nine 128-step runs
   and passed the hard checkpoint/optimizer contract. Config `220`, run
   `001-20260719-190523-f28590eb`, completed and passed the exact center-first
@@ -26,33 +24,27 @@ work.
   correction and was selected solely because config `213` passed the original
   final-quarter `no_frozen_flag` criterion at steps 96/112/128. Validation loss
   was checked only for finiteness and was never ranked or used in the decision.
-- Scientific configs `221--246` materialize all 26 S1-B2 AdamW cells. The
-  original fail-stop queue completed configs `221--240`. During config `241`,
-  an auxiliary audit agent incorrectly terminated the live training PID at
-  step 1,250/2,048. Attempt `001-20260720-022211-bb0dbb78` is retained
-  unchanged as invalid, noncanonical infrastructure history; it is not a
-  scientific endpoint. Configs `242--246` never launched. A reviewed recovery
-  queue must restart unchanged config `241` from step zero and then execute
-  `242--246` before B2 can be reconciled.
-- Next unused config prefix: `247`; diagnostic `247` remains deferred until all
-  26 canonical training run IDs are reconciled.
+- Scientific configs `221--246` completed all 26 S1-B2 AdamW cells. The
+  original fail-stop queue completed configs `221--240`; the interrupted
+  config `241` attempt `001-20260720-022211-bb0dbb78` remains immutable,
+  invalid, and noncanonical. Reviewed recovery queue
+  `09b88220c82e415a9099b2c0781e6a10` completed unchanged config `241` from
+  step zero as canonical attempt `002` and then completed configs `242--246`
+  as attempt `001`. B2 remains active until pooled diagnostic `247` closes.
+- Next unused config prefix: `247`; its strict diagnostic config is prepared
+  for a separate registration commit pinned to all 26 canonical run IDs.
 - The five central B0 anchors, configs `123--127`, completed and passed
   terminal review. Their final selection losses are `7.04913` (A0),
   `6.98875` (A1-H), `7.01310` (A3), `7.01645` (A6-PRE), and `7.03248`
   (A6-POST). Config `128`, the combined selection-partition endpoint
   diagnostic, also completed and passed artifact review. Configs `121--122`
   remain accepted engineering controls.
-- Last durably completed scientific run: config `240`, learned-ATG `G+` on A3
-  with RMS threshold parameterization, run
-  `001-20260720-020230-307b2324`, selection loss `7.01449`.
-- Active scientific run: none. The next eligible action is the independently
-  reviewed adjudication commit and clean recovery launch of configs `241--246`
-  from `C:\tmp\osp-s1-b1-runner`. Pass the predecessor, new state, and new
-  logs paths as absolute paths into this main checkout: predecessor
-  `C:\Users\thima\Documents\Doutorado\exps\orthogonal-sparsity-pressure\run-logs\s1-b2-science-221-246-queue.json`,
-  state `C:\Users\thima\Documents\Doutorado\exps\orthogonal-sparsity-pressure\run-logs\s1-b2-science-241-246-recovery-queue.json`,
-  and logs directory
-  `C:\Users\thima\Documents\Doutorado\exps\orthogonal-sparsity-pressure\run-logs\s1-b2-science-241-246-recovery`.
+- Last durably completed scientific run: config `246`, learned-ATG `Gpm` on
+  A6-POST with absolute per-site thresholds, run
+  `001-20260720-053531-613da146`, selection loss `7.01657`.
+- Active scientific run: none. The next action is a clean, separate commit
+  registering diagnostic `247`, followed by its pooled selection evaluation
+  and B2 closure. B3 must not launch before that closure.
 
 | Config | Gate/site | Canonical run | Selection loss | `R_block` | `R_model` |
 | ---: | --- | --- | ---: | ---: | ---: |
