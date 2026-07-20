@@ -1,6 +1,6 @@
 schema_version: 1
 campaign_id: pythia-sparsity-scaling-v1
-next_config_prefix: 256
+next_config_prefix: 257
 core_design_cells: 134
 core_executable_cells_without_context_gate: 132
 maximum_design_cells: 184
@@ -58,10 +58,10 @@ block_summary:
 - block: S1-B3
   planned_cells: 40
   materialized_cells: 8
-  completed_cells: 0
+  completed_cells: 8
   status: active
-  note: B3 t1-central scientific configs 248--255 are materialized and ready; 8/40 cells are materialized and 0/40 are complete.
-    Diagnostic 256 remains deferred until this tranche is terminal and reconciled.
+  note: B3 t1-central training tranche is terminal, audited, and reconciled through 8/40 scientific cells; pooled selection
+    diagnostic 256 must still complete and be reviewed before the next tranche is materialized.
 - block: S1-B4
   planned_cells: 10
   materialized_cells: 0
@@ -7658,12 +7658,15 @@ records:
   ricker_sigma: null
   step_budget: null
   matched_control_id: S1-B0-ARCH-A3-LR3EM5-S0
-  config_status: ready
+  config_status: closed
   decision_status: pending
   release_tier: history
-  canonical_run_id: null
-  notes: Draft-ready B3 t1-central L1N cell on ordinary-ReLU A3; pressure targets all active gates. Materialize and commit
-    only when the preceding tranche diagnostic has passed.
+  canonical_run_id: 001-20260720-065141-9d4207ce
+  notes: 'Review-only closure for B3 t1-central. Canonical run 001-20260720-065141-9d4207ce completed all 2048 steps from
+    clean commit 9ec751eb and passed saved-config, provenance, finite-event, checkpoint, pressure-parameter, pairing, and
+    budget review at selection loss 7.05337636. Screening flags: universal_collapse=False, loss_instability=False, sparsity_evaporation=False.
+    The pooled diagnostic remains required before the next B3 tranche can be materialized. S1 supports feasibility/collapse
+    and within-stratum comparisons only.'
 - design_id: S1-B3-L1-A3-OL1-W1-ALLACTIVE-S0
   config_id: 249-s1-b3-p14m-a3-ol1-w1-s0
   config_path: configs/249-s1-b3-p14m-a3-ol1-w1-s0.yaml
@@ -7712,12 +7715,15 @@ records:
   ricker_sigma: null
   step_budget: 0.5
   matched_control_id: S1-B0-ARCH-A3-LR3EM5-S0
-  config_status: ready
+  config_status: closed
   decision_status: pending
   release_tier: history
-  canonical_run_id: null
-  notes: Draft-ready B3 t1-central OL1 cell on ordinary-ReLU A3; pressure targets all active gates. Materialize and commit
-    only when the preceding tranche diagnostic has passed.
+  canonical_run_id: 001-20260720-072242-6482e24a
+  notes: 'Review-only closure for B3 t1-central. Canonical run 001-20260720-072242-6482e24a completed all 2048 steps from
+    clean commit 9ec751eb and passed saved-config, provenance, finite-event, checkpoint, pressure-parameter, pairing, and
+    budget review at selection loss 7.02002440. Screening flags: universal_collapse=False, loss_instability=False, sparsity_evaporation=False.
+    The pooled diagnostic remains required before the next B3 tranche can be materialized. S1 supports feasibility/collapse
+    and within-stratum comparisons only.'
 - design_id: S1-B3-L1-A6POST-L1N-W1-ALLACTIVE-S0
   config_id: 250-s1-b3-p14m-a6post-l1n-w1-s0
   config_path: configs/250-s1-b3-p14m-a6post-l1n-w1-s0.yaml
@@ -7772,12 +7778,15 @@ records:
   ricker_sigma: null
   step_budget: null
   matched_control_id: S1-B0-ARCH-A6POST-LR3EM5-S0
-  config_status: ready
+  config_status: closed
   decision_status: pending
   release_tier: history
-  canonical_run_id: null
-  notes: Draft-ready B3 t1-central L1N cell on ordinary-ReLU A6-POST; pressure targets all active gates. Materialize and commit
-    only when the preceding tranche diagnostic has passed.
+  canonical_run_id: 001-20260720-074507-b60977fd
+  notes: 'Review-only closure for B3 t1-central. Canonical run 001-20260720-074507-b60977fd completed all 2048 steps from
+    clean commit 9ec751eb and passed saved-config, provenance, finite-event, checkpoint, pressure-parameter, pairing, and
+    budget review at selection loss 7.05311882. Screening flags: universal_collapse=False, loss_instability=False, sparsity_evaporation=False.
+    The pooled diagnostic remains required before the next B3 tranche can be materialized. S1 supports feasibility/collapse
+    and within-stratum comparisons only.'
 - design_id: S1-B3-L1-A6POST-OL1-W1-ALLACTIVE-S0
   config_id: 251-s1-b3-p14m-a6post-ol1-w1-s0
   config_path: configs/251-s1-b3-p14m-a6post-ol1-w1-s0.yaml
@@ -7832,12 +7841,15 @@ records:
   ricker_sigma: null
   step_budget: 0.5
   matched_control_id: S1-B0-ARCH-A6POST-LR3EM5-S0
-  config_status: ready
+  config_status: closed
   decision_status: pending
   release_tier: history
-  canonical_run_id: null
-  notes: Draft-ready B3 t1-central OL1 cell on ordinary-ReLU A6-POST; pressure targets all active gates. Materialize and commit
-    only when the preceding tranche diagnostic has passed.
+  canonical_run_id: 001-20260720-081913-870ac697
+  notes: 'Review-only closure for B3 t1-central. Canonical run 001-20260720-081913-870ac697 completed all 2048 steps from
+    clean commit 9ec751eb and passed saved-config, provenance, finite-event, checkpoint, pressure-parameter, pairing, and
+    budget review at selection loss 7.03894703. Screening flags: universal_collapse=False, loss_instability=False, sparsity_evaporation=False.
+    The pooled diagnostic remains required before the next B3 tranche can be materialized. S1 supports feasibility/collapse
+    and within-stratum comparisons only.'
 - design_id: S1-B3-RK-A3-RN-W0P3-C0P1-SG0P1-ALLACTIVE-S0
   config_id: 252-s1-b3-p14m-a3-rn-w0p3-c0p1-sg0p1-s0
   config_path: configs/252-s1-b3-p14m-a3-rn-w0p3-c0p1-sg0p1-s0.yaml
@@ -7886,12 +7898,15 @@ records:
   ricker_sigma: 0.1
   step_budget: null
   matched_control_id: S1-B0-ARCH-A3-LR3EM5-S0
-  config_status: ready
+  config_status: closed
   decision_status: pending
   release_tier: history
-  canonical_run_id: null
-  notes: Draft-ready B3 t1-central RN cell on ordinary-ReLU A3; pressure targets all active gates. Materialize and commit
-    only when the preceding tranche diagnostic has passed.
+  canonical_run_id: 001-20260720-084415-fce41e89
+  notes: 'Review-only closure for B3 t1-central. Canonical run 001-20260720-084415-fce41e89 completed all 2048 steps from
+    clean commit 9ec751eb and passed saved-config, provenance, finite-event, checkpoint, pressure-parameter, pairing, and
+    budget review at selection loss 7.10085412. Screening flags: universal_collapse=False, loss_instability=False, sparsity_evaporation=False.
+    The pooled diagnostic remains required before the next B3 tranche can be materialized. S1 supports feasibility/collapse
+    and within-stratum comparisons only.'
 - design_id: S1-B3-RK-A3-OR-W0P3-C0P1-SG0P1-ALLACTIVE-S0
   config_id: 253-s1-b3-p14m-a3-or-w0p3-c0p1-sg0p1-s0
   config_path: configs/253-s1-b3-p14m-a3-or-w0p3-c0p1-sg0p1-s0.yaml
@@ -7940,12 +7955,15 @@ records:
   ricker_sigma: 0.1
   step_budget: 0.5
   matched_control_id: S1-B0-ARCH-A3-LR3EM5-S0
-  config_status: ready
+  config_status: closed
   decision_status: pending
   release_tier: history
-  canonical_run_id: null
-  notes: Draft-ready B3 t1-central OR cell on ordinary-ReLU A3; pressure targets all active gates. Materialize and commit
-    only when the preceding tranche diagnostic has passed.
+  canonical_run_id: 001-20260720-091756-04426a19
+  notes: 'Review-only closure for B3 t1-central. Canonical run 001-20260720-091756-04426a19 completed all 2048 steps from
+    clean commit 9ec751eb and passed saved-config, provenance, finite-event, checkpoint, pressure-parameter, pairing, and
+    budget review at selection loss 7.04616422. Screening flags: universal_collapse=False, loss_instability=False, sparsity_evaporation=False.
+    The pooled diagnostic remains required before the next B3 tranche can be materialized. S1 supports feasibility/collapse
+    and within-stratum comparisons only.'
 - design_id: S1-B3-RK-A6POST-RN-W0P3-C0P1-SG0P1-ALLACTIVE-S0
   config_id: 254-s1-b3-p14m-a6post-rn-w0p3-c0p1-sg0p1-s0
   config_path: configs/254-s1-b3-p14m-a6post-rn-w0p3-c0p1-sg0p1-s0.yaml
@@ -8000,12 +8018,15 @@ records:
   ricker_sigma: 0.1
   step_budget: null
   matched_control_id: S1-B0-ARCH-A6POST-LR3EM5-S0
-  config_status: ready
+  config_status: closed
   decision_status: pending
   release_tier: history
-  canonical_run_id: null
-  notes: Draft-ready B3 t1-central RN cell on ordinary-ReLU A6-POST; pressure targets all active gates. Materialize and commit
-    only when the preceding tranche diagnostic has passed.
+  canonical_run_id: 001-20260720-094138-c7bf5a14
+  notes: 'Review-only closure for B3 t1-central. Canonical run 001-20260720-094138-c7bf5a14 completed all 2048 steps from
+    clean commit 9ec751eb and passed saved-config, provenance, finite-event, checkpoint, pressure-parameter, pairing, and
+    budget review at selection loss 7.09617354. Screening flags: universal_collapse=False, loss_instability=False, sparsity_evaporation=False.
+    The pooled diagnostic remains required before the next B3 tranche can be materialized. S1 supports feasibility/collapse
+    and within-stratum comparisons only.'
 - design_id: S1-B3-RK-A6POST-OR-W0P3-C0P1-SG0P1-ALLACTIVE-S0
   config_id: 255-s1-b3-p14m-a6post-or-w0p3-c0p1-sg0p1-s0
   config_path: configs/255-s1-b3-p14m-a6post-or-w0p3-c0p1-sg0p1-s0.yaml
@@ -8060,9 +8081,69 @@ records:
   ricker_sigma: 0.1
   step_budget: 0.5
   matched_control_id: S1-B0-ARCH-A6POST-LR3EM5-S0
-  config_status: ready
+  config_status: closed
   decision_status: pending
   release_tier: history
+  canonical_run_id: 001-20260720-102054-fa81151f
+  notes: 'Review-only closure for B3 t1-central. Canonical run 001-20260720-102054-fa81151f completed all 2048 steps from
+    clean commit 9ec751eb and passed saved-config, provenance, finite-event, checkpoint, pressure-parameter, pairing, and
+    budget review at selection loss 7.03929697. Screening flags: universal_collapse=False, loss_instability=False, sparsity_evaporation=False.
+    The pooled diagnostic remains required before the next B3 tranche can be materialized. S1 supports feasibility/collapse
+    and within-stratum comparisons only.'
+- design_id: S1-B3-DIAG-T1-CENTRAL-SELECTION-S0
+  config_id: 256-s1-b3-t1-central-selection-propagation
+  config_path: configs/256-s1-b3-t1-central-selection-propagation.yaml
+  phase: S1
+  block: S1-B3-DIAGNOSTIC
+  comparison_id: S1-B3-T1-CENTRAL
+  pair_id: S1-B3-T1-CENTRAL
+  promotion_family: null
+  kind: diagnostic
+  model_size: 14M
+  steps: 0
+  tokens: 311296
+  model_initialization_seed: 0
+  data_order_seed: 0
+  training_schedule_scheme: null
+  training_schedule_hash: null
+  effective_tokens_per_update: null
+  validation_partition: selection
+  validation_partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
+  architecture_id: mixed_pressure_tranche
+  gate_family: gplus
+  gate_sites:
+  - a
+  - m
+  - h
+  - q
+  - k
+  - v
+  qk_placement: mixed
+  kappa_mode: fixed
+  kappa: 0.0
+  kappa_init: null
+  kappa_scope: all_active_gates
+  threshold_scale: absolute
+  surrogate: null
+  temperature: null
+  threshold_learning_rate: null
+  optimizer_recipe: null
+  model_learning_rate: null
+  micro_batch_size: null
+  gradient_accumulation_steps: null
+  pressure_method: mixed
+  pressure_sites: []
+  pressure_weight: null
+  ricker_c: null
+  ricker_sigma: null
+  step_budget: null
+  matched_control_id: null
+  config_status: ready
+  decision_status: control
+  release_tier: history
   canonical_run_id: null
-  notes: Draft-ready B3 t1-central OR cell on ordinary-ReLU A6-POST; pressure targets all active gates. Materialize and commit
-    only when the preceding tranche diagnostic has passed.
+  notes: 'Review-only ready row for the B3 t1-central pooled complete-selection diagnostic. Its eight source runs passed tranche
+    reconciliation in exact queue order: 001-20260720-065141-9d4207ce, 001-20260720-072242-6482e24a, 001-20260720-074507-b60977fd,
+    001-20260720-081913-870ac697, 001-20260720-084415-fce41e89, 001-20260720-091756-04426a19, 001-20260720-094138-c7bf5a14,
+    001-20260720-102054-fa81151f. Materialize this single diagnostic row/config only with the reviewed closure/run rows; the
+    following B3 scientific tranche remains blocked until this diagnostic completes and is reconciled.'
