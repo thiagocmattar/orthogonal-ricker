@@ -35,5 +35,6 @@ Rules:
 - Completed runs should save config, metrics, predictions, and manifest. Statusless historical runs remain valid when their core artifact envelope is coherent.
 - Every paper figure should be regenerable from saved results.
 - Treat figures as paper artifacts: avoid misleading axis truncation, use colorblind-safe colors, show sample size or uncertainty when relevant, and keep shared plotting style centralized in `src/paper_exp/plot_style.py`; family-specific loaders, reductions, and renderers belong in focused modules such as `src/paper_exp/plot_report04.py`.
+- Pytest scratch directories such as `pytest_tmp*` may be created during testing, but must always be cleaned from the worktree after testing finishes; delete them or archive them outside the repository when retention is useful.
 - Prefer one clear script over many clever abstractions.
 - If adding complexity, explain why it is necessary.
