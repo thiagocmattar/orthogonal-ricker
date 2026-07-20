@@ -351,7 +351,8 @@ For the explicitly approved unattended T2+T3 launch, use
 around two separate immutable queues: T2, reconciliation and diagnostic `265`,
 then T3 and diagnostic `274`. Between queues it verifies the emitted bundle
 hashes and expected registry delta, rejects any registered scientific hard
-failure flag, runs the required checks, and commits each clean gate boundary.
+execution-invalid flag, records non-invalidating screening flags in the emitted
+review bundle, runs the required checks, and commits each clean gate boundary.
 Its ignored atomic state is
 `run-logs/s1-b3-t2-t3-sequential-controller.json`. It never retries an attempt
 or kills an owned child at a wall-clock deadline; 10 h 55 min is the

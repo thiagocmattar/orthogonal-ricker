@@ -65,9 +65,6 @@ T3_IDS = (
 HARD_SCREEN_FLAGS = (
     "nonfinite",
     "orthogonal_step_budget_violation",
-    "universal_collapse",
-    "loss_instability",
-    "sparsity_evaporation",
 )
 
 
