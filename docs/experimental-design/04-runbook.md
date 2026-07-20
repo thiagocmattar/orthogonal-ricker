@@ -346,6 +346,17 @@ configs `266--273`. Measured-equivalent training is approximately 7 h 57 min;
 the conservative envelope including both pooled diagnostics and commit gates is
 10 h 55 min. T4 is excluded because T2+T3+T4 exceeds 12 hours before gates.
 
+For the explicitly approved unattended T2+T3 launch, use
+`scripts/run_s1_b3_t2_t3_campaign.py`. It is one fail-closed owner process
+around two separate immutable queues: T2, reconciliation and diagnostic `265`,
+then T3 and diagnostic `274`. Between queues it verifies the emitted bundle
+hashes and expected registry delta, rejects any registered scientific hard
+failure flag, runs the required checks, and commits each clean gate boundary.
+Its ignored atomic state is
+`run-logs/s1-b3-t2-t3-sequential-controller.json`. It never retries an attempt
+or kills an owned child at a wall-clock deadline; 10 h 55 min is the
+conservative ETC, not a forced timeout.
+
 ## 11. Open-Source and Archive Policy
 
 1. Track every launched campaign config before launch, including negative and
