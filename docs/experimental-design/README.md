@@ -35,25 +35,25 @@ work.
   complete selection tokens. The canonical table, prespecified matched
   contrasts, safety checks, and interpretation boundary are consolidated in
   [`13-s1-b2-learned-atg-results.md`](13-s1-b2-learned-atg-results.md).
-- S1-B3 tranche `t1-central` configs `248--255` and pooled diagnostic `256`
-  are closed and canonical. Their complete-selection endpoints and matched
-  contrasts are consolidated in
+- S1-B3 tranches `t1-central` (`248--255`) and `t2-l1-flanks` (`257--264`),
+  with pooled diagnostics `256` and `265`, are closed and canonical. T1
+  endpoints and matched contrasts are consolidated in
   [`14-s1-b3-t1-central-pressure-results.md`](14-s1-b3-t1-central-pressure-results.md).
-  Tranche `t2-l1-flanks` configs `257--264` are materialized and ready. B3 is
-  16/40 materialized and 8/40 complete. Next prefix `265` is reserved for the
-  deferred pooled diagnostic and remains absent until all eight T2 runs are
-  terminal, audited, and reconciled.
+  Tranche `t3-rk-weight` configs `266--273` are materialized and ready. B3 is
+  24/40 materialized and 16/40 complete; executable S1 is 98/132 complete.
+  Next prefix `274` remains deferred until all eight T3 runs are terminal,
+  audited, and reconciled.
 - The five central B0 anchors, configs `123--127`, completed and passed
   terminal review. Their final selection losses are `7.04913` (A0),
   `6.98875` (A1-H), `7.01310` (A3), `7.01645` (A6-PRE), and `7.03248`
   (A6-POST). Config `128`, the combined selection-partition endpoint
   diagnostic, also completed and passed artifact review. Configs `121--122`
   remain accepted engineering controls.
-- Last durably completed scientific run: config `255`, A6-POST OR at
-  `(weight,c,sigma)=(0.3,0.1,0.1)`, run
-  `001-20260720-102054-fa81151f`, selection loss `7.03930`.
+- Last durably completed scientific run: config `264`, A6-POST OL1 at weight
+  `5`, run `001-20260721-011954-9595569e`, selection loss `7.03870`.
 - Active scientific run: none. The next action is the fail-stop launch of
-  S1-B3 `t2-l1-flanks` in exact config order `257--264`.
+  S1-B3 `t3-rk-weight` in exact config order `266--273`, only after explicit
+  launch approval.
 
 | Config | Gate/site | Canonical run | Selection loss | `R_block` | `R_model` |
 | ---: | --- | --- | ---: | ---: | ---: |

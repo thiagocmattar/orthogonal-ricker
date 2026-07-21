@@ -312,8 +312,8 @@ matched orthogonal member; cover `A3` before `A6-POST`.
 | `T4-RK-BASIN` | Ricker `(0.3,0.05,0.05)` and `(0.3,0.5,0.5)`, both methods and both architectures |
 | `T5-RK-SHAPE` | Ricker `(0.3,0.1,0.05)` and `(0.3,0.1,0.2)`, both methods and both architectures |
 
-> Active tranche: `t2-l1-flanks` (`257--264`); B3 materialized/completed:
-> `16/40` / `8/40`. Diagnostic `265` is deliberately not materialized.
+> Active tranche: `t3-rk-weight` (`266--273`); B3 materialized/completed:
+> `24/40` / `16/40`. Diagnostic `274` is deliberately not materialized.
 
 After each tranche, reconcile all eight terminal manifests and run one pooled
 complete-selection propagation diagnostic before starting the next tranche.

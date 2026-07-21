@@ -329,34 +329,26 @@ runs remaining, and ETC for both the current run and the full set.
 The receiving agent independently verifies process state and manifests. A chat
 message is not sufficient evidence that a run completed.
 
-Current handoff: S1-B3 `t2-l1-flanks` is in prelaunch state with configs
-`257--264` materialized in exact queue order. Diagnostic `256` is closed,
-valid, and canonical. Prefix `265` remains reserved for the pooled diagnostic
-and must not be materialized until all eight tranche runs are terminal,
-audited, and reconciled.
+Current handoff: S1-B3 `t3-rk-weight` is in prelaunch state with configs
+`266--273` materialized in exact queue order. Diagnostic `265`, canonical run
+`001-20260721-111619-2544b63c`, is closed and valid. Prefix `274` is reserved
+for the pooled diagnostic and must not be materialized until all eight T3 runs
+are terminal, audited, and reconciled.
 
-Prepared local runner: `C:\tmp\osp-s1-b3-t2-runner` at launch commit
-`23247f860d474718bf888a2a11ad2f9132059912`. Its eight result junctions and
-token-cache junction are verified. Queue state
-`run-logs\s1-b3-t2-l1-flanks-257-264-queue.json` and child-log directory
-`run-logs\s1-b3-t2-l1-flanks-257-264\` must remain absent until an approved
-launch. The largest dependency-valid campaign below the 12-hour cap is T2
-followed, only after reconciliation and diagnostic `265`, by `t3-rk-weight`
-configs `266--273`. Measured-equivalent training is approximately 7 h 57 min;
-the conservative envelope including both pooled diagnostics and commit gates is
-10 h 55 min. T4 is excluded because T2+T3+T4 exceeds 12 hours before gates.
+Prepared local runner: `C:\tmp\osp-s1-b3-t3-runner` at launch commit
+`1f8ea98060bb08fc05589ffb6ea908e86b4143c3`. Its token-cache junction and all
+eight empty result junctions are verified. Queue state
+`run-logs\s1-b3-t3-rk-weight-266-273-queue.json` and child-log directory
+`run-logs\s1-b3-t3-rk-weight-266-273\` are absent and must remain absent until
+explicit launch approval. The T1-matched throughput estimate is about 4 h 11
+min for the eight training runs, before reconciliation and pooled diagnostic
+`274`.
 
-For the explicitly approved unattended T2+T3 launch, use
-`scripts/run_s1_b3_t2_t3_campaign.py`. It is one fail-closed owner process
-around two separate immutable queues: T2, reconciliation and diagnostic `265`,
-then T3 and diagnostic `274`. Between queues it verifies the emitted bundle
-hashes and expected registry delta, rejects any registered scientific hard
-execution-invalid flag, records non-invalidating screening flags in the emitted
-review bundle, runs the required checks, and commits each clean gate boundary.
-Its ignored atomic state is
-`run-logs/s1-b3-t2-t3-sequential-controller.json`. It never retries an attempt
-or kills an owned child at a wall-clock deadline; 10 h 55 min is the
-conservative ETC, not a forced timeout.
+The retained `s1-b3-t2-t3-sequential-controller.json` records the earlier
+post-T2 path-parser failure; T2 and diagnostic `265` were subsequently audited
+and closed. The parser and clean/dirty boundary gates were repaired in commit
+`ec76902`. Do not restart that terminal controller or reuse T2 queue state.
+When approved, launch only the T3 queue from the prepared detached runner.
 
 ## 11. Open-Source and Archive Policy
 
