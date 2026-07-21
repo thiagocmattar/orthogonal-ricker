@@ -308,7 +308,9 @@ def atomic_install(source: Path, destination: Path, *, must_be_new: bool = False
 
 def porcelain_paths() -> set[str]:
     paths: set[str] = set()
-    for line in git_text("status", "--porcelain=v1").splitlines():
+    # Preserve the leading two-character status field. git_text() strips the
+    # first line and would turn an unstaged " M path" entry into "M path".
+    for line in git("status", "--porcelain=v1").stdout.splitlines():
         if not line:
             continue
         path = line[3:]
@@ -318,18 +320,27 @@ def porcelain_paths() -> set[str]:
     return paths
 
 
-def validate_candidate() -> None:
+def validate_clean_tooling() -> None:
+    require_clean(ROOT)
     run([PYTHON, DRAFTS / "audit_b3_drafts.py"])
     run(
         [
             PYTHON,
             "-m",
             "unittest",
-            "tmp/s1-b3-config-drafts/test_prepare_b3_registration.py",
             "tmp/s1-b3-config-drafts/test_reconcile_b3_tranche.py",
             "tmp/s1-b3-config-drafts/test_reconcile_s1_pooled_diagnostic.py",
         ]
     )
+    run([PYTHON, "-m", "paper_exp.cli", "check"])
+    git("diff", "--check")
+
+
+def validate_candidate() -> None:
+    # The live dry-run and emitted bundle are the registration/reconciliation
+    # gates. Run state-coupled unit suites while the worktree is still clean;
+    # after candidate installation, validate only the resulting repository.
+    run([PYTHON, DRAFTS / "audit_b3_drafts.py"])
     run([PYTHON, "-m", "paper_exp.cli", "check"])
     git("diff", "--check")
 
@@ -434,6 +445,7 @@ def reconcile_tranche(
     expected_completed: int,
     commit_message: str,
 ) -> str:
+    validate_clean_tooling()
     output = DRAFTS / "reconciliation-review" / tranche
     ensure_absent(output, f"{tranche} reconciliation bundle")
     base = [PYTHON, DRAFTS / "reconcile_b3_tranche.py", "--tranche", tranche, "--queue-state", queue_state]
@@ -471,6 +483,7 @@ def run_diagnostic(diagnostic_id: str) -> None:
 
 
 def close_diagnostic(prefix: int, expected_completed: int, commit_message: str) -> tuple[str, Path]:
+    validate_clean_tooling()
     output = DRAFTS / "diagnostic-reconciliation-review" / f"diagnostic-{prefix}"
     ensure_absent(output, f"Diagnostic {prefix} closure bundle")
     base = [PYTHON, DRAFTS / "reconcile_s1_pooled_diagnostic.py", "--diagnostic", str(prefix)]
@@ -494,6 +507,7 @@ def close_diagnostic(prefix: int, expected_completed: int, commit_message: str) 
 
 
 def register_t3() -> str:
+    validate_clean_tooling()
     tranche = "t3-rk-weight"
     output = DRAFTS / "registration-review" / tranche
     ensure_absent(output, "T3 registration bundle")
