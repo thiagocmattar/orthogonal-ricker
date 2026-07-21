@@ -60,8 +60,8 @@ block_summary:
   materialized_cells: 16
   completed_cells: 16
   status: active
-  note: B3 t2-l1-flanks training tranche is terminal, audited, and reconciled through 16/40 scientific cells; pooled selection
-    diagnostic 265 must still complete and be reviewed before the next tranche is materialized.
+  note: Scientific cells are closed through t2-l1-flanks (16/40); pooled complete-selection diagnostic 265 is closed with
+    reviewed canonical evidence.
 - block: S1-B4
   planned_cells: 10
   materialized_cells: 0
@@ -8672,12 +8672,9 @@ records:
   ricker_sigma: null
   step_budget: null
   matched_control_id: null
-  config_status: ready
+  config_status: closed
   decision_status: control
   release_tier: history
-  canonical_run_id: null
-  notes: 'Review-only ready row for the B3 t2-l1-flanks pooled complete-selection diagnostic. Its eight source runs passed
-    tranche reconciliation in exact queue order: 001-20260720-220143-61942c18, 001-20260720-223306-420e0b23, 001-20260720-225504-f92b5d0d,
-    001-20260720-232849-0e049b91, 001-20260720-235338-2057966c, 001-20260721-002414-3be5c75b, 001-20260721-004611-f4b55e05,
-    001-20260721-011954-9595569e. Materialize this single diagnostic row/config only with the reviewed closure/run rows; the
-    following B3 scientific tranche remains blocked until this diagnostic completes and is reconciled.'
+  canonical_run_id: 001-20260721-111619-2544b63c
+  notes: Canonical diagnostic 001-20260721-111619-2544b63c passed complete-selection source, topology, exact-zero, integer
+    logical-product, architecture-ceiling, and endpoint-attachment review for all 8 sources.
