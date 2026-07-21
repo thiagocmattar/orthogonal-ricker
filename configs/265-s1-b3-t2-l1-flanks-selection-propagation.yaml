@@ -1,0 +1,71 @@
+experiment_name: 265_s1_b3_t2_l1_flanks_selection_propagation
+sweep:
+  name: pythia_sparsity_scaling_v1_s1_b3
+  role: t2_l1_flanks_selection_endpoint_diagnostic
+  design_id: S1-B3-DIAG-T2-L1-FLANKS-SELECTION-S0
+  notes: Complete frozen selection-partition exact-zero and logical-product diagnostic for the eight B3 T2_L1_FLANKS pressure
+    cells. Materialize only after all canonical source run ids exist.
+model:
+  provider: huggingface
+  name: pythia-14m-random-s1-b3-t2-l1-flanks-propagation
+  architecture: EleutherAI/pythia-14m-deduped
+  revision: 7386d9a4ae45aef494a6e704910394def3037fc5
+  initialization: random
+data:
+  name: JeanKaddour/minipile
+  revision: 18ad1b0c701eaa0de03d3cecfdd769cbc70ffbd0
+  split: validation
+  text_column: text
+  max_documents: 500
+evaluation:
+  metric: activation_propagation
+run:
+  seed: 0
+  max_examples: 500
+tokenizer:
+  name: EleutherAI/pythia-14m-deduped
+  revision: 7386d9a4ae45aef494a6e704910394def3037fc5
+preprocessing:
+  output_dir: data/tokenized
+  cache_id: 03-pythia-14m-minipile-random-full-10min
+  block_size: 2048
+  append_eos: true
+  overwrite: false
+validation:
+  enabled: true
+  split: validation
+  max_documents: 500
+  partition: selection
+  partition_scheme: shuffled_source_documents_half_v1
+  partition_seed: 20260718
+  partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
+  eval_batches: null
+  batch_size: 4
+activation_propagation:
+  selected_runs:
+  - label: A3 L1N w=0.15
+    config_id: 257-s1-b3-p14m-a3-l1n-w0p15-s0
+    run_id: 001-20260720-220143-61942c18
+  - label: A3 OL1 w=0.15
+    config_id: 258-s1-b3-p14m-a3-ol1-w0p15-s0
+    run_id: 001-20260720-223306-420e0b23
+  - label: A6-POST L1N w=0.15
+    config_id: 259-s1-b3-p14m-a6post-l1n-w0p15-s0
+    run_id: 001-20260720-225504-f92b5d0d
+  - label: A6-POST OL1 w=0.15
+    config_id: 260-s1-b3-p14m-a6post-ol1-w0p15-s0
+    run_id: 001-20260720-232849-0e049b91
+  - label: A3 L1N w=5
+    config_id: 261-s1-b3-p14m-a3-l1n-w5-s0
+    run_id: 001-20260720-235338-2057966c
+  - label: A3 OL1 w=5
+    config_id: 262-s1-b3-p14m-a3-ol1-w5-s0
+    run_id: 001-20260721-002414-3be5c75b
+  - label: A6-POST L1N w=5
+    config_id: 263-s1-b3-p14m-a6post-l1n-w5-s0
+    run_id: 001-20260721-004611-f4b55e05
+  - label: A6-POST OL1 w=5
+    config_id: 264-s1-b3-p14m-a6post-ol1-w5-s0
+    run_id: 001-20260721-011954-9595569e
+output:
+  dir: results
