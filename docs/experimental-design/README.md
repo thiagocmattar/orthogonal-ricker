@@ -11,8 +11,9 @@ work.
 - Planning date: 2026-07-18.
 - Scientific completion is 106/132 (80.30%): S1-B0 is 20/20, S1-B1 is 36/36,
   S1-B2 is 26/26, and S1-B3 is closed through `t3-rk-weight` at 24/40 after
-  reviewed pooled diagnostic `274`. The 2,048-step screen remains restricted
-  to feasibility/collapse and within-stratum comparisons.
+  reviewed pooled diagnostic `274`. T4 raises B3 materialization to 32/40 but
+  remains unlaunched. The 2,048-step screen remains restricted to
+  feasibility/collapse and within-stratum comparisons.
 - Learned-ATG engineering configs `211--219` completed all nine 128-step runs
   and passed the hard checkpoint/optimizer contract. Config `220`, run
   `001-20260719-190523-f28590eb`, completed and passed the exact center-first
@@ -41,9 +42,11 @@ work.
   [`14-s1-b3-t1-central-pressure-results.md`](14-s1-b3-t1-central-pressure-results.md),
   [`15-s1-b3-t2-l1-flank-results.md`](15-s1-b3-t2-l1-flank-results.md), and
   [`16-s1-b3-t3-ricker-weight-results.md`](16-s1-b3-t3-ricker-weight-results.md).
-  B3 is 24/40 materialized and complete; executable S1 is 106/132 complete.
-  Next prefix `275` is unused. Tranche `t4-rk-basin` is eligible but remains
-  unregistered and unlaunched.
+  B3 has 24/40 completed and 32/40 materialized cells; executable S1 is
+  106/132 complete. Tranche `t4-rk-basin` configs `275--282` are registered at
+  commit `360686d4e60dafe410640161211d3011ad53dd20` and staged in the clean
+  detached runner `C:\tmp\osp-s1-b3-t4-runner`. They remain unlaunched;
+  diagnostic `283` remains deferred.
 - The five central B0 anchors, configs `123--127`, completed and passed
   terminal review. Their final selection losses are `7.04913` (A0),
   `6.98875` (A1-H), `7.01310` (A3), `7.01645` (A6-PRE), and `7.03248`
@@ -54,7 +57,7 @@ work.
   `(weight,c,sigma)=(1,.1,.1)`, run `001-20260721-230936-46f9c77f`,
   selection loss `7.03909`.
 - Active scientific run: none. The next action, only after explicit approval,
-  is registration and preparation of S1-B3 `t4-rk-basin` configs `275--282`.
+  is the sequential launch of S1-B3 `t4-rk-basin` configs `275--282`.
 
 | Config | Gate/site | Canonical run | Selection loss | `R_block` | `R_model` |
 | ---: | --- | --- | ---: | ---: | ---: |

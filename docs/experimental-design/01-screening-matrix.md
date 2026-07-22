@@ -312,9 +312,9 @@ matched orthogonal member; cover `A3` before `A6-POST`.
 | `T4-RK-BASIN` | Ricker `(0.3,0.05,0.05)` and `(0.3,0.5,0.5)`, both methods and both architectures |
 | `T5-RK-SHAPE` | Ricker `(0.3,0.1,0.05)` and `(0.3,0.1,0.2)`, both methods and both architectures |
 
-> Completed through `t3-rk-weight`: B3 materialized/completed is `24/40` /
-> `24/40`. Next eligible tranche `t4-rk-basin` is not materialized; next
-> unused prefix is `275`, and diagnostic `283` remains deferred.
+> Completed through `t3-rk-weight`: B3 materialized/completed is `32/40` /
+> `24/40`. Tranche `t4-rk-basin` configs `275--282` are registered and staged
+> but unlaunched; diagnostic `283` remains deferred.
 
 After each tranche, reconcile all eight terminal manifests and run one pooled
 complete-selection propagation diagnostic before starting the next tranche.
