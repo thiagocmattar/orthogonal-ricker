@@ -9,9 +9,9 @@ work.
 
 - Campaign id: `pythia-sparsity-scaling-v1`.
 - Planning date: 2026-07-18.
-- Scientific completion is 90/132 (68.18%): S1-B0 is 20/20, S1-B1 is 36/36,
-  S1-B2 is 26/26, and S1-B3 is closed through `t1-central` at 8/40 after
-  reviewed pooled diagnostic `256`. The 2,048-step screen remains restricted
+- Scientific completion is 106/132 (80.30%): S1-B0 is 20/20, S1-B1 is 36/36,
+  S1-B2 is 26/26, and S1-B3 is closed through `t3-rk-weight` at 24/40 after
+  reviewed pooled diagnostic `274`. The 2,048-step screen remains restricted
   to feasibility/collapse and within-stratum comparisons.
 - Learned-ATG engineering configs `211--219` completed all nine 128-step runs
   and passed the hard checkpoint/optimizer contract. Config `220`, run
@@ -35,25 +35,26 @@ work.
   complete selection tokens. The canonical table, prespecified matched
   contrasts, safety checks, and interpretation boundary are consolidated in
   [`13-s1-b2-learned-atg-results.md`](13-s1-b2-learned-atg-results.md).
-- S1-B3 tranches `t1-central` (`248--255`) and `t2-l1-flanks` (`257--264`),
-  with pooled diagnostics `256` and `265`, are closed and canonical. T1
-  endpoints and matched contrasts are consolidated in
-  [`14-s1-b3-t1-central-pressure-results.md`](14-s1-b3-t1-central-pressure-results.md).
-  Tranche `t3-rk-weight` configs `266--273` are materialized and ready. B3 is
-  24/40 materialized and 16/40 complete; executable S1 is 98/132 complete.
-  Next prefix `274` remains deferred until all eight T3 runs are terminal,
-  audited, and reconciled.
+- S1-B3 tranches `t1-central` (`248--255`), `t2-l1-flanks` (`257--264`), and
+  `t3-rk-weight` (`266--273`), with pooled diagnostics `256`, `265`, and `274`,
+  are closed and canonical. Results are consolidated in
+  [`14-s1-b3-t1-central-pressure-results.md`](14-s1-b3-t1-central-pressure-results.md),
+  [`15-s1-b3-t2-l1-flank-results.md`](15-s1-b3-t2-l1-flank-results.md), and
+  [`16-s1-b3-t3-ricker-weight-results.md`](16-s1-b3-t3-ricker-weight-results.md).
+  B3 is 24/40 materialized and complete; executable S1 is 106/132 complete.
+  Next prefix `275` is unused. Tranche `t4-rk-basin` is eligible but remains
+  unregistered and unlaunched.
 - The five central B0 anchors, configs `123--127`, completed and passed
   terminal review. Their final selection losses are `7.04913` (A0),
   `6.98875` (A1-H), `7.01310` (A3), `7.01645` (A6-PRE), and `7.03248`
   (A6-POST). Config `128`, the combined selection-partition endpoint
   diagnostic, also completed and passed artifact review. Configs `121--122`
   remain accepted engineering controls.
-- Last durably completed scientific run: config `264`, A6-POST OL1 at weight
-  `5`, run `001-20260721-011954-9595569e`, selection loss `7.03870`.
-- Active scientific run: none. The next action is the fail-stop launch of
-  S1-B3 `t3-rk-weight` in exact config order `266--273`, only after explicit
-  launch approval.
+- Last durably completed scientific run: config `273`, A6-POST OR at
+  `(weight,c,sigma)=(1,.1,.1)`, run `001-20260721-230936-46f9c77f`,
+  selection loss `7.03909`.
+- Active scientific run: none. The next action, only after explicit approval,
+  is registration and preparation of S1-B3 `t4-rk-basin` configs `275--282`.
 
 | Config | Gate/site | Canonical run | Selection loss | `R_block` | `R_model` |
 | ---: | --- | --- | ---: | ---: | ---: |
@@ -261,7 +262,7 @@ work.
   `001-20260719-182227-8a286ad9`, closes S1-B1.
 - B0 has completed all `20 / 20` currently executable scientific cells
   (`20 / 22` declared); the two post-PV context cells remain blocked. The
-  declared S1 core has completed `56 / 134` cells (`56 / 132` executable).
+  declared S1 core has completed `106 / 134` cells (`106 / 132` executable).
   Diagnostic configs do not count as scientific cells.
 - S1 must never use a global rank cutoff. Complete matched method panels from
   viable families advance to the 8,192-step rung under the frozen policy in

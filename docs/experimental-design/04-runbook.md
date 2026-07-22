@@ -329,26 +329,21 @@ runs remaining, and ETC for both the current run and the full set.
 The receiving agent independently verifies process state and manifests. A chat
 message is not sufficient evidence that a run completed.
 
-Current handoff: S1-B3 `t3-rk-weight` is in prelaunch state with configs
-`266--273` materialized in exact queue order. Diagnostic `265`, canonical run
-`001-20260721-111619-2544b63c`, is closed and valid. Prefix `274` is reserved
-for the pooled diagnostic and must not be materialized until all eight T3 runs
-are terminal, audited, and reconciled.
+Current handoff: S1-B3 `t3-rk-weight` configs `266--273` and pooled diagnostic
+`274` are closed, valid, and canonical. Diagnostic run
+`001-20260722-125811-41dc3d92` pooled all eight endpoints over 311,296 selection
+tokens. S1 is 106/132 complete; B3 is 24/40 materialized and complete.
 
-Prepared local runner: `C:\tmp\osp-s1-b3-t3-runner` at launch commit
-`1f8ea98060bb08fc05589ffb6ea908e86b4143c3`. Its token-cache junction and all
-eight empty result junctions are verified. Queue state
-`run-logs\s1-b3-t3-rk-weight-266-273-queue.json` and child-log directory
-`run-logs\s1-b3-t3-rk-weight-266-273\` are absent and must remain absent until
-explicit launch approval. The T1-matched throughput estimate is about 4 h 11
-min for the eight training runs, before reconciliation and pooled diagnostic
-`274`.
+The completed T3 queue state is
+`run-logs\s1-b3-t3-rk-weight-266-273-queue.json`. Its retained detached runner
+is `C:\tmp\osp-s1-b3-t3-runner` at launch commit
+`1f8ea98060bb08fc05589ffb6ea908e86b4143c3`; no process remains active. Do not
+reuse its queue state for another tranche.
 
-The retained `s1-b3-t2-t3-sequential-controller.json` records the earlier
-post-T2 path-parser failure; T2 and diagnostic `265` were subsequently audited
-and closed. The parser and clean/dirty boundary gates were repaired in commit
-`ec76902`. Do not restart that terminal controller or reuse T2 queue state.
-When approved, launch only the T3 queue from the prepared detached runner.
+Next gate: `t4-rk-basin` configs `275--282` are eligible but not registered.
+Prefix `275` is the next unused prefix; diagnostic `283` remains deferred.
+Generate and independently review the T4 registration bundle, create a fresh
+detached runner and result roots, and wait for explicit launch approval.
 
 ## 11. Open-Source and Archive Policy
 
