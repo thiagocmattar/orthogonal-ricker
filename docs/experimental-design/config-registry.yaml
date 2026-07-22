@@ -1,6 +1,6 @@
 schema_version: 1
 campaign_id: pythia-sparsity-scaling-v1
-next_config_prefix: 275
+next_config_prefix: 283
 core_design_cells: 134
 core_executable_cells_without_context_gate: 132
 maximum_design_cells: 184
@@ -57,11 +57,11 @@ block_summary:
     reviewed canonical evidence.
 - block: S1-B3
   planned_cells: 40
-  materialized_cells: 24
+  materialized_cells: 32
   completed_cells: 24
   status: active
-  note: Scientific cells are closed through t3-rk-weight (24/40); pooled complete-selection diagnostic 274 is closed with
-    reviewed canonical evidence.
+  note: B3 t4-rk-basin scientific configs 275--282 are materialized and ready; 32/40 cells are materialized and 24/40 are
+    complete. Diagnostic 283 remains deferred until this tranche is terminal and reconciled.
 - block: S1-B4
   planned_cells: 10
   materialized_cells: 0
@@ -9212,3 +9212,459 @@ records:
   canonical_run_id: 001-20260722-125811-41dc3d92
   notes: Canonical diagnostic 001-20260722-125811-41dc3d92 passed complete-selection source, topology, exact-zero, integer
     logical-product, architecture-ceiling, and endpoint-attachment review for all 8 sources.
+- design_id: S1-B3-RK-A3-RN-W0P3-C0P05-SG0P05-ALLACTIVE-S0
+  config_id: 275-s1-b3-p14m-a3-rn-w0p3-c0p05-sg0p05-s0
+  config_path: configs/275-s1-b3-p14m-a3-rn-w0p3-c0p05-sg0p05-s0.yaml
+  phase: S1
+  block: S1-B3
+  comparison_id: S1-B3-T4-RK-BASIN
+  pair_id: S1-B3-RK-A3-W0P3-C0P05-SG0P05-ALLACTIVE
+  promotion_family: B3-RICKER-A3
+  kind: scientific
+  model_size: 14M
+  steps: 2048
+  tokens: 134217728
+  model_initialization_seed: 0
+  data_order_seed: 0
+  training_schedule_scheme: random_contiguous_blocks_with_replacement_v1
+  training_schedule_hash: db4fa092d7092d29edc3bf1e2005af69f4a92b8bf6e6d88cbb6a166e12be02fc
+  effective_tokens_per_update: 65536
+  validation_partition: selection
+  validation_partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
+  architecture_id: A3
+  gate_family: gplus
+  gate_sites:
+  - a
+  - m
+  - h
+  qk_placement: null
+  kappa_mode: fixed
+  kappa: 0.0
+  kappa_init: null
+  kappa_scope: all_active_gates
+  threshold_scale: absolute
+  surrogate: null
+  temperature: null
+  threshold_learning_rate: null
+  optimizer_recipe: harness_adamw
+  model_learning_rate: 3.0e-05
+  micro_batch_size: 4
+  gradient_accumulation_steps: 8
+  pressure_method: ricker_naive
+  pressure_sites:
+  - attention_inputs
+  - mlp_inputs
+  - mlp_hiddens
+  pressure_weight: 0.3
+  ricker_c: 0.05
+  ricker_sigma: 0.05
+  step_budget: null
+  matched_control_id: S1-B0-ARCH-A3-LR3EM5-S0
+  config_status: ready
+  decision_status: pending
+  release_tier: history
+  canonical_run_id: null
+  notes: Draft-ready B3 t4-rk-basin RN cell on ordinary-ReLU A3; pressure targets all active gates. Materialize and commit
+    only when the preceding tranche diagnostic has passed.
+- design_id: S1-B3-RK-A3-OR-W0P3-C0P05-SG0P05-ALLACTIVE-S0
+  config_id: 276-s1-b3-p14m-a3-or-w0p3-c0p05-sg0p05-s0
+  config_path: configs/276-s1-b3-p14m-a3-or-w0p3-c0p05-sg0p05-s0.yaml
+  phase: S1
+  block: S1-B3
+  comparison_id: S1-B3-T4-RK-BASIN
+  pair_id: S1-B3-RK-A3-W0P3-C0P05-SG0P05-ALLACTIVE
+  promotion_family: B3-RICKER-A3
+  kind: scientific
+  model_size: 14M
+  steps: 2048
+  tokens: 134217728
+  model_initialization_seed: 0
+  data_order_seed: 0
+  training_schedule_scheme: random_contiguous_blocks_with_replacement_v1
+  training_schedule_hash: db4fa092d7092d29edc3bf1e2005af69f4a92b8bf6e6d88cbb6a166e12be02fc
+  effective_tokens_per_update: 65536
+  validation_partition: selection
+  validation_partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
+  architecture_id: A3
+  gate_family: gplus
+  gate_sites:
+  - a
+  - m
+  - h
+  qk_placement: null
+  kappa_mode: fixed
+  kappa: 0.0
+  kappa_init: null
+  kappa_scope: all_active_gates
+  threshold_scale: absolute
+  surrogate: null
+  temperature: null
+  threshold_learning_rate: null
+  optimizer_recipe: harness_adamw
+  model_learning_rate: 3.0e-05
+  micro_batch_size: 4
+  gradient_accumulation_steps: 8
+  pressure_method: orthogonal_ricker
+  pressure_sites:
+  - attention_inputs
+  - mlp_inputs
+  - mlp_hiddens
+  pressure_weight: 0.3
+  ricker_c: 0.05
+  ricker_sigma: 0.05
+  step_budget: 0.5
+  matched_control_id: S1-B0-ARCH-A3-LR3EM5-S0
+  config_status: ready
+  decision_status: pending
+  release_tier: history
+  canonical_run_id: null
+  notes: Draft-ready B3 t4-rk-basin OR cell on ordinary-ReLU A3; pressure targets all active gates. Materialize and commit
+    only when the preceding tranche diagnostic has passed.
+- design_id: S1-B3-RK-A6POST-RN-W0P3-C0P05-SG0P05-ALLACTIVE-S0
+  config_id: 277-s1-b3-p14m-a6post-rn-w0p3-c0p05-sg0p05-s0
+  config_path: configs/277-s1-b3-p14m-a6post-rn-w0p3-c0p05-sg0p05-s0.yaml
+  phase: S1
+  block: S1-B3
+  comparison_id: S1-B3-T4-RK-BASIN
+  pair_id: S1-B3-RK-A6POST-W0P3-C0P05-SG0P05-ALLACTIVE
+  promotion_family: B3-RICKER-A6POST
+  kind: scientific
+  model_size: 14M
+  steps: 2048
+  tokens: 134217728
+  model_initialization_seed: 0
+  data_order_seed: 0
+  training_schedule_scheme: random_contiguous_blocks_with_replacement_v1
+  training_schedule_hash: db4fa092d7092d29edc3bf1e2005af69f4a92b8bf6e6d88cbb6a166e12be02fc
+  effective_tokens_per_update: 65536
+  validation_partition: selection
+  validation_partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
+  architecture_id: A6-POST
+  gate_family: gplus
+  gate_sites:
+  - a
+  - m
+  - h
+  - q
+  - k
+  - v
+  qk_placement: post_rope
+  kappa_mode: fixed
+  kappa: 0.0
+  kappa_init: null
+  kappa_scope: all_active_gates
+  threshold_scale: absolute
+  surrogate: null
+  temperature: null
+  threshold_learning_rate: null
+  optimizer_recipe: harness_adamw
+  model_learning_rate: 3.0e-05
+  micro_batch_size: 4
+  gradient_accumulation_steps: 8
+  pressure_method: ricker_naive
+  pressure_sites:
+  - attention_inputs
+  - mlp_inputs
+  - mlp_hiddens
+  - query_gate_outputs
+  - key_gate_outputs
+  - value_gate_outputs
+  pressure_weight: 0.3
+  ricker_c: 0.05
+  ricker_sigma: 0.05
+  step_budget: null
+  matched_control_id: S1-B0-ARCH-A6POST-LR3EM5-S0
+  config_status: ready
+  decision_status: pending
+  release_tier: history
+  canonical_run_id: null
+  notes: Draft-ready B3 t4-rk-basin RN cell on ordinary-ReLU A6-POST; pressure targets all active gates. Materialize and commit
+    only when the preceding tranche diagnostic has passed.
+- design_id: S1-B3-RK-A6POST-OR-W0P3-C0P05-SG0P05-ALLACTIVE-S0
+  config_id: 278-s1-b3-p14m-a6post-or-w0p3-c0p05-sg0p05-s0
+  config_path: configs/278-s1-b3-p14m-a6post-or-w0p3-c0p05-sg0p05-s0.yaml
+  phase: S1
+  block: S1-B3
+  comparison_id: S1-B3-T4-RK-BASIN
+  pair_id: S1-B3-RK-A6POST-W0P3-C0P05-SG0P05-ALLACTIVE
+  promotion_family: B3-RICKER-A6POST
+  kind: scientific
+  model_size: 14M
+  steps: 2048
+  tokens: 134217728
+  model_initialization_seed: 0
+  data_order_seed: 0
+  training_schedule_scheme: random_contiguous_blocks_with_replacement_v1
+  training_schedule_hash: db4fa092d7092d29edc3bf1e2005af69f4a92b8bf6e6d88cbb6a166e12be02fc
+  effective_tokens_per_update: 65536
+  validation_partition: selection
+  validation_partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
+  architecture_id: A6-POST
+  gate_family: gplus
+  gate_sites:
+  - a
+  - m
+  - h
+  - q
+  - k
+  - v
+  qk_placement: post_rope
+  kappa_mode: fixed
+  kappa: 0.0
+  kappa_init: null
+  kappa_scope: all_active_gates
+  threshold_scale: absolute
+  surrogate: null
+  temperature: null
+  threshold_learning_rate: null
+  optimizer_recipe: harness_adamw
+  model_learning_rate: 3.0e-05
+  micro_batch_size: 4
+  gradient_accumulation_steps: 8
+  pressure_method: orthogonal_ricker
+  pressure_sites:
+  - attention_inputs
+  - mlp_inputs
+  - mlp_hiddens
+  - query_gate_outputs
+  - key_gate_outputs
+  - value_gate_outputs
+  pressure_weight: 0.3
+  ricker_c: 0.05
+  ricker_sigma: 0.05
+  step_budget: 0.5
+  matched_control_id: S1-B0-ARCH-A6POST-LR3EM5-S0
+  config_status: ready
+  decision_status: pending
+  release_tier: history
+  canonical_run_id: null
+  notes: Draft-ready B3 t4-rk-basin OR cell on ordinary-ReLU A6-POST; pressure targets all active gates. Materialize and commit
+    only when the preceding tranche diagnostic has passed.
+- design_id: S1-B3-RK-A3-RN-W0P3-C0P5-SG0P5-ALLACTIVE-S0
+  config_id: 279-s1-b3-p14m-a3-rn-w0p3-c0p5-sg0p5-s0
+  config_path: configs/279-s1-b3-p14m-a3-rn-w0p3-c0p5-sg0p5-s0.yaml
+  phase: S1
+  block: S1-B3
+  comparison_id: S1-B3-T4-RK-BASIN
+  pair_id: S1-B3-RK-A3-W0P3-C0P5-SG0P5-ALLACTIVE
+  promotion_family: B3-RICKER-A3
+  kind: scientific
+  model_size: 14M
+  steps: 2048
+  tokens: 134217728
+  model_initialization_seed: 0
+  data_order_seed: 0
+  training_schedule_scheme: random_contiguous_blocks_with_replacement_v1
+  training_schedule_hash: db4fa092d7092d29edc3bf1e2005af69f4a92b8bf6e6d88cbb6a166e12be02fc
+  effective_tokens_per_update: 65536
+  validation_partition: selection
+  validation_partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
+  architecture_id: A3
+  gate_family: gplus
+  gate_sites:
+  - a
+  - m
+  - h
+  qk_placement: null
+  kappa_mode: fixed
+  kappa: 0.0
+  kappa_init: null
+  kappa_scope: all_active_gates
+  threshold_scale: absolute
+  surrogate: null
+  temperature: null
+  threshold_learning_rate: null
+  optimizer_recipe: harness_adamw
+  model_learning_rate: 3.0e-05
+  micro_batch_size: 4
+  gradient_accumulation_steps: 8
+  pressure_method: ricker_naive
+  pressure_sites:
+  - attention_inputs
+  - mlp_inputs
+  - mlp_hiddens
+  pressure_weight: 0.3
+  ricker_c: 0.5
+  ricker_sigma: 0.5
+  step_budget: null
+  matched_control_id: S1-B0-ARCH-A3-LR3EM5-S0
+  config_status: ready
+  decision_status: pending
+  release_tier: history
+  canonical_run_id: null
+  notes: Draft-ready B3 t4-rk-basin RN cell on ordinary-ReLU A3; pressure targets all active gates. Materialize and commit
+    only when the preceding tranche diagnostic has passed.
+- design_id: S1-B3-RK-A3-OR-W0P3-C0P5-SG0P5-ALLACTIVE-S0
+  config_id: 280-s1-b3-p14m-a3-or-w0p3-c0p5-sg0p5-s0
+  config_path: configs/280-s1-b3-p14m-a3-or-w0p3-c0p5-sg0p5-s0.yaml
+  phase: S1
+  block: S1-B3
+  comparison_id: S1-B3-T4-RK-BASIN
+  pair_id: S1-B3-RK-A3-W0P3-C0P5-SG0P5-ALLACTIVE
+  promotion_family: B3-RICKER-A3
+  kind: scientific
+  model_size: 14M
+  steps: 2048
+  tokens: 134217728
+  model_initialization_seed: 0
+  data_order_seed: 0
+  training_schedule_scheme: random_contiguous_blocks_with_replacement_v1
+  training_schedule_hash: db4fa092d7092d29edc3bf1e2005af69f4a92b8bf6e6d88cbb6a166e12be02fc
+  effective_tokens_per_update: 65536
+  validation_partition: selection
+  validation_partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
+  architecture_id: A3
+  gate_family: gplus
+  gate_sites:
+  - a
+  - m
+  - h
+  qk_placement: null
+  kappa_mode: fixed
+  kappa: 0.0
+  kappa_init: null
+  kappa_scope: all_active_gates
+  threshold_scale: absolute
+  surrogate: null
+  temperature: null
+  threshold_learning_rate: null
+  optimizer_recipe: harness_adamw
+  model_learning_rate: 3.0e-05
+  micro_batch_size: 4
+  gradient_accumulation_steps: 8
+  pressure_method: orthogonal_ricker
+  pressure_sites:
+  - attention_inputs
+  - mlp_inputs
+  - mlp_hiddens
+  pressure_weight: 0.3
+  ricker_c: 0.5
+  ricker_sigma: 0.5
+  step_budget: 0.5
+  matched_control_id: S1-B0-ARCH-A3-LR3EM5-S0
+  config_status: ready
+  decision_status: pending
+  release_tier: history
+  canonical_run_id: null
+  notes: Draft-ready B3 t4-rk-basin OR cell on ordinary-ReLU A3; pressure targets all active gates. Materialize and commit
+    only when the preceding tranche diagnostic has passed.
+- design_id: S1-B3-RK-A6POST-RN-W0P3-C0P5-SG0P5-ALLACTIVE-S0
+  config_id: 281-s1-b3-p14m-a6post-rn-w0p3-c0p5-sg0p5-s0
+  config_path: configs/281-s1-b3-p14m-a6post-rn-w0p3-c0p5-sg0p5-s0.yaml
+  phase: S1
+  block: S1-B3
+  comparison_id: S1-B3-T4-RK-BASIN
+  pair_id: S1-B3-RK-A6POST-W0P3-C0P5-SG0P5-ALLACTIVE
+  promotion_family: B3-RICKER-A6POST
+  kind: scientific
+  model_size: 14M
+  steps: 2048
+  tokens: 134217728
+  model_initialization_seed: 0
+  data_order_seed: 0
+  training_schedule_scheme: random_contiguous_blocks_with_replacement_v1
+  training_schedule_hash: db4fa092d7092d29edc3bf1e2005af69f4a92b8bf6e6d88cbb6a166e12be02fc
+  effective_tokens_per_update: 65536
+  validation_partition: selection
+  validation_partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
+  architecture_id: A6-POST
+  gate_family: gplus
+  gate_sites:
+  - a
+  - m
+  - h
+  - q
+  - k
+  - v
+  qk_placement: post_rope
+  kappa_mode: fixed
+  kappa: 0.0
+  kappa_init: null
+  kappa_scope: all_active_gates
+  threshold_scale: absolute
+  surrogate: null
+  temperature: null
+  threshold_learning_rate: null
+  optimizer_recipe: harness_adamw
+  model_learning_rate: 3.0e-05
+  micro_batch_size: 4
+  gradient_accumulation_steps: 8
+  pressure_method: ricker_naive
+  pressure_sites:
+  - attention_inputs
+  - mlp_inputs
+  - mlp_hiddens
+  - query_gate_outputs
+  - key_gate_outputs
+  - value_gate_outputs
+  pressure_weight: 0.3
+  ricker_c: 0.5
+  ricker_sigma: 0.5
+  step_budget: null
+  matched_control_id: S1-B0-ARCH-A6POST-LR3EM5-S0
+  config_status: ready
+  decision_status: pending
+  release_tier: history
+  canonical_run_id: null
+  notes: Draft-ready B3 t4-rk-basin RN cell on ordinary-ReLU A6-POST; pressure targets all active gates. Materialize and commit
+    only when the preceding tranche diagnostic has passed.
+- design_id: S1-B3-RK-A6POST-OR-W0P3-C0P5-SG0P5-ALLACTIVE-S0
+  config_id: 282-s1-b3-p14m-a6post-or-w0p3-c0p5-sg0p5-s0
+  config_path: configs/282-s1-b3-p14m-a6post-or-w0p3-c0p5-sg0p5-s0.yaml
+  phase: S1
+  block: S1-B3
+  comparison_id: S1-B3-T4-RK-BASIN
+  pair_id: S1-B3-RK-A6POST-W0P3-C0P5-SG0P5-ALLACTIVE
+  promotion_family: B3-RICKER-A6POST
+  kind: scientific
+  model_size: 14M
+  steps: 2048
+  tokens: 134217728
+  model_initialization_seed: 0
+  data_order_seed: 0
+  training_schedule_scheme: random_contiguous_blocks_with_replacement_v1
+  training_schedule_hash: db4fa092d7092d29edc3bf1e2005af69f4a92b8bf6e6d88cbb6a166e12be02fc
+  effective_tokens_per_update: 65536
+  validation_partition: selection
+  validation_partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
+  architecture_id: A6-POST
+  gate_family: gplus
+  gate_sites:
+  - a
+  - m
+  - h
+  - q
+  - k
+  - v
+  qk_placement: post_rope
+  kappa_mode: fixed
+  kappa: 0.0
+  kappa_init: null
+  kappa_scope: all_active_gates
+  threshold_scale: absolute
+  surrogate: null
+  temperature: null
+  threshold_learning_rate: null
+  optimizer_recipe: harness_adamw
+  model_learning_rate: 3.0e-05
+  micro_batch_size: 4
+  gradient_accumulation_steps: 8
+  pressure_method: orthogonal_ricker
+  pressure_sites:
+  - attention_inputs
+  - mlp_inputs
+  - mlp_hiddens
+  - query_gate_outputs
+  - key_gate_outputs
+  - value_gate_outputs
+  pressure_weight: 0.3
+  ricker_c: 0.5
+  ricker_sigma: 0.5
+  step_budget: 0.5
+  matched_control_id: S1-B0-ARCH-A6POST-LR3EM5-S0
+  config_status: ready
+  decision_status: pending
+  release_tier: history
+  canonical_run_id: null
+  notes: Draft-ready B3 t4-rk-basin OR cell on ordinary-ReLU A6-POST; pressure targets all active gates. Materialize and commit
+    only when the preceding tranche diagnostic has passed.
