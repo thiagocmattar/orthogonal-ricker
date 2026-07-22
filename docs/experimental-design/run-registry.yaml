@@ -10797,22 +10797,22 @@ records:
   resumed_from_run_id: null
   resume_checkpoint_sha256: null
   artifact_upload_verified_at: null
-  propagation_result_path: null
-  r_block: null
-  r_model: null
-  r_block_max: null
-  r_model_max: null
-  u_arch: null
-  z_a: null
-  z_m: null
-  z_h: null
+  propagation_result_path: results/274-s1-b3-t3-rk-weight-selection-propagation/001-20260722-125811-41dc3d92/activation_propagation.json
+  r_block: 0.24134182896507084
+  r_model: 0.07228761440720018
+  r_block_max: 0.3927475592747559
+  r_model_max: 0.11763722950956639
+  u_arch: 0.6144960630964339
+  z_a: 0.6106948308777391
+  z_m: 0.6080574361901534
+  z_h: 0.623785466478582
   z_q_gate: null
   z_k_gate: null
   z_v_gate: null
-  z_q_qk: null
-  z_k_qk: null
-  z_v_pv: null
-  z_context_wo: null
+  z_q_qk: 8.365564179002193e-09
+  z_k_qk: 2.5096692537006578e-08
+  z_v_pv: 2.5096692537006578e-08
+  z_context_wo: 0.0
   clipping_result_paths: []
   figure_ids: []
   failure_type: null
@@ -10825,7 +10825,8 @@ records:
     and 10 complete-selection validation events. Final validation loss was 7.03682902; final model SHA-256 is cfff70b98c93eab65f4a2f2db750c22ae252ae5075a986a3882324fa2a5baa34.
     Saved-config, clean single-commit provenance, finite-event, checkpoint, pressure-pair, and step-budget checks passed.
     Screening flags: universal_collapse=False, loss_instability=False, sparsity_evaporation=False. Complete-selection exact-zero
-    and logical-product fields remain null until the pooled diagnostic is run and reconciled.'
+    and logical-product fields remain null until the pooled diagnostic is run and reconciled. Complete-selection pooled exact-zero/product
+    endpoints are attached from canonical diagnostic 274 (results/274-s1-b3-t3-rk-weight-selection-propagation/001-20260722-125811-41dc3d92/activation_propagation.json).'
 - design_id: S1-B3-RK-A3-OR-W0P1-C0P1-SG0P1-ALLACTIVE-S0
   config_id: 267-s1-b3-p14m-a3-or-w0p1-c0p1-sg0p1-s0
   run_id: 001-20260721-195956-2b261cee
@@ -10883,22 +10884,22 @@ records:
   resumed_from_run_id: null
   resume_checkpoint_sha256: null
   artifact_upload_verified_at: null
-  propagation_result_path: null
-  r_block: null
-  r_model: null
-  r_block_max: null
-  r_model_max: null
-  u_arch: null
-  z_a: null
-  z_m: null
-  z_h: null
+  propagation_result_path: results/274-s1-b3-t3-rk-weight-selection-propagation/001-20260722-125811-41dc3d92/activation_propagation.json
+  r_block: 0.2431852882511449
+  r_model: 0.07283977428192451
+  r_block_max: 0.3927475592747559
+  r_model_max: 0.11763722950956639
+  u_arch: 0.6191898141905926
+  z_a: 0.6140568758312025
+  z_m: 0.6093403665642989
+  z_h: 0.6328888420473066
   z_q_gate: null
   z_k_gate: null
   z_v_gate: null
-  z_q_qk: null
-  z_k_qk: null
-  z_v_pv: null
-  z_context_wo: null
+  z_q_qk: 8.365564179002193e-09
+  z_k_qk: 1.2548346268503289e-08
+  z_v_pv: 5.855894925301535e-08
+  z_context_wo: 4.182782089501096e-09
   clipping_result_paths: []
   figure_ids: []
   failure_type: null
@@ -10911,7 +10912,8 @@ records:
     and 10 complete-selection validation events. Final validation loss was 7.03120582; final model SHA-256 is 540a4e35c6beacc0bb5e3deed9352226617286963e5310735eb8ffa0992ef022.
     Saved-config, clean single-commit provenance, finite-event, checkpoint, pressure-pair, and step-budget checks passed.
     Screening flags: universal_collapse=False, loss_instability=False, sparsity_evaporation=False. Complete-selection exact-zero
-    and logical-product fields remain null until the pooled diagnostic is run and reconciled.'
+    and logical-product fields remain null until the pooled diagnostic is run and reconciled. Complete-selection pooled exact-zero/product
+    endpoints are attached from canonical diagnostic 274 (results/274-s1-b3-t3-rk-weight-selection-propagation/001-20260722-125811-41dc3d92/activation_propagation.json).'
 - design_id: S1-B3-RK-A6POST-RN-W0P1-C0P1-SG0P1-ALLACTIVE-S0
   config_id: 268-s1-b3-p14m-a6post-rn-w0p1-c0p1-sg0p1-s0
   run_id: 001-20260721-202429-2e616ef0
@@ -10969,22 +10971,22 @@ records:
   resumed_from_run_id: null
   resume_checkpoint_sha256: null
   artifact_upload_verified_at: null
-  propagation_result_path: null
-  r_block: null
-  r_model: null
-  r_block_max: null
-  r_model_max: null
-  u_arch: null
-  z_a: null
-  z_m: null
-  z_h: null
-  z_q_gate: null
-  z_k_gate: null
-  z_v_gate: null
-  z_q_qk: null
-  z_k_qk: null
-  z_v_pv: null
-  z_context_wo: null
+  propagation_result_path: results/274-s1-b3-t3-rk-weight-selection-propagation/001-20260722-125811-41dc3d92/activation_propagation.json
+  r_block: 0.7305733793817725
+  r_model: 0.21882409266301733
+  r_block_max: 1.0
+  r_model_max: 0.2995237697384911
+  u_arch: 0.7305733793817726
+  z_a: 0.5681542053557279
+  z_m: 0.5641079785531027
+  z_h: 0.5527057835930272
+  z_q_gate: 0.8596138410400926
+  z_k_gate: 0.8502145984716583
+  z_v_gate: 0.8234695886310778
+  z_q_qk: 0.8596138410400926
+  z_k_qk: 0.8502145984716583
+  z_v_pv: 0.8234695886310778
+  z_context_wo: 0.0916142505511903
   clipping_result_paths: []
   figure_ids: []
   failure_type: null
@@ -10997,7 +10999,8 @@ records:
     and 10 complete-selection validation events. Final validation loss was 7.05868370; final model SHA-256 is ad9c13af755e9acc7e504abc8a6ad8e763d6b0902f98a2f1dbf60dbf8f878a4f.
     Saved-config, clean single-commit provenance, finite-event, checkpoint, pressure-pair, and step-budget checks passed.
     Screening flags: universal_collapse=False, loss_instability=False, sparsity_evaporation=False. Complete-selection exact-zero
-    and logical-product fields remain null until the pooled diagnostic is run and reconciled.'
+    and logical-product fields remain null until the pooled diagnostic is run and reconciled. Complete-selection pooled exact-zero/product
+    endpoints are attached from canonical diagnostic 274 (results/274-s1-b3-t3-rk-weight-selection-propagation/001-20260722-125811-41dc3d92/activation_propagation.json).'
 - design_id: S1-B3-RK-A6POST-OR-W0P1-C0P1-SG0P1-ALLACTIVE-S0
   config_id: 269-s1-b3-p14m-a6post-or-w0p1-c0p1-sg0p1-s0
   run_id: 001-20260721-210342-6253f8d0
@@ -11055,22 +11058,22 @@ records:
   resumed_from_run_id: null
   resume_checkpoint_sha256: null
   artifact_upload_verified_at: null
-  propagation_result_path: null
-  r_block: null
-  r_model: null
-  r_block_max: null
-  r_model_max: null
-  u_arch: null
-  z_a: null
-  z_m: null
-  z_h: null
-  z_q_gate: null
-  z_k_gate: null
-  z_v_gate: null
-  z_q_qk: null
-  z_k_qk: null
-  z_v_pv: null
-  z_context_wo: null
+  propagation_result_path: results/274-s1-b3-t3-rk-weight-selection-propagation/001-20260722-125811-41dc3d92/activation_propagation.json
+  r_block: 0.5858443641228568
+  r_model: 0.1754743124221273
+  r_block_max: 1.0
+  r_model_max: 0.2995237697384911
+  u_arch: 0.5858443641228568
+  z_a: 0.5109053285498368
+  z_m: 0.5114959833914774
+  z_h: 0.4598130688332675
+  z_q_gate: 0.8373007230591356
+  z_k_gate: 0.8243948367604038
+  z_v_gate: 0.44861710698981033
+  z_q_qk: 0.8373007230591356
+  z_k_qk: 0.8243948367604038
+  z_v_pv: 0.44861710698981033
+  z_context_wo: 0.012679505766483775
   clipping_result_paths: []
   figure_ids: []
   failure_type: null
@@ -11083,7 +11086,8 @@ records:
     and 10 complete-selection validation events. Final validation loss was 7.03925906; final model SHA-256 is 5945b065a0f162b356fd061384ffe5577e20d2241e053dfeee01ac90503b3a01.
     Saved-config, clean single-commit provenance, finite-event, checkpoint, pressure-pair, and step-budget checks passed.
     Screening flags: universal_collapse=False, loss_instability=False, sparsity_evaporation=False. Complete-selection exact-zero
-    and logical-product fields remain null until the pooled diagnostic is run and reconciled.'
+    and logical-product fields remain null until the pooled diagnostic is run and reconciled. Complete-selection pooled exact-zero/product
+    endpoints are attached from canonical diagnostic 274 (results/274-s1-b3-t3-rk-weight-selection-propagation/001-20260722-125811-41dc3d92/activation_propagation.json).'
 - design_id: S1-B3-RK-A3-RN-W1-C0P1-SG0P1-ALLACTIVE-S0
   config_id: 270-s1-b3-p14m-a3-rn-w1-c0p1-sg0p1-s0
   run_id: 001-20260721-213210-cee5bf80
@@ -11141,22 +11145,22 @@ records:
   resumed_from_run_id: null
   resume_checkpoint_sha256: null
   artifact_upload_verified_at: null
-  propagation_result_path: null
-  r_block: null
-  r_model: null
-  r_block_max: null
-  r_model_max: null
-  u_arch: null
-  z_a: null
-  z_m: null
-  z_h: null
+  propagation_result_path: results/274-s1-b3-t3-rk-weight-selection-propagation/001-20260722-125811-41dc3d92/activation_propagation.json
+  r_block: 0.29286803283673674
+  r_model: 0.08772093723115558
+  r_block_max: 0.3927475592747559
+  r_model_max: 0.11763722950956639
+  u_arch: 0.7456902682668332
+  z_a: 0.7199503455245704
+  z_m: 0.7213126107266075
+  z_h: 0.7893725403568201
   z_q_gate: null
   z_k_gate: null
   z_v_gate: null
-  z_q_qk: null
-  z_k_qk: null
-  z_v_pv: null
-  z_context_wo: null
+  z_q_qk: 1.6731128358004385e-08
+  z_k_qk: 7.529007761101973e-08
+  z_v_pv: 7.529007761101973e-08
+  z_context_wo: 4.182782089501096e-09
   clipping_result_paths: []
   figure_ids: []
   failure_type: null
@@ -11169,7 +11173,8 @@ records:
     and 10 complete-selection validation events. Final validation loss was 7.20122547; final model SHA-256 is fea314f7d45bb6228ba90241a57c14f26d77d4e22e3e9f35bee53d48a2bcff09.
     Saved-config, clean single-commit provenance, finite-event, checkpoint, pressure-pair, and step-budget checks passed.
     Screening flags: universal_collapse=False, loss_instability=False, sparsity_evaporation=False. Complete-selection exact-zero
-    and logical-product fields remain null until the pooled diagnostic is run and reconciled.'
+    and logical-product fields remain null until the pooled diagnostic is run and reconciled. Complete-selection pooled exact-zero/product
+    endpoints are attached from canonical diagnostic 274 (results/274-s1-b3-t3-rk-weight-selection-propagation/001-20260722-125811-41dc3d92/activation_propagation.json).'
 - design_id: S1-B3-RK-A3-OR-W1-C0P1-SG0P1-ALLACTIVE-S0
   config_id: 271-s1-b3-p14m-a3-or-w1-c0p1-sg0p1-s0
   run_id: 001-20260721-220621-bde34ba8
@@ -11227,22 +11232,22 @@ records:
   resumed_from_run_id: null
   resume_checkpoint_sha256: null
   artifact_upload_verified_at: null
-  propagation_result_path: null
-  r_block: null
-  r_model: null
-  r_block_max: null
-  r_model_max: null
-  u_arch: null
-  z_a: null
-  z_m: null
-  z_h: null
+  propagation_result_path: results/274-s1-b3-t3-rk-weight-selection-propagation/001-20260722-125811-41dc3d92/activation_propagation.json
+  r_block: 0.27547238924956663
+  r_model: 0.08251052848689919
+  r_block_max: 0.3927475592747559
+  r_model_max: 0.11763722950956639
+  u_arch: 0.7013980933662616
+  z_a: 0.6949146672299034
+  z_m: 0.6921042684923139
+  z_h: 0.7155542572339376
   z_q_gate: null
   z_k_gate: null
   z_v_gate: null
-  z_q_qk: null
-  z_k_qk: null
-  z_v_pv: null
-  z_context_wo: null
+  z_q_qk: 1.2548346268503289e-08
+  z_k_qk: 4.182782089501096e-08
+  z_v_pv: 5.0193385074013155e-08
+  z_context_wo: 4.182782089501096e-09
   clipping_result_paths: []
   figure_ids: []
   failure_type: null
@@ -11255,7 +11260,8 @@ records:
     and 10 complete-selection validation events. Final validation loss was 7.05882904; final model SHA-256 is 895eeece66b64cc6f2a0e0e86b0e60e2abd98b5bbcf04b0ebccb814b390598cb.
     Saved-config, clean single-commit provenance, finite-event, checkpoint, pressure-pair, and step-budget checks passed.
     Screening flags: universal_collapse=False, loss_instability=False, sparsity_evaporation=False. Complete-selection exact-zero
-    and logical-product fields remain null until the pooled diagnostic is run and reconciled.'
+    and logical-product fields remain null until the pooled diagnostic is run and reconciled. Complete-selection pooled exact-zero/product
+    endpoints are attached from canonical diagnostic 274 (results/274-s1-b3-t3-rk-weight-selection-propagation/001-20260722-125811-41dc3d92/activation_propagation.json).'
 - design_id: S1-B3-RK-A6POST-RN-W1-C0P1-SG0P1-ALLACTIVE-S0
   config_id: 272-s1-b3-p14m-a6post-rn-w1-c0p1-sg0p1-s0
   run_id: 001-20260721-223045-ca472ec4
@@ -11313,22 +11319,22 @@ records:
   resumed_from_run_id: null
   resume_checkpoint_sha256: null
   artifact_upload_verified_at: null
-  propagation_result_path: null
-  r_block: null
-  r_model: null
-  r_block_max: null
-  r_model_max: null
-  u_arch: null
-  z_a: null
-  z_m: null
-  z_h: null
-  z_q_gate: null
-  z_k_gate: null
-  z_v_gate: null
-  z_q_qk: null
-  z_k_qk: null
-  z_v_pv: null
-  z_context_wo: null
+  propagation_result_path: results/274-s1-b3-t3-rk-weight-selection-propagation/001-20260722-125811-41dc3d92/activation_propagation.json
+  r_block: 0.8312558217489558
+  r_model: 0.24898087734731444
+  r_block_max: 1.0
+  r_model_max: 0.2995237697384911
+  u_arch: 0.8312558217489558
+  z_a: 0.6802900757705956
+  z_m: 0.676695238079941
+  z_h: 0.7358847218647337
+  z_q_gate: 0.8517876591598779
+  z_k_gate: 0.8462470330690083
+  z_v_gate: 0.9221152171754
+  z_q_qk: 0.8517876591598779
+  z_k_qk: 0.8462470330690083
+  z_v_pv: 0.9221152171754
+  z_context_wo: 0.6109123606430856
   clipping_result_paths: []
   figure_ids: []
   failure_type: null
@@ -11341,7 +11347,8 @@ records:
     and 10 complete-selection validation events. Final validation loss was 7.16248452; final model SHA-256 is 0c20117573497668346304154d8ba4480d8485fcdd37b5daeff2d00cd7f22a8a.
     Saved-config, clean single-commit provenance, finite-event, checkpoint, pressure-pair, and step-budget checks passed.
     Screening flags: universal_collapse=False, loss_instability=False, sparsity_evaporation=False. Complete-selection exact-zero
-    and logical-product fields remain null until the pooled diagnostic is run and reconciled.'
+    and logical-product fields remain null until the pooled diagnostic is run and reconciled. Complete-selection pooled exact-zero/product
+    endpoints are attached from canonical diagnostic 274 (results/274-s1-b3-t3-rk-weight-selection-propagation/001-20260722-125811-41dc3d92/activation_propagation.json).'
 - design_id: S1-B3-RK-A6POST-OR-W1-C0P1-SG0P1-ALLACTIVE-S0
   config_id: 273-s1-b3-p14m-a6post-or-w1-c0p1-sg0p1-s0
   run_id: 001-20260721-230936-46f9c77f
@@ -11399,7 +11406,94 @@ records:
   resumed_from_run_id: null
   resume_checkpoint_sha256: null
   artifact_upload_verified_at: null
-  propagation_result_path: null
+  propagation_result_path: results/274-s1-b3-t3-rk-weight-selection-propagation/001-20260722-125811-41dc3d92/activation_propagation.json
+  r_block: 0.5861535936161585
+  r_model: 0.17556693400567533
+  r_block_max: 1.0
+  r_model_max: 0.2995237697384911
+  u_arch: 0.5861535936161585
+  z_a: 0.5109027561388517
+  z_m: 0.511464001839621
+  z_h: 0.4601604990791856
+  z_q_gate: 0.8382149746543482
+  z_k_gate: 0.8249818149365877
+  z_v_gate: 0.4488123718060945
+  z_q_qk: 0.8382149746543482
+  z_k_qk: 0.8249818149365877
+  z_v_pv: 0.4488123718060945
+  z_context_wo: 0.012474302659954941
+  clipping_result_paths: []
+  figure_ids: []
+  failure_type: null
+  failure_message: null
+  artifact_uri: null
+  artifact_manifest_uri: null
+  artifact_manifest_sha256: null
+  reviewed_at: '2026-07-22T09:51:50.6390991-03:00'
+  notes: 'Review-only B3 t3-rk-weight reconciliation row. The run completed 2048 steps and 134217728 tokens with 42 train
+    and 10 complete-selection validation events. Final validation loss was 7.03909067; final model SHA-256 is 61afbfab7776532601166b10d252a72e7746d458cd6c75fcfbff09b4dd1ae9d9.
+    Saved-config, clean single-commit provenance, finite-event, checkpoint, pressure-pair, and step-budget checks passed.
+    Screening flags: universal_collapse=False, loss_instability=False, sparsity_evaporation=False. Complete-selection exact-zero
+    and logical-product fields remain null until the pooled diagnostic is run and reconciled. Complete-selection pooled exact-zero/product
+    endpoints are attached from canonical diagnostic 274 (results/274-s1-b3-t3-rk-weight-selection-propagation/001-20260722-125811-41dc3d92/activation_propagation.json).'
+- design_id: S1-B3-DIAG-T3-RK-WEIGHT-SELECTION-S0
+  config_id: 274-s1-b3-t3-rk-weight-selection-propagation
+  run_id: 001-20260722-125811-41dc3d92
+  attempt: 1
+  mode: activation-propagation
+  result_path: results/274-s1-b3-t3-rk-weight-selection-propagation/001-20260722-125811-41dc3d92
+  log_path: null
+  lifecycle_status: statusless_complete
+  evidence_status: valid
+  canonical: true
+  started_at: '2026-07-22T12:58:11.108716+00:00'
+  finished_at: '2026-07-22T12:58:41.711153+00:00'
+  git_commit: b81f2cc24ebfa282d693a1171110bf7ded903578
+  git_dirty: false
+  completed_steps: 0
+  tokens_seen: 0
+  model_initialization_seed: 0
+  data_order_seed: 0
+  training_schedule_scheme: null
+  training_schedule_hash: null
+  initial_parameter_sha256: null
+  effective_tokens_per_update: null
+  validation_partition: selection
+  validation_partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
+  validation_tokens: 311296
+  validation_loss: null
+  wall_hours: 0.008500676972228878
+  tokens_per_second: 81378.09390344437
+  peak_gpu_mb: 672.0009765625
+  execution_backend: local
+  cloud_provider: null
+  cloud_tier: null
+  provisioning_type: null
+  interruptible: null
+  pod_id: null
+  region: null
+  datacenter_id: null
+  gpu_type: NVIDIA GeForce RTX 5070 Ti Laptop GPU
+  gpu_count: 1
+  container_image_ref: null
+  container_image_digest: null
+  environment_lock_sha256: null
+  python_version: 3.12.10
+  pytorch_version: 2.11.0+cu128
+  cuda_version: '12.8'
+  cudnn_version: null
+  gpu_driver_version: '572.84'
+  token_cache_sha256: 22bb7c27864f0e5941548c572d6c75b1b5ba6a4c13e4cd26f40f4de546c5cc19
+  hourly_rate_usd: null
+  rate_snapshot_date: null
+  rate_source_url: null
+  billed_gpu_seconds: null
+  compute_cost_usd: null
+  storage_cost_usd: null
+  resumed_from_run_id: null
+  resume_checkpoint_sha256: null
+  artifact_upload_verified_at: null
+  propagation_result_path: results/274-s1-b3-t3-rk-weight-selection-propagation/001-20260722-125811-41dc3d92/activation_propagation.json
   r_block: null
   r_model: null
   r_block_max: null
@@ -11422,9 +11516,7 @@ records:
   artifact_uri: null
   artifact_manifest_uri: null
   artifact_manifest_sha256: null
-  reviewed_at: '2026-07-22T09:51:50.6390991-03:00'
-  notes: 'Review-only B3 t3-rk-weight reconciliation row. The run completed 2048 steps and 134217728 tokens with 42 train
-    and 10 complete-selection validation events. Final validation loss was 7.03909067; final model SHA-256 is 61afbfab7776532601166b10d252a72e7746d458cd6c75fcfbff09b4dd1ae9d9.
-    Saved-config, clean single-commit provenance, finite-event, checkpoint, pressure-pair, and step-budget checks passed.
-    Screening flags: universal_collapse=False, loss_instability=False, sparsity_evaporation=False. Complete-selection exact-zero
-    and logical-product fields remain null until the pooled diagnostic is run and reconciled.'
+  reviewed_at: '2026-07-22T13:02:45.955787+00:00'
+  notes: Review-only canonical diagnostic-274 complete-selection closure over the exact 8 t3-rk-weight sources. It pooled
+    311296 tokens/152 sequences/38 batches, excluded 443 trailing cache tokens, passed integer endpoint, topology-ceiling,
+    and source-provenance checks, and pinned activation artifact SHA256 6808617feff987af16a1f4ca7d8bd3be38f4127dd5db0d2cc6ded0c7afcf835f.
