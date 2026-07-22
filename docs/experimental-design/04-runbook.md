@@ -353,9 +353,17 @@ No T4 process has been launched. The queue state
 approval. At launch, run `paper_exp.cli run-pretrain-queue` once from the T4
 runner with all eight relative config paths in the order above, the main
 repository's absolute state/log paths, and `PYTHONPATH` bound to the runner's
-`src` directory. The T3-matched ETC is 4 h 15 min; use 4 h 30 min as the
-conservative queue estimate. Diagnostic `283` remains deferred until terminal
-reconciliation supplies all eight canonical run ids.
+`src` directory. Also set the process-local Git binding
+`GIT_CONFIG_COUNT=1`, `GIT_CONFIG_KEY_0=safe.directory`, and
+`GIT_CONFIG_VALUE_0=C:/tmp/osp-s1-b3-t4-runner`; this lets launch provenance
+read the elevated-created worktree without changing global Git configuration.
+Reserve outer-controller logs
+`run-logs\s1-b3-t4-rk-basin-275-282-launch.stdout.log` and
+`run-logs\s1-b3-t4-rk-basin-275-282-launch.stderr.log`. All four queue/log
+destinations are absent in the prelaunch state. The T3-matched ETC is 4 h 15
+min; use 4 h 30 min as the conservative queue estimate. Diagnostic `283`
+remains deferred until terminal reconciliation supplies all eight canonical
+run ids.
 
 ## 11. Open-Source and Archive Policy
 
