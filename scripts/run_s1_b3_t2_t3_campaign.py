@@ -473,9 +473,20 @@ def reconcile_tranche(
 
 def run_diagnostic(diagnostic_id: str) -> None:
     root = result_root(diagnostic_id)
+    diagnostic_config = config_path(diagnostic_id)
     ensure_absent(root, f"Diagnostic result root {diagnostic_id}")
+    require(diagnostic_config.is_file(), f"Diagnostic config is missing: {diagnostic_config}")
     require_clean(ROOT)
-    run([PYTHON, "-m", "paper_exp.cli", "activation-propagation", "--config", config_path(diagnostic_id)])
+    run(
+        [
+            PYTHON,
+            "-m",
+            "paper_exp.cli",
+            "activation-propagation",
+            "--config",
+            diagnostic_config.relative_to(ROOT),
+        ]
+    )
     attempts = [path for path in root.iterdir() if path.is_dir()]
     require(len(attempts) == 1, f"Expected one diagnostic attempt, found {len(attempts)}")
     for name in ("config.yaml", "manifest.json", "metrics.json", "predictions.jsonl", "activation_propagation.json"):
