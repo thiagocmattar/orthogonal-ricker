@@ -60,8 +60,8 @@ block_summary:
   materialized_cells: 32
   completed_cells: 32
   status: active
-  note: B3 t4-rk-basin training tranche is terminal, audited, and reconciled through 32/40 scientific cells; pooled selection
-    diagnostic 283 must still complete and be reviewed before the next tranche is materialized.
+  note: Scientific cells are closed through t4-rk-basin (32/40); pooled complete-selection diagnostic 283 is closed with reviewed
+    canonical evidence.
 - block: S1-B4
   planned_cells: 10
   materialized_cells: 0
@@ -9740,12 +9740,9 @@ records:
   ricker_sigma: null
   step_budget: null
   matched_control_id: null
-  config_status: ready
+  config_status: closed
   decision_status: control
   release_tier: history
-  canonical_run_id: null
-  notes: 'Review-only ready row for the B3 t4-rk-basin pooled complete-selection diagnostic. Its eight source runs passed
-    tranche reconciliation in exact queue order: 001-20260722-213203-c6937257, 001-20260722-220658-e1bdc344, 001-20260722-223055-5fbaf572,
-    001-20260722-230923-52dc57f6, 001-20260722-233649-fd48d29f, 001-20260723-001034-a4ff0ac9, 001-20260723-003424-5cdabf7a,
-    001-20260723-011251-556e1702. Materialize this single diagnostic row/config only with the reviewed closure/run rows; the
-    following B3 scientific tranche remains blocked until this diagnostic completes and is reconciled.'
+  canonical_run_id: 001-20260723-101136-b0907704
+  notes: Canonical diagnostic 001-20260723-101136-b0907704 passed complete-selection source, topology, exact-zero, integer
+    logical-product, architecture-ceiling, and endpoint-attachment review for all 8 sources.
