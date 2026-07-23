@@ -9,11 +9,10 @@ work.
 
 - Campaign id: `pythia-sparsity-scaling-v1`.
 - Planning date: 2026-07-18.
-- Scientific completion is 106/132 (80.30%): S1-B0 is 20/20, S1-B1 is 36/36,
-  S1-B2 is 26/26, and S1-B3 is closed through `t3-rk-weight` at 24/40 after
-  reviewed pooled diagnostic `274`. T4 raises B3 materialization to 32/40 but
-  remains unlaunched. The 2,048-step screen remains restricted to
-  feasibility/collapse and within-stratum comparisons.
+- Scientific completion is 114/132 (86.36%): S1-B0 is 20/20, S1-B1 is 36/36,
+  S1-B2 is 26/26, and S1-B3 is closed through `t4-rk-basin` at 32/40 after
+  reviewed pooled diagnostic `283`. The 2,048-step screen remains restricted
+  to feasibility/collapse and within-stratum comparisons.
 - Learned-ATG engineering configs `211--219` completed all nine 128-step runs
   and passed the hard checkpoint/optimizer contract. Config `220`, run
   `001-20260719-190523-f28590eb`, completed and passed the exact center-first
@@ -36,28 +35,28 @@ work.
   complete selection tokens. The canonical table, prespecified matched
   contrasts, safety checks, and interpretation boundary are consolidated in
   [`13-s1-b2-learned-atg-results.md`](13-s1-b2-learned-atg-results.md).
-- S1-B3 tranches `t1-central` (`248--255`), `t2-l1-flanks` (`257--264`), and
-  `t3-rk-weight` (`266--273`), with pooled diagnostics `256`, `265`, and `274`,
-  are closed and canonical. Results are consolidated in
+- S1-B3 tranches `t1-central` (`248--255`), `t2-l1-flanks` (`257--264`),
+  `t3-rk-weight` (`266--273`), and `t4-rk-basin` (`275--282`), with pooled
+  diagnostics `256`, `265`, `274`, and `283`, are closed and canonical. Results
+  are consolidated in
   [`14-s1-b3-t1-central-pressure-results.md`](14-s1-b3-t1-central-pressure-results.md),
   [`15-s1-b3-t2-l1-flank-results.md`](15-s1-b3-t2-l1-flank-results.md), and
-  [`16-s1-b3-t3-ricker-weight-results.md`](16-s1-b3-t3-ricker-weight-results.md).
-  B3 has 24/40 completed and 32/40 materialized cells; executable S1 is
-  106/132 complete. Tranche `t4-rk-basin` configs `275--282` are registered at
-  commit `360686d4e60dafe410640161211d3011ad53dd20` and staged in the clean
-  detached runner `C:\tmp\osp-s1-b3-t4-runner`. They remain unlaunched;
-  diagnostic `283` remains deferred.
+  [`16-s1-b3-t3-ricker-weight-results.md`](16-s1-b3-t3-ricker-weight-results.md),
+  and [`17-s1-b3-t4-ricker-basin-results.md`](17-s1-b3-t4-ricker-basin-results.md).
+  B3 is 32/40 materialized and complete; executable S1 is 114/132 complete.
+  Prefix `284` is unused. Tranche `t5-rk-shape` is eligible but remains
+  unregistered and unlaunched; diagnostic `292` remains deferred.
 - The five central B0 anchors, configs `123--127`, completed and passed
   terminal review. Their final selection losses are `7.04913` (A0),
   `6.98875` (A1-H), `7.01310` (A3), `7.01645` (A6-PRE), and `7.03248`
   (A6-POST). Config `128`, the combined selection-partition endpoint
   diagnostic, also completed and passed artifact review. Configs `121--122`
   remain accepted engineering controls.
-- Last durably completed scientific run: config `273`, A6-POST OR at
-  `(weight,c,sigma)=(1,.1,.1)`, run `001-20260721-230936-46f9c77f`,
-  selection loss `7.03909`.
+- Last durably completed scientific run: config `282`, A6-POST OR at
+  `(weight,c,sigma)=(.3,.5,.5)`, run `001-20260723-011251-556e1702`,
+  selection loss `7.04037`.
 - Active scientific run: none. The next action, only after explicit approval,
-  is the sequential launch of S1-B3 `t4-rk-basin` configs `275--282`.
+  is registration and preparation of S1-B3 `t5-rk-shape` configs `284--291`.
 
 | Config | Gate/site | Canonical run | Selection loss | `R_block` | `R_model` |
 | ---: | --- | --- | ---: | ---: | ---: |
@@ -291,12 +290,12 @@ registry rows explicitly marked as valid are campaign evidence.
 
 ## Latest Completed Launch Set
 
-S1-B2 completed locally across 2026-07-19 and 2026-07-20. All 26 learned-ATG
-AdamW cells reached 2,048 steps, passed exact checkpoint/optimizer and campaign
-safety review, and were pooled by diagnostic `247` over 311,296 complete
-selection tokens. B2 is closed without a global ranking or promotion decision;
-the canonical endpoint table and matched contrasts are in
-[`13-s1-b2-learned-atg-results.md`](13-s1-b2-learned-atg-results.md).
+S1-B3 `t4-rk-basin` completed locally across 2026-07-22 and 2026-07-23. All
+eight RN/OR cells reached 2,048 steps, passed terminal and campaign safety
+review, and were pooled by diagnostic `283` over 311,296 complete selection
+tokens. T4 is closed without a global ranking or promotion decision; the
+canonical endpoint table and matched contrasts are in
+[`17-s1-b3-t4-ricker-basin-results.md`](17-s1-b3-t4-ricker-basin-results.md).
 
 ## Latest Completed Engineering Launch Set
 

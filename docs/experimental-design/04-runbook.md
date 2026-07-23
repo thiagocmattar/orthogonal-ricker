@@ -329,41 +329,25 @@ runs remaining, and ETC for both the current run and the full set.
 The receiving agent independently verifies process state and manifests. A chat
 message is not sufficient evidence that a run completed.
 
-Current handoff: S1-B3 `t3-rk-weight` configs `266--273` and pooled diagnostic
-`274` are closed, valid, and canonical. Diagnostic run
-`001-20260722-125811-41dc3d92` pooled all eight endpoints over 311,296 selection
-tokens. S1 is 106/132 complete; B3 has 24/40 completed and 32/40 materialized
-cells.
+Current handoff: S1-B3 `t4-rk-basin` configs `275--282` and pooled diagnostic
+`283` are closed, valid, and canonical. Diagnostic run
+`001-20260723-101136-b0907704` pooled all eight endpoints over 311,296 selection
+tokens. S1 is 114/132 complete; B3 is 32/40 materialized and complete. The
+canonical table and interpretation boundary are in
+`17-s1-b3-t4-ricker-basin-results.md`.
 
-The completed T3 queue state is
-`run-logs\s1-b3-t3-rk-weight-266-273-queue.json`. Its retained detached runner
-is `C:\tmp\osp-s1-b3-t3-runner` at launch commit
-`1f8ea98060bb08fc05589ffb6ea908e86b4143c3`; no process remains active. Do not
-reuse its queue state for another tranche.
+The completed T4 queue state is
+`run-logs\s1-b3-t4-rk-basin-275-282-queue.json`. Its retained detached runner
+is `C:\tmp\osp-s1-b3-t4-runner` at launch commit
+`360686d4e60dafe410640161211d3011ad53dd20`; no process remains active. Do not
+reuse its queue state for another tranche. `C4-BUDGET` triggered because both
+A6-POST OR rows bound the 0.5 cap on all 42 logged updates; this is a
+non-invalidating stability control and does not change the primary budget.
 
-Next gate: `t4-rk-basin` configs `275--282` are registered at clean launch
-commit `360686d4e60dafe410640161211d3011ad53dd20`. The clean detached runner is
-`C:\tmp\osp-s1-b3-t4-runner`; it has one verified token-cache junction and
-eight verified empty result-root junctions. The required sequential order is
-`275,276,277,278,279,280,281,282`.
-
-No T4 process has been launched. The queue state
-`run-logs\s1-b3-t4-rk-basin-275-282-queue.json` and child-log directory
-`run-logs\s1-b3-t4-rk-basin-275-282` must remain absent until explicit launch
-approval. At launch, run `paper_exp.cli run-pretrain-queue` once from the T4
-runner with all eight relative config paths in the order above, the main
-repository's absolute state/log paths, and `PYTHONPATH` bound to the runner's
-`src` directory. Also set the process-local Git binding
-`GIT_CONFIG_COUNT=1`, `GIT_CONFIG_KEY_0=safe.directory`, and
-`GIT_CONFIG_VALUE_0=C:/tmp/osp-s1-b3-t4-runner`; this lets launch provenance
-read the elevated-created worktree without changing global Git configuration.
-Reserve outer-controller logs
-`run-logs\s1-b3-t4-rk-basin-275-282-launch.stdout.log` and
-`run-logs\s1-b3-t4-rk-basin-275-282-launch.stderr.log`. All four queue/log
-destinations are absent in the prelaunch state. The T3-matched ETC is 4 h 15
-min; use 4 h 30 min as the conservative queue estimate. Diagnostic `283`
-remains deferred until terminal reconciliation supplies all eight canonical
-run ids.
+Next gate: `t5-rk-shape` configs `284--291` are eligible but not registered.
+Prefix `284` is the next unused prefix; diagnostic `292` remains deferred.
+Generate and independently review the T5 registration bundle, create a fresh
+detached runner and result roots, and wait for explicit launch approval.
 
 ## 11. Open-Source and Archive Policy
 
