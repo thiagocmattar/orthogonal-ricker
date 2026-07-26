@@ -332,8 +332,8 @@ message is not sufficient evidence that a run completed.
 Current handoff: S1-B3 `t4-rk-basin` configs `275--282` and pooled diagnostic
 `283` are closed, valid, and canonical. Diagnostic run
 `001-20260723-101136-b0907704` pooled all eight endpoints over 311,296 selection
-tokens. S1 is 114/132 complete; B3 is 32/40 materialized and complete. The
-canonical table and interpretation boundary are in
+tokens. S1 is 114/132 complete; B3 has 32/40 completed and 40/40 materialized
+cells. The canonical table and interpretation boundary are in
 `17-s1-b3-t4-ricker-basin-results.md`.
 
 The completed T4 queue state is
@@ -344,10 +344,28 @@ reuse its queue state for another tranche. `C4-BUDGET` triggered because both
 A6-POST OR rows bound the 0.5 cap on all 42 logged updates; this is a
 non-invalidating stability control and does not change the primary budget.
 
-Next gate: `t5-rk-shape` configs `284--291` are eligible but not registered.
-Prefix `284` is the next unused prefix; diagnostic `292` remains deferred.
-Generate and independently review the T5 registration bundle, create a fresh
-detached runner and result roots, and wait for explicit launch approval.
+Next gate: `t5-rk-shape` configs `284--291` are registered at clean scientific
+launch commit `e918f755cd313a68d312e42728df152a3706870c`. Their config-registry
+rows are `ready`; the run registry is unchanged. The clean detached runner is
+`C:\tmp\osp-s1-b3-t5-runner`; it has one verified token-cache junction and
+eight verified empty result-root junctions. The required sequential order is
+`284,285,286,287,288,289,290,291`.
+
+No T5 process has been launched. The queue state
+`run-logs\s1-b3-t5-rk-shape-284-291-queue.json`, child-log directory
+`run-logs\s1-b3-t5-rk-shape-284-291`, and outer-controller logs
+`run-logs\s1-b3-t5-rk-shape-284-291-launch.stdout.log` and
+`run-logs\s1-b3-t5-rk-shape-284-291-launch.stderr.log` must remain absent until
+explicit launch approval. At launch, run `paper_exp.cli run-pretrain-queue`
+once from the T5 runner with all eight relative config paths in the order
+above, the main repository's absolute state/log paths, and `PYTHONPATH` bound
+to the runner's `src` directory. Also set the process-local Git binding
+`GIT_CONFIG_COUNT=1`, `GIT_CONFIG_KEY_0=safe.directory`, and
+`GIT_CONFIG_VALUE_0=C:/tmp/osp-s1-b3-t5-runner`; do not change global Git
+configuration. The expected queue ETC is about 4 h 10 min; use 4 h 30 min
+conservatively. Terminal reconciliation and pooled diagnostic `292` add about
+10 min. Diagnostic `292` remains deferred until all eight canonical run ids
+exist.
 
 ## 11. Open-Source and Archive Policy
 

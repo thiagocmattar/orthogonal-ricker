@@ -11,7 +11,8 @@ work.
 - Planning date: 2026-07-18.
 - Scientific completion is 114/132 (86.36%): S1-B0 is 20/20, S1-B1 is 36/36,
   S1-B2 is 26/26, and S1-B3 is closed through `t4-rk-basin` at 32/40 after
-  reviewed pooled diagnostic `283`. The 2,048-step screen remains restricted
+  reviewed pooled diagnostic `283`. T5 materializes the remaining eight B3
+  cells but is staged and unlaunched. The 2,048-step screen remains restricted
   to feasibility/collapse and within-stratum comparisons.
 - Learned-ATG engineering configs `211--219` completed all nine 128-step runs
   and passed the hard checkpoint/optimizer contract. Config `220`, run
@@ -43,9 +44,11 @@ work.
   [`15-s1-b3-t2-l1-flank-results.md`](15-s1-b3-t2-l1-flank-results.md), and
   [`16-s1-b3-t3-ricker-weight-results.md`](16-s1-b3-t3-ricker-weight-results.md),
   and [`17-s1-b3-t4-ricker-basin-results.md`](17-s1-b3-t4-ricker-basin-results.md).
-  B3 is 32/40 materialized and complete; executable S1 is 114/132 complete.
-  Prefix `284` is unused. Tranche `t5-rk-shape` is eligible but remains
-  unregistered and unlaunched; diagnostic `292` remains deferred.
+  B3 has 32/40 completed and 40/40 materialized cells; executable S1 is 114/132
+  complete. Tranche `t5-rk-shape` configs `284--291` are registered at commit
+  `e918f755cd313a68d312e42728df152a3706870c` and staged in the clean detached
+  runner `C:\tmp\osp-s1-b3-t5-runner`. They remain unlaunched; `292` is the next
+  unused prefix, and its pooled diagnostic remains deferred.
 - The five central B0 anchors, configs `123--127`, completed and passed
   terminal review. Their final selection losses are `7.04913` (A0),
   `6.98875` (A1-H), `7.01310` (A3), `7.01645` (A6-PRE), and `7.03248`
@@ -56,7 +59,7 @@ work.
   `(weight,c,sigma)=(.3,.5,.5)`, run `001-20260723-011251-556e1702`,
   selection loss `7.04037`.
 - Active scientific run: none. The next action, only after explicit approval,
-  is registration and preparation of S1-B3 `t5-rk-shape` configs `284--291`.
+  is the sequential launch of S1-B3 `t5-rk-shape` configs `284--291`.
 
 | Config | Gate/site | Canonical run | Selection loss | `R_block` | `R_model` |
 | ---: | --- | --- | ---: | ---: | ---: |
