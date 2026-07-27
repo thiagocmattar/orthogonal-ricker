@@ -59,9 +59,9 @@ block_summary:
   planned_cells: 40
   materialized_cells: 40
   completed_cells: 40
-  status: active
-  note: B3 t5-rk-shape training tranche is terminal, audited, and reconciled through 40/40 scientific cells; pooled selection
-    diagnostic 292 must still complete and be reviewed before the next tranche is materialized.
+  status: completed
+  note: Scientific cells are closed through t5-rk-shape (40/40); pooled complete-selection diagnostic 292 is closed with reviewed
+    canonical evidence.
 - block: S1-B4
   planned_cells: 10
   materialized_cells: 0
@@ -10274,12 +10274,9 @@ records:
   ricker_sigma: null
   step_budget: null
   matched_control_id: null
-  config_status: ready
+  config_status: closed
   decision_status: control
   release_tier: history
-  canonical_run_id: null
-  notes: 'Review-only ready row for the B3 t5-rk-shape pooled complete-selection diagnostic. Its eight source runs passed
-    tranche reconciliation in exact queue order: 001-20260726-212246-163d20a3, 001-20260726-215657-6d9447d2, 001-20260726-222026-e02abcb5,
-    001-20260726-225817-3e46cd65, 001-20260726-232528-3a3a8b3a, 001-20260726-235848-88a57a9d, 001-20260727-002214-1f35a795,
-    001-20260727-005957-fb0e5883. Materialize this single diagnostic row/config only with the reviewed closure/run rows; the
-    following B3 scientific tranche remains blocked until this diagnostic completes and is reconciled.'
+  canonical_run_id: 001-20260727-095931-6f265e69
+  notes: Canonical diagnostic 001-20260727-095931-6f265e69 passed complete-selection source, topology, exact-zero, integer
+    logical-product, architecture-ceiling, and endpoint-attachment review for all 8 sources.
