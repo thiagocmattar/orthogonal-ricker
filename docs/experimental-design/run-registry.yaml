@@ -13137,11 +13137,11 @@ records:
   resumed_from_run_id: null
   resume_checkpoint_sha256: null
   artifact_upload_verified_at: null
-  propagation_result_path: null
-  r_block: null
-  r_model: null
-  r_block_max: null
-  r_model_max: null
+  propagation_result_path: results/303-s1-b4-seed1-sentinels-selection-prop/001-20260727-190455-ba5f3286/activation_propagation.json
+  r_block: 8.313060638129794e-09
+  r_model: 2.4899592603973023e-09
+  r_block_max: 0.0
+  r_model_max: 0.0
   u_arch: null
   z_a: null
   z_m: null
@@ -13149,10 +13149,10 @@ records:
   z_q_gate: null
   z_k_gate: null
   z_v_gate: null
-  z_q_qk: null
-  z_k_qk: null
-  z_v_pv: null
-  z_context_wo: null
+  z_q_qk: 8.365564179002193e-09
+  z_k_qk: 0.0
+  z_v_pv: 8.365564179002193e-09
+  z_context_wo: 2.9279474626507674e-08
   clipping_result_paths: []
   figure_ids: []
   failure_type: null
@@ -13164,7 +13164,8 @@ records:
   notes: Review-only S1-B4 seed-1 sentinel closure. Canonical run 001-20260727-103125-a502cb9d completed 2048 steps/134217728
     tokens from clean commit 2eae610b and passed exact seed-only source pairing, random-init seed-1 recomputation, schedule,
     finite-event, checkpoint, pressure, and instability review. Complete-selection pooled z_*/R endpoints remain pending diagnostic
-    303. No ranking, winner selection, or promotion decision was performed.
+    303. No ranking, winner selection, or promotion decision was performed. Complete-selection pooled exact-zero/product endpoints
+    are attached from canonical diagnostic config 303 (results/303-s1-b4-seed1-sentinels-selection-prop/001-20260727-190455-ba5f3286/activation_propagation.json).
 - design_id: S1-B4-SEED1-A1H-ADAMW-LR3EM5-S1
   config_id: 294-s1-b4-p14m-a1h-adamw-lr3em5-s1
   run_id: 001-20260727-104830-b2c79809
@@ -13222,22 +13223,22 @@ records:
   resumed_from_run_id: null
   resume_checkpoint_sha256: null
   artifact_upload_verified_at: null
-  propagation_result_path: null
-  r_block: null
-  r_model: null
-  r_block_max: null
-  r_model_max: null
-  u_arch: null
+  propagation_result_path: results/303-s1-b4-seed1-sentinels-selection-prop/001-20260727-190455-ba5f3286/activation_propagation.json
+  r_block: 0.06965260758509988
+  r_model: 0.020862611596004933
+  r_block_max: 0.14281729428172943
+  r_model_max: 0.04277717436711505
+  u_arch: 0.48770429334488874
   z_a: null
   z_m: null
-  z_h: null
+  z_h: 0.4877042195253205
   z_q_gate: null
   z_k_gate: null
   z_v_gate: null
-  z_q_qk: null
-  z_k_qk: null
-  z_v_pv: null
-  z_context_wo: null
+  z_q_qk: 1.2548346268503289e-08
+  z_k_qk: 1.2548346268503289e-08
+  z_v_pv: 1.2548346268503289e-08
+  z_context_wo: 3.7645038805509866e-08
   clipping_result_paths: []
   figure_ids: []
   failure_type: null
@@ -13249,7 +13250,8 @@ records:
   notes: Review-only S1-B4 seed-1 sentinel closure. Canonical run 001-20260727-104830-b2c79809 completed 2048 steps/134217728
     tokens from clean commit 2eae610b and passed exact seed-only source pairing, random-init seed-1 recomputation, schedule,
     finite-event, checkpoint, pressure, and instability review. Complete-selection pooled z_*/R endpoints remain pending diagnostic
-    303. No ranking, winner selection, or promotion decision was performed.
+    303. No ranking, winner selection, or promotion decision was performed. Complete-selection pooled exact-zero/product endpoints
+    are attached from canonical diagnostic config 303 (results/303-s1-b4-seed1-sentinels-selection-prop/001-20260727-190455-ba5f3286/activation_propagation.json).
 - design_id: S1-B4-SEED1-A3-ADAMW-LR3EM5-S1
   config_id: 295-s1-b4-p14m-a3-adamw-lr3em5-s1
   run_id: 001-20260727-110526-adbfda90
@@ -13307,22 +13309,22 @@ records:
   resumed_from_run_id: null
   resume_checkpoint_sha256: null
   artifact_upload_verified_at: null
-  propagation_result_path: null
-  r_block: null
-  r_model: null
-  r_block_max: null
-  r_model_max: null
-  u_arch: null
-  z_a: null
-  z_m: null
-  z_h: null
+  propagation_result_path: results/303-s1-b4-seed1-sentinels-selection-prop/001-20260727-190455-ba5f3286/activation_propagation.json
+  r_block: 0.19226015141182437
+  r_model: 0.05758648532136272
+  r_block_max: 0.3927475592747559
+  r_model_max: 0.11763722950956639
+  u_arch: 0.48952602472399886
+  z_a: 0.5085833490940562
+  z_m: 0.5091085726754707
+  z_h: 0.45565040383422584
   z_q_gate: null
   z_k_gate: null
   z_v_gate: null
-  z_q_qk: null
-  z_k_qk: null
-  z_v_pv: null
-  z_context_wo: null
+  z_q_qk: 4.182782089501096e-09
+  z_k_qk: 8.365564179002193e-09
+  z_v_pv: 2.5096692537006578e-08
+  z_context_wo: 4.182782089501096e-09
   clipping_result_paths: []
   figure_ids: []
   failure_type: null
@@ -13334,7 +13336,8 @@ records:
   notes: Review-only S1-B4 seed-1 sentinel closure. Canonical run 001-20260727-110526-adbfda90 completed 2048 steps/134217728
     tokens from clean commit 2eae610b and passed exact seed-only source pairing, random-init seed-1 recomputation, schedule,
     finite-event, checkpoint, pressure, and instability review. Complete-selection pooled z_*/R endpoints remain pending diagnostic
-    303. No ranking, winner selection, or promotion decision was performed.
+    303. No ranking, winner selection, or promotion decision was performed. Complete-selection pooled exact-zero/product endpoints
+    are attached from canonical diagnostic config 303 (results/303-s1-b4-seed1-sentinels-selection-prop/001-20260727-190455-ba5f3286/activation_propagation.json).
 - design_id: S1-B4-SEED1-A6PRE-ADAMW-LR3EM5-S1
   config_id: 296-s1-b4-p14m-a6pre-adamw-lr3em5-s1
   run_id: 001-20260727-112309-21d851fb
@@ -13392,22 +13395,22 @@ records:
   resumed_from_run_id: null
   resume_checkpoint_sha256: null
   artifact_upload_verified_at: null
-  propagation_result_path: null
-  r_block: null
-  r_model: null
-  r_block_max: null
-  r_model_max: null
-  u_arch: null
-  z_a: null
-  z_m: null
-  z_h: null
-  z_q_gate: null
-  z_k_gate: null
-  z_v_gate: null
-  z_q_qk: null
-  z_k_qk: null
-  z_v_pv: null
-  z_context_wo: null
+  propagation_result_path: results/303-s1-b4-seed1-sentinels-selection-prop/001-20260727-190455-ba5f3286/activation_propagation.json
+  r_block: 0.4112851565898496
+  r_model: 0.12318968053927737
+  r_block_max: 1.0
+  r_model_max: 0.2995237697384911
+  u_arch: 0.4112851565898496
+  z_a: 0.5087711601926569
+  z_m: 0.5100729841935007
+  z_h: 0.45841830550578605
+  z_q_gate: 0.1820673147837321
+  z_k_gate: 0.2752203062960976
+  z_v_gate: 0.44464256888941717
+  z_q_qk: 0.13365113944338078
+  z_k_qk: 0.2351386965366832
+  z_v_pv: 0.44464256888941717
+  z_context_wo: 0.00924716916000634
   clipping_result_paths: []
   figure_ids: []
   failure_type: null
@@ -13419,7 +13422,8 @@ records:
   notes: Review-only S1-B4 seed-1 sentinel closure. Canonical run 001-20260727-112309-21d851fb completed 2048 steps/134217728
     tokens from clean commit 2eae610b and passed exact seed-only source pairing, random-init seed-1 recomputation, schedule,
     finite-event, checkpoint, pressure, and instability review. Complete-selection pooled z_*/R endpoints remain pending diagnostic
-    303. No ranking, winner selection, or promotion decision was performed.
+    303. No ranking, winner selection, or promotion decision was performed. Complete-selection pooled exact-zero/product endpoints
+    are attached from canonical diagnostic config 303 (results/303-s1-b4-seed1-sentinels-selection-prop/001-20260727-190455-ba5f3286/activation_propagation.json).
 - design_id: S1-B4-SEED1-A6POST-ADAMW-LR3EM5-S1
   config_id: 297-s1-b4-p14m-a6post-adamw-lr3em5-s1
   run_id: 001-20260727-114307-3f6d5070
@@ -13477,22 +13481,22 @@ records:
   resumed_from_run_id: null
   resume_checkpoint_sha256: null
   artifact_upload_verified_at: null
-  propagation_result_path: null
-  r_block: null
-  r_model: null
-  r_block_max: null
-  r_model_max: null
-  u_arch: null
-  z_a: null
-  z_m: null
-  z_h: null
-  z_q_gate: null
-  z_k_gate: null
-  z_v_gate: null
-  z_q_qk: null
-  z_k_qk: null
-  z_v_pv: null
-  z_context_wo: null
+  propagation_result_path: results/303-s1-b4-seed1-sentinels-selection-prop/001-20260727-190455-ba5f3286/activation_propagation.json
+  r_block: 0.46246398824367746
+  r_model: 0.13851895712704348
+  r_block_max: 1.0
+  r_model_max: 0.2995237697384911
+  u_arch: 0.4624639882436774
+  z_a: 0.509001936828881
+  z_m: 0.5097680719275224
+  z_h: 0.4583159517823604
+  z_q_gate: 0.2430584514350222
+  z_k_gate: 0.35739196810806007
+  z_v_gate: 0.44311351525156123
+  z_q_qk: 0.2430584514350222
+  z_k_qk: 0.35739196810806007
+  z_v_pv: 0.44311351525156123
+  z_context_wo: 0.011143567269308525
   clipping_result_paths: []
   figure_ids: []
   failure_type: null
@@ -13504,7 +13508,8 @@ records:
   notes: Review-only S1-B4 seed-1 sentinel closure. Canonical run 001-20260727-114307-3f6d5070 completed 2048 steps/134217728
     tokens from clean commit 2eae610b and passed exact seed-only source pairing, random-init seed-1 recomputation, schedule,
     finite-event, checkpoint, pressure, and instability review. Complete-selection pooled z_*/R endpoints remain pending diagnostic
-    303. No ranking, winner selection, or promotion decision was performed.
+    303. No ranking, winner selection, or promotion decision was performed. Complete-selection pooled exact-zero/product endpoints
+    are attached from canonical diagnostic config 303 (results/303-s1-b4-seed1-sentinels-selection-prop/001-20260727-190455-ba5f3286/activation_propagation.json).
 - design_id: S1-B4-SEED1-GPLUS-POST-QKV-K010-S1
   config_id: 298-s1-b4-p14m-gplus-post-qkv-k010-s1
   run_id: 001-20260727-120300-10c2d667
@@ -13562,22 +13567,22 @@ records:
   resumed_from_run_id: null
   resume_checkpoint_sha256: null
   artifact_upload_verified_at: null
-  propagation_result_path: null
-  r_block: null
-  r_model: null
-  r_block_max: null
-  r_model_max: null
-  u_arch: null
-  z_a: null
-  z_m: null
-  z_h: null
-  z_q_gate: null
-  z_k_gate: null
-  z_v_gate: null
-  z_q_qk: null
-  z_k_qk: null
-  z_v_pv: null
-  z_context_wo: null
+  propagation_result_path: results/303-s1-b4-seed1-sentinels-selection-prop/001-20260727-190455-ba5f3286/activation_propagation.json
+  r_block: 0.5696058479841024
+  r_model: 0.17061049085328828
+  r_block_max: 1.0
+  r_model_max: 0.2995237697384911
+  u_arch: 0.5696058479841025
+  z_a: 0.5071338477887606
+  z_m: 0.5082837656924599
+  z_h: 0.46263901810897023
+  z_q_gate: 0.3840490182240804
+  z_k_gate: 0.5144208816059849
+  z_v_gate: 0.6676222483317057
+  z_q_qk: 0.3840490182240804
+  z_k_qk: 0.5144208816059849
+  z_v_pv: 0.6676222483317057
+  z_context_wo: 0.04427071203265274
   clipping_result_paths: []
   figure_ids: []
   failure_type: null
@@ -13589,7 +13594,8 @@ records:
   notes: Review-only S1-B4 seed-1 sentinel closure. Canonical run 001-20260727-120300-10c2d667 completed 2048 steps/134217728
     tokens from clean commit 2eae610b and passed exact seed-only source pairing, random-init seed-1 recomputation, schedule,
     finite-event, checkpoint, pressure, and instability review. Complete-selection pooled z_*/R endpoints remain pending diagnostic
-    303. No ranking, winner selection, or promotion decision was performed.
+    303. No ranking, winner selection, or promotion decision was performed. Complete-selection pooled exact-zero/product endpoints
+    are attached from canonical diagnostic config 303 (results/303-s1-b4-seed1-sentinels-selection-prop/001-20260727-190455-ba5f3286/activation_propagation.json).
 - design_id: S1-B4-SEED1-GPM-POST-QKV-K010-S1
   config_id: 299-s1-b4-p14m-gpm-post-qkv-k010-s1
   run_id: 001-20260727-122346-50b420c0
@@ -13647,22 +13653,22 @@ records:
   resumed_from_run_id: null
   resume_checkpoint_sha256: null
   artifact_upload_verified_at: null
-  propagation_result_path: null
-  r_block: null
-  r_model: null
-  r_block_max: null
-  r_model_max: null
-  u_arch: null
-  z_a: null
-  z_m: null
-  z_h: null
-  z_q_gate: null
-  z_k_gate: null
-  z_v_gate: null
-  z_q_qk: null
-  z_k_qk: null
-  z_v_pv: null
-  z_context_wo: null
+  propagation_result_path: results/303-s1-b4-seed1-sentinels-selection-prop/001-20260727-190455-ba5f3286/activation_propagation.json
+  r_block: 0.3996480533656604
+  r_model: 0.11970409151273227
+  r_block_max: 1.0
+  r_model_max: 0.2995237697384911
+  u_arch: 0.3996480533656604
+  z_a: 0.5062357166357208
+  z_m: 0.5074100494384766
+  z_h: 0.4569299200124908
+  z_q_gate: 0.08861764272054036
+  z_k_gate: 0.1712254432209751
+  z_v_gate: 0.488397619180512
+  z_q_qk: 0.08861764272054036
+  z_k_qk: 0.1712254432209751
+  z_v_pv: 0.488397619180512
+  z_context_wo: 0.0006296801985355845
   clipping_result_paths: []
   figure_ids: []
   failure_type: null
@@ -13674,7 +13680,8 @@ records:
   notes: Review-only S1-B4 seed-1 sentinel closure. Canonical run 001-20260727-122346-50b420c0 completed 2048 steps/134217728
     tokens from clean commit 2eae610b and passed exact seed-only source pairing, random-init seed-1 recomputation, schedule,
     finite-event, checkpoint, pressure, and instability review. Complete-selection pooled z_*/R endpoints remain pending diagnostic
-    303. No ranking, winner selection, or promotion decision was performed.
+    303. No ranking, winner selection, or promotion decision was performed. Complete-selection pooled exact-zero/product endpoints
+    are attached from canonical diagnostic config 303 (results/303-s1-b4-seed1-sentinels-selection-prop/001-20260727-190455-ba5f3286/activation_propagation.json).
 - design_id: S1-B4-SEED1-ATG-GPM-POST-QKV-ABS-PLS-K010-S1
   config_id: 300-s1-b4-p14m-atg-gpm-post-qkv-abs-pls-k010-s1
   run_id: 001-20260727-124434-2205f2c0
@@ -13732,22 +13739,22 @@ records:
   resumed_from_run_id: null
   resume_checkpoint_sha256: null
   artifact_upload_verified_at: null
-  propagation_result_path: null
-  r_block: null
-  r_model: null
-  r_block_max: null
-  r_model_max: null
-  u_arch: null
-  z_a: null
-  z_m: null
-  z_h: null
-  z_q_gate: null
-  z_k_gate: null
-  z_v_gate: null
-  z_q_qk: null
-  z_k_qk: null
-  z_v_pv: null
-  z_context_wo: null
+  propagation_result_path: results/303-s1-b4-seed1-sentinels-selection-prop/001-20260727-190455-ba5f3286/activation_propagation.json
+  r_block: 0.44155725042039834
+  r_model: 0.13225689220128065
+  r_block_max: 1.0
+  r_model_max: 0.2995237697384911
+  u_arch: 0.44155725042039834
+  z_a: 0.5062229967953866
+  z_m: 0.5076200836583188
+  z_h: 0.4573392773929395
+  z_q_gate: 0.13308917430409214
+  z_k_gate: 0.23332894057558293
+  z_v_gate: 0.5510028872573585
+  z_q_qk: 0.13308917430409214
+  z_k_qk: 0.23332894057558293
+  z_v_pv: 0.5510028872573585
+  z_context_wo: 0.0008909325850637336
   clipping_result_paths: []
   figure_ids: []
   failure_type: null
@@ -13759,7 +13766,8 @@ records:
   notes: Review-only S1-B4 seed-1 sentinel closure. Canonical run 001-20260727-124434-2205f2c0 completed 2048 steps/134217728
     tokens from clean commit 2eae610b and passed exact seed-only source pairing, random-init seed-1 recomputation, schedule,
     finite-event, checkpoint, pressure, and instability review. Complete-selection pooled z_*/R endpoints remain pending diagnostic
-    303. No ranking, winner selection, or promotion decision was performed.
+    303. No ranking, winner selection, or promotion decision was performed. Complete-selection pooled exact-zero/product endpoints
+    are attached from canonical diagnostic config 303 (results/303-s1-b4-seed1-sentinels-selection-prop/001-20260727-190455-ba5f3286/activation_propagation.json).
 - design_id: S1-B4-SEED1-A6POST-L1N-W1-S1
   config_id: 301-s1-b4-p14m-a6post-l1n-w1-s1
   run_id: 001-20260727-130534-9c33bb64
@@ -13817,22 +13825,22 @@ records:
   resumed_from_run_id: null
   resume_checkpoint_sha256: null
   artifact_upload_verified_at: null
-  propagation_result_path: null
-  r_block: null
-  r_model: null
-  r_block_max: null
-  r_model_max: null
-  u_arch: null
-  z_a: null
-  z_m: null
-  z_h: null
-  z_q_gate: null
-  z_k_gate: null
-  z_v_gate: null
-  z_q_qk: null
-  z_k_qk: null
-  z_v_pv: null
-  z_context_wo: null
+  propagation_result_path: results/303-s1-b4-seed1-sentinels-selection-prop/001-20260727-190455-ba5f3286/activation_propagation.json
+  r_block: 0.6602203844542687
+  r_model: 0.19775169840993842
+  r_block_max: 1.0
+  r_model_max: 0.2995237697384911
+  u_arch: 0.6602203844542687
+  z_a: 0.42964923172666314
+  z_m: 0.3476102059347588
+  z_h: 0.4110710098032366
+  z_q_gate: 0.8970749294548704
+  z_k_gate: 0.8969692180031225
+  z_v_gate: 0.8119107463903594
+  z_q_qk: 0.8970749294548704
+  z_k_qk: 0.8969692180031225
+  z_v_pv: 0.8119107463903594
+  z_context_wo: 0.04866874008847956
   clipping_result_paths: []
   figure_ids: []
   failure_type: null
@@ -13844,7 +13852,8 @@ records:
   notes: Review-only S1-B4 seed-1 sentinel closure. Canonical run 001-20260727-130534-9c33bb64 completed 2048 steps/134217728
     tokens from clean commit 2eae610b and passed exact seed-only source pairing, random-init seed-1 recomputation, schedule,
     finite-event, checkpoint, pressure, and instability review. Complete-selection pooled z_*/R endpoints remain pending diagnostic
-    303. No ranking, winner selection, or promotion decision was performed.
+    303. No ranking, winner selection, or promotion decision was performed. Complete-selection pooled exact-zero/product endpoints
+    are attached from canonical diagnostic config 303 (results/303-s1-b4-seed1-sentinels-selection-prop/001-20260727-190455-ba5f3286/activation_propagation.json).
 - design_id: S1-B4-SEED1-A6POST-OR-W0P3-C0P1-SG0P1-S1
   config_id: 302-s1-b4-p14m-a6post-or-w0p3-c0p1-sg0p1-s1
   run_id: 001-20260727-134130-86a95dc4
@@ -13902,7 +13911,93 @@ records:
   resumed_from_run_id: null
   resume_checkpoint_sha256: null
   artifact_upload_verified_at: null
-  propagation_result_path: null
+  propagation_result_path: results/303-s1-b4-seed1-sentinels-selection-prop/001-20260727-190455-ba5f3286/activation_propagation.json
+  r_block: 0.5862998586138635
+  r_model: 0.17561074384916875
+  r_block_max: 1.0
+  r_model_max: 0.2995237697384911
+  u_arch: 0.5862998586138636
+  z_a: 0.5097296154289915
+  z_m: 0.5102571018955164
+  z_h: 0.4600410022233662
+  z_q_gate: 0.8385390315139503
+  z_k_gate: 0.8348539001063296
+  z_v_gate: 0.4538549958613881
+  z_q_qk: 0.8385390315139503
+  z_k_qk: 0.8348539001063296
+  z_v_pv: 0.4538549958613881
+  z_context_wo: 0.01065969467163086
+  clipping_result_paths: []
+  figure_ids: []
+  failure_type: null
+  failure_message: null
+  artifact_uri: null
+  artifact_manifest_uri: null
+  artifact_manifest_sha256: null
+  reviewed_at: '2026-07-27T18:57:48.506547+00:00'
+  notes: Review-only S1-B4 seed-1 sentinel closure. Canonical run 001-20260727-134130-86a95dc4 completed 2048 steps/134217728
+    tokens from clean commit 2eae610b and passed exact seed-only source pairing, random-init seed-1 recomputation, schedule,
+    finite-event, checkpoint, pressure, and instability review. Complete-selection pooled z_*/R endpoints remain pending diagnostic
+    303. No ranking, winner selection, or promotion decision was performed. Complete-selection pooled exact-zero/product endpoints
+    are attached from canonical diagnostic config 303 (results/303-s1-b4-seed1-sentinels-selection-prop/001-20260727-190455-ba5f3286/activation_propagation.json).
+- design_id: S1-B4-DIAG-SEED1-SENTINELS-SELECTION-S1
+  config_id: 303-s1-b4-seed1-sentinels-selection-prop
+  run_id: 001-20260727-190455-ba5f3286
+  attempt: 1
+  mode: activation-propagation
+  result_path: results/303-s1-b4-seed1-sentinels-selection-prop/001-20260727-190455-ba5f3286
+  log_path: null
+  lifecycle_status: statusless_complete
+  evidence_status: valid
+  canonical: true
+  started_at: '2026-07-27T19:04:55.812993+00:00'
+  finished_at: '2026-07-27T19:05:35.185436+00:00'
+  git_commit: b78fdcfd286e320645235c735b1d4c5ae371b702
+  git_dirty: false
+  completed_steps: 0
+  tokens_seen: 0
+  model_initialization_seed: 1
+  data_order_seed: 1
+  training_schedule_scheme: null
+  training_schedule_hash: null
+  initial_parameter_sha256: null
+  effective_tokens_per_update: null
+  validation_partition: selection
+  validation_partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
+  validation_tokens: 311296
+  validation_loss: null
+  wall_hours: 0.010936789805548162
+  tokens_per_second: 79064.43540429467
+  peak_gpu_mb: 673.5126953125
+  execution_backend: local
+  cloud_provider: null
+  cloud_tier: null
+  provisioning_type: null
+  interruptible: null
+  pod_id: null
+  region: null
+  datacenter_id: null
+  gpu_type: NVIDIA GeForce RTX 5070 Ti Laptop GPU
+  gpu_count: 1
+  container_image_ref: null
+  container_image_digest: null
+  environment_lock_sha256: null
+  python_version: 3.12.10
+  pytorch_version: 2.11.0+cu128
+  cuda_version: '12.8'
+  cudnn_version: null
+  gpu_driver_version: '572.84'
+  token_cache_sha256: 22bb7c27864f0e5941548c572d6c75b1b5ba6a4c13e4cd26f40f4de546c5cc19
+  hourly_rate_usd: null
+  rate_snapshot_date: null
+  rate_source_url: null
+  billed_gpu_seconds: null
+  compute_cost_usd: null
+  storage_cost_usd: null
+  resumed_from_run_id: null
+  resume_checkpoint_sha256: null
+  artifact_upload_verified_at: null
+  propagation_result_path: results/303-s1-b4-seed1-sentinels-selection-prop/001-20260727-190455-ba5f3286/activation_propagation.json
   r_block: null
   r_model: null
   r_block_max: null
@@ -13925,8 +14020,7 @@ records:
   artifact_uri: null
   artifact_manifest_uri: null
   artifact_manifest_sha256: null
-  reviewed_at: '2026-07-27T18:57:48.506547+00:00'
-  notes: Review-only S1-B4 seed-1 sentinel closure. Canonical run 001-20260727-134130-86a95dc4 completed 2048 steps/134217728
-    tokens from clean commit 2eae610b and passed exact seed-only source pairing, random-init seed-1 recomputation, schedule,
-    finite-event, checkpoint, pressure, and instability review. Complete-selection pooled z_*/R endpoints remain pending diagnostic
-    303. No ranking, winner selection, or promotion decision was performed.
+  reviewed_at: '2026-07-27T16:07:37.8499991-03:00'
+  notes: Review-only canonical config-303 complete-selection diagnostic closure over the exact ten B4 seed-1 sentinels. It
+    pooled 311296 tokens/152 sequences/38 batches, excluded 443 trailing cache tokens, passed final-auditor endpoint arithmetic,
+    and pinned activation artifact SHA256 2f2c24b31f953f58e1406aa2013992bff5526713f848ccc0c5da9e8c6393b4d5.

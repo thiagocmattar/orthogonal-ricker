@@ -66,8 +66,9 @@ block_summary:
   planned_cells: 10
   materialized_cells: 10
   completed_cells: 10
-  status: active
-  note: All ten seed-1 sentinels are terminal and audited; diagnostic 303 must complete before S1-B4 closes.
+  status: completed
+  note: Ten seed-1 sentinels and pooled complete-selection diagnostic 303 are closed with reviewed canonical evidence; no
+    ranking or promotion was performed.
 - block: S1-CONTROLS
   planned_cells_max: 50
   materialized_cells: 0
@@ -10923,12 +10924,9 @@ records:
   ricker_sigma: null
   step_budget: null
   matched_control_id: null
-  config_status: ready
+  config_status: closed
   decision_status: control
   release_tier: history
-  canonical_run_id: null
-  notes: 'Review-only ready row for pooled complete-selection diagnostic 303. Its ten source runs passed exact queue-order
-    reconciliation: 001-20260727-103125-a502cb9d, 001-20260727-104830-b2c79809, 001-20260727-110526-adbfda90, 001-20260727-112309-21d851fb,
-    001-20260727-114307-3f6d5070, 001-20260727-120300-10c2d667, 001-20260727-122346-50b420c0, 001-20260727-124434-2205f2c0,
-    001-20260727-130534-9c33bb64, 001-20260727-134130-86a95dc4. Materialize only with the reviewed ten closures/run rows.
-    No ranking or promotion decision was performed.'
+  canonical_run_id: 001-20260727-190455-ba5f3286
+  notes: Canonical diagnostic 001-20260727-190455-ba5f3286 passed complete-selection source, topology, exact-zero, integer
+    logical-product, architecture-ceiling, endpoint-attachment, and final-auditor review for all ten B4 sentinels.
