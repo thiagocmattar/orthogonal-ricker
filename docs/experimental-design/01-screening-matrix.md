@@ -312,9 +312,11 @@ matched orthogonal member; cover `A3` before `A6-POST`.
 | `T4-RK-BASIN` | Ricker `(0.3,0.05,0.05)` and `(0.3,0.5,0.5)`, both methods and both architectures |
 | `T5-RK-SHAPE` | Ricker `(0.3,0.1,0.05)` and `(0.3,0.1,0.2)`, both methods and both architectures |
 
-> Completed through `t5-rk-shape`: B3 is `40/40` materialized and complete.
-> Pooled diagnostic `292` is closed and canonical. The next phase is B4:
-> scientific prefixes `293--302`; pooled diagnostic `303` remains deferred.
+> Completed through `t5-rk-shape`: B3 is `40/40` materialized and complete,
+> and pooled diagnostic `292` is closed and canonical. B4 is `10/10`
+> materialized and `0/10` complete: configs `293--302` are ready after exact
+> seed-0 source, artifact, checkpoint-hash, byte, and semantic-clone review.
+> Pooled diagnostic `303` remains deliberately unmaterialized.
 
 After each tranche, reconcile all eight terminal manifests and run one pooled
 complete-selection propagation diagnostic before starting the next tranche.

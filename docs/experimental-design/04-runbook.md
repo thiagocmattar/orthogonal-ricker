@@ -346,10 +346,16 @@ active. Do not reuse its queue state. `C4-BUDGET` triggered: the `0.5` cap bound
 `291`. This is a non-invalidating stability control and does not change the
 primary budget.
 
-Next gate: S1-B4 seed sentinels occupy scientific prefixes `293--302`, followed
-by deferred pooled diagnostic `303`. No B4 config or process is materialized.
-Prepare and independently review the exact B4 registration bundle, then wait
-for explicit launch approval.
+Next gate: S1-B4 seed sentinels `293--302` are registered and ready in exact
+numeric order at launch commit
+`2eae610b745237bfef2d0d816f861b4787fd3559`. The clean detached runner is
+`C:\tmp\osp-s1-b4-runner`; its ten config hashes, token-cache junction, and
+authoritative empty result-root junctions were verified. The reserved queue
+state is `run-logs\s1-b4-seed-sentinels-293-302-queue.json` and its log
+directory is `run-logs\s1-b4-seed-sentinels-293-302`; neither exists yet and
+no B4 process has launched. Wait for explicit launch approval. Diagnostic
+`303` remains unmaterialized until all ten terminal runs are audited and
+reconciled to canonical run ids.
 
 ## 11. Open-Source and Archive Policy
 

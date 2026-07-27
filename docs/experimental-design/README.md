@@ -44,8 +44,9 @@ work.
   [`16-s1-b3-t3-ricker-weight-results.md`](16-s1-b3-t3-ricker-weight-results.md),
   [`17-s1-b3-t4-ricker-basin-results.md`](17-s1-b3-t4-ricker-basin-results.md),
   and [`18-s1-b3-t5-ricker-shape-results.md`](18-s1-b3-t5-ricker-shape-results.md).
-  B3 is 40/40 complete; executable S1 is 122/132 complete. Prefix `293` is the
-  next unused prefix.
+  B3 is 40/40 complete. B4 seed-pair-1 configs `293--302` are materialized
+  and ready; executable S1 remains 122/132 complete. Prefix `303` is next and
+  remains reserved for the deferred pooled B4 diagnostic.
 - The five central B0 anchors, configs `123--127`, completed and passed
   terminal review. Their final selection losses are `7.04913` (A0),
   `6.98875` (A1-H), `7.01310` (A3), `7.01645` (A6-PRE), and `7.03248`
@@ -56,7 +57,7 @@ work.
   `(weight,c,sigma)=(.3,.1,.2)`, run `001-20260727-005957-fb0e5883`,
   selection loss `7.04009`.
 - Active scientific run: none. The next action, only after explicit approval,
-  is preparation and registration of S1-B4 seed sentinels `293--302`.
+  is launching configs `293--302` as one fail-stop S1-B4 queue.
 
 | Config | Gate/site | Canonical run | Selection loss | `R_block` | `R_model` |
 | ---: | --- | --- | ---: | ---: | ---: |
