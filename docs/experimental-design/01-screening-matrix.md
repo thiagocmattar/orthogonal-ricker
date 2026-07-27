@@ -260,10 +260,11 @@ S1-B2-GRAN-<GPLUS|GPM>-POST-QKV-ABS-<GLOBAL|SITE>-K010-S0
 
 For learned branch scopes, `A1-H`, `A3`, and `A6-POST` again mean that every
 active gate in the topology is learned and thresholded. The implementation is
-ready for AdamW engineering runs, including detached RMS-relative thresholds.
-The exact `tau` and threshold-LR defaults above must still pass the engineering pilot;
-a veto creates a documented design revision before any B2 config is launched.
-The pilot must not select these values by comparing validation endpoints.
+ready for AdamW runs, including detached RMS-relative thresholds. The
+engineering pilot completed on 2026-07-19. Its registered revision retained
+`tau=.03` and selected TLRM 10, hence threshold LR `3e-4`, solely by the
+predeclared update-resolution criterion; validation endpoints were not ranked
+or used in the decision. B2 then completed 26/26 scientific cells.
 Learned-versus-fixed causal contrasts are restricted to absolute thresholds,
 where B1 supplies the matched fixed row. RMS-relative learned rows are an
 unmatched exploratory scale-normalization study until fixed RMS controls are
@@ -312,11 +313,11 @@ matched orthogonal member; cover `A3` before `A6-POST`.
 | `T4-RK-BASIN` | Ricker `(0.3,0.05,0.05)` and `(0.3,0.5,0.5)`, both methods and both architectures |
 | `T5-RK-SHAPE` | Ricker `(0.3,0.1,0.05)` and `(0.3,0.1,0.2)`, both methods and both architectures |
 
-> Completed through `t5-rk-shape`: B3 is `40/40` materialized and complete,
-> and pooled diagnostic `292` is closed and canonical. B4 is `10/10`
-> materialized and `0/10` complete: configs `293--302` are ready after exact
-> seed-0 source, artifact, checkpoint-hash, byte, and semantic-clone review.
-> Pooled diagnostic `303` remains deliberately unmaterialized.
+> Completed through B4: B3 is `40/40` and B4 is `10/10`. Pooled diagnostics
+> `292` and `303` are closed and canonical. The executable S1 core is
+> `132/132`; no ranking or promotion was performed during closure. Prefix
+> `304` is next and remains unallocated pending the registered
+> conditional-trigger review.
 
 After each tranche, reconcile all eight terminal manifests and run one pooled
 complete-selection propagation diagnostic before starting the next tranche.
@@ -357,6 +358,12 @@ Materialize B4 only after all ten source cells above are closed. Execute the
 ten sentinels as one fail-stop serial tranche and then run one pooled
 complete-selection propagation diagnostic pinned to their canonical run ids.
 
+Completion record: configs `293--302` and pooled diagnostic `303` are closed
+and canonical. Results are in
+[`19-s1-b4-seed-sentinel-results.md`](19-s1-b4-seed-sentinel-results.md); the
+executable-core handoff is in
+[`20-s1-executable-core-closure.md`](20-s1-executable-core-closure.md).
+
 ## 6. Conditional Controls -- At Most 50 Cells
 
 These rows are predeclared but do not launch automatically. Their trigger and
@@ -393,16 +400,16 @@ scaling to fill an untriggered 182- or 184-cell envelope. See
 | --- | ---: | ---: |
 | B0 architecture/LR | 22 | 6--8 h |
 | B1 fixed thresholds | 36 | 10--12 h |
-| B2 learned thresholds | 26 | 9--11 h, provisional |
+| B2 learned thresholds | 26 | 9--11 h |
 | B3 pressure | 40 | 18--21 h |
 | B4 sentinels | 10 | 3--4 h |
-| Executable core | **132--134** | **46--56 GPU-h** |
+| Executable core | **132 current / 134 with context gates** | **46--56 GPU-h** |
 | Conditional controls | at most 50 | 20--24 h |
 | Maximum design envelope | **182--184** | **66--80 GPU-h** |
 
 Observed 2,048-step planning times on the current GPU are approximately 16--20
 minutes for AdamW/fixed gates, 21--25 for OR/OL1, 28--32 for L1N, and 31--34 for
-RN. Learned ATG is provisionally budgeted at 20--24 minutes. This is about three
+RN. Learned ATG runs observed approximately 17--24 minutes. This is about three
 to four serial wall-clock days for the maximum envelope, before failures,
 diagnostics, or human review.
 
@@ -431,12 +438,11 @@ Complete these before the affected block launches:
    `A7-POST-C`, including a stable activation alias, pressure capture,
    checkpoint reconstruction, propagation/product accounting, graph-union
    ceiling logic, and tests.
-6. Selection and campaign-confirmation source-document lists are frozen 250/250
-   in `validation-partitions.yaml`. E0.1 must materialize both token caches and
-   verify their realized document/token counts and hashes before acceptance.
-7. Model-initialization and data-order seeds plus a deterministic training
-   schedule hash are implemented. E0.1 must verify that changing only the model
-   seed changes the initialization hash while preserving the schedule and
+6. Completed 2026-07-18: E0.1 materialized both token caches from the frozen
+   250/250 source-document lists in `validation-partitions.yaml` and verified
+   their realized document/token counts and hashes.
+7. Completed 2026-07-18: E0.1 verified that changing only the model seed
+   changes the initialization hash while preserving deterministic schedule and
    validation hashes.
 8. `TODO:` wire saved dynamic gate metadata and scale-specific compute ceilings
    into the new plotting path; do not reuse Report 05's hard-coded `d=128`

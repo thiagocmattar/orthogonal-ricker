@@ -329,33 +329,30 @@ runs remaining, and ETC for both the current run and the full set.
 The receiving agent independently verifies process state and manifests. A chat
 message is not sufficient evidence that a run completed.
 
-Current handoff: S1-B3 `t5-rk-shape` configs `284--291` and pooled diagnostic
-`292` are closed, valid, and canonical. Diagnostic run
-`001-20260727-095931-6f265e69` pooled all eight endpoints over 311,296 selection
-tokens. S1 is 122/132 complete and B3 is 40/40 complete. The canonical table
-and interpretation boundary are in `18-s1-b3-t5-ricker-shape-results.md`.
+Current handoff: executable S1 is 132/132 complete. B4 configs `293--302` and
+pooled diagnostic `303` are closed, valid, and canonical. Diagnostic run
+`001-20260727-190455-ba5f3286` pooled all ten endpoints over 311,296 selection
+tokens; its artifact SHA-256 is
+`2f2c24b31f953f58e1406aa2013992bff5526713f848ccc0c5da9e8c6393b4d5`.
+The dated local closure audit confirms all 36 required diagnostics
+`closed_valid` and zero census errors or gaps. Results are in
+[`19-s1-b4-seed-sentinel-results.md`](19-s1-b4-seed-sentinel-results.md); the
+terminal handoff is in
+[`20-s1-executable-core-closure.md`](20-s1-executable-core-closure.md).
 
-The completed T5 queue state is
-`run-logs\s1-b3-t5-rk-shape-284-291-queue.json`; queue id
-`dbb3037777d94bfd906734951f88c07a` completed all eight cells in 4 h 04 min
-13 s. Its
-retained detached runner is `C:\tmp\osp-s1-b3-t5-runner` at launch commit
-`e918f755cd313a68d312e42728df152a3706870c`; no campaign process remains
-active. Do not reuse its queue state. `C4-BUDGET` triggered: the `0.5` cap bound
-22/42 updates for config `285`, 42/42 for `287`, 28/42 for `289`, and 42/42 for
-`291`. This is a non-invalidating stability control and does not change the
-primary budget.
+The completed B4 queue state is
+`run-logs/s1-b4-seed-sentinels-293-302-queue.json`; queue id
+`3991f2d5c37a4e06a9034575bac57c77` completed all ten cells in 3 h 40 min
+09 s. No campaign process remains active, and the queue state must not be
+reused. Registry closure is commit
+`5ddc0ca1e650f90c1035e14a3b7d6f69384d0205`; prefix `304` is next.
 
-Next gate: S1-B4 seed sentinels `293--302` are registered and ready in exact
-numeric order at launch commit
-`2eae610b745237bfef2d0d816f861b4787fd3559`. The clean detached runner is
-`C:\tmp\osp-s1-b4-runner`; its ten config hashes, token-cache junction, and
-authoritative empty result-root junctions were verified. The reserved queue
-state is `run-logs\s1-b4-seed-sentinels-293-302-queue.json` and its log
-directory is `run-logs\s1-b4-seed-sentinels-293-302`; neither exists yet and
-no B4 process has launched. Wait for explicit launch approval. Diagnostic
-`303` remains unmaterialized until all ten terminal runs are audited and
-reconciled to canonical run ids.
+Next gate: review and register the predeclared conditional-control triggers
+before materializing config `304`. `C4-BUDGET` is triggered by B3 cap binding
+and reinforced by B4 config `302`, whose `step_budget=.5` cap bound on every
+logged pressure update without violation. This is a stability control and does
+not change the primary budget. Do not launch any conditional cell or freeze an
+S2 panel until the trigger review is recorded.
 
 ## 11. Open-Source and Archive Policy
 

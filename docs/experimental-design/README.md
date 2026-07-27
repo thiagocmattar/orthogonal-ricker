@@ -9,10 +9,11 @@ work.
 
 - Campaign id: `pythia-sparsity-scaling-v1`.
 - Planning date: 2026-07-18.
-- Scientific completion is 122/132 (92.42%): S1-B0 is 20/20, S1-B1 is 36/36,
-  S1-B2 is 26/26, and S1-B3 is 40/40 after reviewed pooled diagnostic `292`.
-  The 2,048-step screen remains restricted to feasibility/collapse and
-  within-stratum comparisons.
+- Scientific completion is 132/132 (100%): S1-B0 is 20/20, S1-B1 is 36/36,
+  S1-B2 is 26/26, S1-B3 is 40/40, and S1-B4 is 10/10. All 36 mandatory
+  scientific diagnostics are closed; the local closure audit confirms the
+  census with zero errors or gaps. The 2,048-step screen remains restricted
+  to feasibility/collapse and within-stratum comparisons.
 - Learned-ATG engineering configs `211--219` completed all nine 128-step runs
   and passed the hard checkpoint/optimizer contract. Config `220`, run
   `001-20260719-190523-f28590eb`, completed and passed the exact center-first
@@ -44,20 +45,26 @@ work.
   [`16-s1-b3-t3-ricker-weight-results.md`](16-s1-b3-t3-ricker-weight-results.md),
   [`17-s1-b3-t4-ricker-basin-results.md`](17-s1-b3-t4-ricker-basin-results.md),
   and [`18-s1-b3-t5-ricker-shape-results.md`](18-s1-b3-t5-ricker-shape-results.md).
-  B3 is 40/40 complete. B4 seed-pair-1 configs `293--302` are materialized
-  and ready; executable S1 remains 122/132 complete. Prefix `303` is next and
-  remains reserved for the deferred pooled B4 diagnostic.
+  B3 is 40/40 complete. B4 seed-pair-1 configs `293--302` and pooled
+  diagnostic `303` are closed and canonical. The B4 table and paired
+  sensitivity analysis are in
+  [`19-s1-b4-seed-sentinel-results.md`](19-s1-b4-seed-sentinel-results.md);
+  the terminal handoff is in
+  [`20-s1-executable-core-closure.md`](20-s1-executable-core-closure.md).
 - The five central B0 anchors, configs `123--127`, completed and passed
   terminal review. Their final selection losses are `7.04913` (A0),
   `6.98875` (A1-H), `7.01310` (A3), `7.01645` (A6-PRE), and `7.03248`
   (A6-POST). Config `128`, the combined selection-partition endpoint
   diagnostic, also completed and passed artifact review. Configs `121--122`
   remain accepted engineering controls.
-- Last durably completed scientific run: config `291`, A6-POST OR at
-  `(weight,c,sigma)=(.3,.1,.2)`, run `001-20260727-005957-fb0e5883`,
-  selection loss `7.04009`.
-- Active scientific run: none. The next action, only after explicit approval,
-  is launching configs `293--302` as one fail-stop S1-B4 queue.
+- Last durably completed scientific run: config `302`, A6-POST OR at
+  `(weight,c,sigma)=(.3,.1,.1)`, seed `1/1`, run
+  `001-20260727-134130-86a95dc4`, selection loss `7.05829`.
+- Last mandatory diagnostic: config `303`, run
+  `001-20260727-190455-ba5f3286`, over 311,296 selection tokens.
+- Active scientific run: none. Prefix `304` is next. The next action is to
+  register the predeclared conditional-trigger decisions; do not launch a
+  conditional cell from S1 completion alone.
 
 | Config | Gate/site | Canonical run | Selection loss | `R_block` | `R_model` |
 | ---: | --- | --- | ---: | ---: | ---: |
@@ -141,8 +148,8 @@ work.
   `001-20260719-021803-600ff4f4`, completed at selection loss `7.03079` and
   passed terminal review. Config `154`, run
   `001-20260719-024218-dcb80f3f`, completed its mandatory selection diagnostic
-  at `R_block=0.45622` and `R_model=0.13665`; the next B1 scientific cell may
-  be materialized. Config `155` materializes fixed `G+`, PRE-RoPE Q/K plus
+  at `R_block=0.45622` and `R_model=0.13665`. Config `155` materializes fixed
+  `G+`, PRE-RoPE Q/K plus
   post-split V, `kappa=0.03`; run `001-20260719-024629-701ee0c3` completed at
   selection loss `7.01712` and passed terminal review. Its mandatory selection
   propagation diagnostic, config `156`, run
@@ -265,7 +272,7 @@ work.
   `001-20260719-182227-8a286ad9`, closes S1-B1.
 - B0 has completed all `20 / 20` currently executable scientific cells
   (`20 / 22` declared); the two post-PV context cells remain blocked. The
-  declared S1 core has completed `106 / 134` cells (`106 / 132` executable).
+  declared S1 core has completed `132 / 134` cells (`132 / 132` executable).
   Diagnostic configs do not count as scientific cells.
 - S1 must never use a global rank cutoff. Complete matched method panels from
   viable families advance to the 8,192-step rung under the frozen policy in
@@ -274,14 +281,17 @@ work.
   evidence. They must not be renamed, rewritten, or moved.
 - The primary discovery design contains 134 predeclared 2,048-step cells. Two
   post-PV context cells depend on context-gate implementation, so the formally
-  executable core is 132--134 cells. Up to 50 conditional control cells may be
-  activated, for a maximum design envelope of 182--184 cells.
+  executable core is 132 cells. Up to 50 conditional control cells may be
+  activated, for a maximum executable envelope of 182 cells; implementing the
+  two context cells would raise the declared and maximum envelopes to 134 and
+  184.
 - The execution order is core first, then only conditional controls whose
   predeclared trigger fires, then the scaling ladder. The 182- or 184-cell
   envelope is a ceiling, not a mandatory batch.
 - Estimated serial runtime on the currently measured RTX 5070 Ti path is about
   46--56 GPU-hours for the core screen and 66--80 GPU-hours for the full
-  envelope. Learned-gate estimates are provisional until the 128-step pilot.
+  envelope. Learned-gate planning times were validated by the completed
+  engineering pilot and scientific block.
 - RunPod is the preferred scaling provider, but scientific cloud runs are
   blocked until cache portability, environment locking, exact resume, artifact
   verification, and local/cloud parity gates pass.
@@ -291,12 +301,12 @@ registry rows explicitly marked as valid are campaign evidence.
 
 ## Latest Completed Launch Set
 
-S1-B3 `t5-rk-shape` completed locally across 2026-07-26 and 2026-07-27. All
-eight RN/OR cells reached 2,048 steps, passed terminal and campaign safety
-review, and were pooled by diagnostic `292` over 311,296 complete selection
-tokens. T5 and B3 are closed without a ranking or promotion decision; the
-canonical endpoint table and matched contrasts are in
-[`18-s1-b3-t5-ricker-shape-results.md`](18-s1-b3-t5-ricker-shape-results.md).
+S1-B4 completed locally on 2026-07-27. All ten seed-1 sentinels reached 2,048
+steps, passed terminal and campaign safety review, and were pooled by
+diagnostic `303` over 311,296 complete selection tokens. B4 and the 132-cell
+executable S1 core are closed without a ranking or promotion decision. The
+canonical endpoint table and paired sensitivity analysis are in
+[`19-s1-b4-seed-sentinel-results.md`](19-s1-b4-seed-sentinel-results.md).
 
 ## Latest Completed Engineering Launch Set
 
@@ -357,16 +367,32 @@ must not be used to rank methods.
     site-isolation and branch-scope endpoints, and the reviewed B1 closure.
 12. [`12-s1-b2-learned-atg-engineering-results.md`](12-s1-b2-learned-atg-engineering-results.md)
      records the nine learned-gate pilots, pooled endpoints, failed default
-     acceptance condition, update-resolution pattern, and pending decision.
+     acceptance condition, update-resolution pattern, and registered TLRM-10
+     design revision.
 13. [`13-s1-b2-learned-atg-results.md`](13-s1-b2-learned-atg-results.md)
      consolidates the 26 learned-ATG AdamW cells, pooled exact-zero and logical
      compute endpoints, matched fixed/learned and scale/granularity contrasts,
      limitations, and the reviewed B2 closure.
-14. [`validation-partitions.yaml`](validation-partitions.yaml) freezes the
+14. [`14-s1-b3-t1-central-pressure-results.md`](14-s1-b3-t1-central-pressure-results.md)
+     records the central L1/Ricker pressure tranche and matched methods.
+15. [`15-s1-b3-t2-l1-flank-results.md`](15-s1-b3-t2-l1-flank-results.md)
+     records the L1-weight flanks.
+16. [`16-s1-b3-t3-ricker-weight-results.md`](16-s1-b3-t3-ricker-weight-results.md)
+     records the Ricker-weight response.
+17. [`17-s1-b3-t4-ricker-basin-results.md`](17-s1-b3-t4-ricker-basin-results.md)
+     records the Ricker-basin response.
+18. [`18-s1-b3-t5-ricker-shape-results.md`](18-s1-b3-t5-ricker-shape-results.md)
+     records the Ricker-shape response and B3 closure.
+19. [`19-s1-b4-seed-sentinel-results.md`](19-s1-b4-seed-sentinel-results.md)
+     records the exact seed pairs, pooled endpoints, safety checks, and
+     descriptive sensitivity results.
+20. [`20-s1-executable-core-closure.md`](20-s1-executable-core-closure.md)
+     records the terminal 132/132 census and next decision gate.
+21. [`validation-partitions.yaml`](validation-partitions.yaml) freezes the
      document-disjoint selection and confirmation source-document lists.
-15. [`config-registry.yaml`](config-registry.yaml) is the config-level source of
+22. [`config-registry.yaml`](config-registry.yaml) is the config-level source of
      truth for materialized campaign cells.
-16. [`run-registry.yaml`](run-registry.yaml) records every run attempt. It is
+23. [`run-registry.yaml`](run-registry.yaml) records every run attempt. It is
     intentionally separate because one immutable config can have more than one
     infrastructure attempt.
 
