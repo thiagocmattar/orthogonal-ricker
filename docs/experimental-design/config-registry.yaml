@@ -1,6 +1,6 @@
 schema_version: 1
 campaign_id: pythia-sparsity-scaling-v1
-next_config_prefix: 293
+next_config_prefix: 303
 core_design_cells: 134
 core_executable_cells_without_context_gate: 132
 maximum_design_cells: 184
@@ -64,9 +64,12 @@ block_summary:
     canonical evidence.
 - block: S1-B4
   planned_cells: 10
-  materialized_cells: 0
+  materialized_cells: 10
   completed_cells: 0
-  status: planned
+  status: active
+  note: All ten seed-pair-1 sentinel configs 293--302 are materialized and ready after exact-source, B3 40/40, diagnostics-through-292,
+    source-hash, semantic-clone, and collision review. Diagnostic 303 remains deferred until all ten terminal runs are independently
+    audited and reconciled.
 - block: S1-CONTROLS
   planned_cells_max: 50
   materialized_cells: 0
@@ -10280,3 +10283,601 @@ records:
   canonical_run_id: 001-20260727-095931-6f265e69
   notes: Canonical diagnostic 001-20260727-095931-6f265e69 passed complete-selection source, topology, exact-zero, integer
     logical-product, architecture-ceiling, and endpoint-attachment review for all 8 sources.
+- design_id: S1-B4-SEED1-A0-ADAMW-LR3EM5-S1
+  config_id: 293-s1-b4-p14m-a0-adamw-lr3em5-s1
+  config_path: configs/293-s1-b4-p14m-a0-adamw-lr3em5-s1.yaml
+  phase: S1
+  block: S1-B4
+  comparison_id: S1-B4-SEED-SENTINELS
+  pair_id: S1-B4-SEEDPAIR-S1-B0-ARCH-A0-LR3EM5-S0
+  promotion_family: A0
+  kind: scientific
+  model_size: 14M
+  steps: 2048
+  tokens: 134217728
+  model_initialization_seed: 1
+  data_order_seed: 1
+  training_schedule_scheme: random_contiguous_blocks_with_replacement_v1
+  training_schedule_hash: e3a2079b78a7816ae995c4289aa5946f28677ce50861b346605d42ca167e23a9
+  effective_tokens_per_update: 65536
+  validation_partition: selection
+  validation_partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
+  architecture_id: A0
+  gate_family: none
+  gate_sites: []
+  qk_placement: null
+  kappa_mode: null
+  kappa: null
+  kappa_init: null
+  kappa_scope: null
+  threshold_scale: null
+  surrogate: null
+  temperature: null
+  threshold_learning_rate: null
+  optimizer_recipe: harness_adamw
+  model_learning_rate: 3.0e-05
+  micro_batch_size: 4
+  gradient_accumulation_steps: 8
+  pressure_method: none
+  pressure_sites:
+  - mlp_hiddens
+  pressure_weight: 0.0
+  ricker_c: null
+  ricker_sigma: null
+  step_budget: null
+  matched_control_id: S1-B0-ARCH-A0-LR3EM5-S0
+  config_status: ready
+  decision_status: pending
+  release_tier: history
+  canonical_run_id: null
+  notes: B4 seed-pair-1 sentinel for S1-B0-ARCH-A0-LR3EM5-S0. The exact seed-0 source is closed, valid, canonical, checkpoint-hash
+    verified, and byte/semantic matched to its immutable launch; all B3 40/40 scientific cells and diagnostics through 292
+    are closed. Only initialization/data-order seeds and the implied deterministic schedule change scientifically. Register
+    with configs 293--302 as one fail-stop tranche; diagnostic 303 remains deferred until ten canonical seed-1 runs are reconciled.
+- design_id: S1-B4-SEED1-A1H-ADAMW-LR3EM5-S1
+  config_id: 294-s1-b4-p14m-a1h-adamw-lr3em5-s1
+  config_path: configs/294-s1-b4-p14m-a1h-adamw-lr3em5-s1.yaml
+  phase: S1
+  block: S1-B4
+  comparison_id: S1-B4-SEED-SENTINELS
+  pair_id: S1-B4-SEEDPAIR-S1-B0-ARCH-A1H-LR3EM5-S0
+  promotion_family: A1H
+  kind: scientific
+  model_size: 14M
+  steps: 2048
+  tokens: 134217728
+  model_initialization_seed: 1
+  data_order_seed: 1
+  training_schedule_scheme: random_contiguous_blocks_with_replacement_v1
+  training_schedule_hash: e3a2079b78a7816ae995c4289aa5946f28677ce50861b346605d42ca167e23a9
+  effective_tokens_per_update: 65536
+  validation_partition: selection
+  validation_partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
+  architecture_id: A1-H
+  gate_family: gplus
+  gate_sites:
+  - h
+  qk_placement: null
+  kappa_mode: fixed
+  kappa: 0.0
+  kappa_init: null
+  kappa_scope: all_active_gates
+  threshold_scale: absolute
+  surrogate: null
+  temperature: null
+  threshold_learning_rate: null
+  optimizer_recipe: harness_adamw
+  model_learning_rate: 3.0e-05
+  micro_batch_size: 4
+  gradient_accumulation_steps: 8
+  pressure_method: none
+  pressure_sites:
+  - mlp_hiddens
+  pressure_weight: 0.0
+  ricker_c: null
+  ricker_sigma: null
+  step_budget: null
+  matched_control_id: S1-B0-ARCH-A1H-LR3EM5-S0
+  config_status: ready
+  decision_status: pending
+  release_tier: history
+  canonical_run_id: null
+  notes: B4 seed-pair-1 sentinel for S1-B0-ARCH-A1H-LR3EM5-S0. The exact seed-0 source is closed, valid, canonical, checkpoint-hash
+    verified, and byte/semantic matched to its immutable launch; all B3 40/40 scientific cells and diagnostics through 292
+    are closed. Only initialization/data-order seeds and the implied deterministic schedule change scientifically. Register
+    with configs 293--302 as one fail-stop tranche; diagnostic 303 remains deferred until ten canonical seed-1 runs are reconciled.
+- design_id: S1-B4-SEED1-A3-ADAMW-LR3EM5-S1
+  config_id: 295-s1-b4-p14m-a3-adamw-lr3em5-s1
+  config_path: configs/295-s1-b4-p14m-a3-adamw-lr3em5-s1.yaml
+  phase: S1
+  block: S1-B4
+  comparison_id: S1-B4-SEED-SENTINELS
+  pair_id: S1-B4-SEEDPAIR-S1-B0-ARCH-A3-LR3EM5-S0
+  promotion_family: A3
+  kind: scientific
+  model_size: 14M
+  steps: 2048
+  tokens: 134217728
+  model_initialization_seed: 1
+  data_order_seed: 1
+  training_schedule_scheme: random_contiguous_blocks_with_replacement_v1
+  training_schedule_hash: e3a2079b78a7816ae995c4289aa5946f28677ce50861b346605d42ca167e23a9
+  effective_tokens_per_update: 65536
+  validation_partition: selection
+  validation_partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
+  architecture_id: A3
+  gate_family: gplus
+  gate_sites:
+  - a
+  - m
+  - h
+  qk_placement: null
+  kappa_mode: fixed
+  kappa: 0.0
+  kappa_init: null
+  kappa_scope: all_active_gates
+  threshold_scale: absolute
+  surrogate: null
+  temperature: null
+  threshold_learning_rate: null
+  optimizer_recipe: harness_adamw
+  model_learning_rate: 3.0e-05
+  micro_batch_size: 4
+  gradient_accumulation_steps: 8
+  pressure_method: none
+  pressure_sites:
+  - attention_inputs
+  - mlp_inputs
+  - mlp_hiddens
+  pressure_weight: 0.0
+  ricker_c: null
+  ricker_sigma: null
+  step_budget: null
+  matched_control_id: S1-B0-ARCH-A3-LR3EM5-S0
+  config_status: ready
+  decision_status: pending
+  release_tier: history
+  canonical_run_id: null
+  notes: B4 seed-pair-1 sentinel for S1-B0-ARCH-A3-LR3EM5-S0. The exact seed-0 source is closed, valid, canonical, checkpoint-hash
+    verified, and byte/semantic matched to its immutable launch; all B3 40/40 scientific cells and diagnostics through 292
+    are closed. Only initialization/data-order seeds and the implied deterministic schedule change scientifically. Register
+    with configs 293--302 as one fail-stop tranche; diagnostic 303 remains deferred until ten canonical seed-1 runs are reconciled.
+- design_id: S1-B4-SEED1-A6PRE-ADAMW-LR3EM5-S1
+  config_id: 296-s1-b4-p14m-a6pre-adamw-lr3em5-s1
+  config_path: configs/296-s1-b4-p14m-a6pre-adamw-lr3em5-s1.yaml
+  phase: S1
+  block: S1-B4
+  comparison_id: S1-B4-SEED-SENTINELS
+  pair_id: S1-B4-SEEDPAIR-S1-B0-ARCH-A6PRE-LR3EM5-S0
+  promotion_family: A6PRE
+  kind: scientific
+  model_size: 14M
+  steps: 2048
+  tokens: 134217728
+  model_initialization_seed: 1
+  data_order_seed: 1
+  training_schedule_scheme: random_contiguous_blocks_with_replacement_v1
+  training_schedule_hash: e3a2079b78a7816ae995c4289aa5946f28677ce50861b346605d42ca167e23a9
+  effective_tokens_per_update: 65536
+  validation_partition: selection
+  validation_partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
+  architecture_id: A6-PRE
+  gate_family: gplus
+  gate_sites:
+  - a
+  - m
+  - h
+  - q
+  - k
+  - v
+  qk_placement: pre_rope
+  kappa_mode: fixed
+  kappa: 0.0
+  kappa_init: null
+  kappa_scope: all_active_gates
+  threshold_scale: absolute
+  surrogate: null
+  temperature: null
+  threshold_learning_rate: null
+  optimizer_recipe: harness_adamw
+  model_learning_rate: 3.0e-05
+  micro_batch_size: 4
+  gradient_accumulation_steps: 8
+  pressure_method: none
+  pressure_sites:
+  - attention_inputs
+  - mlp_inputs
+  - mlp_hiddens
+  - query_gate_outputs
+  - key_gate_outputs
+  - value_gate_outputs
+  pressure_weight: 0.0
+  ricker_c: null
+  ricker_sigma: null
+  step_budget: null
+  matched_control_id: S1-B0-ARCH-A6PRE-LR3EM5-S0
+  config_status: ready
+  decision_status: pending
+  release_tier: history
+  canonical_run_id: null
+  notes: B4 seed-pair-1 sentinel for S1-B0-ARCH-A6PRE-LR3EM5-S0. The exact seed-0 source is closed, valid, canonical, checkpoint-hash
+    verified, and byte/semantic matched to its immutable launch; all B3 40/40 scientific cells and diagnostics through 292
+    are closed. Only initialization/data-order seeds and the implied deterministic schedule change scientifically. Register
+    with configs 293--302 as one fail-stop tranche; diagnostic 303 remains deferred until ten canonical seed-1 runs are reconciled.
+- design_id: S1-B4-SEED1-A6POST-ADAMW-LR3EM5-S1
+  config_id: 297-s1-b4-p14m-a6post-adamw-lr3em5-s1
+  config_path: configs/297-s1-b4-p14m-a6post-adamw-lr3em5-s1.yaml
+  phase: S1
+  block: S1-B4
+  comparison_id: S1-B4-SEED-SENTINELS
+  pair_id: S1-B4-SEEDPAIR-S1-B0-ARCH-A6POST-LR3EM5-S0
+  promotion_family: A6POST
+  kind: scientific
+  model_size: 14M
+  steps: 2048
+  tokens: 134217728
+  model_initialization_seed: 1
+  data_order_seed: 1
+  training_schedule_scheme: random_contiguous_blocks_with_replacement_v1
+  training_schedule_hash: e3a2079b78a7816ae995c4289aa5946f28677ce50861b346605d42ca167e23a9
+  effective_tokens_per_update: 65536
+  validation_partition: selection
+  validation_partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
+  architecture_id: A6-POST
+  gate_family: gplus
+  gate_sites:
+  - a
+  - m
+  - h
+  - q
+  - k
+  - v
+  qk_placement: post_rope
+  kappa_mode: fixed
+  kappa: 0.0
+  kappa_init: null
+  kappa_scope: all_active_gates
+  threshold_scale: absolute
+  surrogate: null
+  temperature: null
+  threshold_learning_rate: null
+  optimizer_recipe: harness_adamw
+  model_learning_rate: 3.0e-05
+  micro_batch_size: 4
+  gradient_accumulation_steps: 8
+  pressure_method: none
+  pressure_sites:
+  - attention_inputs
+  - mlp_inputs
+  - mlp_hiddens
+  - query_gate_outputs
+  - key_gate_outputs
+  - value_gate_outputs
+  pressure_weight: 0.0
+  ricker_c: null
+  ricker_sigma: null
+  step_budget: null
+  matched_control_id: S1-B0-ARCH-A6POST-LR3EM5-S0
+  config_status: ready
+  decision_status: pending
+  release_tier: history
+  canonical_run_id: null
+  notes: B4 seed-pair-1 sentinel for S1-B0-ARCH-A6POST-LR3EM5-S0. The exact seed-0 source is closed, valid, canonical, checkpoint-hash
+    verified, and byte/semantic matched to its immutable launch; all B3 40/40 scientific cells and diagnostics through 292
+    are closed. Only initialization/data-order seeds and the implied deterministic schedule change scientifically. Register
+    with configs 293--302 as one fail-stop tranche; diagnostic 303 remains deferred until ten canonical seed-1 runs are reconciled.
+- design_id: S1-B4-SEED1-GPLUS-POST-QKV-K010-S1
+  config_id: 298-s1-b4-p14m-gplus-post-qkv-k010-s1
+  config_path: configs/298-s1-b4-p14m-gplus-post-qkv-k010-s1.yaml
+  phase: S1
+  block: S1-B4
+  comparison_id: S1-B4-SEED-SENTINELS
+  pair_id: S1-B4-SEEDPAIR-S1-B1-FIX-GPLUS-POST-QKV-K010-S0
+  promotion_family: FIX-GPLUS-POST-QKV
+  kind: scientific
+  model_size: 14M
+  steps: 2048
+  tokens: 134217728
+  model_initialization_seed: 1
+  data_order_seed: 1
+  training_schedule_scheme: random_contiguous_blocks_with_replacement_v1
+  training_schedule_hash: e3a2079b78a7816ae995c4289aa5946f28677ce50861b346605d42ca167e23a9
+  effective_tokens_per_update: 65536
+  validation_partition: selection
+  validation_partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
+  architecture_id: A6-POST
+  gate_family: gplus
+  gate_sites:
+  - a
+  - m
+  - h
+  - q
+  - k
+  - v
+  qk_placement: post_rope
+  kappa_mode: fixed
+  kappa: 0.1
+  kappa_init: null
+  kappa_scope: qkv
+  threshold_scale: absolute
+  surrogate: null
+  temperature: null
+  threshold_learning_rate: null
+  optimizer_recipe: harness_adamw
+  model_learning_rate: 3.0e-05
+  micro_batch_size: 4
+  gradient_accumulation_steps: 8
+  pressure_method: none
+  pressure_sites:
+  - attention_inputs
+  - mlp_inputs
+  - mlp_hiddens
+  - query_gate_outputs
+  - key_gate_outputs
+  - value_gate_outputs
+  pressure_weight: 0.0
+  ricker_c: null
+  ricker_sigma: null
+  step_budget: null
+  matched_control_id: S1-B1-FIX-GPLUS-POST-QKV-K010-S0
+  config_status: ready
+  decision_status: pending
+  release_tier: history
+  canonical_run_id: null
+  notes: B4 seed-pair-1 sentinel for S1-B1-FIX-GPLUS-POST-QKV-K010-S0. The exact seed-0 source is closed, valid, canonical,
+    checkpoint-hash verified, and byte/semantic matched to its immutable launch; all B3 40/40 scientific cells and diagnostics
+    through 292 are closed. Only initialization/data-order seeds and the implied deterministic schedule change scientifically.
+    Register with configs 293--302 as one fail-stop tranche; diagnostic 303 remains deferred until ten canonical seed-1 runs
+    are reconciled.
+- design_id: S1-B4-SEED1-GPM-POST-QKV-K010-S1
+  config_id: 299-s1-b4-p14m-gpm-post-qkv-k010-s1
+  config_path: configs/299-s1-b4-p14m-gpm-post-qkv-k010-s1.yaml
+  phase: S1
+  block: S1-B4
+  comparison_id: S1-B4-SEED-SENTINELS
+  pair_id: S1-B4-SEEDPAIR-S1-B1-FIX-GPM-POST-QKV-K010-S0
+  promotion_family: FIX-GPM-POST-QKV
+  kind: scientific
+  model_size: 14M
+  steps: 2048
+  tokens: 134217728
+  model_initialization_seed: 1
+  data_order_seed: 1
+  training_schedule_scheme: random_contiguous_blocks_with_replacement_v1
+  training_schedule_hash: e3a2079b78a7816ae995c4289aa5946f28677ce50861b346605d42ca167e23a9
+  effective_tokens_per_update: 65536
+  validation_partition: selection
+  validation_partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
+  architecture_id: A6-POST
+  gate_family: gpm
+  gate_sites:
+  - a
+  - m
+  - h
+  - q
+  - k
+  - v
+  qk_placement: post_rope
+  kappa_mode: fixed
+  kappa: 0.1
+  kappa_init: null
+  kappa_scope: qkv
+  threshold_scale: absolute
+  surrogate: null
+  temperature: null
+  threshold_learning_rate: null
+  optimizer_recipe: harness_adamw
+  model_learning_rate: 3.0e-05
+  micro_batch_size: 4
+  gradient_accumulation_steps: 8
+  pressure_method: none
+  pressure_sites:
+  - attention_inputs
+  - mlp_inputs
+  - mlp_hiddens
+  - query_gate_outputs
+  - key_gate_outputs
+  - value_gate_outputs
+  pressure_weight: 0.0
+  ricker_c: null
+  ricker_sigma: null
+  step_budget: null
+  matched_control_id: S1-B1-FIX-GPM-POST-QKV-K010-S0
+  config_status: ready
+  decision_status: pending
+  release_tier: history
+  canonical_run_id: null
+  notes: B4 seed-pair-1 sentinel for S1-B1-FIX-GPM-POST-QKV-K010-S0. The exact seed-0 source is closed, valid, canonical,
+    checkpoint-hash verified, and byte/semantic matched to its immutable launch; all B3 40/40 scientific cells and diagnostics
+    through 292 are closed. Only initialization/data-order seeds and the implied deterministic schedule change scientifically.
+    Register with configs 293--302 as one fail-stop tranche; diagnostic 303 remains deferred until ten canonical seed-1 runs
+    are reconciled.
+- design_id: S1-B4-SEED1-ATG-GPM-POST-QKV-ABS-PLS-K010-S1
+  config_id: 300-s1-b4-p14m-atg-gpm-post-qkv-abs-pls-k010-s1
+  config_path: configs/300-s1-b4-p14m-atg-gpm-post-qkv-abs-pls-k010-s1.yaml
+  phase: S1
+  block: S1-B4
+  comparison_id: S1-B4-SEED-SENTINELS
+  pair_id: S1-B4-SEEDPAIR-S1-B2-ATG-GPM-POST-QKV-ABS-PLS-K010-S0
+  promotion_family: ATG-GPM-POST-QKV-ABS-PLS
+  kind: scientific
+  model_size: 14M
+  steps: 2048
+  tokens: 134217728
+  model_initialization_seed: 1
+  data_order_seed: 1
+  training_schedule_scheme: random_contiguous_blocks_with_replacement_v1
+  training_schedule_hash: e3a2079b78a7816ae995c4289aa5946f28677ce50861b346605d42ca167e23a9
+  effective_tokens_per_update: 65536
+  validation_partition: selection
+  validation_partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
+  architecture_id: A6-POST
+  gate_family: gpm
+  gate_sites:
+  - a
+  - m
+  - h
+  - q
+  - k
+  - v
+  qk_placement: post_rope
+  kappa_mode: learned
+  kappa: null
+  kappa_init: 0.1
+  kappa_scope: per_layer_site
+  threshold_scale: absolute
+  surrogate: hard_forward_soft_backward
+  temperature: 0.03
+  threshold_learning_rate: 0.0003
+  optimizer_recipe: harness_adamw
+  model_learning_rate: 3.0e-05
+  micro_batch_size: 4
+  gradient_accumulation_steps: 8
+  pressure_method: none
+  pressure_sites:
+  - attention_inputs
+  - mlp_inputs
+  - mlp_hiddens
+  - query_gate_outputs
+  - key_gate_outputs
+  - value_gate_outputs
+  pressure_weight: 0.0
+  ricker_c: null
+  ricker_sigma: null
+  step_budget: null
+  matched_control_id: S1-B2-ATG-GPM-POST-QKV-ABS-PLS-K010-S0
+  config_status: ready
+  decision_status: pending
+  release_tier: history
+  canonical_run_id: null
+  notes: B4 seed-pair-1 sentinel for S1-B2-ATG-GPM-POST-QKV-ABS-PLS-K010-S0. The exact seed-0 source is closed, valid, canonical,
+    checkpoint-hash verified, and byte/semantic matched to its immutable launch; all B3 40/40 scientific cells and diagnostics
+    through 292 are closed. Only initialization/data-order seeds and the implied deterministic schedule change scientifically.
+    Register with configs 293--302 as one fail-stop tranche; diagnostic 303 remains deferred until ten canonical seed-1 runs
+    are reconciled.
+- design_id: S1-B4-SEED1-A6POST-L1N-W1-S1
+  config_id: 301-s1-b4-p14m-a6post-l1n-w1-s1
+  config_path: configs/301-s1-b4-p14m-a6post-l1n-w1-s1.yaml
+  phase: S1
+  block: S1-B4
+  comparison_id: S1-B4-SEED-SENTINELS
+  pair_id: S1-B4-SEEDPAIR-S1-B3-L1-A6POST-L1N-W1-ALLACTIVE-S0
+  promotion_family: B3-L1-A6POST
+  kind: scientific
+  model_size: 14M
+  steps: 2048
+  tokens: 134217728
+  model_initialization_seed: 1
+  data_order_seed: 1
+  training_schedule_scheme: random_contiguous_blocks_with_replacement_v1
+  training_schedule_hash: e3a2079b78a7816ae995c4289aa5946f28677ce50861b346605d42ca167e23a9
+  effective_tokens_per_update: 65536
+  validation_partition: selection
+  validation_partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
+  architecture_id: A6-POST
+  gate_family: gplus
+  gate_sites:
+  - a
+  - m
+  - h
+  - q
+  - k
+  - v
+  qk_placement: post_rope
+  kappa_mode: fixed
+  kappa: 0.0
+  kappa_init: null
+  kappa_scope: all_active_gates
+  threshold_scale: absolute
+  surrogate: null
+  temperature: null
+  threshold_learning_rate: null
+  optimizer_recipe: harness_adamw
+  model_learning_rate: 3.0e-05
+  micro_batch_size: 4
+  gradient_accumulation_steps: 8
+  pressure_method: l1_naive
+  pressure_sites:
+  - attention_inputs
+  - mlp_inputs
+  - mlp_hiddens
+  - query_gate_outputs
+  - key_gate_outputs
+  - value_gate_outputs
+  pressure_weight: 1.0
+  ricker_c: null
+  ricker_sigma: null
+  step_budget: null
+  matched_control_id: S1-B3-L1-A6POST-L1N-W1-ALLACTIVE-S0
+  config_status: ready
+  decision_status: pending
+  release_tier: history
+  canonical_run_id: null
+  notes: B4 seed-pair-1 sentinel for S1-B3-L1-A6POST-L1N-W1-ALLACTIVE-S0. The exact seed-0 source is closed, valid, canonical,
+    checkpoint-hash verified, and byte/semantic matched to its immutable launch; all B3 40/40 scientific cells and diagnostics
+    through 292 are closed. Only initialization/data-order seeds and the implied deterministic schedule change scientifically.
+    Register with configs 293--302 as one fail-stop tranche; diagnostic 303 remains deferred until ten canonical seed-1 runs
+    are reconciled.
+- design_id: S1-B4-SEED1-A6POST-OR-W0P3-C0P1-SG0P1-S1
+  config_id: 302-s1-b4-p14m-a6post-or-w0p3-c0p1-sg0p1-s1
+  config_path: configs/302-s1-b4-p14m-a6post-or-w0p3-c0p1-sg0p1-s1.yaml
+  phase: S1
+  block: S1-B4
+  comparison_id: S1-B4-SEED-SENTINELS
+  pair_id: S1-B4-SEEDPAIR-S1-B3-RK-A6POST-OR-W0P3-C0P1-SG0P1-ALLACTIVE-S0
+  promotion_family: B3-RICKER-A6POST
+  kind: scientific
+  model_size: 14M
+  steps: 2048
+  tokens: 134217728
+  model_initialization_seed: 1
+  data_order_seed: 1
+  training_schedule_scheme: random_contiguous_blocks_with_replacement_v1
+  training_schedule_hash: e3a2079b78a7816ae995c4289aa5946f28677ce50861b346605d42ca167e23a9
+  effective_tokens_per_update: 65536
+  validation_partition: selection
+  validation_partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
+  architecture_id: A6-POST
+  gate_family: gplus
+  gate_sites:
+  - a
+  - m
+  - h
+  - q
+  - k
+  - v
+  qk_placement: post_rope
+  kappa_mode: fixed
+  kappa: 0.0
+  kappa_init: null
+  kappa_scope: all_active_gates
+  threshold_scale: absolute
+  surrogate: null
+  temperature: null
+  threshold_learning_rate: null
+  optimizer_recipe: harness_adamw
+  model_learning_rate: 3.0e-05
+  micro_batch_size: 4
+  gradient_accumulation_steps: 8
+  pressure_method: orthogonal_ricker
+  pressure_sites:
+  - attention_inputs
+  - mlp_inputs
+  - mlp_hiddens
+  - query_gate_outputs
+  - key_gate_outputs
+  - value_gate_outputs
+  pressure_weight: 0.3
+  ricker_c: 0.1
+  ricker_sigma: 0.1
+  step_budget: 0.5
+  matched_control_id: S1-B3-RK-A6POST-OR-W0P3-C0P1-SG0P1-ALLACTIVE-S0
+  config_status: ready
+  decision_status: pending
+  release_tier: history
+  canonical_run_id: null
+  notes: B4 seed-pair-1 sentinel for S1-B3-RK-A6POST-OR-W0P3-C0P1-SG0P1-ALLACTIVE-S0. The exact seed-0 source is closed, valid,
+    canonical, checkpoint-hash verified, and byte/semantic matched to its immutable launch; all B3 40/40 scientific cells
+    and diagnostics through 292 are closed. Only initialization/data-order seeds and the implied deterministic schedule change
+    scientifically. Register with configs 293--302 as one fail-stop tranche; diagnostic 303 remains deferred until ten canonical
+    seed-1 runs are reconciled.
