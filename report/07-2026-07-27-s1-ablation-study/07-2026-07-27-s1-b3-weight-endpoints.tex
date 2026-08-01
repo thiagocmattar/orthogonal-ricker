@@ -1,0 +1,36 @@
+\begingroup
+\scriptsize
+\setlength{\tabcolsep}{2.1pt}
+\renewcommand{\arraystretch}{1.03}
+\begin{longtable}{l l r r r r r r r r r r}
+\caption{Complete B3 pressure-weight endpoints. Each method group reports config, validation loss, and $R_m$ (\%). L1 rows compare L1N with OL1; Ricker rows compare RN with OR at $c=\sigma=0.10$. AdamW is the matched same-architecture control. All cells use seed 0 and 2,048 steps.}\label{tab:b3-weight}\\
+\toprule
+\multirow{2}{*}{Architecture} & \multirow{2}{*}{Pressure} & \multirow{2}{*}{$w$} & \multicolumn{3}{c}{AdamW} & \multicolumn{3}{c}{Naive} & \multicolumn{3}{c}{Orthogonal} \\
+\cmidrule(lr){4-6}\cmidrule(lr){7-9}\cmidrule(lr){10-12}
+& & & Cfg & $L$ & $R_m$ (\%) & Cfg & $L$ & $R_m$ (\%) & Cfg & $L$ & $R_m$ (\%) \\
+\midrule
+\endfirsthead
+\multicolumn{12}{c}{\tablename\ \thetable\ (continued)}\\
+\toprule
+\multirow{2}{*}{Architecture} & \multirow{2}{*}{Pressure} & \multirow{2}{*}{$w$} & \multicolumn{3}{c}{AdamW} & \multicolumn{3}{c}{Naive} & \multicolumn{3}{c}{Orthogonal} \\
+\cmidrule(lr){4-6}\cmidrule(lr){7-9}\cmidrule(lr){10-12}
+& & & Cfg & $L$ & $R_m$ (\%) & Cfg & $L$ & $R_m$ (\%) & Cfg & $L$ & $R_m$ (\%) \\
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+\multirow{6}{*}{A3} & \multirow{3}{*}{L1} & 0.15 & 125 & 7.01310 & 5.80 & 257 & 7.02421 & 5.07 & 258 & 7.01421 & 5.13 \\*
+ &  & 1 & 125 & 7.01310 & 5.80 & 248 & 7.05338 & 4.59 & 249 & 7.02002 & 4.69 \\*
+ &  & 5 & 125 & 7.01310 & 5.80 & 261 & 7.17578 & 5.18 & 262 & 7.02909 & 4.71 \\*
+ & \multirow{3}{*}{Ricker} & 0.1 & 125 & 7.01310 & 5.80 & 266 & 7.03683 & 7.23 & 267 & 7.03121 & 7.28 \\*
+ &  & 0.3 & 125 & 7.01310 & 5.80 & 252 & 7.10085 & 8.16 & 253 & 7.04616 & 7.87 \\*
+ &  & 1 & 125 & 7.01310 & 5.80 & 270 & 7.20123 & 8.77 & 271 & 7.05883 & 8.25 \\
+\midrule
+\multirow{6}{*}{A6-POST} & \multirow{3}{*}{L1} & 0.15 & 127 & 7.03248 & 13.64 & 259 & 7.04048 & 18.77 & 260 & 7.03898 & 17.70 \\*
+ &  & 1 & 127 & 7.03248 & 13.64 & 250 & 7.05312 & 19.60 & 251 & 7.03895 & 17.69 \\*
+ &  & 5 & 127 & 7.03248 & 13.64 & 263 & 7.09562 & 21.32 & 264 & 7.03870 & 17.70 \\*
+ & \multirow{3}{*}{Ricker} & 0.1 & 127 & 7.03248 & 13.64 & 268 & 7.05868 & 21.88 & 269 & 7.03926 & 17.55 \\*
+ &  & 0.3 & 127 & 7.03248 & 13.64 & 254 & 7.09617 & 23.67 & 255 & 7.03930 & 17.56 \\*
+ &  & 1 & 127 & 7.03248 & 13.64 & 272 & 7.16248 & 24.90 & 273 & 7.03909 & 17.56 \\
+\end{longtable}
+\endgroup

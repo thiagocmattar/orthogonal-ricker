@@ -1,0 +1,63 @@
+\begingroup
+\footnotesize
+\setlength{\tabcolsep}{3.4pt}
+\renewcommand{\arraystretch}{1.03}
+\begin{longtable}{l r r r r r r r}
+\caption{Complete B1 endpoints with the two gate families in parallel column groups. Each group reports config, validation loss, and $R_m$ (\%). The 36 positive-threshold cells are shown with their registered $\kappa=0$ controls; repeated config IDs are shared controls. A6-POST-QKV thresholds Q/K/V, whereas A6-POST-ALL thresholds a/m/h/Q/K/V. $G^+_0$ is ordinary ReLU; $G^\pm_0$ is identity and uses A3 (config 125). A dash means that the gate family was not executed for that row. All cells use seed-0 AdamW at $3\times10^{-5}$ without pressure.}\label{tab:b1}\\
+\toprule
+\multirow{2}{*}{Architecture} & \multirow{2}{*}{$\kappa$} & \multicolumn{3}{c}{$G^+$} & \multicolumn{3}{c}{$G^\pm$} \\
+\cmidrule(lr){3-5}\cmidrule(lr){6-8}
+& & Cfg & $L$ & $R_m$ (\%) & Cfg & $L$ & $R_m$ (\%) \\
+\midrule
+\endfirsthead
+\multicolumn{8}{c}{\tablename\ \thetable\ (continued)}\\
+\toprule
+\multirow{2}{*}{Architecture} & \multirow{2}{*}{$\kappa$} & \multicolumn{3}{c}{$G^+$} & \multicolumn{3}{c}{$G^\pm$} \\
+\cmidrule(lr){3-5}\cmidrule(lr){6-8}
+& & Cfg & $L$ & $R_m$ (\%) & Cfg & $L$ & $R_m$ (\%) \\
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+\multirow{3}{*}{A1-H} & 0 & 124 & 6.98875 & 2.08 & \multicolumn{3}{c}{--} \\*
+ & 0.03 & 204 & 6.98927 & 2.53 & \multicolumn{3}{c}{--} \\*
+ & 0.10 & 205 & 6.99409 & 3.35 & \multicolumn{3}{c}{--} \\
+\midrule
+\multirow{3}{*}{A3} & 0 & 125 & 7.01310 & 5.80 & \multicolumn{3}{c}{--} \\*
+ & 0.03 & 206 & 7.00780 & 6.61 & \multicolumn{3}{c}{--} \\*
+ & 0.10 & 207 & 7.02685 & 7.93 & \multicolumn{3}{c}{--} \\
+\midrule
+\multirow{2}{*}{A4-Q} & 0 & 129 & 7.02126 & 7.71 & 125 & 7.01310 & 5.80 \\*
+ & 0.10 & 197 & 7.02146 & 8.16 & 200 & 7.01355 & 6.49 \\
+\midrule
+\multirow{2}{*}{A4-K} & 0 & 130 & 7.02441 & 8.28 & 125 & 7.01310 & 5.80 \\*
+ & 0.10 & 198 & 7.02413 & 9.06 & 201 & 7.01406 & 7.25 \\
+\midrule
+\multirow{2}{*}{A4-V} & 0 & 131 & 7.01615 & 9.50 & 125 & 7.01310 & 5.80 \\*
+ & 0.10 & 199 & 7.01547 & 11.47 & 202 & 7.01501 & 9.92 \\
+\midrule
+\multirow{4}{*}{A5-QK-PRE} & 0 & 132 & 7.01586 & 8.45 & 125 & 7.01310 & 5.80 \\*
+ & 0.03 & 149 & 7.01612 & 8.71 & 173 & 7.01319 & 6.56 \\*
+ & 0.10 & 151 & 7.01905 & 9.88 & 175 & 7.01434 & 7.60 \\*
+ & 0.30 & 153 & 7.03079 & 13.66 & 177 & 7.02590 & 12.00 \\
+\midrule
+\multirow{4}{*}{A5-QK-POST} & 0 & 133 & 7.03064 & 9.87 & 125 & 7.01310 & 5.80 \\*
+ & 0.03 & 161 & 7.03029 & 10.15 & 185 & 7.01265 & 6.62 \\*
+ & 0.10 & 163 & 7.03090 & 11.10 & 187 & 7.01402 & 7.83 \\*
+ & 0.30 & 165 & 7.03559 & 13.77 & 189 & 7.02492 & 12.13 \\
+\midrule
+\multirow{4}{*}{A6-PRE-QKV} & 0 & 126 & 7.01645 & 12.22 & 125 & 7.01310 & 5.80 \\*
+ & 0.03 & 155 & 7.01712 & 13.24 & 179 & 7.01432 & 7.90 \\*
+ & 0.10 & 157 & 7.02195 & 15.70 & 181 & 7.01775 & 11.65 \\*
+ & 0.30 & 159 & 7.03369 & 21.81 & 183 & 7.02352 & 19.14 \\
+\midrule
+\multirow{4}{*}{A6-POST-QKV} & 0 & 127 & 7.03248 & 13.64 & 125 & 7.01310 & 5.80 \\*
+ & 0.03 & 167 & 7.03290 & 14.59 & 191 & 7.01313 & 7.98 \\*
+ & 0.10 & 169 & 7.03408 & 16.91 & 193 & 7.01688 & 11.87 \\*
+ & 0.30 & 171 & 7.03405 & 21.94 & 195 & 7.02043 & 19.51 \\
+\midrule
+\multirow{3}{*}{A6-POST-ALL} & 0 & 127 & 7.03248 & 13.64 & \multicolumn{3}{c}{--} \\*
+ & 0.03 & 208 & 7.02389 & 15.44 & \multicolumn{3}{c}{--} \\*
+ & 0.10 & 209 & 7.05266 & 18.61 & \multicolumn{3}{c}{--} \\
+\end{longtable}
+\endgroup

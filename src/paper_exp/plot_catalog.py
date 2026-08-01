@@ -1,4 +1,4 @@
-"""Searchable metadata for the Report 04 and Report 05 paper-figure suites.
+"""Searchable metadata for the Report 04, 05, and 07 paper-figure suites.
 
 The catalog describes figure ownership and saved-input requirements only.  It
 does not select runs, load artifacts, or render figures.
@@ -189,6 +189,125 @@ REPORT05_FIGURES = (
 )
 
 
+REPORT07_FIGURES = (
+    PlotCatalogEntry(
+        103,
+        "103-pythia-14m-s1-architecture-learning-rate-ablation.pdf",
+        "s1_architecture_learning_rate_ablation",
+        ("config-registry.yaml", "run-registry.yaml"),
+        "build_architecture_learning_rate_figure",
+        False,
+    ),
+    PlotCatalogEntry(
+        104,
+        "104-pythia-14m-s1-fixed-threshold-effect.pdf",
+        "s1_fixed_threshold_effect",
+        ("config-registry.yaml", "run-registry.yaml"),
+        "build_fixed_threshold_effect_figure",
+        True,
+    ),
+    PlotCatalogEntry(
+        105,
+        "105-pythia-14m-s1-gate-type-effect.pdf",
+        "s1_gate_type_effect",
+        ("config-registry.yaml", "run-registry.yaml"),
+        "build_gate_type_effect_figure",
+        True,
+    ),
+    PlotCatalogEntry(
+        106,
+        "106-pythia-14m-s1-learned-threshold-ablation.pdf",
+        "s1_learned_threshold_ablation",
+        ("config-registry.yaml", "run-registry.yaml"),
+        "build_learned_threshold_figure",
+        True,
+    ),
+    PlotCatalogEntry(
+        107,
+        "107-pythia-14m-s1-pressure-weight-ablation.pdf",
+        "s1_pressure_weight_ablation",
+        ("config-registry.yaml", "run-registry.yaml"),
+        "build_pressure_weight_figure",
+        True,
+    ),
+    PlotCatalogEntry(
+        108,
+        "108-pythia-14m-s1-ricker-shape-ablation.pdf",
+        "s1_ricker_shape_ablation",
+        ("config-registry.yaml", "run-registry.yaml"),
+        "build_ricker_shape_figure",
+        True,
+    ),
+    PlotCatalogEntry(
+        109,
+        "109-pythia-14m-s1-seed-sensitivity.pdf",
+        "s1_seed_sensitivity",
+        ("config-registry.yaml", "run-registry.yaml"),
+        "build_seed_sensitivity_figure",
+        True,
+    ),
+)
+
+REPORT07_SUPPLEMENTAL_FIGURES = (
+    PlotCatalogEntry(
+        110,
+        "110-pythia-14m-s1-topology-atlas.pdf",
+        "s1_topology_atlas",
+        (),
+        "generate_topology_atlas",
+        True,
+    ),
+    PlotCatalogEntry(
+        112,
+        "112-pythia-14m-s1-learning-rate-effect.pdf",
+        "s1_learning_rate_effect",
+        ("config-registry.yaml", "run-registry.yaml"),
+        "generate_learning_rate_effect_figure",
+        True,
+    ),
+    PlotCatalogEntry(
+        113,
+        "113-pythia-14m-s1-quality-compute-endpoint-landscape.pdf",
+        "s1_quality_compute_endpoint_landscape",
+        ("config-registry.yaml", "run-registry.yaml"),
+        "generate_quality_compute_landscape_figure",
+        True,
+    ),
+    PlotCatalogEntry(
+        114,
+        "114-pythia-14m-s1-fixed-threshold-architecture-tradeoffs.pdf",
+        "s1_fixed_threshold_architecture_tradeoffs",
+        ("config-registry.yaml", "run-registry.yaml"),
+        "generate_fixed_threshold_architecture_tradeoff_figure",
+        False,
+    ),
+    PlotCatalogEntry(
+        116,
+        "116-pythia-14m-s1-fixed-threshold-quality-opportunity-frontiers.pdf",
+        "s1_fixed_threshold_quality_opportunity_frontiers",
+        ("config-registry.yaml", "run-registry.yaml"),
+        "generate_fixed_threshold_quality_opportunity_frontier_figure",
+        True,
+    ),
+    PlotCatalogEntry(
+        117,
+        "117-pythia-14m-s1-learned-threshold-quality-opportunity-frontiers.pdf",
+        "s1_learned_threshold_quality_opportunity_frontiers",
+        ("config-registry.yaml", "run-registry.yaml"),
+        "generate_learned_threshold_quality_opportunity_frontier_figure",
+        False,
+    ),
+    PlotCatalogEntry(
+        118,
+        "118-pythia-14m-s1-pressure-quality-opportunity-frontiers.pdf",
+        "s1_pressure_quality_opportunity_frontiers",
+        ("config-registry.yaml", "run-registry.yaml"),
+        "generate_pressure_quality_opportunity_frontier_figure",
+        True,
+    ),
+)
+
+
 def list_report04_figures(*, embedded_only: bool = False) -> tuple[PlotCatalogEntry, ...]:
     """Return Report 04 entries in stable figure-number order."""
 
@@ -209,6 +328,48 @@ def get_report04_figure(identifier: int | str) -> PlotCatalogEntry:
         }:
             return entry
     raise KeyError(f"Unknown Report 04 figure: {identifier!r}")
+
+
+def list_report07_figures(*, embedded_only: bool = False) -> tuple[PlotCatalogEntry, ...]:
+    """Return Report 07 entries in stable figure-number order."""
+
+    entries = tuple(
+        sorted(
+            REPORT07_FIGURES + REPORT07_SUPPLEMENTAL_FIGURES,
+            key=lambda entry: entry.number,
+        )
+    )
+    if not embedded_only:
+        return entries
+    return tuple(entry for entry in entries if entry.embedded_in_report)
+
+
+def get_report07_figure(identifier: int | str) -> PlotCatalogEntry:
+    """Look up a Report 07 figure by stable catalog identifier."""
+
+    for entry in list_report07_figures():
+        if identifier in {
+            entry.number,
+            entry.filename,
+            entry.plot_type,
+            entry.public_wrapper,
+        }:
+            return entry
+    raise KeyError(f"Unknown Report 07 figure: {identifier!r}")
+
+
+def report07_catalog_rows(*, embedded_only: bool = False) -> tuple[str, ...]:
+    """Return deterministic, human-readable Report 07 catalog rows."""
+
+    rows = []
+    for entry in list_report07_figures(embedded_only=embedded_only):
+        artifacts = ", ".join(entry.required_artifact_kinds) or "none"
+        report_status = "embedded" if entry.embedded_in_report else "generated only"
+        rows.append(
+            f"{entry.number} | {entry.plot_type} | {entry.filename} | "
+            f"artifacts: {artifacts} | wrapper: {entry.public_wrapper} | {report_status}"
+        )
+    return tuple(rows)
 
 
 def report04_catalog_rows(*, embedded_only: bool = False) -> tuple[str, ...]:

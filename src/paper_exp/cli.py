@@ -11,7 +11,11 @@ from paper_exp.clipping import run_clipping_sweep
 from paper_exp.config import ConfigError, load_config
 from paper_exp.data import prepare_tokenized_data
 from paper_exp.integrity import check_repository
-from paper_exp.plot_catalog import report04_catalog_rows, report05_catalog_rows
+from paper_exp.plot_catalog import (
+    report04_catalog_rows,
+    report05_catalog_rows,
+    report07_catalog_rows,
+)
 from paper_exp.plots import (
     generate_clipping_frontier,
     generate_plots,
@@ -126,11 +130,11 @@ def build_parser() -> argparse.ArgumentParser:
 
     plot_catalog = subparsers.add_parser(
         "plot-catalog",
-        help="List the Report 04 figure suite and its saved-input requirements.",
+        help="List a report figure suite and its saved-input requirements.",
     )
     plot_catalog.add_argument(
         "--report",
-        choices=("04", "05"),
+        choices=("04", "05", "07"),
         default="04",
         help="Report figure catalog to list (default: 04).",
     )
@@ -327,7 +331,11 @@ def main(argv: list[str] | None = None) -> int:
             return 0
 
         if args.command == "plot-catalog":
-            catalog_rows = report05_catalog_rows if args.report == "05" else report04_catalog_rows
+            catalog_rows = {
+                "04": report04_catalog_rows,
+                "05": report05_catalog_rows,
+                "07": report07_catalog_rows,
+            }[args.report]
             for row in catalog_rows(embedded_only=args.embedded_only):
                 print(row)
             return 0

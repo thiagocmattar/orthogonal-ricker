@@ -1,6 +1,6 @@
 PYTHON ?= python
 
-.PHONY: install test check smoke baseline prepare-minipile calibrate-pythia-14m pretrain-pythia-14m-full-10min pressure-smoke-ricker-naive pressure-smoke-l1-naive pressure-smoke-orthogonal-ricker pressure-smoke-orthogonal-l1 pressure-short-ricker-naive pressure-short-l1-naive pressure-short-orthogonal-ricker pressure-short-orthogonal-l1 pressure-short-all plots plot-report04 plot-report05
+.PHONY: install test check smoke baseline prepare-minipile calibrate-pythia-14m pretrain-pythia-14m-full-10min pressure-smoke-ricker-naive pressure-smoke-l1-naive pressure-smoke-orthogonal-ricker pressure-smoke-orthogonal-l1 pressure-short-ricker-naive pressure-short-l1-naive pressure-short-orthogonal-ricker pressure-short-orthogonal-l1 pressure-short-all plots plot-report04 plot-report05 plot-report07 plot-report07-topology plot-report07-lr-effect plot-report07-landscape plot-report07-threshold-tradeoffs plot-report07-learned-frontiers plot-report07-pressure-frontiers
 
 install:
 	$(PYTHON) -m pip install -e .
@@ -65,3 +65,29 @@ plot-report04:
 
 plot-report05:
 	$(PYTHON) -m paper_exp.cli plot-report05 --results results --figures figures --png
+
+plot-report07:
+	$(PYTHON) -m paper_exp.plot_topology_atlas --png
+	$(PYTHON) -m paper_exp.plot_b0_learning_rate_effect
+	$(PYTHON) -m paper_exp.plot_s1_quality_compute_landscape
+	$(PYTHON) -m paper_exp.plot_s1_fixed_threshold_architecture_tradeoffs
+	$(PYTHON) -m paper_exp.plot_s1_pressure_frontiers
+	$(PYTHON) -m paper_exp.plot_report07 --figures figures --report-dir report/07-2026-07-27-s1-ablation-study --png
+
+plot-report07-topology:
+	$(PYTHON) -m paper_exp.plot_topology_atlas
+
+plot-report07-lr-effect:
+	$(PYTHON) -m paper_exp.plot_b0_learning_rate_effect
+
+plot-report07-landscape:
+	$(PYTHON) -m paper_exp.plot_s1_quality_compute_landscape
+
+plot-report07-threshold-tradeoffs:
+	$(PYTHON) -m paper_exp.plot_s1_fixed_threshold_architecture_tradeoffs
+
+plot-report07-learned-frontiers:
+	$(PYTHON) -m paper_exp.plot_s1_learned_threshold_frontiers
+
+plot-report07-pressure-frontiers:
+	$(PYTHON) -m paper_exp.plot_s1_pressure_frontiers

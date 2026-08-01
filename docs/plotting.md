@@ -16,8 +16,9 @@ Figures `81` and `84` are generated Report 04 diagnostics but are not embedded
 in the current PDF. All twelve outputs remain part of the regeneration
 contract.
 
-Report 05 is the current architecture-comparison suite; its strict figure
-contract is documented below.
+Report 05 is the full-run architecture-comparison suite. Report 07 is the
+current S1 screening-ablation suite; both strict contracts are documented
+below.
 
 ## Module Ownership
 
@@ -25,13 +26,17 @@ contract is documented below.
 | --- | --- |
 | `plots.py` | Stable CLI/import facade, batch dispatch, run selection, public `generate_*` wrappers, and legacy figure families not yet extracted |
 | `plot_api.py` | Final-size `GridLayout`, count-derived panel grids, one-build PDF/PNG export, and publication-profile validation |
-| `plot_catalog.py` | Searchable Report 04/05 figure type, filename, wrapper, input-kind, and report-embedding metadata |
+| `plot_catalog.py` | Searchable Report 04/05/07 figure type, filename, wrapper, input-kind, and report-embedding metadata |
 | `plot_style.py` | Scoped rc parameters, colorblind-safe palettes, stable method IDs/styles, and export defaults |
 | `plot_common.py` | Small presentation-neutral helpers already used by multiple figure families |
 | `plot_report04.py` | Report 04 cohorts, compute-accounting constants, pure reductions, checkpoint preparation, and explicit renderers for figures `79` through `90` |
 | `plot_report05.py` | Report 05 pinned training cohort, endpoint reductions, architecture schematic, and learning-curve renderer |
 | `plot_report05_diagnostics.py` | Report 05 exact-zero propagation and activation/weight-distribution reductions and renderers |
 | `plot_report05_clipping.py` | Report 05 site-specific and direct model-product clipping reductions and renderers |
+| `plot_report07.py` | Report 07 raw-endpoint validation, S1 reductions, figures `103`--`109`, core appendix tables, and provenance |
+| `plot_topology_atlas.py` | Half-page Report 07 topology atlas `110`: shared Pythia block, exact gate occupancy, and reach ceilings |
+| `plot_b0_learning_rate_effect.py` | Enlarged B0 learning-rate response figure `112` with a separate architecture-by-validation-loss panel at \(10^{-4}\) |
+| `plot_s1_quality_compute_landscape.py` | Report 07 quality--compute landscape `113`, primary-seed/common-LR cohort, exact descriptive nondominated envelope, and synchronized frontier table |
 
 Existing callers should continue to import from `paper_exp.plots`. The facade
 re-exports Report 04 constants and the public `generate_*` wrappers used by the
@@ -66,6 +71,7 @@ figures:
 python -m paper_exp.cli plot-catalog
 python -m paper_exp.cli plot-catalog --embedded-only
 python -m paper_exp.cli plot-catalog --report 05
+python -m paper_exp.cli plot-catalog --report 07
 ```
 
 Each deterministic row names the plot type, output file, required saved
@@ -169,6 +175,59 @@ The compact propagation heatmaps use a dedicated publication profile with a
 5.3-point minimum for in-cell annotations. All other Report 05 figures use
 the standard 8-point minimum. PDF and optional PNG are exported from the same
 validated Matplotlib figure object.
+
+## Report 07 S1 Ablation Suite
+
+Regenerate the complete S1 report suite with:
+
+```bash
+make plot-report07
+```
+
+The target regenerates the topology atlas, LR figure, quality--compute
+landscape/frontier table, embedded B1/B3 quality--opportunity frontiers, core
+figures, endpoint appendix, learned-threshold summary, and provenance.
+`plot_report07.py` joins the closed S1 scientific configs to their exact
+canonical run IDs in the applied registries. It fails unless the census is
+`B0=20`, `B1=36`, `B2=26`, `B3=40`, and `B4=10`, every row has valid evidence,
+and every registered propagation endpoint used by the suite agrees with its
+declared raw propagation artifact,
+311,296-token count, and frozen selection hash. Engineering and diagnostic
+configs remain provenance evidence and do not enter effect plots.
+
+| Figures | Content |
+| --- | --- |
+| `103` | Ordinary-ReLU topology and learning-rate ablations |
+| `104` | Absolute validation-loss and model-opportunity endpoints across fixed thresholds (embedded) |
+| `105` | Absolute one-sided versus symmetric gate endpoints at matched thresholds (embedded) |
+| `106` | Absolute fixed, learned-absolute, and learned-RMS-relative threshold endpoints (embedded) |
+| `107` | Absolute L1/Ricker pressure-weight and orthogonalization response (embedded) |
+| `108` | Absolute Ricker basin and shape response (embedded) |
+| `109` | Seed endpoint and matched-effect sensitivity |
+| `110` | Shared Pythia block and topology atlas (embedded) |
+| `112` | Five-anchor learning-rate response (embedded) |
+| `113` | Quality--compute landscape and descriptive envelope (embedded) |
+| `114` | Per-architecture fixed-threshold validation-loss/model-opportunity trade-offs on shared dual scales (supplemental) |
+| `116` | Fixed-threshold quality-opportunity paths with architecture colors, gate styles, and annotated thresholds (embedded) |
+| `117` | Learned-threshold quality-opportunity paths for the matched B2 triplets, using architecture colors, gate line styles, and fixed/absolute/RMS-relative marker shapes (supplemental) |
+| `118` | Combined L1N, OL1, RN, and OR pressure-weight quality-opportunity paths with architecture colors, method line styles, naive/orthogonal markers, black AdamW anchors, and sparse weight annotations (embedded) |
+
+The sidecar inside `report/07-2026-07-27-s1-ablation-study/` hashes all 36 raw
+propagation artifacts, registries, claim sources, and every report-embedded
+generated artifact. The suite reports logical exact-zero product opportunities;
+it does not claim sparse-kernel speedup.
+
+The granular targets remain available when only one auxiliary artifact is
+needed:
+
+```bash
+make plot-report07-topology
+make plot-report07-lr-effect
+make plot-report07-landscape
+make plot-report07-threshold-tradeoffs
+make plot-report07-learned-frontiers
+make plot-report07-pressure-frontiers
+```
 
 ## Data Path
 

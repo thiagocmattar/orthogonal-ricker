@@ -1,0 +1,25 @@
+\begin{table}[H]
+\centering
+\footnotesize
+\setlength{\tabcolsep}{4.2pt}
+\caption{Complete B0 endpoints with learning rates in parallel column groups. Each group reports validation loss and $R_m$ (\%). All 20 cells use seed-0 AdamW for 2,048 steps without activation pressure. A0 uses stock GELU; gated architectures use ordinary $G^+_0$. A dash means that the architecture was not executed at that learning rate. Config IDs remain in the complete appendix.}
+\label{tab:b0}
+\begin{tabular}{l rr rr rr}
+\toprule
+\multirow{2}{*}{Architecture} & \multicolumn{2}{c}{$10^{-5}$} & \multicolumn{2}{c}{$3\times10^{-5}$} & \multicolumn{2}{c}{$10^{-4}$} \\
+\cmidrule(lr){2-3}\cmidrule(lr){4-5}\cmidrule(lr){6-7}
+& $L$ & $R_m$ (\%) & $L$ & $R_m$ (\%) & $L$ & $R_m$ (\%) \\
+\midrule
+A0 & 8.35104 & 0.00 & 7.04913 & 0.00 & 5.93887 & 0.00 \\
+A1-H & 8.38652 & 1.97 & 6.98875 & 2.08 & 5.87474 & 2.40 \\
+A3 & 8.40015 & 5.69 & 7.01310 & 5.80 & 5.91768 & 6.16 \\
+A4-Q & \multicolumn{2}{c}{--} & 7.02126 & 7.71 & \multicolumn{2}{c}{--} \\
+A4-K & \multicolumn{2}{c}{--} & 7.02441 & 8.28 & \multicolumn{2}{c}{--} \\
+A4-V & \multicolumn{2}{c}{--} & 7.01615 & 9.50 & \multicolumn{2}{c}{--} \\
+A5-QK-PRE & \multicolumn{2}{c}{--} & 7.01586 & 8.45 & \multicolumn{2}{c}{--} \\
+A5-QK-POST & \multicolumn{2}{c}{--} & 7.03064 & 9.87 & \multicolumn{2}{c}{--} \\
+A6-PRE & 8.38739 & 13.80 & 7.01645 & 12.22 & 5.93539 & 12.37 \\
+A6-POST & 8.38743 & 14.83 & 7.03248 & 13.64 & 6.06320 & 13.64 \\
+\bottomrule
+\end{tabular}
+\end{table}

@@ -57,6 +57,13 @@ measurement but does not dispatch the command.
 | `plot_report05.py` | Report 05 pinned cohort, endpoint reductions, architecture schematic, and learning curves | Training-cohort identity or figures `91`--`92` |
 | `plot_report05_diagnostics.py` | Report 05 propagation and activation/weight-distribution reductions and renderers | Figures `93`--`100` |
 | `plot_report05_clipping.py` | Report 05 site and direct logical-product clipping reductions and renderers | Figures `101`--`102` |
+| `plot_report07.py` | Report 07 registry validation, S1 reductions, endpoint tables, provenance, and core renderers | Figures `103`--`109`, including the combined B2 presentation in `106` and separated B3 weight/geometry presentations in `107`--`108` |
+| `plot_topology_atlas.py` | Compact shared-block and gate-occupancy atlas for the executed A0--A6 architectures | Standalone Report 07 topology figure `110` |
+| `plot_b0_learning_rate_effect.py` | Matched B0 learning-rate response and architecture-by-loss endpoint panel at \(10^{-4}\) | Embedded S1 figure `112` |
+| `plot_s1_quality_compute_landscape.py` | Complete endpoint cloud, primary-seed/common-LR descriptive envelope, and synchronized frontier table | Embedded S1 figure `113` and Report 07 frontier table |
+| `plot_s1_fixed_threshold_architecture_tradeoffs.py` | Per-architecture fixed-threshold small multiples and quality-opportunity paths | Supplemental figure `114` and embedded Report 07 figure `116` |
+| `plot_s1_learned_threshold_frontiers.py` | Matched fixed, learned-absolute, and learned-RMS-relative paths in quality-opportunity space | Supplemental S1-B2 figure `117` |
+| `plot_s1_pressure_frontiers.py` | Combined L1N, OL1, RN, and OR pressure-weight paths in quality-opportunity space | Embedded Report 07 figure `118` |
 | `eval.py` | Tiny harness-only prediction metrics | Smoke-test metrics |
 
 Focused tests live in `tests/test_config.py`, `tests/test_activation_pressure.py`,
@@ -128,7 +135,7 @@ the legacy `run.write_run_artifacts`.
 | `plots` | `plots.generate_plots` | No live config; consumes saved result artifacts and the dispatch in `plots.py` | Numbered PDFs and optional PNGs |
 | `plot-report04` | `plots.generate_report04_figures` | No live config; resolves every declared Report 04 cohort before rendering | Figures `79` through `90`, optional PNGs, and strict-run `report04-provenance.json`; explicit `--allow-partial` exploration mode omits provenance |
 | `plot-report05` | `plots.generate_report05_figures` | No live config; pins training runs and resolves diagnostics `114`--`117` plus declared clipping sweeps | Figures `91` through `102`; strict staged promotion, optional PNGs, and explicit `--allow-partial` exploration mode |
-| `plot-catalog` | `plot_catalog.report04_catalog_rows` or `report05_catalog_rows` | No config or result reads | Deterministic figure metadata on stdout; `--report 04` is the backward-compatible default |
+| `plot-catalog` | `plot_catalog.report04_catalog_rows`, `report05_catalog_rows`, or `report07_catalog_rows` | No config or result reads | Deterministic figure metadata on stdout; `--report 04` is the backward-compatible default |
 | `check` | `integrity.check_repository` | No config; reads repository indexes and artifact envelopes | Findings only; never writes repository files |
 | `plot-run` | `plots.generate_run_diagnostics` | No live config; consumes one run | Requested PDF and optional PNG |
 | `plot-clipping-frontier` | `plots.generate_clipping_frontier` | No live config; consumes one clipping run | Requested PDF and optional PNG |
