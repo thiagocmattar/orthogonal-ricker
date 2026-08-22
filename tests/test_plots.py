@@ -20,13 +20,15 @@ from paper_exp.plots import (
 
 
 def test_clipping_plot_uses_one_explicit_run_and_exports_once(tmp_path: Path) -> None:
-    run_dir = tmp_path / "results" / "01-clipping" / "001-test"
+    scaffold = _scaffold(tmp_path, "01-clipping-tests")
+    run_dir = scaffold / "raw" / "001-clipping" / "001-test"
     run_dir.mkdir(parents=True)
     (run_dir / "config.yaml").write_text("experiment_name: clipping\n", encoding="utf-8")
     (run_dir / "manifest.json").write_text(
         json.dumps(
             {
-                "config_id": "01-clipping",
+                "tranche_id": "01-clipping-tests",
+                "config_id": "001-clipping",
                 "run_id": "001-test",
                 "status": "completed",
                 "git_commit": "a" * 40,
@@ -53,19 +55,21 @@ def test_clipping_plot_uses_one_explicit_run_and_exports_once(tmp_path: Path) ->
     outputs = plot_artifact(
         kind="clipping",
         run_dir=run_dir,
-        output=tmp_path / "figures" / "01-clipping.pdf",
+        output=scaffold / "figs" / "01-clipping.pdf",
         save_png=True,
+        repository=tmp_path,
     )
 
     assert outputs == [
-        tmp_path / "figures" / "01-clipping.pdf",
-        tmp_path / "figures" / "01-clipping.png",
-        tmp_path / "figures" / "01-clipping.provenance.json",
+        scaffold / "figs" / "01-clipping.pdf",
+        scaffold / "figs" / "01-clipping.png",
+        scaffold / "figs" / "01-clipping.provenance.json",
     ]
     assert all(path.is_file() for path in outputs)
     provenance = json.loads(outputs[-1].read_text(encoding="utf-8"))
     assert provenance["plot_kind"] == "clipping"
-    assert provenance["source"]["config_id"] == "01-clipping"
+    assert provenance["source"]["tranche_id"] == "01-clipping-tests"
+    assert provenance["source"]["config_id"] == "001-clipping"
     assert {row["path"] for row in provenance["outputs"]} == {
         outputs[0].name,
         outputs[1].name,
@@ -198,13 +202,15 @@ def test_weight_histogram_handles_no_in_range_mass_without_log_axis() -> None:
 
 
 def test_versioned_plot_loader_rejects_unknown_schema(tmp_path: Path) -> None:
-    run_dir = tmp_path / "results" / "01-histogram" / "001-test"
+    scaffold = _scaffold(tmp_path, "01-histogram-tests")
+    run_dir = scaffold / "raw" / "001-histogram" / "001-test"
     run_dir.mkdir(parents=True)
     (run_dir / "config.yaml").write_text("experiment_name: histogram\n", encoding="utf-8")
     (run_dir / "manifest.json").write_text(
         json.dumps(
             {
-                "config_id": "01-histogram",
+                "tranche_id": "01-histogram-tests",
+                "config_id": "001-histogram",
                 "run_id": "001-test",
                 "status": "completed",
             }
@@ -220,7 +226,23 @@ def test_versioned_plot_loader_rejects_unknown_schema(tmp_path: Path) -> None:
         plot_artifact(
             kind="activation-histograms",
             run_dir=run_dir,
-            output=tmp_path / "figure.pdf",
+            output=scaffold / "figs" / "01-histogram.pdf",
+            repository=tmp_path,
+        )
+
+
+def test_plot_output_must_stay_in_the_source_scaffold(tmp_path: Path) -> None:
+    source = _scaffold(tmp_path, "01-source-tests")
+    other = _scaffold(tmp_path, "02-other-tests")
+    run_dir = source / "raw" / "001-source" / "001-run"
+    run_dir.mkdir(parents=True)
+
+    with pytest.raises(RuntimeError, match="source run's scaffold"):
+        plot_artifact(
+            kind="run",
+            run_dir=run_dir,
+            output=other / "figs" / "01-wrong.pdf",
+            repository=tmp_path,
         )
 
 
@@ -279,3 +301,10 @@ def _write_jsonl(path: Path, rows: list[dict[str, object]]) -> None:
         for row in rows:
             handle.write(json.dumps(row))
             handle.write("\n")
+
+
+def _scaffold(tmp_path: Path, scaffold_id: str) -> Path:
+    scaffold = tmp_path / "experiments" / scaffold_id
+    for name in ("run", "raw", "figs"):
+        (scaffold / name).mkdir(parents=True, exist_ok=True)
+    return scaffold

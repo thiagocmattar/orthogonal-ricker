@@ -15,6 +15,7 @@ from uuid import uuid4
 
 from matplotlib.figure import Figure
 
+from paper_exp.launch import resolve_figure_output, resolve_launch_run_dir
 from paper_exp.utils import read_json
 
 from .activation_histograms import build_activation_histograms
@@ -64,10 +65,10 @@ def plot_artifact(
     run_dir: str | Path,
     output: str | Path,
     save_png: bool = False,
+    repository: str | Path | None = None,
 ) -> list[Path]:
     """Render one explicit saved artifact to PDF and, optionally, PNG."""
 
-    run_path = Path(run_dir)
     handlers: dict[str, tuple[Callable[[Path], Any], Callable[[Any], Figure]]] = {
         "run": (_load_run_diagnostics, build_run_diagnostics),
         "clipping": (_load_clipping_frontier, build_clipping_frontier),
@@ -96,15 +97,19 @@ def plot_artifact(
     if kind not in handlers:
         choices = ", ".join(PLOT_KINDS)
         raise ValueError(f"Unknown plot kind {kind!r}; expected one of: {choices}.")
-    if not run_path.is_dir():
-        raise FileNotFoundError(f"Run directory does not exist: {run_path}")
+    root, run_path = resolve_launch_run_dir(run_dir, repository=repository)
+    output_path = resolve_figure_output(
+        output,
+        source_run=run_path,
+        repository=root,
+    )
     input_paths = _plot_input_paths(kind, run_path)
 
     loader, builder = handlers[kind]
     payload = loader(run_path)
     outputs = export_figure(
         lambda: builder(payload),
-        output,
+        output_path,
         save_png=save_png,
         style=PAPER_STYLE,
         profile=DOUBLE_COLUMN_PUBLICATION_PROFILE,
@@ -194,6 +199,11 @@ def _plot_input_paths(kind: str, run_path: Path) -> list[Path]:
         or manifest.get("run_id") != run_path.name
     ):
         raise ValueError(f"Run manifest identity does not match its directory: {run_path}")
+    tranche_id = run_path.parents[2].name
+    if manifest.get("tranche_id") not in {None, tranche_id}:
+        raise ValueError(
+            f"Run manifest tranche does not match its directory: {run_path}"
+        )
     if manifest.get("status") != "completed":
         raise ValueError(f"Plot input run is not completed: {run_path}")
     return paths
@@ -214,6 +224,7 @@ def _write_plot_provenance(
         "plot_kind": kind,
         "artifact_schema_version": artifact_schema_version,
         "source": {
+            "tranche_id": manifest.get("tranche_id"),
             "config_id": manifest.get("config_id"),
             "run_id": manifest.get("run_id"),
             "status": manifest.get("status"),

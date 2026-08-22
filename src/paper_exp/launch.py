@@ -189,6 +189,27 @@ def resolve_launch_run_dir(
     return root, resolved
 
 
+def resolve_figure_output(
+    path: str | Path,
+    *,
+    source_run: str | Path,
+    repository: str | Path | None = None,
+) -> Path:
+    """Require a figure directly inside its source scaffold's ``figs/``."""
+
+    root, resolved_run = resolve_launch_run_dir(source_run, repository=repository)
+    experiments_root = (root / EXPERIMENTS_DIR_NAME).resolve()
+    relative_run = resolved_run.relative_to(experiments_root)
+    scaffold = resolve_experiment_scaffold(relative_run.parts[0], repository=root)
+    output = _resolve(path, root)
+    if output.parent != scaffold.figs_dir:
+        raise LaunchError(
+            "Figure output must be directly under the source run's scaffold "
+            f"figs directory {scaffold.figs_dir}: {output}"
+        )
+    return output
+
+
 def require_raw_output(
     config: Mapping[str, Any],
     *,
