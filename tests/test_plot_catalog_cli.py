@@ -1,7 +1,11 @@
 from __future__ import annotations
 
 from paper_exp.cli import build_parser, main
-from paper_exp.plot_catalog import report04_catalog_rows, report07_catalog_rows
+from paper_exp.plot_catalog import (
+    report04_catalog_rows,
+    report07_catalog_rows,
+    standalone_catalog_rows,
+)
 
 
 def test_plot_catalog_parser_defaults_to_the_full_suite() -> None:
@@ -37,3 +41,9 @@ def test_plot_catalog_report07_is_explicit_opt_in(capsys) -> None:
     assert main(["plot-catalog", "--report", "07"]) == 0
 
     assert capsys.readouterr().out.splitlines() == list(report07_catalog_rows())
+
+
+def test_plot_catalog_standalone_is_explicit_opt_in(capsys) -> None:
+    assert main(["plot-catalog", "--report", "standalone"]) == 0
+
+    assert capsys.readouterr().out.splitlines() == list(standalone_catalog_rows())

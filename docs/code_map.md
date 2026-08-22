@@ -50,7 +50,7 @@ measurement but does not dispatch the command.
 | `sweeps.py` | The fixed-step pressure matrix, generated configs, and sequential sweep runners | Existing fixed-step sweep composition |
 | `plots.py` | Stable plotting facade, procedural dispatch, result selection, public wrappers, and legacy figure families | CLI compatibility, figure dependencies, output names, or a family not yet extracted |
 | `plot_api.py` | Count-derived panel grids, scoped one-build PDF/PNG export, and publication-profile validation | Shared final-size layout/export behavior that does not change scientific content |
-| `plot_catalog.py` | Metadata-only Report 04/05 figure indexes | Figure numbers, filenames, saved-input kinds, wrapper names, or report embedding status |
+| `plot_catalog.py` | Metadata-only Report 04/05/07 and standalone figure indexes | Figure numbers, filenames, saved-input kinds, wrapper names, or report embedding status |
 | `plot_style.py` | Shared paper rc parameters, palettes, method colors/markers, and export defaults | Typography, semantic series styling, or repository-wide presentation behavior |
 | `plot_common.py` | Small pure helpers with callers in multiple plotting families | Shared histogram normalization (including zero-atom separation), formatting, and finite-value handling |
 | `plot_report04.py` | Report 04 cohorts, reductions, compute accounting, checkpoint preparation, and renderers for figures `79` through `90` | Post-LayerNorm ReLU report figures or their scientific presentation |
@@ -64,6 +64,7 @@ measurement but does not dispatch the command.
 | `plot_s1_fixed_threshold_architecture_tradeoffs.py` | Per-architecture fixed-threshold small multiples and quality-opportunity paths | Supplemental figure `114` and embedded Report 07 figure `116` |
 | `plot_s1_learned_threshold_frontiers.py` | Matched fixed, learned-absolute, and learned-RMS-relative paths in quality-opportunity space | Supplemental S1-B2 figure `117` |
 | `plot_s1_pressure_frontiers.py` | Combined L1N, OL1, RN, and OR pressure-weight paths in quality-opportunity space | Embedded Report 07 figure `118` |
+| `plot_fixed_step_l1_coupling.py` | Explicit fixed-step FFN-only L1 cohort, pooled near-zero reductions, and MLP/attention-output scatter renderer | Retrospective figure `119` and its pinned schema-v2 activation-histogram input |
 | `eval.py` | Tiny harness-only prediction metrics | Smoke-test metrics |
 
 Focused tests live in `tests/test_config.py`, `tests/test_activation_pressure.py`,
@@ -135,7 +136,7 @@ the legacy `run.write_run_artifacts`.
 | `plots` | `plots.generate_plots` | No live config; consumes saved result artifacts and the dispatch in `plots.py` | Numbered PDFs and optional PNGs |
 | `plot-report04` | `plots.generate_report04_figures` | No live config; resolves every declared Report 04 cohort before rendering | Figures `79` through `90`, optional PNGs, and strict-run `report04-provenance.json`; explicit `--allow-partial` exploration mode omits provenance |
 | `plot-report05` | `plots.generate_report05_figures` | No live config; pins training runs and resolves diagnostics `114`--`117` plus declared clipping sweeps | Figures `91` through `102`; strict staged promotion, optional PNGs, and explicit `--allow-partial` exploration mode |
-| `plot-catalog` | `plot_catalog.report04_catalog_rows`, `report05_catalog_rows`, or `report07_catalog_rows` | No config or result reads | Deterministic figure metadata on stdout; `--report 04` is the backward-compatible default |
+| `plot-catalog` | Report 04/05/07 or standalone catalog row helpers | No config or result reads | Deterministic figure metadata on stdout; `--report 04` is the backward-compatible default |
 | `check` | `integrity.check_repository` | No config; reads repository indexes and artifact envelopes | Findings only; never writes repository files |
 | `plot-run` | `plots.generate_run_diagnostics` | No live config; consumes one run | Requested PDF and optional PNG |
 | `plot-clipping-frontier` | `plots.generate_clipping_frontier` | No live config; consumes one clipping run | Requested PDF and optional PNG |

@@ -66,10 +66,13 @@ only two observations per sentinel.
 
 ## Next registered decision
 
-The next unused config prefix is `304`. No scientific or conditional run is
-authorized by S1 closure alone.
+At S1 closure, the next unused config prefix was `304`. It was subsequently
+allocated on 2026-08-22 to a non-campaign retrospective diagnostic over
+historical fixed-step runs, not to an S1 scientific or conditional cell. The
+next unused global prefix is `305`; S1 closure alone still authorizes no
+scientific or conditional run.
 
-Before materializing prefix `304`:
+Before materializing the next S1 conditional prefix:
 
 1. review every predeclared conditional trigger in
    [`01-screening-matrix.md`](01-screening-matrix.md);

@@ -1,4 +1,4 @@
-"""Searchable metadata for the Report 04, 05, and 07 paper-figure suites.
+"""Searchable metadata for report suites and standalone paper figures.
 
 The catalog describes figure ownership and saved-input requirements only.  It
 does not select runs, load artifacts, or render figures.
@@ -308,6 +308,18 @@ REPORT07_SUPPLEMENTAL_FIGURES = (
 )
 
 
+STANDALONE_FIGURES = (
+    PlotCatalogEntry(
+        119,
+        "119-pythia-14m-fixed-2048-mlp-l1-near-zero-coupling.pdf",
+        "fixed_step_l1_cross_site_coupling",
+        ("activation_histograms.json",),
+        "plot_fixed_step_l1_coupling.generate_figure",
+        False,
+    ),
+)
+
+
 def list_report04_figures(*, embedded_only: bool = False) -> tuple[PlotCatalogEntry, ...]:
     """Return Report 04 entries in stable figure-number order."""
 
@@ -413,6 +425,42 @@ def report05_catalog_rows(*, embedded_only: bool = False) -> tuple[str, ...]:
 
     rows = []
     for entry in list_report05_figures(embedded_only=embedded_only):
+        artifacts = ", ".join(entry.required_artifact_kinds) or "none"
+        report_status = "embedded" if entry.embedded_in_report else "generated only"
+        rows.append(
+            f"{entry.number} | {entry.plot_type} | {entry.filename} | "
+            f"artifacts: {artifacts} | wrapper: {entry.public_wrapper} | {report_status}"
+        )
+    return tuple(rows)
+
+
+def list_standalone_figures(*, embedded_only: bool = False) -> tuple[PlotCatalogEntry, ...]:
+    """Return standalone paper figures in stable figure-number order."""
+
+    if not embedded_only:
+        return STANDALONE_FIGURES
+    return tuple(entry for entry in STANDALONE_FIGURES if entry.embedded_in_report)
+
+
+def get_standalone_figure(identifier: int | str) -> PlotCatalogEntry:
+    """Look up a standalone figure by stable catalog identifier."""
+
+    for entry in STANDALONE_FIGURES:
+        if identifier in {
+            entry.number,
+            entry.filename,
+            entry.plot_type,
+            entry.public_wrapper,
+        }:
+            return entry
+    raise KeyError(f"Unknown standalone figure: {identifier!r}")
+
+
+def standalone_catalog_rows(*, embedded_only: bool = False) -> tuple[str, ...]:
+    """Return deterministic, human-readable standalone figure rows."""
+
+    rows = []
+    for entry in list_standalone_figures(embedded_only=embedded_only):
         artifacts = ", ".join(entry.required_artifact_kinds) or "none"
         report_status = "embedded" if entry.embedded_in_report else "generated only"
         rows.append(

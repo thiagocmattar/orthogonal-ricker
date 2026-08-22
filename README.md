@@ -56,6 +56,7 @@ make baseline  # blocked until the pretraining budget is chosen
 make plots     # regenerate figures from saved results
 make plot-report04  # strict Report 04 suite + deterministic input provenance
 make plot-report05  # strict Report 05 architecture-comparison suite
+make plot-fixed-step-l1-coupling  # FFN-only L1 MLP/attention near-zero scatter
 ```
 
 `make check` reports warnings for incomplete run directories and reused figure

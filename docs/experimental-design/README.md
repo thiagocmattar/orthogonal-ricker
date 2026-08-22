@@ -62,9 +62,11 @@ work.
   `001-20260727-134130-86a95dc4`, selection loss `7.05829`.
 - Last mandatory diagnostic: config `303`, run
   `001-20260727-190455-ba5f3286`, over 311,296 selection tokens.
-- Active scientific run: none. Prefix `304` is next. The next action is to
-  register the predeclared conditional-trigger decisions; do not launch a
-  conditional cell from S1 completion alone.
+- Active scientific run: none. Prefix `304` was allocated on 2026-08-22 to a
+  non-campaign retrospective diagnostic over historical fixed-step runs; it is
+  not an S1 scientific cell. Prefix `305` is next. The next S1 action remains
+  registration of the predeclared conditional-trigger decisions; do not launch
+  a conditional cell from S1 completion alone.
 
 | Config | Gate/site | Canonical run | Selection loss | `R_block` | `R_model` |
 | ---: | --- | --- | ---: | ---: | ---: |

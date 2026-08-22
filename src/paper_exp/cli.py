@@ -15,6 +15,7 @@ from paper_exp.plot_catalog import (
     report04_catalog_rows,
     report05_catalog_rows,
     report07_catalog_rows,
+    standalone_catalog_rows,
 )
 from paper_exp.plots import (
     generate_clipping_frontier,
@@ -134,9 +135,9 @@ def build_parser() -> argparse.ArgumentParser:
     )
     plot_catalog.add_argument(
         "--report",
-        choices=("04", "05", "07"),
+        choices=("04", "05", "07", "standalone"),
         default="04",
-        help="Report figure catalog to list (default: 04).",
+        help="Report or standalone figure catalog to list (default: 04).",
     )
     plot_catalog.add_argument(
         "--embedded-only",
@@ -335,6 +336,7 @@ def main(argv: list[str] | None = None) -> int:
                 "04": report04_catalog_rows,
                 "05": report05_catalog_rows,
                 "07": report07_catalog_rows,
+                "standalone": standalone_catalog_rows,
             }[args.report]
             for row in catalog_rows(embedded_only=args.embedded_only):
                 print(row)

@@ -148,6 +148,25 @@ Fixed-step activation-pressure screen:
 - Fixed-step post-hoc clipping frontiers now use thresholds `[0, 0.001, 0.003, 0.01, 0.03, 0.05, 0.075, 0.1, 0.15, 0.2, 0.3]`, which maps representative runs through the 80-90% exact-zero activation sparsity region.
 - Interpretation boundary: this is a one-seed planning screen. The full ablation should repeat key candidates over multiple seeds, use longer token budgets, and use a larger or full deterministic validation pass.
 
+Fixed-step FFN-only L1 cross-site diagnostic:
+
+- Config `304` evaluates the matched stock-GELU Pythia-14M AdamW checkpoint and
+  the FFN-only L1N/OL1 checkpoints from configs `27`--`34` and `45`--`48`.
+  Both pressure methods target `mlp_hiddens` only; naive loss augmentation and
+  Adam-step orthogonal pressure remain separate series.
+- For each checkpoint, the diagnostic pools integer counts over all six layers
+  and all 692,224 validation tokens. The plotted quantity is near-zero mass
+  `abs(a) <= 0.01`, not exact sparsity. `attention_outputs` is the attention
+  module output immediately before the residual addition; it is not an
+  attention weight or probability matrix.
+- The x coordinate is 100 times the checkpoint-minus-AdamW difference in
+  pooled MLP-hidden near-zero fraction. The y coordinate is the analogous
+  attention-output difference, so both axes are percentage-point changes
+  relative to the same config `12` AdamW checkpoint.
+- Figure `119` is a retrospective, one-seed descriptive diagnostic. Its
+  inverse cross-site association does not establish causal compensation,
+  uncertainty, long-budget behavior, or exact-zero compute opportunity.
+
 ## Expected Ablations
 
 TODO: design the full ablation around the fixed-step screen. Initial candidates to carry forward are AdamW monitor-only, L1 weights near `0.15`, orthogonal L1 weights near `0.15`, mild Ricker `w=0.03, c=0.05, s=0.05`, and orthogonal Ricker at moderate pressure for the sparsity/loss tradeoff.

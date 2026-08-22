@@ -17,6 +17,11 @@ registry in the same clean commit before launch. Map completed evidence in
 `docs/experiment_log.md` and paper artifacts in `docs/paper_map.md` where
 relevant.
 
+Prefix `304` is allocated to a non-campaign retrospective activation-histogram
+diagnostic over the historical fixed-step FFN-only L1 sweep. It is intentionally
+absent from the S1 scientific config registry and does not authorize any S1
+conditional cell. The next unused global config prefix is `305`.
+
 For pretraining runs, keep model architecture and weight initialization explicit:
 
 ```yaml

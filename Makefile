@@ -1,6 +1,6 @@
 PYTHON ?= python
 
-.PHONY: install test check smoke baseline prepare-minipile calibrate-pythia-14m pretrain-pythia-14m-full-10min pressure-smoke-ricker-naive pressure-smoke-l1-naive pressure-smoke-orthogonal-ricker pressure-smoke-orthogonal-l1 pressure-short-ricker-naive pressure-short-l1-naive pressure-short-orthogonal-ricker pressure-short-orthogonal-l1 pressure-short-all plots plot-report04 plot-report05 plot-report07 plot-report07-topology plot-report07-lr-effect plot-report07-landscape plot-report07-threshold-tradeoffs plot-report07-learned-frontiers plot-report07-pressure-frontiers
+.PHONY: install test check smoke baseline prepare-minipile calibrate-pythia-14m pretrain-pythia-14m-full-10min pressure-smoke-ricker-naive pressure-smoke-l1-naive pressure-smoke-orthogonal-ricker pressure-smoke-orthogonal-l1 pressure-short-ricker-naive pressure-short-l1-naive pressure-short-orthogonal-ricker pressure-short-orthogonal-l1 pressure-short-all plots plot-report04 plot-report05 plot-report07 plot-report07-topology plot-report07-lr-effect plot-report07-landscape plot-report07-threshold-tradeoffs plot-report07-learned-frontiers plot-report07-pressure-frontiers plot-fixed-step-l1-coupling
 
 install:
 	$(PYTHON) -m pip install -e .
@@ -91,3 +91,6 @@ plot-report07-learned-frontiers:
 
 plot-report07-pressure-frontiers:
 	$(PYTHON) -m paper_exp.plot_s1_pressure_frontiers
+
+plot-fixed-step-l1-coupling:
+	$(PYTHON) -m paper_exp.plot_fixed_step_l1_coupling --png

@@ -4,9 +4,12 @@ import pytest
 
 from paper_exp.plot_catalog import (
     REPORT04_FIGURES,
+    STANDALONE_FIGURES,
     get_report04_figure,
+    get_standalone_figure,
     list_report04_figures,
     report04_catalog_rows,
+    standalone_catalog_rows,
 )
 
 
@@ -60,3 +63,19 @@ def test_report04_catalog_rows_are_stable_and_human_readable() -> None:
         "artifacts: none | wrapper: generate_report04_pythia_family_compute_ceiling | embedded"
     )
     assert len(report04_catalog_rows(embedded_only=True)) == 10
+
+
+def test_standalone_catalog_records_fixed_step_l1_coupling_figure() -> None:
+    assert tuple(entry.number for entry in STANDALONE_FIGURES) == (119,)
+
+    entry = get_standalone_figure("fixed_step_l1_cross_site_coupling")
+
+    assert entry.required_artifact_kinds == ("activation_histograms.json",)
+    assert get_standalone_figure(119) is entry
+    assert standalone_catalog_rows() == (
+        "119 | fixed_step_l1_cross_site_coupling | "
+        "119-pythia-14m-fixed-2048-mlp-l1-near-zero-coupling.pdf | "
+        "artifacts: activation_histograms.json | wrapper: "
+        "plot_fixed_step_l1_coupling.generate_figure | generated only",
+    )
+    assert standalone_catalog_rows(embedded_only=True) == ()
