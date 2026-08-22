@@ -9,7 +9,7 @@ from paper_exp.config import ConfigError, load_config
 from paper_exp.launch import (
     LaunchError,
     direct_launch_guard,
-    require_results_output,
+    require_raw_output,
     require_token_cache_output,
     resolve_launch_config,
     resolve_launch_run_dir,
@@ -129,8 +129,12 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "smoke":
             from paper_exp.run import run_smoke
 
-            config = load_config(args.config, allow_todos=True)
-            run_dir = run_smoke(config, config_path=args.config, command=command)
+            repository, config_path = resolve_launch_config(args.config)
+            config = load_config(config_path, allow_todos=True)
+            require_raw_output(
+                config, repository=repository, config_path=config_path
+            )
+            run_dir = run_smoke(config, config_path=config_path, command=command)
             print(f"Smoke run written to {run_dir}")
             return 0
 
@@ -139,7 +143,7 @@ def main(argv: list[str] | None = None) -> int:
 
             repository, config_path = resolve_launch_config(args.config)
             config = load_config(config_path, allow_todos=False)
-            require_results_output(config, repository=repository, source=config_path)
+            require_raw_output(config, repository=repository, config_path=config_path)
             require_token_cache_output(config, repository=repository, source=config_path)
             with direct_launch_guard(repository=repository):
                 run_dir = prepare_tokenized_data(
@@ -155,7 +159,7 @@ def main(argv: list[str] | None = None) -> int:
 
             repository, config_path = resolve_launch_config(args.config)
             config = load_config(config_path, allow_todos=False)
-            require_results_output(config, repository=repository, source=config_path)
+            require_raw_output(config, repository=repository, config_path=config_path)
             require_token_cache_output(config, repository=repository, source=config_path)
             with direct_launch_guard(repository=repository):
                 run_dir = run_training(
@@ -217,7 +221,7 @@ def main(argv: list[str] | None = None) -> int:
 
             repository, config_path = resolve_launch_config(args.config)
             config = load_config(config_path, allow_todos=False)
-            require_results_output(config, repository=repository, source=config_path)
+            require_raw_output(config, repository=repository, config_path=config_path)
             with direct_launch_guard(repository=repository):
                 run_dir = run_activation_histograms(
                     config,
@@ -232,7 +236,7 @@ def main(argv: list[str] | None = None) -> int:
 
             repository, config_path = resolve_launch_config(args.config)
             config = load_config(config_path, allow_todos=False)
-            require_results_output(config, repository=repository, source=config_path)
+            require_raw_output(config, repository=repository, config_path=config_path)
             with direct_launch_guard(repository=repository):
                 run_dir = run_activation_propagation(
                     config,
@@ -247,7 +251,7 @@ def main(argv: list[str] | None = None) -> int:
 
             repository, config_path = resolve_launch_config(args.config)
             config = load_config(config_path, allow_todos=False)
-            require_results_output(config, repository=repository, source=config_path)
+            require_raw_output(config, repository=repository, config_path=config_path)
             with direct_launch_guard(repository=repository):
                 run_dir = run_weight_histograms(
                     config,

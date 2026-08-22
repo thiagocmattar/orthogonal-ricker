@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-import re
 import shlex
 import sys
 from typing import Any, Sequence
@@ -13,15 +12,12 @@ from paper_exp.launch import (
     LaunchError,
     direct_launch_guard,
     repository_path,
-    require_results_output,
+    require_raw_output,
     require_token_cache_output,
     require_tracked_file,
+    resolve_experiment_scaffold,
     resolve_launch_config,
 )
-
-
-RUNNER_NAME_RE = re.compile(r"^(?!00)\d{2}-[a-z0-9]+-[a-z0-9][a-z0-9-]*\.py$")
-SCIENTIFIC_CONFIG_NAME_RE = re.compile(r"^(?!000)\d{3}-[a-z0-9][a-z0-9-]*\.yaml$")
 
 
 class RunnerError(LaunchError):
@@ -41,29 +37,22 @@ def run_launch(
     if not config_paths:
         raise RunnerError(f"Runner has no configs: {runner}")
 
-    configs = [
-        resolve_launch_config(path, repository=root)[1]
-        for path in config_paths
-    ]
-    expected_config_root = (root / "configs" / runner.stem).resolve()
+    try:
+        configs = [
+            resolve_launch_config(path, repository=root)[1]
+            for path in config_paths
+        ]
+    except LaunchError as error:
+        raise RunnerError(str(error)) from error
+    expected_config_root = runner.parent
     misplaced = [path for path in configs if path.parent != expected_config_root]
     if misplaced:
         raise RunnerError(
-            f"Runner {runner.name} may only use configs from "
-            f"configs/{runner.stem}/."
+            f"Runner {runner} may only use configs beside it in its scaffold "
+            "run directory."
         )
     if len(set(configs)) != len(configs):
         raise RunnerError(f"Runner contains a duplicate config: {runner}")
-    invalid_names = [
-        path.name
-        for path in configs
-        if SCIENTIFIC_CONFIG_NAME_RE.fullmatch(path.name) is None
-    ]
-    if invalid_names:
-        raise RunnerError(
-            "Runner config filenames must be CCC-<case>.yaml with a nonzero "
-            f"three-digit prefix: {', '.join(invalid_names)}."
-        )
     prefixes = [int(path.name.split("-", 1)[0]) for path in configs]
     if prefixes != sorted(prefixes) or len(prefixes) != len(set(prefixes)):
         raise RunnerError(f"Runner configs must be in strictly increasing numeric order: {runner}")
@@ -83,14 +72,15 @@ def run_launch(
             details.append(f"not present in the folder: {', '.join(unexpected)}")
         raise RunnerError(
             f"Runner {runner.name} must list exactly all YAML files in "
-            f"configs/{runner.stem}/ ({'; '.join(details)})."
+            f"{expected_config_root.relative_to(root).as_posix()}/ "
+            f"({'; '.join(details)})."
         )
 
     loaded: list[tuple[Path, dict[str, Any]]] = []
     for path in configs:
         config = load_config(path, allow_todos=False)
         validate_training_config(config)
-        require_results_output(config, repository=root, source=path)
+        require_raw_output(config, repository=root, config_path=path)
         require_token_cache_output(config, repository=root, source=path)
         loaded.append((path, config))
 
@@ -115,18 +105,26 @@ def _resolve_runner(path: str | Path, repository: Path) -> Path:
         if candidate.is_absolute()
         else (repository / candidate).resolve()
     )
-    runner_root = (repository / "runners").resolve()
+    experiments_root = (repository / "experiments").resolve()
     try:
-        relative = resolved.relative_to(runner_root)
+        relative = resolved.relative_to(experiments_root)
     except ValueError as error:
-        raise RunnerError(f"Runner must be inside {runner_root}: {resolved}") from error
+        raise RunnerError(f"Runner must be inside {experiments_root}: {resolved}") from error
     if (
-        relative.parent != Path(".")
-        or RUNNER_NAME_RE.fullmatch(resolved.name) is None
+        len(relative.parts) != 3
+        or relative.parts[1:] != ("run", "runner.py")
+    ):
+        raise RunnerError(
+            "Runner must be experiments/NN-<phase>-<tranche>/run/runner.py."
+        )
+    scaffold = resolve_experiment_scaffold(relative.parts[0], repository=repository)
+    if (
+        scaffold.is_smoke
+        or resolved != scaffold.runner_path
         or not resolved.is_file()
     ):
         raise RunnerError(
-            f"Runner must be a file named NN-<phase>-<tranche>.py directly under {runner_root}."
+            "Scientific runner must be the tracked runner.py in a nonzero scaffold."
         )
     require_tracked_file(repository, resolved)
     return resolved

@@ -36,10 +36,14 @@ def test_smoke_requires_the_explicit_clean_config() -> None:
         build_parser().parse_args(["smoke"])
 
     args = build_parser().parse_args(
-        ["smoke", "--config", "configs/00-smoke.yaml"]
+        [
+            "smoke",
+            "--config",
+            "experiments/00-infrastructure-smoke/run/00-smoke.yaml",
+        ]
     )
 
-    assert args.config == "configs/00-smoke.yaml"
+    assert args.config == "experiments/00-infrastructure-smoke/run/00-smoke.yaml"
 
 
 @pytest.mark.parametrize(
@@ -65,9 +69,9 @@ def test_plot_requires_one_explicit_supported_artifact_kind() -> None:
                 "--kind",
                 kind,
                 "--run-dir",
-                "results/example/001-run",
+                "experiments/01-a1-grid/raw/001-example/001-run",
                 "--output",
-                "figures/01-example.pdf",
+                "experiments/01-a1-grid/figs/01-example.pdf",
             ]
         )
         assert args.kind == kind
@@ -76,13 +80,19 @@ def test_plot_requires_one_explicit_supported_artifact_kind() -> None:
 def test_clipping_has_no_implicit_cutoff_and_requires_an_explicit_seed() -> None:
     parser = build_parser()
     with pytest.raises(SystemExit):
-        parser.parse_args(["clip-sweep", "--run-dir", "results/source/001-run"])
+        parser.parse_args(
+            [
+                "clip-sweep",
+                "--run-dir",
+                "experiments/01-a1-grid/raw/001-source/001-run",
+            ]
+        )
 
     args = parser.parse_args(
         [
             "clip-sweep",
             "--run-dir",
-            "results/source/001-run",
+            "experiments/01-a1-grid/raw/001-source/001-run",
             "--seed",
             "7",
         ]

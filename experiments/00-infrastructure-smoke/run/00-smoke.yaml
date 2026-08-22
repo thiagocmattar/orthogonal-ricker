@@ -13,4 +13,4 @@ run:
   seed: 0
   max_examples: 3
 output:
-  dir: results
+  dir: experiments/00-infrastructure-smoke/raw

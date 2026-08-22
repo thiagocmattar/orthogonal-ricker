@@ -7,12 +7,12 @@ import pytest
 import paper_exp.launch as launch
 
 
-def test_config_resolution_accepts_only_smoke_or_one_launch_folder(
+def test_config_resolution_accepts_only_exact_scaffold_run_configs(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    config = tmp_path / "configs" / "00-smoke.yaml"
-    config.parent.mkdir()
+    smoke = _scaffold(tmp_path, "00-infrastructure-smoke")
+    config = smoke / "run" / "00-smoke.yaml"
     config.write_text("experiment_name: test\n", encoding="utf-8")
     observed: list[Path] = []
     monkeypatch.setattr(
@@ -27,51 +27,73 @@ def test_config_resolution_accepts_only_smoke_or_one_launch_folder(
     assert resolved == config.resolve()
     assert observed == [config.resolve()]
 
-    root_scientific = config.parent / "001-case.yaml"
-    root_scientific.write_text("", encoding="utf-8")
-    with pytest.raises(launch.LaunchError, match="00-smoke"):
-        launch.resolve_launch_config(root_scientific, repository=tmp_path)
+    misplaced_scientific = config.with_name("001-case.yaml")
+    misplaced_scientific.write_text("", encoding="utf-8")
+    with pytest.raises(launch.LaunchError, match="CCC-<case>"):
+        launch.resolve_launch_config(misplaced_scientific, repository=tmp_path)
 
-    nested = config.parent / "01-a1-grid" / "001-case.yaml"
-    nested.parent.mkdir()
-    nested.write_text("", encoding="utf-8")
-    _, nested_resolved = launch.resolve_launch_config(nested, repository=tmp_path)
-    assert nested_resolved == nested.resolve()
+    scientific = _scaffold(tmp_path, "01-a1-grid") / "run" / "001-case.yaml"
+    scientific.write_text("", encoding="utf-8")
+    _, scientific_resolved = launch.resolve_launch_config(
+        scientific, repository=tmp_path
+    )
+    assert scientific_resolved == scientific.resolve()
 
-    too_deep = nested.parent / "extra" / "002-case.yaml"
+    too_deep = scientific.parent / "extra" / "002-case.yaml"
     too_deep.parent.mkdir()
     too_deep.write_text("", encoding="utf-8")
-    with pytest.raises(launch.LaunchError, match="configs/<launch-id>"):
+    with pytest.raises(launch.LaunchError, match="directly under"):
         launch.resolve_launch_config(too_deep, repository=tmp_path)
 
 
 def test_run_resolution_requires_exact_config_and_run_levels(tmp_path: Path) -> None:
-    run_dir = tmp_path / "results" / "01-case" / "001-test"
+    scaffold = _scaffold(tmp_path, "01-a1-grid")
+    run_dir = scaffold / "raw" / "001-case" / "001-test"
     run_dir.mkdir(parents=True)
 
     _, resolved = launch.resolve_launch_run_dir(run_dir, repository=tmp_path)
 
     assert resolved == run_dir.resolve()
-    with pytest.raises(launch.LaunchError, match="exact results"):
+    with pytest.raises(launch.LaunchError, match="exact experiments"):
         launch.resolve_launch_run_dir(run_dir.parent, repository=tmp_path)
 
 
-def test_release_outputs_are_repository_local(tmp_path: Path) -> None:
+def test_release_outputs_are_owned_by_the_config_scaffold(tmp_path: Path) -> None:
+    scaffold = _scaffold(tmp_path, "01-a1-grid")
+    config_path = scaffold / "run" / "001-case.yaml"
+    config_path.write_text("", encoding="utf-8")
     config = {
-        "output": {"dir": "results"},
+        "output": {"dir": "experiments/01-a1-grid/raw"},
         "preprocessing": {"output_dir": "data/tokenized"},
     }
 
-    assert launch.require_results_output(
-        config, repository=tmp_path, source="config"
-    ) == (tmp_path / "results").resolve()
+    assert launch.require_raw_output(
+        config, repository=tmp_path, config_path=config_path
+    ) == (scaffold / "raw").resolve()
     assert launch.require_token_cache_output(
         config, repository=tmp_path, source="config"
     ) == (tmp_path / "data" / "tokenized").resolve()
 
     config["output"]["dir"] = "elsewhere"
     with pytest.raises(launch.LaunchError, match="output.dir"):
-        launch.require_results_output(config, repository=tmp_path, source="config")
+        launch.require_raw_output(
+            config, repository=tmp_path, config_path=config_path
+        )
+
+
+def test_scaffold_requires_all_owned_directories(tmp_path: Path) -> None:
+    scaffold = tmp_path / "experiments" / "01-a1-grid"
+    (scaffold / "run").mkdir(parents=True)
+    (scaffold / "raw").mkdir()
+
+    with pytest.raises(launch.LaunchError, match="missing: figs"):
+        launch.resolve_experiment_scaffold("01-a1-grid", repository=tmp_path)
+
+    invalid = tmp_path / "experiments" / "00-a1-grid"
+    for name in ("run", "raw", "figs"):
+        (invalid / name).mkdir(parents=True, exist_ok=True)
+    with pytest.raises(launch.LaunchError, match="prefix 00"):
+        launch.resolve_experiment_scaffold("00-a1-grid", repository=tmp_path)
 
 
 def test_launch_guard_requires_reviewed_plan_and_cleans_its_lock(
@@ -109,3 +131,10 @@ def test_launch_guard_rejects_dirty_checkout(
     with pytest.raises(launch.LaunchError, match="Commit or stash"):
         with launch.direct_launch_guard(repository=tmp_path):
             pytest.fail("dirty checkout must block launch")
+
+
+def _scaffold(tmp_path: Path, scaffold_id: str) -> Path:
+    scaffold = tmp_path / "experiments" / scaffold_id
+    for name in ("run", "raw", "figs"):
+        (scaffold / name).mkdir(parents=True, exist_ok=True)
+    return scaffold

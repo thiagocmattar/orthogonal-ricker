@@ -35,9 +35,16 @@ def test_parent_runner_executes_one_config_at_a_time_in_numeric_order(
         command: str,
     ) -> Path:
         assert active
-        assert command.endswith("runners/01-first-set.py")
+        assert command.endswith("experiments/01-first-set/run/runner.py")
         calls.append(config_path.name)
-        return tmp_path / "results" / config_path.stem / "001-test"
+        return (
+            tmp_path
+            / "experiments"
+            / "01-first-set"
+            / "raw"
+            / config_path.stem
+            / "001-test"
+        )
 
     _stub_preflight(monkeypatch)
     monkeypatch.setattr(runner, "direct_launch_guard", guard)
@@ -117,28 +124,38 @@ def test_parent_runner_stops_after_first_failed_config(
     assert calls == ["001-case.yaml", "002-case.yaml"]
 
 
-@pytest.mark.parametrize(
-    "invalid_name",
-    (
-        "launch.py",
-        "1-pilot-screen.py",
-        "001-pilot-screen.py",
-        "00-pilot-screen.py",
-        "01-screen.py",
-    ),
-)
-def test_case_runner_requires_exact_top_level_name(
+@pytest.mark.parametrize("invalid_name", ("launch.py", "01-first-set.py"))
+def test_case_runner_requires_exact_scaffold_location_and_name(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     invalid_name: str,
 ) -> None:
-    invalid = tmp_path / "runners" / invalid_name
-    invalid.parent.mkdir()
+    scaffold = _scaffold(tmp_path, "01-first-set")
+    invalid = scaffold / "run" / invalid_name
     invalid.write_text("", encoding="utf-8")
     monkeypatch.setattr(runner, "require_tracked_file", lambda *_args: None)
 
-    with pytest.raises(runner.RunnerError, match="NN-<phase>-<tranche>"):
+    with pytest.raises(runner.RunnerError, match="run/runner.py"):
         runner._resolve_runner(invalid, tmp_path)
+
+    misplaced = scaffold / "runner.py"
+    misplaced.write_text("", encoding="utf-8")
+    with pytest.raises(runner.RunnerError, match="run/runner.py"):
+        runner._resolve_runner(misplaced, tmp_path)
+
+
+def test_smoke_scaffold_cannot_be_a_scientific_case_runner(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runner_path = (
+        _scaffold(tmp_path, "00-infrastructure-smoke") / "run" / "runner.py"
+    )
+    runner_path.write_text("", encoding="utf-8")
+    monkeypatch.setattr(runner, "require_tracked_file", lambda *_args: None)
+
+    with pytest.raises(runner.RunnerError, match="nonzero scaffold"):
+        runner._resolve_runner(runner_path, tmp_path)
 
 
 @pytest.mark.parametrize(
@@ -164,8 +181,7 @@ def test_case_runner_owns_one_matching_config_folder(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     runner_path, configs = _layout(tmp_path, (1,))
-    wrong_root = tmp_path / "configs" / "02-other-set"
-    wrong_root.mkdir()
+    wrong_root = _scaffold(tmp_path, "02-other-set") / "run"
     wrong_config = wrong_root / configs[0].name
     wrong_config.write_text("", encoding="utf-8")
     _stub_preflight(monkeypatch)
@@ -193,11 +209,10 @@ def test_case_runner_requires_every_yaml_in_its_folder(
 
 
 def _layout(tmp_path: Path, prefixes: tuple[int, ...]) -> tuple[Path, list[Path]]:
-    runner_path = tmp_path / "runners" / "01-first-set.py"
-    runner_path.parent.mkdir(parents=True)
+    scaffold = _scaffold(tmp_path, "01-first-set")
+    runner_path = scaffold / "run" / "runner.py"
     runner_path.write_text("", encoding="utf-8")
-    config_root = tmp_path / "configs" / runner_path.stem
-    config_root.mkdir(parents=True)
+    config_root = scaffold / "run"
     configs: list[Path] = []
     for index, prefix in enumerate(prefixes):
         suffix = "case" if prefixes.count(prefix) == 1 else f"case-{index}"
@@ -216,7 +231,7 @@ def _stub_preflight(monkeypatch: pytest.MonkeyPatch) -> None:
         lambda path, **_kwargs: {"name": Path(path).stem},
     )
     monkeypatch.setattr(runner, "validate_training_config", lambda _config: None)
-    monkeypatch.setattr(runner, "require_results_output", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(runner, "require_raw_output", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(
         runner,
         "require_token_cache_output",
@@ -232,3 +247,10 @@ def _stub_preflight(monkeypatch: pytest.MonkeyPatch) -> None:
 @contextmanager
 def _null_guard() -> Iterator[None]:
     yield
+
+
+def _scaffold(tmp_path: Path, scaffold_id: str) -> Path:
+    scaffold = tmp_path / "experiments" / scaffold_id
+    for name in ("run", "raw", "figs"):
+        (scaffold / name).mkdir(parents=True, exist_ok=True)
+    return scaffold

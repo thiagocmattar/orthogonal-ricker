@@ -29,7 +29,10 @@ TOPOLOGY_IDS = (
 
 
 def test_load_smoke_config() -> None:
-    config = load_config("configs/00-smoke.yaml", allow_todos=True)
+    config = load_config(
+        "experiments/00-infrastructure-smoke/run/00-smoke.yaml",
+        allow_todos=True,
+    )
 
     assert config["experiment_name"] == "harness_smoke"
     assert config["model"]["initialization"] == "random"
