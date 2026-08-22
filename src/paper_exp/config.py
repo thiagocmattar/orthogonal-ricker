@@ -31,6 +31,7 @@ REQUIRED_FIELDS: tuple[tuple[str, ...], ...] = (
 )
 
 CONFIG_FILE_RE = re.compile(r"^\d{2,}-[a-z0-9][a-z0-9-]*\.yaml$")
+TRANCHE_ID_RE = re.compile(r"^(?!00)\d{2}-[a-z0-9]+-[a-z0-9][a-z0-9-]*$")
 IMMUTABLE_REVISION_RE = re.compile(r"^[0-9a-f]{40,64}$")
 LEGACY_TOPOLOGY_FIELDS = {
     "hidden_act",
@@ -357,25 +358,38 @@ def _validate_selected_runs(value: Any, *, prefix: str) -> None:
     if not isinstance(value, list) or not value:
         raise ConfigError(f"Config field {prefix} must be a non-empty list.")
     labels: set[str] = set()
-    identities: set[tuple[str, str]] = set()
+    identities: set[tuple[str, str, str]] = set()
     for index, item in enumerate(value):
         item_prefix = f"{prefix}[{index}]"
         if not isinstance(item, Mapping):
             raise ConfigError(f"Config field {item_prefix} must be a mapping.")
-        _require_explicit_fields(item, item_prefix, ("label", "config_id", "run_id"))
+        _require_explicit_fields(
+            item,
+            item_prefix,
+            ("label", "tranche_id", "config_id", "run_id"),
+        )
         label = _nonempty_string(item["label"], f"{item_prefix}.label")
+        tranche_id = _nonempty_string(
+            item["tranche_id"], f"{item_prefix}.tranche_id"
+        )
         config_id = _nonempty_string(item["config_id"], f"{item_prefix}.config_id")
         run_id = _nonempty_string(item["run_id"], f"{item_prefix}.run_id")
+        if TRANCHE_ID_RE.fullmatch(tranche_id) is None:
+            raise ConfigError(
+                f"Config field {item_prefix}.tranche_id is not a numbered "
+                "scientific tranche ID."
+            )
         if re.fullmatch(r"\d{2,}-[a-z0-9][a-z0-9-]*", config_id) is None:
             raise ConfigError(f"Config field {item_prefix}.config_id is not a numbered config ID.")
         if re.fullmatch(r"\d{3}-[A-Za-z0-9][A-Za-z0-9._-]*", run_id) is None:
             raise ConfigError(f"Config field {item_prefix}.run_id is not a numbered run ID.")
         if label in labels:
             raise ConfigError(f"Config field {prefix} contains duplicate labels.")
-        if (config_id, run_id) in identities:
+        identity = (tranche_id, config_id, run_id)
+        if identity in identities:
             raise ConfigError(f"Config field {prefix} contains duplicate source runs.")
         labels.add(label)
-        identities.add((config_id, run_id))
+        identities.add(identity)
 
 
 def _validate_diagnostic_validation(config: Mapping[str, Any]) -> None:

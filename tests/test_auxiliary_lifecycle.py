@@ -108,6 +108,29 @@ def test_diagnostic_schema_failure_precedes_run_creation(tmp_path: Path) -> None
     ).exists()
 
 
+def test_diagnostic_source_requires_an_explicit_numbered_tranche(
+    tmp_path: Path,
+) -> None:
+    config = _base_config(tmp_path)
+    selected = config["activation_histograms"]["selected_runs"][0]
+    del selected["tranche_id"]
+
+    with pytest.raises(ValueError, match="tranche_id"):
+        activation_histograms.run_activation_histograms(
+            config,
+            config_path=tmp_path / "010-activation-histograms.yaml",
+            command="pytest missing tranche",
+        )
+
+    selected["tranche_id"] = "00-invalid-tranche"
+    with pytest.raises(ValueError, match="numbered scientific tranche"):
+        activation_histograms.run_activation_histograms(
+            config,
+            config_path=tmp_path / "010-activation-histograms.yaml",
+            command="pytest invalid tranche",
+        )
+
+
 def test_clipping_dependency_failure_is_recorded(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -180,21 +203,30 @@ def test_clipping_rejects_noncompleted_source_before_launch(tmp_path: Path) -> N
 def test_source_selection_requires_one_exact_completed_checkpoint_run(
     tmp_path: Path,
 ) -> None:
+    tranche_id = "01-source-tranche"
     config_id = "15-source"
     run_id = "001-pinned"
-    run_dir = _write_completed_source(tmp_path, config_id=config_id, run_id=run_id)
-    config = {"output": {"dir": str(tmp_path / "results")}}
+    run_dir = _write_completed_source(
+        tmp_path,
+        tranche_id=tranche_id,
+        config_id=config_id,
+        run_id=run_id,
+    )
 
     assert find_source_run(
-        config,
-        {"config_id": config_id, "run_id": run_id},
+        {
+            "tranche_id": tranche_id,
+            "config_id": config_id,
+            "run_id": run_id,
+        },
         section="activation_histograms",
+        repository=tmp_path,
     ) == run_dir
-    with pytest.raises(ValueError, match="exact config_id and run_id"):
+    with pytest.raises(ValueError, match="exact tranche_id, config_id, and run_id"):
         find_source_run(
-            config,
             {"config_id": config_id},
             section="activation_histograms",
+            repository=tmp_path,
         )
 
     manifest = _read_manifest(run_dir)
@@ -208,9 +240,13 @@ def test_source_selection_requires_one_exact_completed_checkpoint_run(
     _write_json(run_dir / "manifest.json", manifest)
     with pytest.raises(ValueError, match="not completed"):
         find_source_run(
-            config,
-            {"config_id": config_id, "run_id": run_id},
+            {
+                "tranche_id": tranche_id,
+                "config_id": config_id,
+                "run_id": run_id,
+            },
             section="activation_histograms",
+            repository=tmp_path,
         )
 
 
@@ -303,10 +339,19 @@ def test_source_paths_are_relative_inside_working_tree(
     monkeypatch: pytest.MonkeyPatch,
     path_formatter: Any,
 ) -> None:
-    source = tmp_path / "results" / "15-source" / "001-pinned"
+    source = (
+        tmp_path
+        / "experiments"
+        / "01-source-tranche"
+        / "raw"
+        / "15-source"
+        / "001-pinned"
+    )
     monkeypatch.chdir(tmp_path)
 
-    assert path_formatter(source) == "results/15-source/001-pinned"
+    assert path_formatter(source) == (
+        "experiments/01-source-tranche/raw/15-source/001-pinned"
+    )
 
 
 def test_weight_histogram_artifact_precedes_completed_manifest(
@@ -316,7 +361,12 @@ def test_weight_histogram_artifact_precedes_completed_manifest(
     config = _base_config(tmp_path)
     config["weight_histograms"] = {
         "selected_runs": [
-            {"config_id": "01-source", "run_id": "001-source", "label": "Source"}
+            {
+                "tranche_id": "01-source-tranche",
+                "config_id": "01-source",
+                "run_id": "001-source",
+                "label": "Source",
+            }
         ],
         "scope": "mlp_weights",
         "bins": 4,
@@ -346,7 +396,7 @@ def test_weight_histogram_artifact_precedes_completed_manifest(
     monkeypatch.setattr(
         weight_histograms,
         "find_source_run",
-        lambda _config, _selected, **_kwargs: source_run,
+        lambda _selected, **_kwargs: source_run,
     )
     monkeypatch.setattr(
         weight_histograms,
@@ -658,7 +708,12 @@ def _base_config(tmp_path: Path) -> dict[str, Any]:
         },
         "activation_histograms": {
             "selected_runs": [
-                {"label": "Source", "config_id": "01-source", "run_id": "001-source"}
+                {
+                    "label": "Source",
+                    "tranche_id": "01-source-tranche",
+                    "config_id": "01-source",
+                    "run_id": "001-source",
+                }
             ],
             "bins": 4,
             "range_min": -1.0,
@@ -668,7 +723,12 @@ def _base_config(tmp_path: Path) -> dict[str, Any]:
         },
         "weight_histograms": {
             "selected_runs": [
-                {"label": "Source", "config_id": "01-source", "run_id": "001-source"}
+                {
+                    "label": "Source",
+                    "tranche_id": "01-source-tranche",
+                    "config_id": "01-source",
+                    "run_id": "001-source",
+                }
             ],
             "scope": "mlp_weights",
             "bins": 4,
@@ -677,7 +737,12 @@ def _base_config(tmp_path: Path) -> dict[str, Any]:
         },
         "activation_propagation": {
             "selected_runs": [
-                {"label": "Source", "config_id": "01-source", "run_id": "001-source"}
+                {
+                    "label": "Source",
+                    "tranche_id": "01-source-tranche",
+                    "config_id": "01-source",
+                    "run_id": "001-source",
+                }
             ],
         },
         "evaluation": {"metric": "loss"},
@@ -715,8 +780,17 @@ def _write_json(path: Path, payload: dict[str, Any]) -> None:
     path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
-def _write_completed_source(tmp_path: Path, *, config_id: str, run_id: str) -> Path:
-    run_dir = tmp_path / "results" / config_id / run_id
+def _write_completed_source(
+    tmp_path: Path,
+    *,
+    config_id: str,
+    run_id: str,
+    tranche_id: str = "01-source-tranche",
+) -> Path:
+    scaffold = tmp_path / "experiments" / tranche_id
+    for name in ("run", "raw", "figs"):
+        (scaffold / name).mkdir(parents=True, exist_ok=True)
+    run_dir = scaffold / "raw" / config_id / run_id
     checkpoint = run_dir / "checkpoints" / "final"
     checkpoint.mkdir(parents=True)
     (checkpoint / "model.safetensors").write_bytes(b"checkpoint")
@@ -729,6 +803,7 @@ def _write_completed_source(tmp_path: Path, *, config_id: str, run_id: str) -> P
     _write_json(
         run_dir / "manifest.json",
         {
+            "tranche_id": tranche_id,
             "config_id": config_id,
             "run_id": run_id,
             "status": "completed",

@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from paper_exp.launch import resolve_experiment_scaffold
 from paper_exp.run import CORE_RUN_ARTIFACTS
 from paper_exp.utils import portable_path, read_json
 
@@ -16,23 +17,27 @@ STANDARD_CHECKPOINT_FILES = (
 
 
 def find_source_run(
-    config: dict[str, Any],
     selected: dict[str, Any],
     *,
     section: str,
     checkpoint_files: tuple[str, ...] = STANDARD_CHECKPOINT_FILES,
+    repository: str | Path | None = None,
 ) -> Path:
     """Resolve one exact completed selected run with a usable saved checkpoint."""
 
+    tranche_id = str(selected.get("tranche_id") or "").strip()
     config_id = str(selected.get("config_id") or "").strip()
     run_id = str(selected.get("run_id") or "").strip()
-    if not config_id or not run_id:
+    if not tranche_id or not config_id or not run_id:
         raise ValueError(
-            f"{section}.selected_runs entries require exact config_id and run_id."
+            f"{section}.selected_runs entries require exact tranche_id, config_id, "
+            "and run_id."
         )
-    run_dir = Path(config["output"]["dir"]) / config_id / run_id
+    scaffold = resolve_experiment_scaffold(tranche_id, repository=repository)
+    run_dir = scaffold.raw_dir / config_id / run_id
     verify_completed_checkpoint_run(
         run_dir,
+        tranche_id=tranche_id,
         config_id=config_id,
         run_id=run_id,
         checkpoint_files=checkpoint_files,
@@ -43,6 +48,7 @@ def find_source_run(
 def verify_completed_checkpoint_run(
     run_dir: Path,
     *,
+    tranche_id: str,
     config_id: str,
     run_id: str,
     checkpoint_files: tuple[str, ...] = STANDARD_CHECKPOINT_FILES,
@@ -59,6 +65,8 @@ def verify_completed_checkpoint_run(
         raise ValueError(f"Selected source manifest is not an object: {run_dir}")
     if manifest.get("config_id") != config_id or manifest.get("run_id") != run_id:
         raise ValueError(f"Selected source run identity is inconsistent: {run_dir}")
+    if manifest.get("tranche_id") not in {None, tranche_id}:
+        raise ValueError(f"Selected source tranche identity is inconsistent: {run_dir}")
     if manifest.get("status") != "completed":
         raise ValueError(f"Selected source run is not completed: {run_dir}")
     checkpoint_path = source_checkpoint_path(run_dir, manifest)

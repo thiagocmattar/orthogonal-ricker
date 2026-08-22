@@ -81,7 +81,7 @@ def _run_activation_histograms(run: RunHandle) -> Path:
 
     np.random.seed(int(config["run"]["seed"]))
     source_runs = [
-        find_source_run(config, item, section="activation_histograms")
+        find_source_run(item, section="activation_histograms")
         for item in selected_runs
     ]
     source_manifests = [read_json(path / "manifest.json") for path in source_runs]

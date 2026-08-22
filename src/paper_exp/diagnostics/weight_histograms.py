@@ -68,7 +68,6 @@ def _run_weight_histograms(run: RunHandle) -> Path:
 
     source_runs = [
         find_source_run(
-            config,
             item,
             section="weight_histograms",
             checkpoint_files=("model.safetensors",),
