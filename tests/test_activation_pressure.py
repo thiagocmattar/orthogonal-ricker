@@ -15,263 +15,228 @@ from paper_exp.activations import activation_exact_zero_counts
 from paper_exp.activations import activation_exact_zero_counts_by_alias
 from paper_exp.activations import clip_activation_tensor
 from paper_exp.activations import resolve_site_aliases
-from paper_exp.diagnostics.clipping_evaluation import _LogicalZeroProductAccumulator
 from paper_exp.cli import build_parser
+from paper_exp.diagnostics.clipping_evaluation import _LogicalZeroProductAccumulator
+from paper_exp.topology import SITE_ALIAS_ORDER
+from paper_exp.topology import SITE_SPECS
+from paper_exp.topology import SUPPORTED_SITE_ALIASES
 
 
-def test_l1_pressure_has_the_exact_mean_absolute_value() -> None:
-    activations = {"mlp_hiddens.layer_0": torch.tensor([[0.0, 0.01, 0.2]])}
+def _pressure_config(
+    *,
+    method: str = "l1_naive",
+    sites: list[str] | None = None,
+    enabled: bool = True,
+    weight: float | None = None,
+    step_budget: float | None = None,
+) -> dict[str, object]:
+    if weight is None:
+        weight = 0.0 if method == "none" else 1.0
+    if step_budget is None and method == "orthogonal_l1":
+        step_budget = 0.1
+    return {
+        "activation_pressure": {
+            "enabled": enabled,
+            "method": method,
+            "sites": ["h"] if sites is None else sites,
+            "weight": weight,
+            "step_budget": step_budget,
+            "eps": 1e-12,
+            "log_thresholds": [0.0, 0.01],
+        }
+    }
+
+
+def test_l1_pressure_is_an_unweighted_mean_of_per_tensor_means() -> None:
+    activations = {
+        "h.layer_0": torch.tensor([0.0, 2.0]),
+        "a.layer_0": torch.tensor([10.0]),
+    }
 
     l1 = activation_l1_pressure(torch, activations)
 
     assert torch.isfinite(l1)
-    assert float(l1) == pytest.approx(0.07)
+    assert float(l1) == pytest.approx((1.0 + 10.0) / 2.0)
 
 
 @pytest.mark.parametrize(
-    ("method", "step_budget", "orthogonal"),
+    ("method", "expected_pressure_kind", "orthogonal", "applies_pressure"),
     [
-        ("l1_naive", None, False),
-        ("orthogonal_l1", 0.1, True),
+        ("none", "none", False, False),
+        ("l1_naive", "activation_l1", False, True),
+        ("orthogonal_l1", "activation_l1", True, True),
     ],
 )
-def test_l1_pressure_methods_are_accepted(
+def test_only_canonical_pressure_methods_are_accepted(
     method: str,
-    step_budget: float | None,
+    expected_pressure_kind: str,
     orthogonal: bool,
+    applies_pressure: bool,
 ) -> None:
-    cfg = activation_pressure_config(
-        {
-            "activation_pressure": {
-                "enabled": True,
-                "method": method,
-                "sites": ["mlp_hiddens"],
-                "weight": 1.0,
-                "step_budget": step_budget,
-                "eps": 1e-12,
-                "log_thresholds": [0.0, 0.01],
-            }
-        }
-    )
+    cfg = activation_pressure_config(_pressure_config(method=method))
 
     assert cfg.method == method
-    assert cfg.pressure_kind == "activation_l1"
+    assert cfg.pressure_kind == expected_pressure_kind
     assert cfg.orthogonal is orthogonal
-    assert float(
-        pressure_loss(torch, {"mlp_hiddens.layer_0": torch.tensor([1.0])}, cfg)
-    ) == pytest.approx(1.0)
+    assert cfg.applies_pressure is applies_pressure
+    result = pressure_loss(torch, {"h.layer_0": torch.tensor([1.0])}, cfg)
+    if applies_pressure:
+        assert float(result) == pytest.approx(1.0)
+    else:
+        assert result is None
 
 
-def test_unknown_pressure_method_is_rejected() -> None:
-    with pytest.raises(ValueError, match="Unknown activation pressure method"):
-        activation_pressure_config(
-            {
-                "activation_pressure": {
-                    "enabled": True,
-                    "method": "unsupported",
-                    "sites": ["mlp_hiddens"],
-                    "weight": 1.0,
-                    "step_budget": None,
-                    "eps": 1e-12,
-                    "log_thresholds": [0.0],
-                }
-            }
-        )
+@pytest.mark.parametrize("site", SITE_ALIAS_ORDER)
+def test_activation_pressure_accepts_every_canonical_site_alias(site: str) -> None:
+    cfg = activation_pressure_config(_pressure_config(sites=[site]))
+
+    assert cfg.sites == [site]
 
 
-def test_activation_pressure_rejects_unknown_fields() -> None:
-    field = "unexpected"
-    raw = {
-        "enabled": True,
-        "method": "l1_naive",
-        "sites": ["mlp_hiddens"],
-        "weight": 1.0,
-        "step_budget": None,
-        "eps": 1e-12,
-        "log_thresholds": [0.0],
-        field: 0.05,
-    }
+@pytest.mark.parametrize(
+    ("mutation", "message"),
+    [
+        ({"method": "unsupported"}, "Unknown activation pressure method"),
+        ({"sites": []}, "non-empty list"),
+        ({"sites": ["h", "h"]}, "duplicates"),
+        ({"sites": ["unknown"]}, "Unsupported transformer site alias"),
+        ({"weight": -0.1}, "non-negative"),
+        ({"log_thresholds": [0.01, 0.0]}, "strictly increasing"),
+    ],
+)
+def test_activation_pressure_rejects_invalid_values(
+    mutation: dict[str, object],
+    message: str,
+) -> None:
+    config = _pressure_config()
+    config["activation_pressure"].update(mutation)  # type: ignore[union-attr]
 
-    with pytest.raises(ValueError, match=field):
-        activation_pressure_config({"activation_pressure": raw})
+    with pytest.raises(ValueError, match=message):
+        activation_pressure_config(config)
 
 
-def test_monitor_only_activation_pressure_has_no_pressure_loss() -> None:
-    cfg = activation_pressure_config(
-        {
-            "activation_pressure": {
-                "enabled": True,
-                "method": "none",
-                "sites": ["mlp_hiddens"],
-                "weight": 0.0,
-                "step_budget": None,
-                "eps": 1e-12,
-                "log_thresholds": [0.0, 0.001, 0.01],
-            }
+def test_activation_pressure_requires_exact_fields() -> None:
+    missing = _pressure_config()
+    del missing["activation_pressure"]["eps"]  # type: ignore[index]
+    with pytest.raises(ValueError, match="eps"):
+        activation_pressure_config(missing)
+
+    extra = _pressure_config()
+    extra["activation_pressure"]["unexpected"] = True  # type: ignore[index]
+    with pytest.raises(ValueError, match="unexpected"):
+        activation_pressure_config(extra)
+
+
+def test_canonical_site_alias_catalog_is_exact_and_order_preserving() -> None:
+    assert SUPPORTED_SITE_ALIASES == frozenset(SITE_ALIAS_ORDER)
+    assert resolve_site_aliases(list(SITE_ALIAS_ORDER)) == SITE_ALIAS_ORDER
+
+
+@pytest.mark.parametrize(
+    ("sites", "message"),
+    [
+        ([], "At least one transformer site"),
+        (["h", "h"], "duplicates"),
+        (["unknown"], "Unsupported transformer site alias"),
+    ],
+)
+def test_site_alias_resolution_is_strict(sites: list[str], message: str) -> None:
+    with pytest.raises(ValueError, match=message):
+        resolve_site_aliases(sites)
+
+
+@pytest.mark.parametrize(
+    ("alias", "module_suffix"),
+    [
+        ("a", ".a_gate"),
+        ("m", ".m_gate"),
+        ("h", ".mlp.act"),
+        ("q_pre", ".attention.q_pre_site"),
+        ("k_pre", ".attention.k_pre_site"),
+        ("q_post", ".attention.q_post_site"),
+        ("k_post", ".attention.k_post_site"),
+        ("v", ".attention.v_site"),
+    ],
+)
+def test_activation_capture_uses_each_canonical_site_module(
+    alias: str,
+    module_suffix: str,
+) -> None:
+    model = _CanonicalCaptureModel()
+    value = torch.tensor([[[-1.0, 2.0]]])
+
+    with ActivationCapture(model, [alias], torch=torch) as capture:
+        output = model.emit(alias, value)
+
+    name = f"{alias}.layer_0"
+    assert capture.activations[name].data_ptr() == output.data_ptr()
+    assert len(capture.site_metadata) == 1
+    metadata = capture.site_metadata[0]
+    spec = SITE_SPECS[alias]
+    assert metadata.alias == alias
+    assert metadata.name == name
+    assert metadata.module_path.endswith(module_suffix)
+    assert metadata.tensor == spec.tensor
+    assert metadata.shape == spec.shape
+    assert metadata.downstream_matmul == spec.downstream_matmul
+    assert metadata.operations_before_matmul == spec.operations_before_matmul
+
+
+def test_activation_capture_registers_all_canonical_aliases_without_broadening() -> None:
+    model = _CanonicalCaptureModel()
+
+    with ActivationCapture(model, list(SITE_ALIAS_ORDER), torch=torch) as capture:
+        outputs = {
+            alias: model.emit(alias, torch.tensor([float(index)]))
+            for index, alias in enumerate(SITE_ALIAS_ORDER)
         }
-    )
 
-    assert cfg.applies_pressure is False
-    assert pressure_loss(torch, {"mlp_hiddens.layer_0": torch.ones(2)}, cfg) is None
-
-
-def test_activation_capture_hooks_pythia_like_mlp_hidden() -> None:
-    model = _TinyPythiaLikeModel()
-
-    with ActivationCapture(model, ["mlp_hiddens"], torch=torch) as capture:
-        output = model(torch.tensor([[[-1.0, 2.0]]]))
-
-    assert "mlp_hiddens.layer_0" in capture.activations
-    assert capture.site_metadata[0].downstream_operator.endswith("dense_4h_to_h")
-    assert torch.equal(output, capture.activations["mlp_hiddens.layer_0"])
+    assert tuple(site.alias for site in capture.site_metadata) == SITE_ALIAS_ORDER
+    assert set(capture.activations) == {
+        f"{alias}.layer_0" for alias in SITE_ALIAS_ORDER
+    }
+    for alias, output in outputs.items():
+        assert capture.activations[f"{alias}.layer_0"].data_ptr() == output.data_ptr()
 
 
-def test_activation_capture_hooks_residual_stream_and_attention_output() -> None:
-    model = _TinyPythiaLikeBlockModel()
+def test_a_and_m_capture_fall_back_to_layernorm_when_topology_has_no_gate() -> None:
+    model = _CanonicalCaptureModel()
+    layer = model.gpt_neox.layers[0]
+    del layer.a_gate
+    del layer.m_gate
     value = torch.tensor([[[-1.0, 2.0]]])
 
-    with ActivationCapture(model, ["residual_streams", "attention_outputs"], torch=torch) as capture:
-        model(value)
+    with ActivationCapture(model, ["a", "m"], torch=torch) as capture:
+        a_output = model.emit("a", value)
+        m_output = model.emit("m", value)
 
-    assert torch.equal(capture.activations["residual_streams.layer_0"], value)
-    assert torch.equal(capture.activations["attention_outputs.layer_0"], value * 2.0)
-    assert {site.role for site in capture.site_metadata} == {"residual_stream", "attention_output"}
-
-
-def test_activation_capture_hooks_post_layernorm_mlp_input() -> None:
-    model = _TinyPythiaLikeMlpInputModel()
-    value = torch.tensor([[[-1.0, 2.0]]])
-
-    with ActivationCapture(model, ["mlp_inputs"], torch=torch) as capture:
-        output = model(value)
-
-    assert torch.equal(capture.activations["mlp_inputs.layer_0"], output)
-    assert capture.site_metadata[0].role == "mlp_input"
-    assert capture.site_metadata[0].downstream_operator.endswith("dense_h_to_4h")
+    assert capture.activations["a.layer_0"].data_ptr() == a_output.data_ptr()
+    assert capture.activations["m.layer_0"].data_ptr() == m_output.data_ptr()
+    assert capture.site_metadata[0].module_path.endswith(".input_layernorm")
+    assert capture.site_metadata[1].module_path.endswith(".post_attention_layernorm")
 
 
-def test_activation_capture_hooks_post_relu_attention_and_mlp_inputs() -> None:
-    model = _TinyPythiaLikePostLayernormReluModel()
-    value = torch.tensor([[[-1.0, 2.0]]])
-
-    with ActivationCapture(model, ["attention_inputs", "mlp_inputs"], torch=torch) as capture:
-        output = model(value)
-
-    expected = torch.tensor([[[0.0, 2.0]]])
-    assert torch.equal(capture.activations["attention_inputs.layer_0"], expected)
-    assert torch.equal(capture.activations["mlp_inputs.layer_0"], expected)
-    assert torch.equal(output, expected)
-    assert [site.role for site in capture.site_metadata] == ["attention_input", "mlp_input"]
-    assert capture.site_metadata[0].module_path.endswith("attention_input_relu")
-    assert capture.site_metadata[0].downstream_operator.endswith("attention.query_key_value")
-    assert capture.site_metadata[1].module_path.endswith("mlp_input_relu")
-    assert capture.site_metadata[1].downstream_operator.endswith("mlp.dense_h_to_4h")
-
-
-def test_activation_capture_hooks_exact_post_qkv_gate_outputs_for_pressure() -> None:
-    model = _TinyPythiaLikePostQkvReluModel(qk_placement="pre_rope", layer_count=6)
-    query = torch.tensor([[[[-1.0, 2.0], [3.0, -4.0]]]], requires_grad=True)
-    key = torch.tensor([[[[5.0, -6.0], [-7.0, 8.0]]]], requires_grad=True)
-    value = torch.tensor([[[[-9.0, 10.0], [11.0, -12.0]]]], requires_grad=True)
-    sites = ["query_gate_outputs", "key_gate_outputs", "value_gate_outputs"]
-
-    with ActivationCapture(model, sites, torch=torch) as capture:
-        outputs = model(query, key, value)
-
-    assert len(capture.activations) == 18
-    for index, layer in enumerate(model.gpt_neox.layers):
-        attention = layer.attention
-        captured_query = capture.activations[f"query_gate_outputs.layer_{index}"]
-        captured_key = capture.activations[f"key_gate_outputs.layer_{index}"]
-        captured_value = capture.activations[f"value_gate_outputs.layer_{index}"]
-        assert captured_query.data_ptr() == attention.last_query_gate_output.data_ptr()
-        assert captured_key.data_ptr() == attention.last_key_gate_output.data_ptr()
-        assert captured_value.data_ptr() == attention.last_value_gate_output.data_ptr()
-
-    assert torch.equal(outputs[0], query.relu())
-    assert torch.equal(outputs[1], key.relu())
-    assert torch.equal(outputs[2], value.relu())
-
-    captured_pressure = activation_l1_pressure(torch, capture.activations)
-    expected_pressure = torch.stack(
-        [tensor.float().abs().mean() for tensor in capture.activations.values()]
-    ).mean()
-    assert torch.equal(captured_pressure, expected_pressure)
-    captured_pressure.backward()
-    assert query.grad is not None
-    assert key.grad is not None
-    assert value.grad is not None
-
-
-def test_post_qkv_gate_metadata_reflects_qk_placement() -> None:
-    value = torch.ones((1, 2, 3, 4))
-    sites = ["query_gate_outputs", "key_gate_outputs", "value_gate_outputs"]
-
-    for placement, qk_downstream in (("pre_rope", "partial RoPE"), ("post_rope", "QK matmul")):
-        model = _TinyPythiaLikePostQkvReluModel(qk_placement=placement)
-        with ActivationCapture(model, sites, torch=torch) as capture:
-            model(value, value, value)
-
-        metadata = {site.name.split(".layer_", 1)[0]: site for site in capture.site_metadata}
-        assert metadata["query_gate_outputs"].module_path.endswith("attention.query_relu")
-        assert metadata["key_gate_outputs"].module_path.endswith("attention.key_relu")
-        assert metadata["value_gate_outputs"].module_path.endswith("attention.value_relu")
-        assert metadata["query_gate_outputs"].shape == "[batch, heads, tokens, head_width]"
-        assert metadata["key_gate_outputs"].shape == "[batch, heads, tokens, head_width]"
-        assert metadata["value_gate_outputs"].shape == "[batch, heads, tokens, head_width]"
-        assert metadata["query_gate_outputs"].downstream_operator.endswith(qk_downstream)
-        assert metadata["key_gate_outputs"].downstream_operator.endswith(qk_downstream)
-        assert metadata["value_gate_outputs"].downstream_operator.endswith("PV matmul")
-
-
-def test_activation_capture_clips_post_relu_attention_input_before_projection() -> None:
-    model = _TinyPythiaLikePostLayernormReluModel()
+def test_activation_capture_clips_a_before_the_fused_projection() -> None:
+    model = _CanonicalCaptureModel()
     value = torch.tensor([[[0.001, 2.0]]])
 
     with ActivationCapture(
         model,
-        ["attention_inputs"],
+        ["a"],
         torch=torch,
-        clipping={"enabled": True, "mode": "threshold", "threshold": 0.01, "sites": ["attention_inputs"]},
+        clipping={
+            "enabled": True,
+            "mode": "threshold",
+            "threshold": 0.01,
+            "sites": ["a"],
+        },
     ) as capture:
-        output = model(value)
+        output = model.emit("a", value)
 
     expected = torch.tensor([[[0.0, 2.0]]])
-    assert torch.equal(capture.activations["attention_inputs.layer_0"], expected)
+    assert torch.equal(capture.activations["a.layer_0"], expected)
     assert torch.equal(model.gpt_neox.layers[0].attention.query_key_value.last_input, expected)
     assert torch.equal(output, expected)
-
-
-def test_activation_capture_clips_attention_output_tuple() -> None:
-    model = _TinyPythiaLikeBlockModel()
-    value = torch.tensor([[[0.001, 2.0]]])
-
-    with ActivationCapture(
-        model,
-        ["attention_outputs"],
-        torch=torch,
-        clipping={"enabled": True, "mode": "threshold", "threshold": 0.01, "sites": ["attention_outputs"]},
-    ) as capture:
-        output = model(value)
-
-    assert torch.equal(capture.activations["attention_outputs.layer_0"], torch.tensor([[[0.0, 4.0]]]))
-    assert torch.equal(output, torch.tensor([[[0.001, 6.0]]]))
-
-
-def test_ambiguous_all_sites_alias_is_rejected() -> None:
-    with pytest.raises(ValueError, match="Unsupported activation site"):
-        resolve_site_aliases(["all_sites"])
-
-
-def test_post_qkv_gate_aliases_resolve_without_broadening_existing_aliases() -> None:
-    assert resolve_site_aliases(
-        ["query_gate_outputs", "key_gate_outputs", "value_gate_outputs"]
-    ) == {"query_gate_outputs", "key_gate_outputs", "value_gate_outputs"}
-    assert resolve_site_aliases(["attention_inputs", "mlp_inputs", "mlp_hiddens"]) == {
-        "attention_inputs",
-        "mlp_inputs",
-        "mlp_hiddens",
-    }
 
 
 def test_clipping_produces_exact_zeros_and_near_zero_metrics() -> None:
@@ -282,38 +247,38 @@ def test_clipping_produces_exact_zeros_and_near_zero_metrics() -> None:
         torch=torch,
     )
 
-    metrics = activation_near_zero_metrics({"mlp_hiddens.layer_0": clipped}, (0.0, 0.01))
+    metrics = activation_near_zero_metrics({"h.layer_0": clipped}, (0.0, 0.01))
 
     assert torch.equal(clipped, torch.tensor([-0.02, 0.0, 0.0, 0.0, 0.04]))
     assert metrics["activation/near_zero_mass/k0"] == 0.6
     assert metrics["activation/near_zero_mass/k1em02"] == 0.6
 
 
-def test_exact_zero_counts_are_accumulated_as_integers() -> None:
-    zero_count, activation_count = activation_exact_zero_counts(
-        {
-            "attention_inputs.layer_0": torch.tensor([0.0, 1.0, 0.0]),
-            "mlp_inputs.layer_0": torch.tensor([2.0, 0.0]),
-        }
+def test_rms_threshold_clipping_uses_current_activation_scale() -> None:
+    value = torch.tensor([0.1, 1.0, 2.0])
+    clipped = clip_activation_tensor(
+        value,
+        {"enabled": True, "mode": "rms_threshold", "rms_multiplier": 1.0},
+        torch=torch,
     )
+    rms = value.float().square().mean().sqrt()
 
-    assert zero_count == 3
-    assert activation_count == 5
+    assert torch.equal(clipped, value.masked_fill(value.abs() <= rms, 0.0))
+    assert torch.equal(clipped, torch.tensor([0.0, 0.0, 2.0]))
 
 
-def test_exact_zero_counts_are_grouped_by_site_alias() -> None:
-    counts = activation_exact_zero_counts_by_alias(
-        {
-            "attention_inputs.layer_0": torch.tensor([0.0, 1.0, 0.0]),
-            "attention_inputs.layer_1": torch.tensor([2.0, 0.0]),
-            "mlp_hiddens.layer_0": torch.tensor([0.0, 3.0]),
-        }
-    )
-
-    assert counts == {
-        "attention_inputs": (3, 5),
-        "mlp_hiddens": (1, 2),
+def test_exact_zero_counts_are_integer_and_grouped_by_canonical_alias() -> None:
+    activations = {
+        "a.layer_0": torch.tensor([0.0, 1.0, 0.0]),
+        "a.layer_1": torch.tensor([2.0, 0.0]),
+        "h.layer_0": torch.tensor([0.0, 3.0]),
     }
+
+    zero_count, activation_count = activation_exact_zero_counts(activations)
+    grouped = activation_exact_zero_counts_by_alias(activations)
+
+    assert (zero_count, activation_count) == (4, 7)
+    assert grouped == {"a": (3, 5), "h": (1, 2)}
 
 
 def test_logical_zero_product_summary_includes_dense_lm_head_denominator() -> None:
@@ -352,35 +317,19 @@ def test_clip_sweep_cli_can_request_actual_zero_product_measurement() -> None:
     assert args.measure_zero_products is True
 
 
-def test_rms_threshold_clipping_uses_current_activation_scale() -> None:
-    value = torch.tensor([0.1, 1.0, 2.0])
-    clipped = clip_activation_tensor(
-        value,
-        {"enabled": True, "mode": "rms_threshold", "rms_multiplier": 1.0},
-        torch=torch,
-    )
-
-    rms = value.float().square().mean().sqrt()
-
-    assert torch.equal(clipped, value.masked_fill(value.abs() <= rms, 0.0))
-    assert torch.equal(clipped, torch.tensor([0.0, 0.0, 2.0]))
-
-
 def test_adam_step_orthogonal_pressure_projects_conflict_and_caps_ratio() -> None:
     parameter = torch.nn.Parameter(torch.tensor([1.0, -2.0]))
     optimizer = torch.optim.AdamW([parameter], lr=0.01)
-
     task_loss = parameter.square().sum()
     task_loss.backward()
     task_grads = [parameter.grad.detach().clone()]
     optimizer.step()
 
-    pressure_grads = [-task_grads[0]]
     metrics = apply_adam_step_orthogonal_pressure(
         optimizer,
         [parameter],
         task_grads,
-        pressure_grads,
+        [-task_grads[0]],
         pressure_weight=1.0,
         step_budget=0.1,
     )
@@ -391,120 +340,51 @@ def test_adam_step_orthogonal_pressure_projects_conflict_and_caps_ratio() -> Non
     assert metrics["pressure/pressure_update_ratio_final"] <= 0.1 + 1e-8
 
 
-class _TinyPythiaLikeModel(torch.nn.Module):
+class _CanonicalCaptureModel(torch.nn.Module):
     def __init__(self) -> None:
         super().__init__()
-        layer = SimpleNamespace(mlp=SimpleNamespace(act=torch.nn.ReLU()))
-        self.gpt_neox = SimpleNamespace(layers=[layer])
+        self.gpt_neox = SimpleNamespace(
+            layers=torch.nn.ModuleList([_CanonicalCaptureLayer()])
+        )
 
-    def forward(self, value: torch.Tensor) -> torch.Tensor:
-        return self.gpt_neox.layers[0].mlp.act(value)
-
-
-class _TinyPythiaLikeBlockModel(torch.nn.Module):
-    def __init__(self) -> None:
-        super().__init__()
-        self.gpt_neox = SimpleNamespace(layers=torch.nn.ModuleList([_TinyPythiaLikeBlock()]))
-
-    def forward(self, value: torch.Tensor) -> torch.Tensor:
-        for layer in self.gpt_neox.layers:
-            value = layer(value)
-        return value
-
-
-class _TinyPythiaLikeMlpInputModel(torch.nn.Module):
-    def __init__(self) -> None:
-        super().__init__()
-        layer = SimpleNamespace(post_attention_layernorm=torch.nn.Identity())
-        self.gpt_neox = SimpleNamespace(layers=[layer])
-
-    def forward(self, value: torch.Tensor) -> torch.Tensor:
-        return self.gpt_neox.layers[0].post_attention_layernorm(value)
+    def emit(self, alias: str, value: torch.Tensor) -> torch.Tensor:
+        layer = self.gpt_neox.layers[0]
+        if alias == "a":
+            module = getattr(layer, "a_gate", layer.input_layernorm)
+            return layer.attention.query_key_value(module(value))
+        if alias == "m":
+            module = getattr(layer, "m_gate", layer.post_attention_layernorm)
+            return layer.mlp.dense_h_to_4h(module(value))
+        if alias == "h":
+            return layer.mlp.dense_4h_to_h(layer.mlp.act(value))
+        return getattr(layer.attention, f"{alias}_site")(value)
 
 
-class _TinyPythiaLikePostLayernormReluModel(torch.nn.Module):
-    def __init__(self) -> None:
-        super().__init__()
-        self.gpt_neox = SimpleNamespace(layers=torch.nn.ModuleList([_TinyPythiaLikePostLayernormReluBlock()]))
-
-    def forward(self, value: torch.Tensor) -> torch.Tensor:
-        return self.gpt_neox.layers[0](value)
-
-
-class _TinyPythiaLikePostLayernormReluBlock(torch.nn.Module):
+class _CanonicalCaptureLayer(torch.nn.Module):
     def __init__(self) -> None:
         super().__init__()
         self.input_layernorm = torch.nn.Identity()
-        self.attention_input_relu = torch.nn.ReLU()
-        self.attention = torch.nn.Module()
-        self.attention.query_key_value = _RecordingIdentity()
         self.post_attention_layernorm = torch.nn.Identity()
-        self.mlp_input_relu = torch.nn.ReLU()
-        self.mlp = torch.nn.Module()
-        self.mlp.dense_h_to_4h = _RecordingIdentity()
-
-    def forward(self, value: torch.Tensor) -> torch.Tensor:
-        value = self.attention_input_relu(self.input_layernorm(value))
-        value = self.attention.query_key_value(value)
-        value = self.mlp_input_relu(self.post_attention_layernorm(value))
-        return self.mlp.dense_h_to_4h(value)
+        self.a_gate = torch.nn.Identity()
+        self.m_gate = torch.nn.Identity()
+        self.mlp = _CanonicalCaptureMLP()
+        self.attention = _CanonicalCaptureAttention()
 
 
-class _TinyPythiaLikePostQkvReluModel(torch.nn.Module):
-    def __init__(self, *, qk_placement: str, layer_count: int = 1) -> None:
+class _CanonicalCaptureMLP(torch.nn.Module):
+    def __init__(self) -> None:
         super().__init__()
-        self.gpt_neox = SimpleNamespace(
-            layers=torch.nn.ModuleList(
-                [_TinyPythiaLikePostQkvReluBlock(qk_placement=qk_placement) for _ in range(layer_count)]
-            )
-        )
-
-    def forward(
-        self,
-        query: torch.Tensor,
-        key: torch.Tensor,
-        value: torch.Tensor,
-    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        for layer in self.gpt_neox.layers:
-            query, key, value = layer(query, key, value)
-        return query, key, value
+        self.dense_h_to_4h = _RecordingIdentity()
+        self.act = torch.nn.Identity()
+        self.dense_4h_to_h = _RecordingIdentity()
 
 
-class _TinyPythiaLikePostQkvReluBlock(torch.nn.Module):
-    def __init__(self, *, qk_placement: str) -> None:
+class _CanonicalCaptureAttention(torch.nn.Module):
+    def __init__(self) -> None:
         super().__init__()
-        self.attention = _TinyPostQkvReluAttention(qk_placement=qk_placement)
-
-    def forward(
-        self,
-        query: torch.Tensor,
-        key: torch.Tensor,
-        value: torch.Tensor,
-    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        return self.attention(query, key, value)
-
-
-class _TinyPostQkvReluAttention(torch.nn.Module):
-    def __init__(self, *, qk_placement: str) -> None:
-        super().__init__()
-        self.qk_relu_placement = qk_placement
-        self.query_relu = torch.nn.ReLU()
-        self.key_relu = torch.nn.ReLU()
-        self.value_relu = torch.nn.ReLU()
-        self.last_query_gate_output: torch.Tensor | None = None
-        self.last_key_gate_output: torch.Tensor | None = None
-        self.last_value_gate_output: torch.Tensor | None = None
-
-    def forward(
-        self,
-        query: torch.Tensor,
-        key: torch.Tensor,
-        value: torch.Tensor,
-    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        self.last_query_gate_output = self.query_relu(query)
-        self.last_key_gate_output = self.key_relu(key)
-        self.last_value_gate_output = self.value_relu(value)
-        return self.last_query_gate_output, self.last_key_gate_output, self.last_value_gate_output
+        self.query_key_value = _RecordingIdentity()
+        for alias in ("q_pre", "k_pre", "q_post", "k_post", "v"):
+            setattr(self, f"{alias}_site", torch.nn.Identity())
 
 
 class _RecordingIdentity(torch.nn.Module):
@@ -515,19 +395,3 @@ class _RecordingIdentity(torch.nn.Module):
     def forward(self, value: torch.Tensor) -> torch.Tensor:
         self.last_input = value
         return value
-
-
-class _TinyPythiaLikeBlock(torch.nn.Module):
-    def __init__(self) -> None:
-        super().__init__()
-        self.attention = _TupleAttention()
-        self.mlp = SimpleNamespace(act=torch.nn.Identity())
-
-    def forward(self, value: torch.Tensor) -> torch.Tensor:
-        attention_output, _ = self.attention(value)
-        return self.mlp.act(value + attention_output)
-
-
-class _TupleAttention(torch.nn.Module):
-    def forward(self, value: torch.Tensor) -> tuple[torch.Tensor, None]:
-        return value * 2.0, None

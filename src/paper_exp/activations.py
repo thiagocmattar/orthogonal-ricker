@@ -3,26 +3,19 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-
-SUPPORTED_SITE_ALIASES = {
-    "mlp_hiddens",
-    "attention_inputs",
-    "mlp_inputs",
-    "query_gate_outputs",
-    "key_gate_outputs",
-    "value_gate_outputs",
-    "residual_streams",
-    "attention_outputs",
-}
+from paper_exp.topology import SITE_SPECS
+from paper_exp.topology import SUPPORTED_SITE_ALIASES
 
 
 @dataclass(frozen=True)
 class ActivationSite:
+    alias: str
     name: str
     module_path: str
-    role: str
+    tensor: str
     shape: str
-    downstream_operator: str
+    downstream_matmul: str
+    operations_before_matmul: tuple[str, ...]
 
 
 class ActivationCapture:
@@ -55,192 +48,110 @@ class ActivationCapture:
     def register(self) -> None:
         self.remove()
         self.site_metadata.clear()
-        resolved = resolve_site_aliases(self.requested_sites)
-        if "mlp_hiddens" in resolved:
-            self._register_pythia_mlp_hiddens()
-        if "attention_inputs" in resolved:
-            self._register_pythia_attention_inputs()
-        if "mlp_inputs" in resolved:
-            self._register_pythia_mlp_inputs()
-        if "query_gate_outputs" in resolved:
-            self._register_pythia_attention_gate_outputs(
-                alias="query_gate_outputs",
-                module_name="query_relu",
-                role="query_gate_output",
-            )
-        if "key_gate_outputs" in resolved:
-            self._register_pythia_attention_gate_outputs(
-                alias="key_gate_outputs",
-                module_name="key_relu",
-                role="key_gate_output",
-            )
-        if "value_gate_outputs" in resolved:
-            self._register_pythia_attention_gate_outputs(
-                alias="value_gate_outputs",
-                module_name="value_relu",
-                role="value_gate_output",
-            )
-        if "residual_streams" in resolved:
-            self._register_pythia_residual_streams()
-        if "attention_outputs" in resolved:
-            self._register_pythia_attention_outputs()
+        for alias in resolve_site_aliases(self.requested_sites):
+            if alias == "a":
+                self._register_branch_site(
+                    alias="a",
+                    gate_name="a_gate",
+                    layernorm_name="input_layernorm",
+                )
+            elif alias == "m":
+                self._register_branch_site(
+                    alias="m",
+                    gate_name="m_gate",
+                    layernorm_name="post_attention_layernorm",
+                )
+            elif alias == "h":
+                self._register_h_site()
+            else:
+                self._register_attention_site(alias)
 
     def remove(self) -> None:
         for handle in self._handles:
             handle.remove()
         self._handles.clear()
 
-    def _register_pythia_mlp_hiddens(self) -> None:
+    def _layers(self, alias: str) -> Any:
         layers = getattr(getattr(self.model, "gpt_neox", None), "layers", None)
         if layers is None:
-            raise ValueError("mlp_hiddens capture currently supports GPTNeoX/Pythia models only.")
+            raise ValueError(f"Site {alias} capture currently supports GPTNeoX/Pythia models only.")
+        return layers
 
-        for index, layer in enumerate(layers):
-            activation_module = getattr(getattr(layer, "mlp", None), "act", None)
-            if activation_module is None:
-                raise ValueError(f"Could not resolve MLP activation module for layer {index}.")
-
-            name = f"mlp_hiddens.layer_{index}"
-            self.site_metadata.append(
-                ActivationSite(
-                    name=name,
-                    module_path=f"gpt_neox.layers.{index}.mlp.act",
-                    role="mlp_hidden",
-                    shape="[batch, seq, intermediate]",
-                    downstream_operator=f"gpt_neox.layers.{index}.mlp.dense_4h_to_h",
-                )
-            )
-            self._handles.append(activation_module.register_forward_hook(self._make_hook(name, "mlp_hiddens")))
-
-    def _register_pythia_attention_inputs(self) -> None:
-        layers = getattr(getattr(self.model, "gpt_neox", None), "layers", None)
-        if layers is None:
-            raise ValueError("attention_inputs capture currently supports GPTNeoX/Pythia models only.")
-
-        for index, layer in enumerate(layers):
-            capture_module = getattr(layer, "attention_input_relu", None)
-            module_path = f"gpt_neox.layers.{index}.attention_input_relu"
-            if capture_module is None:
-                capture_module = getattr(layer, "input_layernorm", None)
-                module_path = f"gpt_neox.layers.{index}.input_layernorm"
-            if capture_module is None:
-                raise ValueError(f"Could not resolve attention input module for layer {index}.")
-
-            name = f"attention_inputs.layer_{index}"
-            self.site_metadata.append(
-                ActivationSite(
-                    name=name,
-                    module_path=module_path,
-                    role="attention_input",
-                    shape="[batch, seq, hidden]",
-                    downstream_operator=f"gpt_neox.layers.{index}.attention.query_key_value",
-                )
-            )
-            self._handles.append(capture_module.register_forward_hook(self._make_hook(name, "attention_inputs")))
-
-    def _register_pythia_mlp_inputs(self) -> None:
-        layers = getattr(getattr(self.model, "gpt_neox", None), "layers", None)
-        if layers is None:
-            raise ValueError("mlp_inputs capture currently supports GPTNeoX/Pythia models only.")
-
-        for index, layer in enumerate(layers):
-            capture_module = getattr(layer, "mlp_input_relu", None)
-            module_path = f"gpt_neox.layers.{index}.mlp_input_relu"
-            if capture_module is None:
-                capture_module = getattr(layer, "post_attention_layernorm", None)
-                module_path = f"gpt_neox.layers.{index}.post_attention_layernorm"
-            if capture_module is None:
-                raise ValueError(f"Could not resolve MLP input module for layer {index}.")
-
-            name = f"mlp_inputs.layer_{index}"
-            self.site_metadata.append(
-                ActivationSite(
-                    name=name,
-                    module_path=module_path,
-                    role="mlp_input",
-                    shape="[batch, seq, hidden]",
-                    downstream_operator=f"gpt_neox.layers.{index}.mlp.dense_h_to_4h",
-                )
-            )
-            self._handles.append(capture_module.register_forward_hook(self._make_hook(name, "mlp_inputs")))
-
-    def _register_pythia_attention_gate_outputs(
+    def _register_branch_site(
         self,
         *,
         alias: str,
-        module_name: str,
-        role: str,
+        gate_name: str,
+        layernorm_name: str,
     ) -> None:
-        layers = getattr(getattr(self.model, "gpt_neox", None), "layers", None)
-        if layers is None:
-            raise ValueError(f"{alias} capture currently supports GPTNeoX/Pythia models only.")
-
-        for index, layer in enumerate(layers):
-            attention = getattr(layer, "attention", None)
-            capture_module = getattr(attention, module_name, None)
+        for index, layer in enumerate(self._layers(alias)):
+            capture_module = getattr(layer, gate_name, None)
+            module_name = gate_name
             if capture_module is None:
-                raise ValueError(f"Could not resolve {module_name} module for layer {index}.")
-
-            if alias == "value_gate_outputs":
-                downstream_operator = f"gpt_neox.layers.{index}.attention PV matmul"
-            else:
-                placement = _qk_relu_placement(self.model, attention)
-                if placement == "pre_rope":
-                    downstream_operator = f"gpt_neox.layers.{index}.attention partial RoPE"
-                else:
-                    downstream_operator = f"gpt_neox.layers.{index}.attention QK matmul"
-
-            name = f"{alias}.layer_{index}"
-            self.site_metadata.append(
-                ActivationSite(
-                    name=name,
-                    module_path=f"gpt_neox.layers.{index}.attention.{module_name}",
-                    role=role,
-                    shape="[batch, heads, tokens, head_width]",
-                    downstream_operator=downstream_operator,
-                )
+                capture_module = getattr(layer, layernorm_name, None)
+                module_name = layernorm_name
+            if capture_module is None:
+                raise ValueError(f"Could not resolve site {alias} in layer {index}.")
+            self._register_output_module(
+                alias=alias,
+                index=index,
+                module=capture_module,
+                module_path=f"gpt_neox.layers.{index}.{module_name}",
             )
-            self._handles.append(capture_module.register_forward_hook(self._make_hook(name, alias)))
 
-    def _register_pythia_residual_streams(self) -> None:
-        layers = getattr(getattr(self.model, "gpt_neox", None), "layers", None)
-        if layers is None:
-            raise ValueError("residual_streams capture currently supports GPTNeoX/Pythia models only.")
-
-        for index, layer in enumerate(layers):
-            name = f"residual_streams.layer_{index}"
-            self.site_metadata.append(
-                ActivationSite(
-                    name=name,
-                    module_path=f"gpt_neox.layers.{index}",
-                    role="residual_stream",
-                    shape="[batch, seq, hidden]",
-                    downstream_operator=f"gpt_neox.layers.{index}",
-                )
+    def _register_h_site(self) -> None:
+        for index, layer in enumerate(self._layers("h")):
+            capture_module = getattr(getattr(layer, "mlp", None), "act", None)
+            if capture_module is None:
+                raise ValueError(f"Could not resolve site h in layer {index}.")
+            self._register_output_module(
+                alias="h",
+                index=index,
+                module=capture_module,
+                module_path=f"gpt_neox.layers.{index}.mlp.act",
             )
-            self._handles.append(layer.register_forward_pre_hook(self._make_pre_hook(name, "residual_streams")))
 
-    def _register_pythia_attention_outputs(self) -> None:
-        layers = getattr(getattr(self.model, "gpt_neox", None), "layers", None)
-        if layers is None:
-            raise ValueError("attention_outputs capture currently supports GPTNeoX/Pythia models only.")
+    def _register_attention_site(self, alias: str) -> None:
+        from paper_exp.modeling import expose_attention_sites
 
-        for index, layer in enumerate(layers):
-            attention_module = getattr(layer, "attention", None)
-            if attention_module is None:
-                raise ValueError(f"Could not resolve attention module for layer {index}.")
-
-            name = f"attention_outputs.layer_{index}"
-            self.site_metadata.append(
-                ActivationSite(
-                    name=name,
-                    module_path=f"gpt_neox.layers.{index}.attention",
-                    role="attention_output",
-                    shape="[batch, seq, hidden]",
-                    downstream_operator=f"gpt_neox.layers.{index} residual add",
+        expose_attention_sites(self.model, torch=self.torch)
+        for index, layer in enumerate(self._layers(alias)):
+            attention = getattr(layer, "attention", None)
+            capture_module = getattr(attention, f"{alias}_site", None)
+            if capture_module is None:
+                raise ValueError(
+                    f"Could not resolve site {alias} in layer {index}; the model does not "
+                    "support the canonical attention ports."
                 )
+            self._register_output_module(
+                alias=alias,
+                index=index,
+                module=capture_module,
+                module_path=f"gpt_neox.layers.{index}.attention.{alias}_site",
             )
-            self._handles.append(attention_module.register_forward_hook(self._make_hook(name, "attention_outputs")))
+
+    def _register_output_module(
+        self,
+        *,
+        alias: str,
+        index: int,
+        module: Any,
+        module_path: str,
+    ) -> None:
+        name = f"{alias}.layer_{index}"
+        spec = SITE_SPECS[alias]
+        self.site_metadata.append(
+            ActivationSite(
+                alias=alias,
+                name=name,
+                module_path=module_path,
+                tensor=spec.tensor,
+                shape=spec.shape,
+                downstream_matmul=spec.downstream_matmul,
+                operations_before_matmul=spec.operations_before_matmul,
+            )
+        )
+        self._handles.append(module.register_forward_hook(self._make_hook(name, alias)))
 
     def _make_hook(self, name: str, alias: str) -> Any:
         def hook(_module: Any, _inputs: tuple[Any, ...], output: Any) -> Any:
@@ -254,31 +165,16 @@ class ActivationCapture:
 
         return hook
 
-    def _make_pre_hook(self, name: str, alias: str) -> Any:
-        def hook(_module: Any, inputs: tuple[Any, ...]) -> Any:
-            if not inputs:
-                raise ValueError(f"Could not capture {name}: module received no positional inputs.")
-            value = _first_tensor(inputs[0])
-            if _site_clipping_enabled(self.clipping, alias, name):
-                value = clip_activation_tensor(value, self.clipping, torch=self.torch)
-                self.activations[name] = value
-                return (value, *inputs[1:])
-            self.activations[name] = value
-            return None
 
-        return hook
-
-
-def resolve_site_aliases(sites: list[str]) -> set[str]:
+def resolve_site_aliases(sites: list[str]) -> tuple[str, ...]:
     if not sites:
-        raise ValueError("At least one activation site must be configured.")
-    resolved: set[str] = set()
+        raise ValueError("At least one transformer site must be configured.")
+    if len(set(sites)) != len(sites):
+        raise ValueError("Transformer site aliases must not contain duplicates.")
     for site in sites:
-        if site in SUPPORTED_SITE_ALIASES:
-            resolved.add(site)
-        else:
-            raise ValueError(f"Unsupported activation site for this harness: {site}")
-    return resolved
+        if site not in SUPPORTED_SITE_ALIASES:
+            raise ValueError(f"Unsupported transformer site alias: {site}")
+    return tuple(sites)
 
 
 def activation_exact_zero_counts(activations: dict[str, Any]) -> tuple[int, int]:
@@ -301,21 +197,6 @@ def activation_exact_zero_counts_by_alias(activations: dict[str, Any]) -> dict[s
         counts[alias][0] += int((detached == 0).sum().item())
         counts[alias][1] += detached.numel()
     return {alias: (values[0], values[1]) for alias, values in counts.items()}
-
-
-def _qk_relu_placement(model: Any, attention: Any) -> str:
-    placement = getattr(attention, "qk_relu_placement", None)
-    if placement is None:
-        model_config = getattr(model, "config", None)
-        post_qkv_relu = getattr(model_config, "post_qkv_relu", None)
-        if isinstance(post_qkv_relu, dict):
-            placement = post_qkv_relu.get("qk_placement")
-    if placement not in {"pre_rope", "post_rope"}:
-        raise ValueError(
-            "Could not resolve qk_placement for post-QKV ReLU capture; "
-            "expected attention.qk_relu_placement to be 'pre_rope' or 'post_rope'."
-        )
-    return placement
 
 
 def _first_tensor(value: Any) -> Any:

@@ -6,6 +6,8 @@ from typing import Any
 
 import torch
 
+from paper_exp.activations import resolve_site_aliases
+
 PRESSURE_METHODS = {
     "none",
     "l1_naive",
@@ -69,6 +71,7 @@ def activation_pressure_config(config: dict[str, Any]) -> ActivationPressureConf
         raise ValueError("activation_pressure.sites must be a non-empty list of names.")
     if len(set(sites)) != len(sites):
         raise ValueError("activation_pressure.sites must not contain duplicates.")
+    sites = list(resolve_site_aliases(sites))
 
     weight = _finite_float(raw["weight"], "activation_pressure.weight")
     if weight < 0.0:

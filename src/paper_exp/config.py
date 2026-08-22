@@ -8,7 +8,9 @@ from typing import Any
 
 import yaml
 
+from paper_exp.activations import resolve_site_aliases
 from paper_exp.reproducibility import TRAINING_SCHEDULE_SCHEME
+from paper_exp.topology import resolve_topology_and_gate
 
 
 class ConfigError(ValueError):
@@ -30,6 +32,13 @@ REQUIRED_FIELDS: tuple[tuple[str, ...], ...] = (
 
 CONFIG_FILE_RE = re.compile(r"^\d{2,}-[a-z0-9][a-z0-9-]*\.yaml$")
 IMMUTABLE_REVISION_RE = re.compile(r"^[0-9a-f]{40,64}$")
+LEGACY_TOPOLOGY_FIELDS = {
+    "hidden_act",
+    "post_layernorm_relu",
+    "post_layernorm_gate",
+    "mlp_hidden_gate",
+    "post_qkv_relu",
+}
 
 
 def load_config(path: str | Path, *, allow_todos: bool = True) -> dict[str, Any]:
@@ -86,27 +95,19 @@ def validate_config(config: Mapping[str, Any], *, allow_todos: bool = True) -> N
     if initialization != "random":
         raise ConfigError("Config field model.initialization must be 'random' for pretraining runs.")
 
-    hidden_act = config.get("model", {}).get("hidden_act")
-    if hidden_act is not None and (not isinstance(hidden_act, str) or not hidden_act.strip()):
-        raise ConfigError("Config field model.hidden_act must be a non-empty string when provided.")
-
-    post_layernorm_relu = config.get("model", {}).get("post_layernorm_relu")
-    if post_layernorm_relu is not None and not isinstance(post_layernorm_relu, bool):
-        raise ConfigError("Config field model.post_layernorm_relu must be a boolean when provided.")
-
-    post_layernorm_gate = config.get("model", {}).get("post_layernorm_gate")
-    _validate_one_sided_gate(post_layernorm_gate, field_path="model.post_layernorm_gate")
-    if post_layernorm_gate is not None and post_layernorm_relu is not True:
+    model = config.get("model", {})
+    legacy_fields = sorted(LEGACY_TOPOLOGY_FIELDS.intersection(model))
+    if legacy_fields:
+        fields = ", ".join(f"model.{field}" for field in legacy_fields)
         raise ConfigError(
-            "Config field model.post_layernorm_gate requires model.post_layernorm_relu: true."
+            f"Legacy topology fields are not supported ({fields}); use model.topology_id "
+            "and model.site_gate."
         )
-
-    mlp_hidden_gate = config.get("model", {}).get("mlp_hidden_gate")
-    _validate_one_sided_gate(mlp_hidden_gate, field_path="model.mlp_hidden_gate")
-    if mlp_hidden_gate is not None and str(hidden_act).lower() != "relu":
-        raise ConfigError("Config field model.mlp_hidden_gate requires model.hidden_act: relu.")
-
-    _validate_post_qkv_relu(config.get("model", {}).get("post_qkv_relu"))
+    if "topology_id" in model or "site_gate" in model:
+        try:
+            resolve_topology_and_gate(model.get("topology_id"), model.get("site_gate"))
+        except ValueError as error:
+            raise ConfigError(str(error)) from error
 
     if not allow_todos:
         todos = list(find_todo_values(config))
@@ -189,7 +190,7 @@ def validate_training_config(config: Mapping[str, Any]) -> None:
     model = _required_mapping(config, "model")
     if model["provider"] != "huggingface":
         raise ConfigError("Config field model.provider must be 'huggingface'.")
-    _require_explicit_fields(model, "model", ("revision",))
+    _require_explicit_fields(model, "model", ("revision", "topology_id", "site_gate"))
     _immutable_revision(model["revision"], "model.revision")
 
     run = _required_mapping(config, "run")
@@ -334,6 +335,10 @@ def validate_diagnostic_config(config: Mapping[str, Any], kind: str) -> None:
                 "Config field activation_histograms.thresholds must be strictly increasing."
             )
         _nonempty_unique_strings(diagnostic["sites"], "activation_histograms.sites")
+        try:
+            resolve_site_aliases(diagnostic["sites"])
+        except ValueError as error:
+            raise ConfigError(str(error)) from error
 
     if kind == "weight_histograms":
         _require_explicit_fields(
@@ -570,115 +575,6 @@ def _validate_reproducibility_fields(config: Mapping[str, Any], *, seed: int) ->
     partition_hash = validation.get("partition_hash")
     if partition_hash is not None and re.fullmatch(r"[0-9a-f]{64}", str(partition_hash)) is None:
         raise ConfigError("Config field validation.partition_hash must be a lowercase SHA-256 hex digest.")
-
-
-def _validate_post_qkv_relu(value: Any) -> None:
-    if value is None:
-        return
-    if not isinstance(value, Mapping):
-        raise ConfigError("Config field model.post_qkv_relu must be a mapping when provided.")
-
-    boolean_fields = ("enabled", "query", "key", "value")
-    for field in boolean_fields:
-        if field not in value:
-            raise ConfigError(f"Missing required config field: model.post_qkv_relu.{field}")
-        if not isinstance(value[field], bool):
-            raise ConfigError(f"Config field model.post_qkv_relu.{field} must be a boolean.")
-
-    enabled = value["enabled"]
-    placement = value.get("qk_placement")
-    threshold_fields = {"gate_type", "kappa"}
-    if not enabled:
-        extra = set(value) - {"enabled", "query", "key", "value", "qk_placement"} - threshold_fields
-        if extra:
-            fields = ", ".join(sorted(str(field) for field in extra))
-            raise ConfigError(
-                f"Disabled config field model.post_qkv_relu contains unsupported fields: {fields}."
-            )
-        if placement is not None:
-            raise ConfigError(
-                "Config field model.post_qkv_relu.qk_placement must be omitted when post-QKV ReLU is disabled."
-            )
-        if any(value[field] for field in ("query", "key", "value")):
-            raise ConfigError(
-                "Config fields model.post_qkv_relu.query/key/value must be false when post-QKV ReLU is disabled."
-            )
-        if threshold_fields.intersection(value):
-            raise ConfigError(
-                "Config fields model.post_qkv_relu gate settings must be omitted when post-QKV ReLU is disabled."
-            )
-        return
-
-    if placement not in {"pre_rope", "post_rope"}:
-        raise ConfigError(
-            "Config field model.post_qkv_relu.qk_placement must be 'pre_rope' or 'post_rope'."
-        )
-    if not any(value[field] for field in ("query", "key", "value")):
-        raise ConfigError("Configured model.post_qkv_relu is enabled, but no Q/K/V gate is enabled.")
-
-    gate_type = value.get("gate_type", "relu")
-    if gate_type not in {
-        "relu",
-        "one_sided_threshold",
-        "symmetric_threshold",
-    }:
-        raise ConfigError(
-            "Config field model.post_qkv_relu.gate_type must be 'relu', "
-            "'one_sided_threshold', or 'symmetric_threshold'."
-        )
-    base_fields = {"enabled", "query", "key", "value", "qk_placement", "gate_type"}
-    if gate_type == "relu" and threshold_fields.intersection(value) - {"gate_type"}:
-        raise ConfigError(
-            "Config field model.post_qkv_relu threshold settings must be omitted for ordinary ReLU gates."
-        )
-    allowed_fields = base_fields if gate_type == "relu" else base_fields | {"kappa"}
-    extra = set(value) - allowed_fields
-    if extra:
-        fields = ", ".join(sorted(str(field) for field in extra))
-        raise ConfigError(f"Config field model.post_qkv_relu contains unsupported fields: {fields}.")
-    if gate_type == "relu":
-        return
-
-    if "kappa" not in value:
-        raise ConfigError(
-            "Missing required config field: model.post_qkv_relu.kappa for threshold gates."
-        )
-    kappa = value["kappa"]
-    if (
-        isinstance(kappa, bool)
-        or not isinstance(kappa, (int, float))
-        or not math.isfinite(float(kappa))
-        or float(kappa) < 0.0
-    ):
-        raise ConfigError(
-            "Config field model.post_qkv_relu.kappa must be a finite non-negative number."
-        )
-
-
-def _validate_one_sided_gate(value: Any, *, field_path: str) -> None:
-    if value is None:
-        return
-    if not isinstance(value, Mapping):
-        raise ConfigError(f"Config field {field_path} must be a mapping when provided.")
-    gate_type = value.get("gate_type")
-    extra = set(value) - {"gate_type", "kappa"}
-    if extra:
-        fields = ", ".join(sorted(str(field) for field in extra))
-        raise ConfigError(f"Config field {field_path} contains unsupported fields: {fields}.")
-    if gate_type != "one_sided_threshold":
-        raise ConfigError(
-            f"Config field {field_path}.gate_type must be 'one_sided_threshold'."
-        )
-    if "kappa" not in value:
-        raise ConfigError(f"Missing required config field: {field_path}.kappa")
-    kappa = value["kappa"]
-    if (
-        isinstance(kappa, bool)
-        or not isinstance(kappa, (int, float))
-        or not math.isfinite(float(kappa))
-        or float(kappa) < 0.0
-    ):
-        raise ConfigError(f"Config field {field_path}.kappa must be a finite non-negative number.")
 
 
 def _get_required(config: Mapping[str, Any], field_path: tuple[str, ...]) -> Any:

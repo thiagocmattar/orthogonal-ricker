@@ -19,6 +19,21 @@ diagnostics are required for each run.
   excluded tail tokens or causal positions.
 - Do not substitute training snapshots for full named diagnostics.
 
+## Site and Topology Identity
+
+Use only the canonical transformer-site aliases `a`, `m`, `h`, `q_pre`,
+`k_pre`, `q_post`, `k_post`, and `v`. Their exact tensor ports and shapes are
+defined in [`methods.md`](methods.md). Artifact schemas, labels, and prose must
+preserve these aliases; do not silently map a retired broad name to one of
+them.
+
+Record `model.topology_id`, the realized active gate ports, and
+`model.site_gate` separately. A topology ID encodes active gate ports only. It
+does not encode the operator or `kappa`, optimizer, activation-pressure method,
+pressure sites, or pressure weight. `A0` has no active site gate and retains
+stock GELU at `h`; `A4-Q` and `A4-K` identify `q_post` and `k_post`,
+respectively.
+
 ## Training and Validation Metrics
 
 Every pretraining run records task loss independently of auxiliary pressure.
@@ -139,8 +154,9 @@ can include:
 
 Future causal-mask positions are excluded from QK, PV, and attention-core
 denominators. The diagnostic uses the operands actually consumed by each
-operation. In particular, PRE-RoPE query/key gate outputs cannot stand in for
-post-RoPE QK operands.
+operation. In particular, `q_pre` and `k_pre` gate outputs cannot stand in for
+post-RoPE QK operands; `q_post` and `k_post` are the corresponding actual QK
+ports. The `v` site is the value operand consumed by `PV`.
 
 Define the block opportunity as:
 
@@ -161,6 +177,11 @@ Both numerators and denominators depend on depth, width, sequence length,
 attention implementation, vocabulary/output head, decoding regime, and gate
 placement. Recompute them for the actual architecture; never reuse constants
 from another model.
+
+The Pythia-14M S1 topology atlas is historical. Its displayed ceilings cover
+the rows present when it was produced and predate `A2`. Do not manufacture or
+infer an `A2` reach ceiling from that figure; publish a value only when a named
+diagnostic computes it under the current denominator contract.
 
 `R_block` and `R_model` are logical opportunities. Dense kernels still perform
 the multiplications, so neither quantity is a measured speedup.
@@ -205,9 +226,10 @@ For a matched ReLU or threshold-gate comparison, the default compact table is:
 | Method | Validation loss | `R_block` | `R_model` | `z_a` | `z_m` | `z_h` |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
 
-Here `z_a`, `z_m`, and `z_h` are pooled exact-zero fractions for attention
-input, MLP input, and MLP hidden sites when those sites exist. Add explicitly
-named columns for other active sites rather than remapping them silently.
+Here `z_a`, `z_m`, and `z_h` are pooled exact-zero fractions for the canonical
+`a`, `m`, and `h` sites when those sites exist. Add explicitly named columns
+such as `z_q_pre`, `z_k_pre`, `z_q_post`, `z_k_post`, or `z_v` for other sites;
+never collapse PRE and POST ports into an ambiguous `z_q` or `z_k` column.
 
 Accompany the table with:
 

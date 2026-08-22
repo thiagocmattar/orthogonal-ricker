@@ -109,7 +109,7 @@ def _evaluate_clipped_loss(
             if clipping_cfg["mode"] == "rms_threshold"
             else None
         ),
-        "sites": clipping_cfg.get("sites", ["mlp_hiddens"]),
+        "sites": list(clipping_cfg["sites"]),
         "site_achieved_sparsity": site_achieved_sparsity,
         "site_zero_hits": {alias: site_zero_hits[alias] for alias in sorted(site_zero_hits)},
         "site_activation_count": {alias: site_zero_counts[alias] for alias in sorted(site_zero_counts)},

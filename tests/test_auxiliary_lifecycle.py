@@ -140,7 +140,7 @@ def test_clipping_dependency_failure_is_recorded(
             command="pytest clip-sweep",
             thresholds=[0.0],
             quantiles=[],
-            sites=["mlp_hiddens"],
+            sites=["h"],
             eval_batches=1,
             run_id="dependency-failure",
         )
@@ -170,7 +170,7 @@ def test_clipping_rejects_noncompleted_source_before_launch(tmp_path: Path) -> N
             command="pytest clip-sweep",
             thresholds=[0.0],
             quantiles=[],
-            sites=["mlp_hiddens"],
+            sites=["h"],
             eval_batches=1,
         )
 
@@ -527,7 +527,7 @@ def test_clipping_frontier_precedes_completed_manifest(
         command="pytest clip-sweep",
         thresholds=[0.0],
         quantiles=[],
-        sites=["mlp_hiddens"],
+        sites=["h"],
         eval_batches=1,
         run_id="success",
     )
@@ -553,12 +553,12 @@ def test_clipping_frontier_precedes_completed_manifest(
     assert sweep["thresholds"] == [0.0]
     assert sweep["quantiles"] == []
     assert sweep["rms_multipliers"] == []
-    assert sweep["sites"] == ["mlp_hiddens"]
+    assert sweep["sites"] == ["h"]
     assert sweep["eval_batches"] == 1
     assert sweep["measure_zero_products"] is False
     assert sweep["evaluation_seed"] == 0
     assert sweep["experiment_suffix"] is None
-    assert sweep["effective_suffix"] == "sites-mlp-hiddens"
+    assert sweep["effective_suffix"] == "sites-h"
 
 
 def test_clipping_sweep_id_uses_content_identity_not_checkout_paths(
@@ -597,7 +597,7 @@ def test_clipping_sweep_id_uses_content_identity_not_checkout_paths(
     common = {
         "command": "pytest clip-sweep",
         "quantiles": [],
-        "sites": ["mlp_hiddens"],
+        "sites": ["h"],
         "eval_batches": 1,
     }
     clipping.run_clipping_sweep(
@@ -664,7 +664,7 @@ def _base_config(tmp_path: Path) -> dict[str, Any]:
             "range_min": -1.0,
             "range_max": 1.0,
             "thresholds": [0.0, 0.1],
-            "sites": ["mlp_hiddens"],
+            "sites": ["h"],
         },
         "weight_histograms": {
             "selected_runs": [

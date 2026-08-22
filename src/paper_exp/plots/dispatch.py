@@ -74,7 +74,7 @@ def plot_artifact(
         "activation-histograms": (
             lambda path: _load_versioned_mapping(
                 path / "activation_histograms.json",
-                expected_version=2,
+                expected_version=3,
             ),
             build_activation_histograms,
         ),
@@ -88,7 +88,7 @@ def plot_artifact(
         "activation-propagation": (
             lambda path: _load_versioned_mapping(
                 path / "activation_propagation.json",
-                expected_version=4,
+                expected_version=5,
             ),
             build_activation_propagation,
         ),

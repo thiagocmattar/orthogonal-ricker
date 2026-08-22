@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -12,12 +11,13 @@ from paper_exp.diagnostics.logical_products import (
     qk_zero_product_counts,
 )
 from paper_exp.diagnostics.propagation_summary import (
+    ACTIVATION_STAGE_LABELS,
     ACTIVATION_STAGE_ORDER,
     ENDPOINT_ZERO_STAGES,
     MATMUL_STAGE_ORDER,
+    _attention_gate_metadata,
     _architecture_metadata,
     _endpoint_summary,
-    _post_qkv_relu_metadata,
 )
 from paper_exp.diagnostics.propagation import _validate_requested_validation_cache
 from paper_exp.diagnostics.propagation_capture import (
@@ -30,11 +30,10 @@ from paper_exp.diagnostics.propagation_capture import (
 )
 from paper_exp.modeling import (
     FixedOneSidedThreshold,
-    apply_mlp_hidden_gate,
-    apply_post_layernorm_relu,
-    apply_post_qkv_relu,
+    apply_activation_topology,
 )
 from paper_exp.diagnostics.sources import validate_shared_validation_cache
+from paper_exp.topology import SITE_ALIAS_ORDER, resolve_topology
 
 
 def test_linear_zero_product_counts_scale_input_zeros_by_output_width() -> None:
@@ -85,17 +84,17 @@ def test_accumulator_pools_integer_counts_before_forming_fraction() -> None:
 def test_accumulator_emits_explicit_na_for_an_absent_gate() -> None:
     accumulator = _PropagationAccumulator(torch)
     accumulator.mark_unavailable(
-        "activations", "query_gate_input", 0, "post_qkv_gate_absent"
+        "activations", "q_pre_gate_input", 0, "q_pre_gate_absent"
     )
 
     assert accumulator.rows(
-        "activations", ["query_gate_input"], num_layers=1
+        "activations", ["q_pre_gate_input"], num_layers=1
     ) == [
         {
-            "name": "query_gate_input",
+            "name": "q_pre_gate_input",
             "layer": 0,
             "available": False,
-            "unavailable_reason": "post_qkv_gate_absent",
+            "unavailable_reason": "q_pre_gate_absent",
             "zero_count": None,
             "total": None,
             "exact_zero_fraction": None,
@@ -103,16 +102,30 @@ def test_accumulator_emits_explicit_na_for_an_absent_gate() -> None:
     ]
 
 
+def test_stage_vocabulary_uses_generic_gates_and_exact_qk_placements() -> None:
+    assert not any("_relu" in stage for stage in ACTIVATION_STAGE_ORDER)
+    assert {
+        "attention_input_gate",
+        "mlp_input_gate",
+        "mlp_hidden_gate",
+        "q_pre_gate_output",
+        "k_pre_gate_output",
+        "q_post_gate_output",
+        "k_post_gate_output",
+        "v_gate_output",
+    }.issubset(ACTIVATION_STAGE_ORDER)
+    assert "q_post" in ACTIVATION_STAGE_LABELS["query_qk_input"]
+    assert "k_post" in ACTIVATION_STAGE_LABELS["key_qk_input"]
+
+
 def test_endpoint_summary_reduces_direct_operation_counters() -> None:
-    active_sites = {"a", "m", "h"}
-    model, layers, post_qkv = _fake_architecture(
-        active_sites=active_sites,
-        placement=None,
-    )
+    topology_id = "A3"
+    active_sites = set(resolve_topology(topology_id).active_sites)
+    model, layers, attention_gates = _fake_architecture(topology_id=topology_id)
     architecture = _architecture_metadata(
         model,
         layers=layers,
-        post_qkv_relu=post_qkv,
+        attention_gates=attention_gates,
         block_size=4,
         torch=torch,
     )
@@ -160,30 +173,30 @@ def test_endpoint_summary_reduces_direct_operation_counters() -> None:
 
 
 def test_dynamic_architecture_recognizes_fixed_one_sided_hidden_gate() -> None:
-    model, layers, post_qkv = _fake_architecture(
-        active_sites={"a", "m", "h"},
-        placement=None,
+    model, layers, attention_gates = _fake_architecture(
+        topology_id="A3",
+        gate_factory=lambda: FixedOneSidedThreshold(0.1),
+        site_gate={"operator": "one_sided_threshold", "kappa": 0.1},
     )
-    for layer in layers:
-        layer.attention_input_relu = FixedOneSidedThreshold(0.1)
-        layer.mlp_input_relu = FixedOneSidedThreshold(0.1)
-        layer.mlp.act = FixedOneSidedThreshold(0.1)
 
     architecture = _architecture_metadata(
         model,
         layers=layers,
-        post_qkv_relu=post_qkv,
+        attention_gates=attention_gates,
         block_size=4,
         torch=torch,
     )
 
-    assert architecture["active_gate_sites"] == ["a", "m", "h"]
+    assert architecture["topology_id"] == "A3"
+    assert architecture["active_sites"] == ["a", "m", "h"]
     assert architecture["gate_specs"] == {
-        "a": {"gate_family": "gplus", "gate_type": "one_sided_threshold", "kappa": 0.1},
-        "m": {"gate_family": "gplus", "gate_type": "one_sided_threshold", "kappa": 0.1},
-        "h": {"gate_family": "gplus", "gate_type": "one_sided_threshold", "kappa": 0.1},
-        "q": None,
-        "k": None,
+        "a": {"gate_family": "gplus", "operator": "one_sided_threshold", "kappa": 0.1},
+        "m": {"gate_family": "gplus", "operator": "one_sided_threshold", "kappa": 0.1},
+        "h": {"gate_family": "gplus", "operator": "one_sided_threshold", "kappa": 0.1},
+        "q_pre": None,
+        "k_pre": None,
+        "q_post": None,
+        "k_post": None,
         "v": None,
     }
 
@@ -442,40 +455,17 @@ def test_eager_instrumentation_counts_the_actual_post_gate_qk_and_pv_operands() 
     )
 
 
-@pytest.mark.parametrize("placement", [None, "pre_rope", "post_rope"])
+@pytest.mark.parametrize(
+    ("topology_id", "placement"),
+    (("A3", None), ("A6-PRE", "pre_rope"), ("A6-POST", "post_rope")),
+)
 def test_real_gpt_neox_diagnostic_preserves_gate_placement_and_unavailable_rows(
+    topology_id: str,
     placement: str | None,
 ) -> None:
-    from transformers import GPTNeoXConfig, GPTNeoXForCausalLM
     from transformers.models.gpt_neox import modeling_gpt_neox
 
-    architecture = GPTNeoXConfig(
-        vocab_size=32,
-        hidden_size=8,
-        intermediate_size=16,
-        num_hidden_layers=1,
-        num_attention_heads=2,
-        max_position_embeddings=16,
-        rotary_pct=0.5,
-        hidden_act="relu",
-        hidden_dropout=0.0,
-        attention_dropout=0.0,
-        use_cache=False,
-        use_parallel_residual=True,
-    )
-    architecture.post_layernorm_relu = True
-    if placement is not None:
-        architecture.post_qkv_relu = {
-            "enabled": True,
-            "query": True,
-            "key": True,
-            "value": True,
-            "qk_placement": placement,
-        }
-    model = GPTNeoXForCausalLM(architecture)
-    apply_post_layernorm_relu(model, torch=torch)
-    apply_post_qkv_relu(model, torch=torch)
-    model.eval()
+    model = _real_gpt_neox_model(topology_id=topology_id)
     accumulator = _PropagationAccumulator(torch)
 
     with _capture_model_propagation(
@@ -491,11 +481,11 @@ def test_real_gpt_neox_diagnostic_preserves_gate_placement_and_unavailable_rows(
         "activations", ACTIVATION_STAGE_ORDER, num_layers=1
     )
     matmuls = accumulator.rows("matmuls", MATMUL_STAGE_ORDER, num_layers=1)
-    post_qkv = _post_qkv_relu_metadata(list(model.gpt_neox.layers))
+    attention_gates = _attention_gate_metadata(list(model.gpt_neox.layers))
     architecture_metadata = _architecture_metadata(
         model,
         layers=list(model.gpt_neox.layers),
-        post_qkv_relu=post_qkv,
+        attention_gates=attention_gates,
         block_size=3,
         torch=torch,
     )
@@ -506,48 +496,50 @@ def test_real_gpt_neox_diagnostic_preserves_gate_placement_and_unavailable_rows(
         validation_tokens=3,
     )
     by_name = {row["name"]: row for row in activations}
-    assert by_name["query_projection_output"]["available"] is True
-    assert by_name["query_qk_input"]["available"] is True
-    assert by_name["value_pv_input"]["available"] is True
+    assert architecture_metadata["topology_id"] == topology_id
+    assert architecture_metadata["active_sites"] == list(
+        resolve_topology(topology_id).active_sites
+    )
+    for site in SITE_ALIAS_ORDER:
+        assert by_name[site]["available"] is True
+    assert by_name["q_post"]["zero_count"] == by_name["query_qk_input"]["zero_count"]
+    assert by_name["k_post"]["zero_count"] == by_name["key_qk_input"]["zero_count"]
+    assert by_name["v"]["zero_count"] == by_name["value_pv_input"]["zero_count"]
 
     if placement is None:
-        for name in (
-            "query_gate_input",
-            "key_gate_input",
-            "value_gate_input",
-            "query_gate_output",
-            "key_gate_output",
-            "value_gate_output",
-        ):
-            assert by_name[name]["available"] is False
-            assert by_name[name]["unavailable_reason"] == "post_qkv_gate_absent"
+        for alias in ("q_pre", "k_pre", "q_post", "k_post", "v"):
+            for suffix in ("input", "output"):
+                name = f"{alias}_gate_{suffix}"
+                assert by_name[name]["available"] is False
+                assert by_name[name]["unavailable_reason"] == f"{alias}_gate_absent"
         assert all(
             row["available"] is False
             for row in accumulator.rope_survival_rows(num_layers=1)
         )
         return
 
-    assert by_name["query_gate_output"]["available"] is True
-    assert by_name["key_gate_output"]["available"] is True
-    assert by_name["value_gate_output"]["available"] is True
-    assert (
-        by_name["value_gate_output"]["zero_count"]
-        == by_name["value_pv_input"]["zero_count"]
-    )
+    q_alias = "q_pre" if placement == "pre_rope" else "q_post"
+    k_alias = "k_pre" if placement == "pre_rope" else "k_post"
+    assert by_name[f"{q_alias}_gate_output"]["available"] is True
+    assert by_name[f"{k_alias}_gate_output"]["available"] is True
+    assert by_name["v_gate_output"]["available"] is True
+    assert by_name["v_gate_output"]["zero_count"] == by_name["v"]["zero_count"]
     if placement == "post_rope":
         assert (
-            by_name["query_gate_output"]["zero_count"]
-            == by_name["query_qk_input"]["zero_count"]
+            by_name["q_post_gate_output"]["zero_count"]
+            == by_name["q_post"]["zero_count"]
         )
         assert (
-            by_name["key_gate_output"]["zero_count"]
-            == by_name["key_qk_input"]["zero_count"]
+            by_name["k_post_gate_output"]["zero_count"]
+            == by_name["k_post"]["zero_count"]
         )
         assert all(
             row["available"] is False
             for row in accumulator.rope_survival_rows(num_layers=1)
         )
     else:
+        assert by_name["q_pre_gate_output"]["zero_count"] == by_name["q_pre"]["zero_count"]
+        assert by_name["k_pre_gate_output"]["zero_count"] == by_name["k_pre"]["zero_count"]
         assert all(
             row["available"] is True
             for row in accumulator.rope_survival_rows(num_layers=1)
@@ -555,40 +547,13 @@ def test_real_gpt_neox_diagnostic_preserves_gate_placement_and_unavailable_rows(
 
 
 def test_real_gpt_neox_diagnostic_preserves_fixed_gplus_metadata() -> None:
-    from transformers import GPTNeoXConfig, GPTNeoXForCausalLM
     from transformers.models.gpt_neox import modeling_gpt_neox
 
-    gate = {"gate_type": "one_sided_threshold", "kappa": 0.1}
-    architecture = GPTNeoXConfig(
-        vocab_size=32,
-        hidden_size=8,
-        intermediate_size=16,
-        num_hidden_layers=1,
-        num_attention_heads=2,
-        max_position_embeddings=16,
-        rotary_pct=0.5,
-        hidden_act="relu",
-        hidden_dropout=0.0,
-        attention_dropout=0.0,
-        use_cache=False,
-        use_parallel_residual=True,
+    gate = {"operator": "one_sided_threshold", "kappa": 0.1}
+    model = _real_gpt_neox_model(
+        topology_id="A6-POST",
+        site_gate=gate,
     )
-    architecture.post_layernorm_relu = True
-    architecture.post_layernorm_gate = dict(gate)
-    architecture.mlp_hidden_gate = dict(gate)
-    architecture.post_qkv_relu = {
-        "enabled": True,
-        "query": True,
-        "key": True,
-        "value": True,
-        "qk_placement": "post_rope",
-        **gate,
-    }
-    model = GPTNeoXForCausalLM(architecture)
-    apply_post_layernorm_relu(model, torch=torch)
-    apply_mlp_hidden_gate(model, torch=torch)
-    apply_post_qkv_relu(model, torch=torch)
-    model.eval()
     accumulator = _PropagationAccumulator(torch)
 
     with _capture_model_propagation(
@@ -604,11 +569,11 @@ def test_real_gpt_neox_diagnostic_preserves_fixed_gplus_metadata() -> None:
         "activations", ACTIVATION_STAGE_ORDER, num_layers=1
     )
     matmuls = accumulator.rows("matmuls", MATMUL_STAGE_ORDER, num_layers=1)
-    post_qkv = _post_qkv_relu_metadata(list(model.gpt_neox.layers))
+    attention_gates = _attention_gate_metadata(list(model.gpt_neox.layers))
     architecture_metadata = _architecture_metadata(
         model,
         layers=list(model.gpt_neox.layers),
-        post_qkv_relu=post_qkv,
+        attention_gates=attention_gates,
         block_size=3,
         torch=torch,
     )
@@ -619,115 +584,73 @@ def test_real_gpt_neox_diagnostic_preserves_fixed_gplus_metadata() -> None:
         validation_tokens=3,
     )
 
-    assert post_qkv["gate_family"] == "gplus"
-    assert post_qkv["gate_type"] == "one_sided_threshold"
-    assert post_qkv["kappa"] == pytest.approx(0.1)
+    assert attention_gates["gate_family"] == "gplus"
+    assert attention_gates["operator"] == "one_sided_threshold"
+    assert attention_gates["kappa"] == pytest.approx(0.1)
+    expected_spec = {
+        "gate_family": "gplus",
+        "operator": "one_sided_threshold",
+        "kappa": 0.1,
+    }
     assert all(
-        spec == {"gate_family": "gplus", "gate_type": "one_sided_threshold", "kappa": 0.1}
-        for spec in architecture_metadata["gate_specs"].values()
+        architecture_metadata["gate_specs"][site] == expected_spec
+        for site in architecture_metadata["active_sites"]
     )
-    assert architecture_metadata["active_gate_sites"] == ["a", "m", "h", "q", "k", "v"]
+    assert architecture_metadata["topology_id"] == "A6-POST"
+    assert architecture_metadata["active_sites"] == [
+        "a",
+        "m",
+        "h",
+        "q_post",
+        "k_post",
+        "v",
+    ]
     assert set(endpoint["per_operation"]) == set(MATMUL_STAGE_ORDER)
     assert endpoint["zero_sites"]["z_h"]["available"] is True
 
 
-def test_branch_metadata_allows_distinct_fixed_thresholds_at_distinct_sites() -> None:
-    from transformers import GPTNeoXConfig, GPTNeoXForCausalLM
-
-    architecture = GPTNeoXConfig(
-        vocab_size=32,
-        hidden_size=8,
-        intermediate_size=16,
+def test_architecture_metadata_rejects_distinct_gate_specs_within_one_topology() -> None:
+    model = _real_gpt_neox_model(
+        topology_id="A3",
+        site_gate={"operator": "one_sided_threshold", "kappa": 0.1},
         num_hidden_layers=2,
-        num_attention_heads=2,
-        max_position_embeddings=16,
-        rotary_pct=0.5,
-        hidden_act="relu",
-        use_parallel_residual=True,
     )
-    architecture.post_layernorm_relu = True
-    architecture.post_layernorm_gate = {
-        "gate_type": "one_sided_threshold",
-        "kappa": 0.1,
-    }
-    architecture.mlp_hidden_gate = {
-        "gate_type": "one_sided_threshold",
-        "kappa": 0.2,
-    }
-    model = GPTNeoXForCausalLM(architecture)
-    apply_post_layernorm_relu(model, torch=torch)
-    apply_mlp_hidden_gate(model, torch=torch)
+    model.gpt_neox.layers[1].mlp.act = FixedOneSidedThreshold(0.2)
+    attention_gates = _attention_gate_metadata(list(model.gpt_neox.layers))
 
-    post_qkv = _post_qkv_relu_metadata(list(model.gpt_neox.layers))
-    metadata = _architecture_metadata(
-        model,
-        layers=list(model.gpt_neox.layers),
-        post_qkv_relu=post_qkv,
-        block_size=4,
-        torch=torch,
-    )
-
-    assert metadata["gate_specs"]["a"]["kappa"] == pytest.approx(0.1)
-    assert metadata["gate_specs"]["m"]["kappa"] == pytest.approx(0.1)
-    assert metadata["gate_specs"]["h"]["kappa"] == pytest.approx(0.2)
+    with pytest.raises(ValueError, match="operator and kappa"):
+        _architecture_metadata(
+            model,
+            layers=list(model.gpt_neox.layers),
+            attention_gates=attention_gates,
+            block_size=4,
+            torch=torch,
+        )
 
 
-def test_post_qkv_metadata_keeps_fixed_kappa_consistency_check() -> None:
-    from transformers import GPTNeoXConfig, GPTNeoXForCausalLM
-
-    architecture = GPTNeoXConfig(
-        vocab_size=32,
-        hidden_size=8,
-        intermediate_size=16,
+def test_attention_gate_metadata_keeps_fixed_kappa_consistency_check() -> None:
+    model = _real_gpt_neox_model(
+        topology_id="A4-Q",
+        site_gate={"operator": "one_sided_threshold", "kappa": 0.1},
         num_hidden_layers=2,
-        num_attention_heads=2,
-        max_position_embeddings=16,
-        rotary_pct=0.5,
     )
-    architecture.post_qkv_relu = {
-        "enabled": True,
-        "query": True,
-        "key": False,
-        "value": False,
-        "qk_placement": "post_rope",
-        "gate_type": "one_sided_threshold",
-        "kappa": 0.1,
-    }
-    model = GPTNeoXForCausalLM(architecture)
-    apply_post_qkv_relu(model, torch=torch)
-    model.gpt_neox.layers[1].attention.query_relu = FixedOneSidedThreshold(0.2)
+    model.gpt_neox.layers[1].attention.q_post_gate = FixedOneSidedThreshold(0.2)
 
-    with pytest.raises(ValueError, match="family and kappa"):
-        _post_qkv_relu_metadata(list(model.gpt_neox.layers))
+    with pytest.raises(ValueError, match="operator and kappa"):
+        _attention_gate_metadata(list(model.gpt_neox.layers))
 
 
 @pytest.mark.parametrize(
-    ("hidden_act", "hidden_relu_available"),
-    (("gelu", False), ("relu", True)),
+    ("topology_id", "hidden_gate_available"),
+    (("A0", False), ("A1-H", True)),
 )
-def test_real_gpt_neox_diagnostic_supports_stock_and_mlp_relu_checkpoints(
-    hidden_act: str,
-    hidden_relu_available: bool,
+def test_real_gpt_neox_diagnostic_measures_canonical_sites_with_or_without_gates(
+    topology_id: str,
+    hidden_gate_available: bool,
 ) -> None:
-    from transformers import GPTNeoXConfig, GPTNeoXForCausalLM
     from transformers.models.gpt_neox import modeling_gpt_neox
 
-    architecture = GPTNeoXConfig(
-        vocab_size=32,
-        hidden_size=8,
-        intermediate_size=16,
-        num_hidden_layers=1,
-        num_attention_heads=2,
-        max_position_embeddings=16,
-        rotary_pct=0.5,
-        hidden_act=hidden_act,
-        hidden_dropout=0.0,
-        attention_dropout=0.0,
-        use_cache=False,
-        use_parallel_residual=True,
-    )
-    model = GPTNeoXForCausalLM(architecture)
-    model.eval()
+    model = _real_gpt_neox_model(topology_id=topology_id)
     layer = model.gpt_neox.layers[0]
     observed_inputs: dict[str, torch.Tensor] = {}
 
@@ -762,11 +685,11 @@ def test_real_gpt_neox_diagnostic_supports_stock_and_mlp_relu_checkpoints(
         "activations", ACTIVATION_STAGE_ORDER, num_layers=1
     )
     matmuls = accumulator.rows("matmuls", MATMUL_STAGE_ORDER, num_layers=1)
-    post_qkv = _post_qkv_relu_metadata(list(model.gpt_neox.layers))
+    attention_gates = _attention_gate_metadata(list(model.gpt_neox.layers))
     architecture_metadata = _architecture_metadata(
         model,
         layers=list(model.gpt_neox.layers),
-        post_qkv_relu=post_qkv,
+        attention_gates=attention_gates,
         block_size=3,
         torch=torch,
     )
@@ -781,29 +704,39 @@ def test_real_gpt_neox_diagnostic_supports_stock_and_mlp_relu_checkpoints(
 
     for name in ("attention_layernorm_raw", "mlp_layernorm_raw"):
         assert activations_by_name[name]["available"] is True
-    for name in ("attention_input_relu", "mlp_input_relu"):
+    for name, reason in (
+        ("attention_input_gate", "a_gate_absent"),
+        ("mlp_input_gate", "m_gate_absent"),
+    ):
         assert activations_by_name[name] == {
             "name": name,
             "layer": 0,
             "available": False,
-            "unavailable_reason": "post_layernorm_relu_absent",
+            "unavailable_reason": reason,
             "zero_count": None,
             "total": None,
             "exact_zero_fraction": None,
         }
 
-    hidden_row = activations_by_name["mlp_hidden_relu"]
-    assert hidden_row["available"] is hidden_relu_available
-    assert endpoint["zero_sites"]["z_h"]["available"] is hidden_relu_available
-    if hidden_relu_available:
-        expected_zero_count, expected_total = _exact_zero_counts(
-            observed_inputs["mlp_w2"], torch=torch
-        )
-        assert hidden_row["zero_count"] == expected_zero_count
-        assert hidden_row["total"] == expected_total
+    hidden_gate_row = activations_by_name["mlp_hidden_gate"]
+    assert hidden_gate_row["available"] is hidden_gate_available
+    if hidden_gate_available:
+        assert hidden_gate_row["zero_count"] == activations_by_name["h"]["zero_count"]
     else:
-        assert hidden_row["unavailable_reason"] == "mlp_hidden_relu_absent"
-        assert hidden_row["zero_count"] is None
+        assert hidden_gate_row["unavailable_reason"] == "h_gate_absent"
+        assert hidden_gate_row["zero_count"] is None
+
+    for site, observed_name in (
+        ("a", "qkv_projection"),
+        ("m", "mlp_w1"),
+        ("h", "mlp_w2"),
+    ):
+        expected_zero_count, expected_total = _exact_zero_counts(
+            observed_inputs[observed_name], torch=torch
+        )
+        assert activations_by_name[site]["zero_count"] == expected_zero_count
+        assert activations_by_name[site]["total"] == expected_total
+        assert endpoint["zero_sites"][f"z_{site}"]["available"] is True
 
     output_widths = {
         "qkv_projection": int(layer.attention.query_key_value.out_features),
@@ -820,18 +753,57 @@ def test_real_gpt_neox_diagnostic_supports_stock_and_mlp_relu_checkpoints(
         assert matmuls_by_name[name]["zero_count"] == expected_zero_count
         assert matmuls_by_name[name]["total"] == expected_total
 
-    for name in ("query_qk_input", "key_qk_input", "value_pv_input"):
+    for name in (*SITE_ALIAS_ORDER, "query_qk_input", "key_qk_input", "value_pv_input"):
         assert activations_by_name[name]["available"] is True
     for name in ("qk_scores", "probability_value", "attention_output_projection"):
         assert matmuls_by_name[name]["available"] is True
 
 
+def _real_gpt_neox_model(
+    *,
+    topology_id: str,
+    site_gate: dict[str, object] | None = None,
+    num_hidden_layers: int = 1,
+) -> object:
+    from transformers import GPTNeoXConfig, GPTNeoXForCausalLM
+
+    if topology_id != "A0" and site_gate is None:
+        site_gate = {"operator": "relu"}
+    architecture = GPTNeoXConfig(
+        vocab_size=32,
+        hidden_size=8,
+        intermediate_size=16,
+        num_hidden_layers=num_hidden_layers,
+        num_attention_heads=2,
+        max_position_embeddings=16,
+        rotary_pct=0.5,
+        hidden_act="gelu",
+        hidden_dropout=0.0,
+        attention_dropout=0.0,
+        use_cache=False,
+        use_parallel_residual=True,
+    )
+    architecture.topology_id = topology_id
+    architecture.site_gate = site_gate
+    model = GPTNeoXForCausalLM(architecture)
+    apply_activation_topology(model, torch=torch)
+    model.eval()
+    return model
+
+
 def _fake_architecture(
-    *, active_sites: set[str], placement: str | None
+    *,
+    topology_id: str,
+    gate_factory=lambda: torch.nn.ReLU(),
+    site_gate: dict[str, object] | None = None,
 ) -> tuple[object, list[object], dict[str, object]]:
     def linear(in_features: int, out_features: int) -> SimpleNamespace:
         return SimpleNamespace(in_features=in_features, out_features=out_features)
 
+    topology = resolve_topology(topology_id)
+    active_sites = frozenset(topology.active_sites)
+    if topology_id != "A0" and site_gate is None:
+        site_gate = {"operator": "relu"}
     layers = []
     for _ in range(2):
         attention = SimpleNamespace(
@@ -839,49 +811,53 @@ def _fake_architecture(
             dense=linear(8, 8),
             config=SimpleNamespace(num_attention_heads=2),
             head_size=4,
+            rotary_ndims=2,
+            qk_gate_placement=topology.qk_placement,
         )
+        for alias in ("q_pre", "k_pre", "q_post", "k_post", "v"):
+            if alias in active_sites:
+                setattr(attention, f"{alias}_gate", gate_factory())
         mlp = SimpleNamespace(
             dense_h_to_4h=linear(8, 24),
             dense_4h_to_h=linear(24, 8),
-            act=torch.nn.ReLU() if "h" in active_sites else torch.nn.GELU(),
+            act=gate_factory() if "h" in active_sites else torch.nn.GELU(),
         )
         layers.append(
             SimpleNamespace(
                 attention=attention,
                 mlp=mlp,
-                attention_input_relu=torch.nn.ReLU() if "a" in active_sites else None,
-                mlp_input_relu=torch.nn.ReLU() if "m" in active_sites else None,
+                a_gate=gate_factory() if "a" in active_sites else None,
+                m_gate=gate_factory() if "m" in active_sites else None,
             )
         )
 
     class FakeModel:
-        config = SimpleNamespace(hidden_act="relu" if "h" in active_sites else "gelu")
+        config = SimpleNamespace(
+            hidden_act="gelu",
+            topology_id=topology_id,
+            site_gate=site_gate,
+        )
+        gpt_neox = SimpleNamespace(layers=layers)
 
         @staticmethod
         def get_output_embeddings() -> SimpleNamespace:
             return SimpleNamespace(weight=torch.empty(40, 8))
 
-    post_qkv = {
-        "enabled": bool(active_sites & {"q", "k", "v"}),
-        "query": "q" in active_sites,
-        "key": "k" in active_sites,
-        "value": "v" in active_sites,
-        "qk_placement": placement,
-        "layers": [],
-    }
-    return FakeModel(), layers, post_qkv
+    return FakeModel(), layers, _attention_gate_metadata(layers)
 
 
 def _fake_endpoint_activation_rows(
     active_sites: set[str], *, num_layers: int
 ) -> list[dict[str, object]]:
     gated_stage_sites = {
-        "attention_input_relu": "a",
-        "mlp_input_relu": "m",
-        "mlp_hidden_relu": "h",
-        "query_gate_output": "q",
-        "key_gate_output": "k",
-        "value_gate_output": "v",
+        "attention_input_gate": "a",
+        "mlp_input_gate": "m",
+        "mlp_hidden_gate": "h",
+        "q_pre_gate_output": "q_pre",
+        "k_pre_gate_output": "k_pre",
+        "q_post_gate_output": "q_post",
+        "k_post_gate_output": "k_post",
+        "v_gate_output": "v",
     }
     rows = []
     for layer in range(num_layers):

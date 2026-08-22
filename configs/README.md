@@ -6,6 +6,9 @@ experiment, calibration recipe, baseline, or template for paper settings.
 [`exp-plan-v0.md`](../exp-plan-v0.md) is a structural preview, not launch
 authorization. Definitive configs begin only after the final plan replaces and
 reviews [`docs/experiment_plan.md`](../docs/experiment_plan.md).
+While that document says `Plan status: placeholder`, do not create a numbered
+scientific config or case runner. The schema examples below document runnable
+field combinations only; they do not authorize or recommend an experiment.
 
 Configs are grouped by launch tranche. The folder name exactly matches its
 case runner:
@@ -76,11 +79,36 @@ model:
   architecture: TODO
   revision: TODO  # exact immutable 40- to 64-character commit
   initialization: random
+  topology_id: A0
+  site_gate: null
 ```
 
 `architecture` names the architecture/config source. `initialization: random`
 means the harness constructs a new model and does not load released checkpoint
-weights.
+weights. `A0` has no active site gates, requires `site_gate: null`, and keeps
+the stock GELU at `h`. This is a schema illustration, not a scientific default.
+
+`model.topology_id` selects only the active gate ports. The exact supported IDs
+are `A0`, `A1-H`, `A2`, `A3`, `A4-Q`, `A4-K`, `A4-V`, `A5-QK-PRE`,
+`A5-QK-POST`, `A6-PRE`, and `A6-POST`. Their port sets are authoritative in
+[`docs/methods.md`](../docs/methods.md). In particular, `A2` means `m` + `h`,
+while `A4-Q` and `A4-K` mean the POST-RoPE `q_post` and `k_post` ports.
+
+Every non-`A0` topology requires an explicit `model.site_gate`. For example,
+the ReLU form of `A2` is represented by:
+
+```yaml
+model:
+  topology_id: A2
+  site_gate:
+    operator: relu
+```
+
+The other supported operators are `one_sided_threshold` and
+`symmetric_threshold`; each requires an explicit finite nonnegative `kappa`.
+The topology ID never implies the operator or `kappa`. Optimizer and
+`activation_pressure` settings remain separate and must be supplied by the
+reviewed plan.
 
 Training/data preflight also requires exact immutable `data.revision` and
 `tokenizer.revision` commits; explicit text column, document limits, cache ID,
@@ -122,8 +150,10 @@ Use distinct method identifiers:
   correction.
 
 Orthogonal methods require an explicit `step_budget`. Sites and all numerical
-pressure parameters are explicit; the harness chooses no scientific default. See
-[`docs/methods.md`](../docs/methods.md) before adding method fields.
+pressure parameters are explicit; the harness chooses no scientific default.
+`activation_pressure.sites` uses only `a`, `m`, `h`, `q_pre`, `k_pre`,
+`q_post`, `k_post`, and `v`, and is not inferred from `model.topology_id`.
+See [`docs/methods.md`](../docs/methods.md) before adding method fields.
 
 ## Diagnostic Sources
 

@@ -247,7 +247,7 @@ def _run_activation_propagation(run: RunHandle) -> Path:
     }
 
     payload = {
-        "schema_version": 4,
+        "schema_version": 5,
         "validation_batches": results[0]["batches"] if results else 0,
         "validation_sequences": validation_sequences,
         "validation_tokens": validation_token_count,
@@ -310,7 +310,7 @@ def _measure_one_run(
     if not bool(getattr(model.config, "use_parallel_residual", False)):
         raise ValueError("This diagnostic currently describes the Pythia parallel-residual block only.")
 
-    post_qkv_relu = _summary._post_qkv_relu_metadata(layers)
+    attention_gates = _summary._attention_gate_metadata(layers)
     accumulator = _PropagationAccumulator(torch)
     batches = 0
     method_started = time.perf_counter()
@@ -338,7 +338,7 @@ def _measure_one_run(
     architecture = _summary._architecture_metadata(
         model,
         layers=layers,
-        post_qkv_relu=post_qkv_relu,
+        attention_gates=attention_gates,
         block_size=block_size,
         torch=torch,
     )
@@ -358,7 +358,7 @@ def _measure_one_run(
         "source_manifest_status": source_manifest.get("status"),
         "num_layers": len(layers),
         "use_parallel_residual": True,
-        "post_qkv_relu": post_qkv_relu,
+        "attention_gates": attention_gates,
         "architecture": architecture,
         "endpoint": endpoint,
         "batches": batches,

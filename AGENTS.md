@@ -42,7 +42,7 @@ until the user supplies and reviews the definitive plan.
 - Fixed one-sided and symmetric threshold gates are explicit architecture
   interventions. Do not add retired or adaptive method families unless a
   future reviewed plan explicitly requires a new implementation.
-- Pressure targets must be explicit; current work targets `mlp_hiddens` first.
+- Pressure targets must be explicit; current work targets `h` first.
 - Treat changes to activation sites, gates, optimizers, data partitions, or
   model construction as scientific changes, not cleanup.
 - Distinguish exact zeros, near-zero mass, logical product opportunities, and

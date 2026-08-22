@@ -30,15 +30,16 @@ Paths below are relative to `src/paper_exp/`.
 | --- | --- | --- |
 | `__init__.py` | Package version only | The release version changes |
 | `cli.py` | Public commands, arguments, lightweight parsing, and dispatch | A workflow gains or changes a user-facing command |
-| `config.py` | YAML loading; common, training, and diagnostic schema validation; random-initialization and fixed-gate contracts | A reviewed config field or invariant changes |
+| `config.py` | YAML loading; common, training, and diagnostic schema validation; random-initialization plus `model.topology_id`/`model.site_gate` contracts | A reviewed config field or invariant changes |
+| `topology.py` | Canonical transformer-site aliases, exact site metadata, supported topology IDs, active-port sets, and site-gate schema | Site nomenclature, a reviewed topology, or the gate-field contract changes |
 | `launch.py` | Repository/config resolution, reviewed-plan and clean-Git gates, portable output roots, and the exclusive lock | Launch-wide preflight policy changes |
 | `runner.py` | Generic parent runner, numeric runner/config naming, whole-tranche preflight, serial fail-stop execution | Behavior shared by every case runner changes |
 | `run.py` | Run IDs, immutable config snapshot, running/completed/failed manifests, and atomic artifact writes | The common run envelope or lifecycle changes |
 | `training.py` | Calibration/pretraining orchestration, evaluation, event logging, and final checkpoint publication | The end-to-end training workflow changes |
 | `optimization.py` | AdamW construction, minibatch sampling, LR warmup, naive L1 steps, OL1 post-Adam correction, and norm metrics | Optimizer-step mathematics or step metrics change |
-| `modeling.py` | Random Pythia construction, fixed gates, architecture hook installation, and exact checkpoint reconstruction | Model construction or a reviewed architecture intervention changes |
+| `modeling.py` | Random Pythia construction, realization of canonical topologies and site-gate operators, and exact checkpoint reconstruction | Model construction or a reviewed architecture intervention changes |
 | `activation_pressure.py` | Pressure config parsing, L1 objective, near-zero metrics, gradient diagnostics, and OL1 projection/correction math | L1 or OL1 semantics change |
-| `activations.py` | Stable activation-site aliases, capture hooks, exact-zero counts, and clipping hooks | A tensor site or capture/replacement behavior changes |
+| `activations.py` | Capture and clipping hooks for canonical sites plus exact-zero counts | Capture/replacement behavior changes without changing site nomenclature |
 | `data.py` | Dataset/tokenizer loading, document handling, token-cache construction, metadata, and compatibility checks | Data preparation or cache identity changes |
 | `reproducibility.py` | Deterministic training schedules and document-disjoint validation partitions and hashes | Sampling or partition contracts change |
 | `integrity.py` | Read-only checks for configs, runner/config numbering, current or indexed run envelopes, indexed figures, and document references | A durable repository invariant changes |
@@ -106,7 +107,8 @@ in this table are exact config/API identifiers where shown.
 | `none` | Monitor configured activation sites without adding a pressure objective | `activation_pressure.py`, routed by `optimization.py` |
 | `l1_naive` (L1) | Add the mean absolute captured activation objective directly to task loss | `activation_pressure.py`, executed by `optimization.py` |
 | `orthogonal_l1` (OL1) | Take a task-only AdamW step, remove only a conflicting component from the preconditioned L1 direction, cap it with `step_budget`, then apply the correction | `activation_pressure.py`, executed by `optimization.py` |
-| ReLU | Standard model nonlinearity or an explicitly configured architecture intervention | `modeling.py` |
+| Canonical topology | Select one of the 11 active gate-port sets from `A0` through `A6-POST`; the ID does not select the operator, optimizer, or pressure | `topology.py`, realized by `modeling.py` |
+| ReLU | Stock GELU remains at `h` for `A0`; `site_gate.operator: relu` explicitly applies ReLU at every active port of a non-`A0` topology | `topology.py`, `modeling.py` |
 | Fixed one-sided gate `G+` | Preserve `x >= kappa`; replace smaller values with exact zero | `modeling.py`; captured/replaced through `activations.py` |
 | Fixed symmetric gate `G±` | Preserve `abs(x) >= kappa`; replace smaller magnitudes with exact zero | `modeling.py`; captured/replaced through `activations.py` |
 | Post-hoc clipping | At evaluation only, zero selected activations by absolute threshold, quantile, or RMS multiplier | `activations.py`, `diagnostics/clipping*.py` |
@@ -127,7 +129,8 @@ tests, and new immutable configs.
 | Intended change | Read first | Primary owner | Also verify |
 | --- | --- | --- | --- |
 | L1/OL1 math or timing | `methods.md` | `activation_pressure.py`, `optimization.py` | Config parsing, metrics, focused numerical tests |
-| Activation site | `methods.md`, `diagnostics.md` | `activations.py` | Model path, diagnostic capture, clipping, tests |
+| Transformer site or topology nomenclature | `methods.md`, `diagnostics.md` | `topology.py` | Config validation, model realization, capture, diagnostics, tests |
+| Capture or clip a canonical site | `methods.md`, `diagnostics.md` | `activations.py` | Model path, diagnostic capture, clipping, tests |
 | Model or fixed gate | `methods.md` | `modeling.py` | Config validation, training construction, checkpoint round trip, diagnostics |
 | Data or partitioning | `experiment_plan.md`, `methods.md` | `data.py`, `reproducibility.py` | Cache identity, manifests, plan-authorized configs |
 | Diagnostic | `diagnostics.md` | One focused `diagnostics/` workflow | Source pinning, schema, lifecycle, plot consumer |

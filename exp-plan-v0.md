@@ -146,6 +146,10 @@ If this effect is weak, demote it to an appendix result.
 
 ## B1. Topology screening
 
+This structural preview predates `A2`. Use the normative 11-row registry in
+[`docs/methods.md`](docs/methods.md), where `A2` means the `{m, h}` topology;
+do not derive configs from the abbreviated historical list below.
+
 Test:
 
 A0

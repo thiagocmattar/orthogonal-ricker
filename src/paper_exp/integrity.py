@@ -553,9 +553,9 @@ def _completed_artifacts_are_coherent(run_dir: Path) -> bool:
             except (OSError, UnicodeError, ValueError):
                 return False
             expected_schema = {
-                "activation-histograms": 2,
+                "activation-histograms": 3,
                 "weight-histograms": 1,
-                "activation-propagation": 4,
+                "activation-propagation": 5,
             }[str(mode)]
             if not isinstance(artifact, dict) or artifact.get("schema_version") != expected_schema:
                 return False

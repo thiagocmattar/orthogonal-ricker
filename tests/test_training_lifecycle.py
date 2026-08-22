@@ -21,6 +21,8 @@ def test_training_dependency_failure_preserves_launch_record(
             "architecture": "test/pythia",
             "revision": "a" * 40,
             "initialization": "random",
+            "topology_id": "A0",
+            "site_gate": None,
         },
         "data": {
             "name": "test/data",
@@ -66,7 +68,7 @@ def test_training_dependency_failure_preserves_launch_record(
         "activation_pressure": {
             "enabled": True,
             "method": "none",
-            "sites": ["mlp_hiddens"],
+            "sites": ["h"],
             "weight": 0.0,
             "step_budget": None,
             "eps": 1.0e-12,

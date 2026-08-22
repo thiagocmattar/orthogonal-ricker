@@ -9,6 +9,7 @@ from typing import Any
 
 import yaml
 
+from paper_exp.activations import SUPPORTED_SITE_ALIASES, resolve_site_aliases
 from paper_exp.modeling import load_checkpoint_model
 from paper_exp.run import CORE_RUN_ARTIFACTS, RunHandle, complete_run, run_lifecycle
 from paper_exp.utils import read_json, write_jsonl
@@ -301,7 +302,7 @@ def _clipping_sites(config: dict[str, Any]) -> list[str]:
             "Clipping sites must be an explicit non-empty activation_clipping.sites list "
             "or --sites argument."
         )
-    return list(sites)
+    return list(resolve_site_aliases(sites))
 
 
 def _validate_clipping_arguments(
@@ -352,7 +353,7 @@ def _validate_clipping_arguments(
 def _site_suffix(sites: list[str] | None) -> str | None:
     if not sites:
         return None
-    if set(sites) == {"mlp_hiddens", "attention_outputs", "residual_streams"}:
+    if set(sites) == SUPPORTED_SITE_ALIASES:
         return "all-sites"
     return "sites-" + "-".join(site.replace("_", "-") for site in sites)
 

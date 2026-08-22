@@ -14,6 +14,7 @@ from paper_exp.launch import (
     resolve_launch_config,
     resolve_launch_run_dir,
 )
+from paper_exp.topology import SITE_ALIAS_ORDER
 
 
 PLOT_KINDS = (
@@ -71,7 +72,7 @@ def build_parser() -> argparse.ArgumentParser:
     clip_sweep.add_argument(
         "--sites",
         default="",
-        help="Comma-separated activation sites to clip.",
+        help=f"Comma-separated transformer sites to clip: {', '.join(SITE_ALIAS_ORDER)}.",
     )
     clip_sweep.add_argument(
         "--experiment-suffix",

@@ -27,6 +27,10 @@ as a paper result.
   loaded.
 - Naive loss pressure and Adam-step orthogonal pressure are separate methods,
   with separate config names, metrics, and interpretation.
+- `model.topology_id` selects a canonical set of active transformer gate ports;
+  `model.site_gate` selects the operator and any `kappa`. Optimizer and
+  activation-pressure settings remain separate. See the exact site and
+  topology registries in [`docs/methods.md`](docs/methods.md).
 - Exact zeros, near-zero activations, logical zero-product opportunities, and
   measured runtime speedups are different quantities.
 - Every launched experiment has an immutable numbered config and a durable run

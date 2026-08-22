@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
-import math
 from pathlib import Path
 from types import MethodType
 from typing import Any
 
 import torch
+
+from paper_exp.topology import SITE_ALIAS_ORDER
+from paper_exp.topology import resolve_topology_and_gate
 
 
 class FixedSymmetricThreshold(torch.nn.Module):
@@ -37,130 +38,125 @@ class FixedOneSidedThreshold(torch.nn.Module):
         return f"kappa={self.kappa:g}"
 
 
-def apply_post_layernorm_relu(model: Any, *, torch: Any) -> Any:
-    """Apply configured ReLUs after each GPT-NeoX block LayerNorm."""
+def apply_activation_topology(model: Any, *, torch: Any) -> Any:
+    """Install the exact gate ports named by ``model.config.topology_id``."""
     config = getattr(model, "config", None)
-    if not bool(getattr(config, "post_layernorm_relu", False)):
-        return model
-    if getattr(model, "_post_layernorm_relu_applied", False):
-        return model
-
-    gpt_neox = getattr(model, "gpt_neox", None)
-    layers = getattr(gpt_neox, "layers", None)
-    if layers is None:
-        raise ValueError("Configured model.post_layernorm_relu, but the model has no GPT-NeoX layers.")
-
-    gate_config = _one_sided_gate_config(
-        getattr(config, "post_layernorm_gate", None),
-        field_name="post_layernorm_gate",
+    topology, gate_config = resolve_topology_and_gate(
+        getattr(config, "topology_id", None),
+        getattr(config, "site_gate", None),
     )
+    if getattr(model, "_activation_topology_applied", False):
+        return model
+
+    layers = getattr(getattr(model, "gpt_neox", None), "layers", None)
+    if layers is None:
+        raise ValueError(
+            f"Configured topology {topology.topology_id}, but the model has no GPT-NeoX layers."
+        )
+
+    active = frozenset(topology.active_sites)
+    for layer_index, layer in enumerate(layers):
+        _validate_layer_for_topology(layer, layer_index=layer_index, active_sites=active)
+
     for layer in layers:
-        input_layernorm = getattr(layer, "input_layernorm", None)
-        post_attention_layernorm = getattr(layer, "post_attention_layernorm", None)
-        if input_layernorm is None or post_attention_layernorm is None:
-            raise ValueError(
-                "Configured model.post_layernorm_relu, but a GPT-NeoX layer is missing a branch LayerNorm."
+        if "a" in active:
+            layer.a_gate = _site_gate(gate_config, torch=torch)
+            layer.input_layernorm.register_forward_hook(_gate_output_hook(layer.a_gate))
+        if "m" in active:
+            layer.m_gate = _site_gate(gate_config, torch=torch)
+            layer.post_attention_layernorm.register_forward_hook(_gate_output_hook(layer.m_gate))
+        if "h" in active:
+            layer.mlp.act = _site_gate(gate_config, torch=torch)
+
+        attention_sites = active.intersection(
+            {"q_pre", "k_pre", "q_post", "k_post", "v"}
+        )
+        if attention_sites:
+            _install_attention_ports(
+                layer.attention,
+                active_sites=active,
+                gate_config=gate_config,
+                torch=torch,
             )
 
-        layer.attention_input_relu = _branch_gate(
-            gate_config,
-            torch=torch,
-        )
-        layer.mlp_input_relu = _branch_gate(
-            gate_config,
-            torch=torch,
-        )
-        input_layernorm.register_forward_hook(_relu_output_hook(layer.attention_input_relu))
-        post_attention_layernorm.register_forward_hook(_relu_output_hook(layer.mlp_input_relu))
-
-    model._post_layernorm_relu_applied = True
+    model._activation_topology_applied = True
+    model._resolved_topology = topology.as_dict()
     return model
 
 
-def apply_mlp_hidden_gate(model: Any, *, torch: Any) -> Any:
-    """Replace configured GPT-NeoX MLP ReLUs with one-sided threshold gates."""
-    config = getattr(model, "config", None)
-    gate_config = _one_sided_gate_config(
-        getattr(config, "mlp_hidden_gate", None),
-        field_name="mlp_hidden_gate",
-    )
-    if gate_config is None:
-        return model
-    if getattr(model, "_mlp_hidden_gate_applied", False):
-        return model
-    if str(getattr(config, "hidden_act", "")).lower() != "relu":
-        raise ValueError("Configured model.mlp_hidden_gate requires model.hidden_act='relu'.")
-
-    gpt_neox = getattr(model, "gpt_neox", None)
-    layers = getattr(gpt_neox, "layers", None)
-    if layers is None:
-        raise ValueError("Configured model.mlp_hidden_gate, but the model has no GPT-NeoX layers.")
-
-    for layer in layers:
-        mlp = getattr(layer, "mlp", None)
-        activation = getattr(mlp, "act", None)
-        if activation is None:
-            raise ValueError("Configured model.mlp_hidden_gate, but a GPT-NeoX layer has no MLP activation.")
-        if not isinstance(activation, torch.nn.ReLU):
-            raise ValueError(
-                "Configured model.mlp_hidden_gate requires every GPT-NeoX MLP activation to be ReLU."
-            )
-        mlp.act = _branch_gate(
-            gate_config,
-            torch=torch,
+def _validate_layer_for_topology(
+    layer: Any,
+    *,
+    layer_index: int,
+    active_sites: frozenset[str],
+) -> None:
+    if "a" in active_sites and getattr(layer, "input_layernorm", None) is None:
+        raise ValueError(f"Topology site a cannot resolve the input LayerNorm in layer {layer_index}.")
+    if "m" in active_sites and getattr(layer, "post_attention_layernorm", None) is None:
+        raise ValueError(
+            f"Topology site m cannot resolve the post-attention LayerNorm in layer {layer_index}."
         )
+    if "h" in active_sites and getattr(getattr(layer, "mlp", None), "act", None) is None:
+        raise ValueError(f"Topology site h cannot resolve the MLP activation in layer {layer_index}.")
 
-    model._mlp_hidden_gate_applied = True
-    return model
+    if not active_sites.intersection({"q_pre", "k_pre", "q_post", "k_post", "v"}):
+        return
+    attention = getattr(layer, "attention", None)
+    if attention is None:
+        raise ValueError(f"Attention topology sites cannot resolve attention in layer {layer_index}.")
+    for attribute in ("query_key_value", "dense", "head_size", "config"):
+        if not hasattr(attention, attribute):
+            raise ValueError(
+                f"Attention topology sites require {attribute} in layer {layer_index}."
+            )
 
 
-def apply_post_qkv_relu(model: Any, *, torch: Any) -> Any:
-    """Apply configured Q/K/V gates inside each GPT-NeoX attention path."""
-    config = getattr(model, "config", None)
-    gate_config = _post_qkv_relu_config(getattr(config, "post_qkv_relu", None))
-    if gate_config is None or not gate_config["enabled"]:
-        return model
-    if getattr(model, "_post_qkv_relu_applied", False):
-        return model
+def _install_attention_ports(
+    attention: Any,
+    *,
+    active_sites: frozenset[str],
+    gate_config: dict[str, Any] | None,
+    torch: Any,
+) -> None:
+    for alias in ("q_pre", "k_pre", "q_post", "k_post", "v"):
+        setattr(attention, f"{alias}_site", torch.nn.Identity())
+        if alias in active_sites:
+            setattr(attention, f"{alias}_gate", _site_gate(gate_config, torch=torch))
 
-    gpt_neox = getattr(model, "gpt_neox", None)
-    layers = getattr(gpt_neox, "layers", None)
+    if active_sites.intersection({"q_pre", "k_pre"}):
+        attention.qk_gate_placement = "pre_rope"
+    elif active_sites.intersection({"q_post", "k_post"}):
+        attention.qk_gate_placement = "post_rope"
+    else:
+        attention.qk_gate_placement = None
+    attention.forward = MethodType(_topology_attention_forward, attention)
+
+
+def expose_attention_sites(model: Any, *, torch: Any) -> Any:
+    """Expose parameter-free attention site taps when capture requests them."""
+    layers = getattr(getattr(model, "gpt_neox", None), "layers", None)
     if layers is None:
-        raise ValueError("Configured model.post_qkv_relu, but the model has no GPT-NeoX layers.")
-
-    attentions = []
-    for layer in layers:
+        raise ValueError("Attention site capture currently supports GPTNeoX/Pythia models only.")
+    for layer_index, layer in enumerate(layers):
         attention = getattr(layer, "attention", None)
         if attention is None:
-            raise ValueError("Configured model.post_qkv_relu, but a GPT-NeoX layer has no attention module.")
+            raise ValueError(f"Could not resolve attention in layer {layer_index}.")
+        if all(
+            getattr(attention, f"{alias}_site", None) is not None
+            for alias in ("q_pre", "k_pre", "q_post", "k_post", "v")
+        ):
+            continue
         for attribute in ("query_key_value", "dense", "head_size", "config"):
             if not hasattr(attention, attribute):
                 raise ValueError(
-                    "Configured model.post_qkv_relu, but a GPT-NeoX attention module "
-                    f"is missing {attribute}."
+                    f"Attention site capture requires {attribute} in layer {layer_index}."
                 )
-        attentions.append(attention)
-
-    for attention in attentions:
-        if gate_config["query"]:
-            attention.query_relu = _post_qkv_gate(
-                gate_config,
-                torch=torch,
-            )
-        if gate_config["key"]:
-            attention.key_relu = _post_qkv_gate(
-                gate_config,
-                torch=torch,
-            )
-        if gate_config["value"]:
-            attention.value_relu = _post_qkv_gate(
-                gate_config,
-                torch=torch,
-            )
-        attention.qk_relu_placement = gate_config["qk_placement"]
-        attention.forward = MethodType(_post_qkv_relu_attention_forward, attention)
-
-    model._post_qkv_relu_applied = True
+        _install_attention_ports(
+            attention,
+            active_sites=frozenset(),
+            gate_config=None,
+            torch=torch,
+        )
     return model
 
 
@@ -182,9 +178,7 @@ def _build_random_model(
     _apply_model_architecture_overrides(architecture, model_config)
     architecture.torch_dtype = torch.float32
     model = auto_model.from_config(architecture)
-    apply_post_layernorm_relu(model, torch=torch)
-    apply_mlp_hidden_gate(model, torch=torch)
-    apply_post_qkv_relu(model, torch=torch)
+    apply_activation_topology(model, torch=torch)
     return model.to(device=device, dtype=torch.float32)
 
 
@@ -192,40 +186,21 @@ def _apply_model_architecture_overrides(
     architecture: Any,
     model_config: dict[str, Any],
 ) -> None:
-    hidden_act = model_config.get("hidden_act")
-    if hidden_act is not None:
-        if not hasattr(architecture, "hidden_act"):
-            raise ValueError(
-                "Configured model.hidden_act, but the loaded architecture has no hidden_act field."
-            )
-        architecture.hidden_act = hidden_act
-
-    post_layernorm_relu = model_config.get("post_layernorm_relu")
-    if post_layernorm_relu is not None:
-        architecture.post_layernorm_relu = post_layernorm_relu
-
-    post_layernorm_gate = model_config.get("post_layernorm_gate")
-    if post_layernorm_gate is not None:
-        architecture.post_layernorm_gate = dict(post_layernorm_gate)
-
-    mlp_hidden_gate = model_config.get("mlp_hidden_gate")
-    if mlp_hidden_gate is not None:
-        architecture.mlp_hidden_gate = dict(mlp_hidden_gate)
-
-    post_qkv_relu = model_config.get("post_qkv_relu")
-    if post_qkv_relu is not None:
-        architecture.post_qkv_relu = dict(post_qkv_relu)
+    topology, site_gate = resolve_topology_and_gate(
+        model_config.get("topology_id"),
+        model_config.get("site_gate"),
+    )
+    architecture.topology_id = topology.topology_id
+    architecture.site_gate = None if site_gate is None else dict(site_gate)
 
 
 def load_checkpoint_model(auto_model: Any, checkpoint_path: str | Path, *, torch: Any) -> Any:
     model = auto_model.from_pretrained(checkpoint_path)
-    apply_post_layernorm_relu(model, torch=torch)
-    apply_mlp_hidden_gate(model, torch=torch)
-    apply_post_qkv_relu(model, torch=torch)
+    apply_activation_topology(model, torch=torch)
     return model
 
 
-def _post_qkv_relu_attention_forward(
+def _topology_attention_forward(
     self: Any,
     hidden_states: Any,
     attention_mask: Any,
@@ -233,7 +208,7 @@ def _post_qkv_relu_attention_forward(
     position_embeddings: Any = None,
     **kwargs: Any,
 ) -> tuple[Any, Any]:
-    """GPT-NeoX attention with Q/K/V ReLUs placed around the stock RoPE path."""
+    """GPT-NeoX attention with stable PRE, POST, and V site modules."""
     from transformers.models.gpt_neox import modeling_gpt_neox
 
     input_shape = hidden_states.shape[:-1]
@@ -242,18 +217,10 @@ def _post_qkv_relu_attention_forward(
     qkv = self.query_key_value(hidden_states).view(hidden_shape).transpose(1, 2)
     query_states, key_states, value_states = qkv.chunk(3, dim=-1)
 
-    value_relu = getattr(self, "value_relu", None)
-    if value_relu is not None:
-        value_states = value_relu(value_states)
-
-    placement = self.qk_relu_placement
-    if placement == "pre_rope":
-        query_relu = getattr(self, "query_relu", None)
-        key_relu = getattr(self, "key_relu", None)
-        if query_relu is not None:
-            query_states = query_relu(query_states)
-        if key_relu is not None:
-            key_states = key_relu(key_states)
+    query_states = _apply_optional_gate(self, "q_pre", query_states)
+    key_states = _apply_optional_gate(self, "k_pre", key_states)
+    query_states = self.q_pre_site(query_states)
+    key_states = self.k_pre_site(key_states)
 
     cos, sin = position_embeddings
     query_states, key_states = modeling_gpt_neox.apply_rotary_pos_emb(
@@ -263,13 +230,9 @@ def _post_qkv_relu_attention_forward(
         sin,
     )
 
-    if placement == "post_rope":
-        query_relu = getattr(self, "query_relu", None)
-        key_relu = getattr(self, "key_relu", None)
-        if query_relu is not None:
-            query_states = query_relu(query_states)
-        if key_relu is not None:
-            key_states = key_relu(key_states)
+    query_states = _apply_optional_gate(self, "q_post", query_states)
+    key_states = _apply_optional_gate(self, "k_post", key_states)
+    value_states = _apply_optional_gate(self, "v", value_states)
 
     if layer_past is not None:
         key_states, value_states = layer_past.update(
@@ -277,6 +240,10 @@ def _post_qkv_relu_attention_forward(
             value_states,
             self.layer_idx,
         )
+
+    query_states = self.q_post_site(query_states)
+    key_states = self.k_post_site(key_states)
+    value_states = self.v_site(value_states)
 
     attention_interface = modeling_gpt_neox.ALL_ATTENTION_FUNCTIONS.get_interface(
         self.config._attn_implementation,
@@ -298,149 +265,98 @@ def _post_qkv_relu_attention_forward(
     return attn_output, attn_weights
 
 
-def _relu_output_hook(relu: Any) -> Any:
+def _apply_optional_gate(module: Any, alias: str, value: Any) -> Any:
+    gate = getattr(module, f"{alias}_gate", None)
+    return value if gate is None else gate(value)
+
+
+def _gate_output_hook(gate: Any) -> Any:
     def hook(_module: Any, _inputs: Any, output: Any) -> Any:
-        return relu(output)
+        return gate(output)
 
     return hook
 
 
-def _post_qkv_relu_config(value: Any) -> dict[str, Any] | None:
-    if value is None:
-        return None
-    if not isinstance(value, Mapping):
-        raise ValueError("Model config post_qkv_relu must be a mapping.")
-
-    fields = ("enabled", "query", "key", "value")
-    for field in fields:
-        if not isinstance(value.get(field), bool):
-            raise ValueError(f"Model config post_qkv_relu.{field} must be a boolean.")
-
-    enabled = value["enabled"]
-    placement = value.get("qk_placement")
-    if enabled and placement not in {"pre_rope", "post_rope"}:
-        raise ValueError("Model config post_qkv_relu.qk_placement must be 'pre_rope' or 'post_rope'.")
-    gate_fields = {"gate_type", "kappa"}
-    if not enabled:
-        extra = set(value) - {"enabled", "query", "key", "value", "qk_placement"} - gate_fields
-        if extra:
-            fields = ", ".join(sorted(str(field) for field in extra))
-            raise ValueError(f"Disabled model config post_qkv_relu contains unsupported fields: {fields}.")
-        if placement is not None:
-            raise ValueError("Model config post_qkv_relu.qk_placement must be omitted when disabled.")
-        if any(value[field] for field in ("query", "key", "value")):
-            raise ValueError("Model config post_qkv_relu Q/K/V gates must be false when disabled.")
-        if gate_fields.intersection(value):
-            raise ValueError("Model config post_qkv_relu gate settings must be omitted when disabled.")
-        return dict(value)
-    if not any(value[field] for field in ("query", "key", "value")):
-        raise ValueError("Model config post_qkv_relu is enabled, but no Q/K/V gate is enabled.")
-
-    gate_type = value.get("gate_type", "relu")
-    supported_gate_types = {
-        "relu",
-        "one_sided_threshold",
-        "symmetric_threshold",
-    }
-    if gate_type not in supported_gate_types:
-        raise ValueError(
-            "Model config post_qkv_relu.gate_type must be 'relu', "
-            "'one_sided_threshold', or 'symmetric_threshold'."
-        )
-    base_fields = {"enabled", "query", "key", "value", "qk_placement", "gate_type"}
-    allowed_fields = base_fields if gate_type == "relu" else base_fields | {"kappa"}
-    extra = set(value) - allowed_fields
-    if extra:
-        fields = ", ".join(sorted(str(field) for field in extra))
-        raise ValueError(f"Model config post_qkv_relu contains unsupported fields: {fields}.")
-    if gate_type == "relu":
-        if gate_fields.intersection(value) - {"gate_type"}:
-            raise ValueError("Model config post_qkv_relu threshold fields must be omitted for ordinary ReLU gates.")
-    elif gate_type in {"one_sided_threshold", "symmetric_threshold"}:
-        if "kappa" not in value:
-            raise ValueError("Model config post_qkv_relu.kappa is required for threshold gates.")
-        _require_finite_number(value["kappa"], field_name="post_qkv_relu.kappa", minimum=0.0)
-
-    normalized = dict(value)
-    normalized["gate_type"] = gate_type
-    if "kappa" in normalized:
-        normalized["kappa"] = float(normalized["kappa"])
-    return normalized
-
-
-def _post_qkv_gate(
-    gate_config: Mapping[str, Any],
-    *,
-    torch: Any,
-) -> Any:
-    if gate_config["gate_type"] == "relu":
+def _site_gate(gate_config: dict[str, Any] | None, *, torch: Any) -> Any:
+    if gate_config is None:
+        raise ValueError("An active topology site requires model.site_gate.")
+    operator = gate_config["operator"]
+    if operator == "relu":
         return torch.nn.ReLU()
-    if gate_config["gate_type"] == "one_sided_threshold":
+    if operator == "one_sided_threshold":
         return FixedOneSidedThreshold(gate_config["kappa"])
-    if gate_config["gate_type"] == "symmetric_threshold":
+    if operator == "symmetric_threshold":
         return FixedSymmetricThreshold(gate_config["kappa"])
-    raise ValueError(f"Unsupported post-QKV gate type: {gate_config['gate_type']}")
+    raise ValueError(f"Unsupported site-gate operator: {operator}")
 
 
 def activation_gate_metadata(module: Any) -> dict[str, Any] | None:
     """Return stable runtime metadata for supported exact-zero gate modules."""
     if isinstance(module, torch.nn.ReLU):
-        return {"gate_family": "gplus", "gate_type": "relu", "kappa": 0.0}
+        return {"gate_family": "gplus", "operator": "relu", "kappa": 0.0}
     if isinstance(module, FixedOneSidedThreshold):
         return {
             "gate_family": "gplus",
-            "gate_type": "one_sided_threshold",
+            "operator": "one_sided_threshold",
             "kappa": module.kappa,
         }
     if isinstance(module, FixedSymmetricThreshold):
         return {
             "gate_family": "gpm",
-            "gate_type": "symmetric_threshold",
+            "operator": "symmetric_threshold",
             "kappa": module.kappa,
         }
     return None
 
 
-def _branch_gate(
-    gate_config: Mapping[str, Any] | None,
-    *,
-    torch: Any,
-) -> Any:
-    if gate_config is None:
-        return torch.nn.ReLU()
-    if gate_config["gate_type"] == "one_sided_threshold":
-        return FixedOneSidedThreshold(gate_config["kappa"])
-    raise ValueError(f"Unsupported branch gate type: {gate_config['gate_type']}")
+def model_topology_metadata(model: Any) -> dict[str, Any]:
+    """Verify and describe the realized gate topology on every GPT-NeoX layer."""
+    config = getattr(model, "config", None)
+    topology, site_gate = resolve_topology_and_gate(
+        getattr(config, "topology_id", None),
+        getattr(config, "site_gate", None),
+    )
+    layers = getattr(getattr(model, "gpt_neox", None), "layers", None)
+    if layers is None:
+        raise ValueError("Cannot inspect activation topology without GPT-NeoX layers.")
 
-
-def _one_sided_gate_config(value: Any, *, field_name: str) -> dict[str, Any] | None:
-    if value is None:
-        return None
-    if not isinstance(value, Mapping):
-        raise ValueError(f"Model config {field_name} must be a mapping.")
-    fixed_fields = {"gate_type", "kappa"}
-    gate_type = value.get("gate_type")
-    extra = set(value) - fixed_fields
-    if extra:
-        fields = ", ".join(sorted(str(field) for field in extra))
-        raise ValueError(f"Model config {field_name} contains unsupported fields: {fields}.")
-    if gate_type != "one_sided_threshold":
-        raise ValueError(
-            f"Model config {field_name}.gate_type must be 'one_sided_threshold'."
+    expected = frozenset(topology.active_sites)
+    gate_specs: list[dict[str, Any]] = []
+    for layer_index, layer in enumerate(layers):
+        modules = {
+            "a": getattr(layer, "a_gate", None),
+            "m": getattr(layer, "m_gate", None),
+            "h": getattr(getattr(layer, "mlp", None), "act", None),
+        }
+        attention = getattr(layer, "attention", None)
+        for alias in ("q_pre", "k_pre", "q_post", "k_post", "v"):
+            modules[alias] = getattr(attention, f"{alias}_gate", None)
+        realized = frozenset(
+            alias for alias, module in modules.items() if activation_gate_metadata(module) is not None
         )
-    if "kappa" not in value:
-        raise ValueError(f"Model config {field_name}.kappa is required.")
-    _require_finite_number(value["kappa"], field_name=f"{field_name}.kappa", minimum=0.0)
-    return {"gate_type": gate_type, "kappa": float(value["kappa"])}
+        if realized != expected:
+            raise ValueError(
+                f"Layer {layer_index} realizes gate sites {sorted(realized)}, "
+                f"but topology {topology.topology_id} requires {list(topology.active_sites)}."
+            )
+        gate_specs.extend(
+            activation_gate_metadata(modules[alias])
+            for alias in SITE_ALIAS_ORDER
+            if alias in expected
+        )
 
-
-def _require_finite_number(
-    value: Any,
-    *,
-    field_name: str,
-    minimum: float,
-) -> None:
-    valid = not isinstance(value, bool) and isinstance(value, (int, float)) and math.isfinite(float(value))
-    valid = valid and float(value) >= minimum
-    if not valid:
-        raise ValueError(f"Model config {field_name} must be a finite non-negative number.")
+    if gate_specs and any(spec != gate_specs[0] for spec in gate_specs[1:]):
+        raise ValueError("Site-gate operator and kappa must match across all active sites and layers.")
+    if gate_specs:
+        realized_site_gate = {"operator": gate_specs[0]["operator"]}
+        if realized_site_gate["operator"] != "relu":
+            realized_site_gate["kappa"] = gate_specs[0]["kappa"]
+        if realized_site_gate != site_gate:
+            raise ValueError(
+                f"Runtime site gate {realized_site_gate} does not match "
+                f"model.site_gate {site_gate}."
+            )
+    return {
+        **topology.as_dict(),
+        "site_gate": None if site_gate is None else dict(site_gate),
+    }

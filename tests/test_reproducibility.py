@@ -92,14 +92,14 @@ def test_explicit_schedule_reaches_naive_and_orthogonal_batch_sampling(
     class Model:
         def __call__(self, *, input_ids: torch.Tensor, labels: torch.Tensor) -> SimpleNamespace:
             del labels
-            capture.activations["mlp_hiddens"] = parameter.reshape(1)
+            capture.activations["h"] = parameter.reshape(1)
             loss = (parameter - 0.25).square() + input_ids.float().sum() * 0.0
             return SimpleNamespace(loss=loss)
 
     pressure_config = ActivationPressureConfig(
         enabled=True,
         method=method,
-        sites=["mlp_hiddens"],
+        sites=["h"],
         weight=1.0,
         step_budget=0.5,
         eps=1e-12,

@@ -5,7 +5,7 @@ from __future__ import annotations
 from contextlib import contextmanager
 from typing import Any, Iterator
 
-from paper_exp.modeling import activation_gate_metadata
+from paper_exp.modeling import expose_attention_sites, model_topology_metadata
 
 from .logical_products import (
     linear_zero_product_counts,
@@ -346,52 +346,68 @@ def _capture_model_propagation(
     modeling_gpt_neox: Any,
     torch: Any,
 ) -> Iterator[None]:
+    expose_attention_sites(model, torch=torch)
+    topology = model_topology_metadata(model)
+    active_sites = frozenset(topology["active_sites"])
     handles = []
     try:
         for layer_index, layer in enumerate(model.gpt_neox.layers):
-            attention_relu = getattr(layer, "attention_input_relu", None)
-            mlp_relu = getattr(layer, "mlp_input_relu", None)
-            hidden_relu = activation_gate_metadata(layer.mlp.act) is not None
+            attention_gate = getattr(layer, "a_gate", None)
+            mlp_gate = getattr(layer, "m_gate", None)
+            hidden_gate = "h" in active_sites
 
             attention = layer.attention
-            query_relu = getattr(attention, "query_relu", None)
-            key_relu = getattr(attention, "key_relu", None)
-            value_relu = getattr(attention, "value_relu", None)
-            qk_placement = getattr(attention, "qk_relu_placement", None)
-            if (query_relu is not None or key_relu is not None) and qk_placement not in {
+            attention_gates = {
+                alias: getattr(attention, f"{alias}_gate", None)
+                for alias in ("q_pre", "k_pre", "q_post", "k_post", "v")
+            }
+            qk_placement = getattr(attention, "qk_gate_placement", None)
+            if any(
+                attention_gates[alias] is not None
+                for alias in ("q_pre", "k_pre", "q_post", "k_post")
+            ) and qk_placement not in {
                 "pre_rope",
                 "post_rope",
             }:
                 raise ValueError(
-                    f"Layer {layer_index} has Q/K ReLU modules but no valid qk_relu_placement."
+                    f"Layer {layer_index} has Q/K gate modules but no valid qk_gate_placement."
                 )
             head_width = int(attention.head_size)
             rotary_dim = int(attention.rotary_ndims)
             accumulator.set_gate_metadata(
                 layer_index,
                 qk_placement=qk_placement,
-                query=query_relu is not None,
-                key=key_relu is not None,
-                value=value_relu is not None,
+                query=(
+                    attention_gates["q_pre"] is not None
+                    or attention_gates["q_post"] is not None
+                ),
+                key=(
+                    attention_gates["k_pre"] is not None
+                    or attention_gates["k_post"] is not None
+                ),
+                value=attention_gates["v"] is not None,
                 rotary_dim=rotary_dim,
                 head_width=head_width,
             )
 
-            for gate_name, gate_module in (
-                ("query", query_relu),
-                ("key", key_relu),
-                ("value", value_relu),
-            ):
-                input_stage = f"{gate_name}_gate_input"
-                output_stage = f"{gate_name}_gate_output"
+            for alias, gate_module in attention_gates.items():
+                input_stage = f"{alias}_gate_input"
+                output_stage = f"{alias}_gate_output"
                 if gate_module is None:
                     accumulator.mark_unavailable(
-                        "activations", input_stage, layer_index, "post_qkv_gate_absent"
+                        "activations", input_stage, layer_index, f"{alias}_gate_absent"
                     )
                     accumulator.mark_unavailable(
-                        "activations", output_stage, layer_index, "post_qkv_gate_absent"
+                        "activations", output_stage, layer_index, f"{alias}_gate_absent"
                     )
                     continue
+                operand = {
+                    "q_pre": "query",
+                    "q_post": "query",
+                    "k_pre": "key",
+                    "k_post": "key",
+                    "v": "value",
+                }[alias]
                 handles.append(
                     gate_module.register_forward_pre_hook(
                         _activation_pre_hook(accumulator, input_stage, layer_index)
@@ -402,13 +418,19 @@ def _capture_model_propagation(
                         _gate_output_hook(
                             accumulator,
                             output_stage,
-                            gate_name,
+                            operand,
                             layer_index,
                             remember_for_rope=(
-                                gate_name in {"query", "key"}
-                                and qk_placement == "pre_rope"
+                                alias in {"q_pre", "k_pre"}
                             ),
                         )
+                    )
+                )
+
+            for alias in ("q_pre", "k_pre", "q_post", "k_post", "v"):
+                handles.append(
+                    getattr(attention, f"{alias}_site").register_forward_hook(
+                        _activation_output_hook(accumulator, alias, layer_index)
                     )
                 )
 
@@ -422,12 +444,12 @@ def _capture_model_propagation(
                     _activation_output_hook(accumulator, "residual_output", layer_index)
                 )
             )
-            if attention_relu is None:
+            if attention_gate is None:
                 accumulator.mark_unavailable(
                     "activations",
-                    "attention_input_relu",
+                    "attention_input_gate",
                     layer_index,
-                    "post_layernorm_relu_absent",
+                    "a_gate_absent",
                 )
                 handles.append(
                     layer.input_layernorm.register_forward_hook(
@@ -437,30 +459,30 @@ def _capture_model_propagation(
                     )
                 )
             else:
-                # The architecture invokes this explicit ReLU from a LayerNorm
+                # The architecture invokes this explicit gate from a LayerNorm
                 # output hook. Its pre-hook is therefore the only placement-safe
-                # way to capture the raw LayerNorm tensor before rectification.
+                # way to capture the raw LayerNorm tensor before gating.
                 handles.append(
-                    attention_relu.register_forward_pre_hook(
+                    attention_gate.register_forward_pre_hook(
                         _activation_pre_hook(
                             accumulator, "attention_layernorm_raw", layer_index
                         )
                     )
                 )
                 handles.append(
-                    attention_relu.register_forward_hook(
+                    attention_gate.register_forward_hook(
                         _activation_output_hook(
-                            accumulator, "attention_input_relu", layer_index
+                            accumulator, "attention_input_gate", layer_index
                         )
                     )
                 )
 
-            if mlp_relu is None:
+            if mlp_gate is None:
                 accumulator.mark_unavailable(
                     "activations",
-                    "mlp_input_relu",
+                    "mlp_input_gate",
                     layer_index,
-                    "post_layernorm_relu_absent",
+                    "m_gate_absent",
                 )
                 handles.append(
                     layer.post_attention_layernorm.register_forward_hook(
@@ -471,16 +493,16 @@ def _capture_model_propagation(
                 )
             else:
                 handles.append(
-                    mlp_relu.register_forward_pre_hook(
+                    mlp_gate.register_forward_pre_hook(
                         _activation_pre_hook(
                             accumulator, "mlp_layernorm_raw", layer_index
                         )
                     )
                 )
                 handles.append(
-                    mlp_relu.register_forward_hook(
+                    mlp_gate.register_forward_hook(
                         _activation_output_hook(
-                            accumulator, "mlp_input_relu", layer_index
+                            accumulator, "mlp_input_gate", layer_index
                         )
                     )
                 )
@@ -494,20 +516,20 @@ def _capture_model_propagation(
                     _activation_output_hook(accumulator, "mlp_w1_preactivation", layer_index)
                 )
             )
-            if hidden_relu:
+            if hidden_gate:
                 handles.append(
                     layer.mlp.act.register_forward_hook(
                         _activation_output_hook(
-                            accumulator, "mlp_hidden_relu", layer_index
+                            accumulator, "mlp_hidden_gate", layer_index
                         )
                     )
                 )
             else:
                 accumulator.mark_unavailable(
                     "activations",
-                    "mlp_hidden_relu",
+                    "mlp_hidden_gate",
                     layer_index,
-                    "mlp_hidden_relu_absent",
+                    "h_gate_absent",
                 )
             handles.append(
                 layer.mlp.dense_4h_to_h.register_forward_hook(
@@ -517,7 +539,12 @@ def _capture_model_propagation(
 
             handles.append(
                 layer.attention.query_key_value.register_forward_pre_hook(
-                    _linear_pre_hook(accumulator, "qkv_projection", layer_index)
+                    _linear_pre_hook(
+                        accumulator,
+                        "qkv_projection",
+                        layer_index,
+                        activation_stage="a",
+                    )
                 )
             )
             handles.append(
@@ -534,12 +561,22 @@ def _capture_model_propagation(
             )
             handles.append(
                 layer.mlp.dense_h_to_4h.register_forward_pre_hook(
-                    _linear_pre_hook(accumulator, "mlp_w1", layer_index)
+                    _linear_pre_hook(
+                        accumulator,
+                        "mlp_w1",
+                        layer_index,
+                        activation_stage="m",
+                    )
                 )
             )
             handles.append(
                 layer.mlp.dense_4h_to_h.register_forward_pre_hook(
-                    _linear_pre_hook(accumulator, "mlp_w2", layer_index)
+                    _linear_pre_hook(
+                        accumulator,
+                        "mlp_w2",
+                        layer_index,
+                        activation_stage="h",
+                    )
                 )
             )
 
@@ -698,8 +735,16 @@ def _attention_output_hook(accumulator: _PropagationAccumulator, layer: int) -> 
     return hook
 
 
-def _linear_pre_hook(accumulator: _PropagationAccumulator, name: str, layer: int) -> Any:
+def _linear_pre_hook(
+    accumulator: _PropagationAccumulator,
+    name: str,
+    layer: int,
+    *,
+    activation_stage: str | None = None,
+) -> Any:
     def hook(module: Any, inputs: tuple[Any, ...]) -> None:
+        if activation_stage is not None:
+            accumulator.add_activation(activation_stage, layer, inputs[0])
         accumulator.add_linear_matmul(name, layer, inputs[0], int(module.out_features))
 
     return hook

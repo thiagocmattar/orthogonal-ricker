@@ -7,7 +7,7 @@ from typing import Any
 
 import yaml
 
-from paper_exp.activations import ActivationCapture
+from paper_exp.activations import ActivationCapture, resolve_site_aliases
 from paper_exp.config import validate_diagnostic_config
 from paper_exp.data import verify_token_cache
 from paper_exp.modeling import load_checkpoint_model
@@ -73,6 +73,7 @@ def _run_activation_histograms(run: RunHandle) -> Path:
     sites = histogram_config.get("sites")
     if not isinstance(sites, list) or not sites:
         raise ValueError("activation_histograms.sites must be an explicit non-empty list.")
+    sites = list(resolve_site_aliases(sites))
     if bins <= 0:
         raise ValueError("activation_histograms.bins must be positive.")
     if range_min >= range_max:
@@ -189,7 +190,7 @@ def _run_activation_histograms(run: RunHandle) -> Path:
     }
 
     payload = {
-        "schema_version": 2,
+        "schema_version": 3,
         "plot_title": histogram_config.get("plot_title"),
         "bin_edges": bin_edges,
         "range_min": range_min,

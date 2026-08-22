@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 
 from paper_exp.config import (
@@ -8,6 +10,21 @@ from paper_exp.config import (
     validate_config,
     validate_config_filename,
     validate_training_config,
+)
+
+
+TOPOLOGY_IDS = (
+    "A0",
+    "A1-H",
+    "A2",
+    "A3",
+    "A4-Q",
+    "A4-K",
+    "A4-V",
+    "A5-QK-PRE",
+    "A5-QK-POST",
+    "A6-PRE",
+    "A6-POST",
 )
 
 
@@ -31,19 +48,8 @@ def test_required_config_fields_are_checked() -> None:
 
 
 def test_todo_placeholders_can_be_rejected() -> None:
-    config = {
-        "experiment_name": "todo_config",
-        "model": {
-            "provider": "huggingface",
-            "name": "TODO_MODEL",
-            "architecture": "TODO_MODEL_ARCHITECTURE",
-            "initialization": "random",
-        },
-        "data": {"name": "test/dataset", "split": "train"},
-        "evaluation": {"metric": "training_loss"},
-        "run": {"seed": 0, "max_examples": 1},
-        "output": {"dir": "results"},
-    }
+    config = _base_config()
+    config["model"]["name"] = "TODO_MODEL"
 
     with pytest.raises(ConfigError, match="TODO placeholders"):
         validate_config(config, allow_todos=False)
@@ -59,66 +65,117 @@ def test_config_filenames_must_be_numbered() -> None:
 
 
 def test_pretraining_configs_must_use_random_initialization() -> None:
-    config = {
-        "experiment_name": "bad_init",
-        "model": {
-            "provider": "huggingface",
-            "name": "test-random-model",
-            "architecture": "test/architecture",
-            "initialization": "pretrained",
-        },
-        "data": {"name": "test/dataset", "split": "train"},
-        "evaluation": {"metric": "training_loss"},
-        "run": {"seed": 0, "max_examples": 1},
-        "output": {"dir": "results"},
-    }
+    config = _base_config()
+    config["model"]["initialization"] = "pretrained"
 
     with pytest.raises(ConfigError, match="initialization"):
         validate_config(config, allow_todos=False)
 
 
-def test_optional_hidden_act_must_be_non_empty_string() -> None:
-    config = {
-        "experiment_name": "bad_hidden_act",
-        "model": {
-            "provider": "huggingface",
-            "name": "test-random-model",
-            "architecture": "test/architecture",
-            "initialization": "random",
-            "hidden_act": "",
-        },
-        "data": {"name": "test/dataset", "split": "train"},
-        "evaluation": {"metric": "training_loss"},
-        "run": {"seed": 0, "max_examples": 1},
-        "output": {"dir": "results"},
-    }
+@pytest.mark.parametrize("topology_id", TOPOLOGY_IDS)
+def test_all_eleven_topology_ids_are_accepted(topology_id: str) -> None:
+    config = _base_config()
+    config["model"].update(
+        {
+            "topology_id": topology_id,
+            "site_gate": None if topology_id == "A0" else {"operator": "relu"},
+        }
+    )
 
-    with pytest.raises(ConfigError, match="hidden_act"):
+    validate_config(config, allow_todos=False)
+
+
+@pytest.mark.parametrize(
+    "site_gate",
+    [
+        {"operator": "relu"},
+        {"operator": "one_sided_threshold", "kappa": 0.0},
+        {"operator": "symmetric_threshold", "kappa": 0.1},
+    ],
+)
+def test_active_topology_accepts_only_canonical_site_gate_operators(
+    site_gate: dict[str, object],
+) -> None:
+    config = _base_config()
+    config["model"].update({"topology_id": "A2", "site_gate": site_gate})
+
+    validate_config(config, allow_todos=False)
+
+
+@pytest.mark.parametrize(
+    ("topology_id", "site_gate", "message"),
+    [
+        (None, None, "topology_id"),
+        ("a2", {"operator": "relu"}, "topology_id"),
+        ("A6", {"operator": "relu"}, "topology_id"),
+        ("A0", {"operator": "relu"}, "must be null"),
+        ("A2", None, "explicit mapping"),
+        ("A2", True, "explicit mapping"),
+        ("A2", {}, "operator"),
+        ("A2", {"operator": []}, "operator"),
+        ("A2", {"operator": "unknown"}, "operator"),
+        ("A2", {"operator": "relu", "kappa": 0.1}, "must be omitted"),
+        ("A2", {"operator": "one_sided_threshold"}, "kappa is required"),
+        ("A2", {"operator": "symmetric_threshold"}, "kappa is required"),
+        (
+            "A2",
+            {"operator": "one_sided_threshold", "kappa": -0.1},
+            "finite non-negative",
+        ),
+        (
+            "A2",
+            {"operator": "symmetric_threshold", "kappa": float("inf")},
+            "finite non-negative",
+        ),
+        (
+            "A2",
+            {"operator": "symmetric_threshold", "kappa": True},
+            "finite non-negative",
+        ),
+        (
+            "A2",
+            {"operator": "relu", "enabled": True},
+            "unsupported fields",
+        ),
+    ],
+)
+def test_topology_and_site_gate_validation_is_strict(
+    topology_id: object,
+    site_gate: object,
+    message: str,
+) -> None:
+    config = _base_config()
+    config["model"].update(
+        {"topology_id": topology_id, "site_gate": site_gate}
+    )
+
+    with pytest.raises(ConfigError, match=message):
         validate_config(config, allow_todos=False)
 
 
-def test_optional_post_layernorm_relu_must_be_boolean() -> None:
-    config = {
-        "experiment_name": "bad_post_layernorm_relu",
-        "model": {
-            "provider": "huggingface",
-            "name": "test-random-model",
-            "architecture": "test/architecture",
-            "initialization": "random",
-            "post_layernorm_relu": "yes",
-        },
-        "data": {"name": "test/dataset", "split": "train"},
-        "evaluation": {"metric": "training_loss"},
-        "run": {"seed": 0, "max_examples": 1},
-        "output": {"dir": "results"},
-    }
+def test_partial_topology_configuration_is_rejected() -> None:
+    only_topology = _base_config()
+    only_topology["model"]["topology_id"] = "A2"
+    with pytest.raises(ConfigError, match="site_gate"):
+        validate_config(only_topology, allow_todos=False)
 
-    with pytest.raises(ConfigError, match="post_layernorm_relu"):
-        validate_config(config, allow_todos=False)
+    only_gate = _base_config()
+    only_gate["model"]["site_gate"] = {"operator": "relu"}
+    with pytest.raises(ConfigError, match="topology_id"):
+        validate_config(only_gate, allow_todos=False)
+
+
+def test_a2_relu_configuration_is_explicit_and_valid() -> None:
+    config = _base_config()
+    config["model"].update(
+        {"topology_id": "A2", "site_gate": {"operator": "relu"}}
+    )
+
+    validate_config(config, allow_todos=False)
 
 
 def test_seed_schedule_and_validation_partition_fields_are_validated() -> None:
-    config = _post_qkv_config(None)
+    config = _base_config(topology_id="A0", site_gate=None)
     config["run"].update(
         {
             "model_initialization_seed": 0,
@@ -145,7 +202,7 @@ def test_seed_schedule_and_validation_partition_fields_are_validated() -> None:
 
 
 def test_reproducibility_fields_require_explicit_supported_schedule() -> None:
-    config = _post_qkv_config(None)
+    config = _base_config(topology_id="A0", site_gate=None)
     config["run"].update(
         {
             "model_initialization_seed": 0,
@@ -163,7 +220,7 @@ def test_reproducibility_fields_require_explicit_supported_schedule() -> None:
 
 
 def test_model_initialization_seed_must_match_run_seed() -> None:
-    config = _post_qkv_config(None)
+    config = _base_config(topology_id="A0", site_gate=None)
     config["run"].update(
         {
             "model_initialization_seed": 3,
@@ -176,228 +233,6 @@ def test_model_initialization_seed_must_match_run_seed() -> None:
         validate_config(config, allow_todos=False)
 
 
-def test_fixed_one_sided_branch_gates_are_accepted() -> None:
-    config = _post_qkv_config(None)
-    config["model"].update(
-        {
-            "hidden_act": "relu",
-            "post_layernorm_relu": True,
-            "post_layernorm_gate": {
-                "gate_type": "one_sided_threshold",
-                "kappa": 0.1,
-            },
-            "mlp_hidden_gate": {
-                "gate_type": "one_sided_threshold",
-                "kappa": 0.1,
-            },
-        }
-    )
-
-    validate_config(config, allow_todos=False)
-
-
-@pytest.mark.parametrize("field", ["post_layernorm_gate", "mlp_hidden_gate"])
-@pytest.mark.parametrize(
-    ("gate", "message"),
-    [
-        (True, "mapping"),
-        ({"gate_type": "relu", "kappa": 0.1}, "one_sided_threshold"),
-        ({"gate_type": "one_sided_threshold"}, "kappa"),
-        ({"gate_type": "one_sided_threshold", "kappa": -0.1}, "non-negative"),
-        ({"gate_type": "one_sided_threshold", "kappa": float("inf")}, "finite"),
-        ({"gate_type": "one_sided_threshold", "kappa": True}, "finite"),
-        (
-            {"gate_type": "one_sided_threshold", "kappa": 0.1, "enabled": True},
-            "unsupported",
-        ),
-    ],
-)
-def test_fixed_one_sided_branch_gates_reject_invalid_mappings(
-    field: str,
-    gate: object,
-    message: str,
-) -> None:
-    config = _post_qkv_config(None)
-    config["model"].update(
-        {
-            "hidden_act": "relu",
-            "post_layernorm_relu": True,
-            field: gate,
-        }
-    )
-
-    with pytest.raises(ConfigError, match=message):
-        validate_config(config, allow_todos=False)
-
-
-def test_fixed_one_sided_branch_gates_require_active_base_relu_sites() -> None:
-    post_layernorm = _post_qkv_config(None)
-    post_layernorm["model"]["post_layernorm_gate"] = {
-        "gate_type": "one_sided_threshold",
-        "kappa": 0.1,
-    }
-    with pytest.raises(ConfigError, match="post_layernorm_relu"):
-        validate_config(post_layernorm, allow_todos=False)
-
-    mlp_hidden = _post_qkv_config(None)
-    mlp_hidden["model"]["mlp_hidden_gate"] = {
-        "gate_type": "one_sided_threshold",
-        "kappa": 0.1,
-    }
-    with pytest.raises(ConfigError, match="hidden_act"):
-        validate_config(mlp_hidden, allow_todos=False)
-
-
-@pytest.mark.parametrize("placement", ["pre_rope", "post_rope"])
-def test_post_qkv_relu_accepts_both_qk_placements(placement: str) -> None:
-    config = _post_qkv_config(
-        {
-            "enabled": True,
-            "query": True,
-            "key": True,
-            "value": True,
-            "qk_placement": placement,
-        }
-    )
-
-    validate_config(config, allow_todos=False)
-
-
-def test_post_qkv_relu_accepts_fixed_symmetric_threshold() -> None:
-    config = _post_qkv_config(
-        {
-            "enabled": True,
-            "query": True,
-            "key": True,
-            "value": True,
-            "qk_placement": "post_rope",
-            "gate_type": "symmetric_threshold",
-            "kappa": 0.1,
-        }
-    )
-
-    validate_config(config, allow_todos=False)
-
-
-@pytest.mark.parametrize("placement", ["pre_rope", "post_rope"])
-def test_post_qkv_relu_accepts_fixed_one_sided_threshold(placement: str) -> None:
-    config = _post_qkv_config(
-        {
-            "enabled": True,
-            "query": True,
-            "key": True,
-            "value": False,
-            "qk_placement": placement,
-            "gate_type": "one_sided_threshold",
-            "kappa": 0.1,
-        }
-    )
-
-    validate_config(config, allow_todos=False)
-
-
-@pytest.mark.parametrize(
-    ("extra", "message"),
-    [
-        ({"gate_type": "unknown"}, "gate_type"),
-        ({"gate_type": "symmetric_threshold"}, "kappa"),
-        ({"gate_type": "symmetric_threshold", "kappa": -0.1}, "non-negative"),
-        ({"gate_type": "symmetric_threshold", "kappa": float("inf")}, "finite"),
-        ({"gate_type": "symmetric_threshold", "kappa": True}, "finite"),
-        ({"gate_type": "one_sided_threshold"}, "kappa"),
-        ({"gate_type": "one_sided_threshold", "kappa": -0.1}, "non-negative"),
-        ({"gate_type": "relu", "kappa": 0.1}, "must be omitted"),
-    ],
-)
-def test_post_qkv_relu_rejects_invalid_gate_configuration(
-    extra: dict[str, object],
-    message: str,
-) -> None:
-    post_qkv_relu: dict[str, object] = {
-        "enabled": True,
-        "query": True,
-        "key": True,
-        "value": True,
-        "qk_placement": "post_rope",
-    }
-    post_qkv_relu.update(extra)
-
-    with pytest.raises(ConfigError, match=message):
-        validate_config(_post_qkv_config(post_qkv_relu), allow_todos=False)
-
-
-@pytest.mark.parametrize(
-    ("post_qkv_relu", "message"),
-    [
-        (True, "must be a mapping"),
-        (
-            {"enabled": True, "query": True, "key": True, "value": True},
-            "qk_placement",
-        ),
-        (
-            {
-                "enabled": True,
-                "query": True,
-                "key": True,
-                "value": True,
-                "qk_placement": "between_rope",
-            },
-            "qk_placement",
-        ),
-        (
-            {
-                "enabled": True,
-                "query": "yes",
-                "key": True,
-                "value": True,
-                "qk_placement": "pre_rope",
-            },
-            "query",
-        ),
-    ],
-)
-def test_post_qkv_relu_rejects_invalid_mappings(
-    post_qkv_relu: object,
-    message: str,
-) -> None:
-    config = _post_qkv_config(post_qkv_relu)
-
-    with pytest.raises(ConfigError, match=message):
-        validate_config(config, allow_todos=False)
-
-
-def test_disabled_post_qkv_relu_rejects_a_qk_placement() -> None:
-    config = _post_qkv_config(
-        {
-            "enabled": False,
-            "query": False,
-            "key": False,
-            "value": False,
-            "qk_placement": "pre_rope",
-        }
-    )
-
-    with pytest.raises(ConfigError, match="must be omitted"):
-        validate_config(config, allow_todos=False)
-
-
-def _post_qkv_config(post_qkv_relu: object) -> dict[str, object]:
-    return {
-        "experiment_name": "post_qkv_relu_test",
-        "model": {
-            "provider": "huggingface",
-            "name": "test-random-model",
-            "architecture": "test/architecture",
-            "initialization": "random",
-            "post_qkv_relu": post_qkv_relu,
-        },
-        "data": {"name": "test/dataset", "split": "train"},
-        "evaluation": {"metric": "training_loss"},
-        "run": {"seed": 0, "max_examples": 1},
-        "output": {"dir": "results"},
-    }
-
-
 def test_definitive_training_config_requires_explicit_pinned_inputs() -> None:
     config = _definitive_training_config()
 
@@ -405,6 +240,15 @@ def test_definitive_training_config_requires_explicit_pinned_inputs() -> None:
 
     config["model"]["revision"] = "main"
     with pytest.raises(ConfigError, match="immutable"):
+        validate_training_config(config)
+
+
+@pytest.mark.parametrize("field", ["topology_id", "site_gate"])
+def test_definitive_training_config_requires_explicit_topology_fields(field: str) -> None:
+    config = _definitive_training_config()
+    del config["model"][field]
+
+    with pytest.raises(ConfigError, match=field):
         validate_training_config(config)
 
 
@@ -416,7 +260,39 @@ def test_definitive_training_config_rejects_missing_scientific_field() -> None:
         validate_training_config(config)
 
 
-def _definitive_training_config() -> dict[str, object]:
+def test_definitive_training_config_requires_canonical_pressure_sites() -> None:
+    config = _definitive_training_config()
+    config["activation_pressure"]["sites"] = ["unknown"]
+
+    with pytest.raises(ConfigError, match="Unsupported transformer site alias"):
+        validate_training_config(config)
+
+
+def _base_config(
+    *,
+    topology_id: str | None = None,
+    site_gate: dict[str, object] | None = None,
+) -> dict[str, Any]:
+    model: dict[str, Any] = {
+        "provider": "huggingface",
+        "name": "test-random-model",
+        "architecture": "test/architecture",
+        "initialization": "random",
+    }
+    if topology_id is not None:
+        model["topology_id"] = topology_id
+        model["site_gate"] = site_gate
+    return {
+        "experiment_name": "topology_validation_test",
+        "model": model,
+        "data": {"name": "test/dataset", "split": "train"},
+        "evaluation": {"metric": "training_loss"},
+        "run": {"seed": 0, "max_examples": 1},
+        "output": {"dir": "results"},
+    }
+
+
+def _definitive_training_config() -> dict[str, Any]:
     return {
         "experiment_name": "definitive_validation_test",
         "model": {
@@ -425,6 +301,8 @@ def _definitive_training_config() -> dict[str, object]:
             "architecture": "test/architecture",
             "revision": "a" * 40,
             "initialization": "random",
+            "topology_id": "A0",
+            "site_gate": None,
         },
         "data": {
             "name": "test/data",
@@ -469,7 +347,7 @@ def _definitive_training_config() -> dict[str, object]:
         "activation_pressure": {
             "enabled": True,
             "method": "none",
-            "sites": ["mlp_hiddens"],
+            "sites": ["h"],
             "weight": 0.0,
             "step_budget": None,
             "eps": 1.0e-12,

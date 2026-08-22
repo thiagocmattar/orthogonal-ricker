@@ -16,6 +16,7 @@ from paper_exp.data import (
     verify_token_cache,
 )
 from paper_exp.modeling import _build_random_model
+from paper_exp.modeling import model_topology_metadata
 from paper_exp.optimization import (
     _autocast_context,
     _build_adamw_optimizer,
@@ -443,21 +444,7 @@ def _run_started_training(
         "parameter_dtype": _parameter_dtype(model),
         "initial_parameter_sha256": initial_parameter_sha256,
     }
-    hidden_act = getattr(getattr(model, "config", None), "hidden_act", None)
-    if hidden_act is not None:
-        model_manifest["hidden_act"] = hidden_act
-    model_manifest["post_layernorm_relu"] = bool(
-        getattr(getattr(model, "config", None), "post_layernorm_relu", False)
-    )
-    post_layernorm_gate = getattr(getattr(model, "config", None), "post_layernorm_gate", None)
-    if post_layernorm_gate is not None:
-        model_manifest["post_layernorm_gate"] = dict(post_layernorm_gate)
-    mlp_hidden_gate = getattr(getattr(model, "config", None), "mlp_hidden_gate", None)
-    if mlp_hidden_gate is not None:
-        model_manifest["mlp_hidden_gate"] = dict(mlp_hidden_gate)
-    post_qkv_relu = getattr(getattr(model, "config", None), "post_qkv_relu", None)
-    if post_qkv_relu is not None:
-        model_manifest["post_qkv_relu"] = dict(post_qkv_relu)
+    model_manifest["activation_topology"] = model_topology_metadata(model)
     manifest_updates["model"] = model_manifest
     validation_manifest = dict(validation_config)
     if validation_metadata is not None:

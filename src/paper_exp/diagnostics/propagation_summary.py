@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from paper_exp.modeling import activation_gate_metadata
+from paper_exp.modeling import activation_gate_metadata, model_topology_metadata
+from paper_exp.topology import SITE_ALIAS_ORDER
 
 from .logical_products import LOGICAL_MATMUL_STAGES, summarize_block_model_products
 
@@ -12,16 +13,26 @@ from .logical_products import LOGICAL_MATMUL_STAGES, summarize_block_model_produ
 ACTIVATION_STAGE_ORDER = [
     "residual_input",
     "attention_layernorm_raw",
-    "attention_input_relu",
+    "attention_input_gate",
+    "a",
     "query_projection_output",
     "key_projection_output",
     "value_projection_output",
-    "query_gate_input",
-    "key_gate_input",
-    "value_gate_input",
-    "query_gate_output",
-    "key_gate_output",
-    "value_gate_output",
+    "q_pre_gate_input",
+    "q_pre_gate_output",
+    "q_pre",
+    "k_pre_gate_input",
+    "k_pre_gate_output",
+    "k_pre",
+    "q_post_gate_input",
+    "q_post_gate_output",
+    "q_post",
+    "k_post_gate_input",
+    "k_post_gate_output",
+    "k_post",
+    "v_gate_input",
+    "v_gate_output",
+    "v",
     "query_qk_input",
     "key_qk_input",
     "value_pv_input",
@@ -29,9 +40,11 @@ ACTIVATION_STAGE_ORDER = [
     "attention_context",
     "attention_output",
     "mlp_layernorm_raw",
-    "mlp_input_relu",
+    "mlp_input_gate",
+    "m",
     "mlp_w1_preactivation",
-    "mlp_hidden_relu",
+    "mlp_hidden_gate",
+    "h",
     "mlp_output",
     "residual_output",
 ]
@@ -40,27 +53,39 @@ MATMUL_STAGE_ORDER = list(LOGICAL_MATMUL_STAGES)
 
 ACTIVATION_STAGE_LABELS = {
     "residual_input": "H_l (block input)",
-    "attention_layernorm_raw": "LN_attn(H_l), before optional ReLU",
-    "attention_input_relu": "ReLU(LN_attn(H_l))",
+    "attention_layernorm_raw": "LN_attn(H_l), before optional a gate",
+    "attention_input_gate": "a gate output G_a(LN_attn(H_l))",
+    "a": "a: actual fused W_QKV input",
     "query_projection_output": "Q^0 from fused QKV projection, before gate/RoPE",
     "key_projection_output": "K^0 from fused QKV projection, before gate/RoPE",
     "value_projection_output": "V^0 from fused QKV projection, before gate",
-    "query_gate_input": "Input to query ReLU (placement-dependent)",
-    "key_gate_input": "Input to key ReLU (placement-dependent)",
-    "value_gate_input": "V^0 input to value ReLU",
-    "query_gate_output": "Output of query ReLU (placement-dependent)",
-    "key_gate_output": "Output of key ReLU (placement-dependent)",
-    "value_gate_output": "Output of value ReLU",
-    "query_qk_input": "Actual Q operand of QK^T",
-    "key_qk_input": "Actual K operand of QK^T",
-    "value_pv_input": "Actual V operand of PV",
+    "q_pre_gate_input": "q_pre gate input before partial RoPE",
+    "q_pre_gate_output": "q_pre gate output before partial RoPE",
+    "q_pre": "q_pre: query port output before partial RoPE",
+    "k_pre_gate_input": "k_pre gate input before partial RoPE",
+    "k_pre_gate_output": "k_pre gate output before partial RoPE",
+    "k_pre": "k_pre: key port output before partial RoPE",
+    "q_post_gate_input": "q_post gate input after partial RoPE",
+    "q_post_gate_output": "q_post gate output after partial RoPE",
+    "q_post": "q_post: query port output consumed by QK^T",
+    "k_post_gate_input": "k_post gate input after partial RoPE",
+    "k_post_gate_output": "k_post gate output after partial RoPE",
+    "k_post": "k_post: key port output consumed by QK^T",
+    "v_gate_input": "v gate input",
+    "v_gate_output": "v gate output",
+    "v": "v: value port output consumed by PV",
+    "query_qk_input": "q_post: actual Q operand of QK^T after partial RoPE",
+    "key_qk_input": "k_post: actual K operand of QK^T after partial RoPE",
+    "value_pv_input": "v: actual V operand of PV",
     "attention_probabilities": "P = softmax(masked QK^T)",
     "attention_context": "C = PV",
     "attention_output": "O = C W_o + b_o",
-    "mlp_layernorm_raw": "LN_mlp(H_l), before optional ReLU",
-    "mlp_input_relu": "ReLU(LN_mlp(H_l))",
+    "mlp_layernorm_raw": "LN_mlp(H_l), before optional m gate",
+    "mlp_input_gate": "m gate output G_m(LN_mlp(H_l))",
+    "m": "m: actual MLP W1 input",
     "mlp_w1_preactivation": "U = X_mlp W_1 + b_1",
-    "mlp_hidden_relu": "A = ReLU(U)",
+    "mlp_hidden_gate": "h gate output G_h(U)",
+    "h": "h: actual MLP W2 input",
     "mlp_output": "M = A W_2 + b_2",
     "residual_output": "H_{l+1} = H_l + O + M",
 }
@@ -75,12 +100,22 @@ MATMUL_STAGE_LABELS = {
 }
 
 ENDPOINT_ZERO_STAGES = {
-    "z_a": "attention_input_relu",
-    "z_m": "mlp_input_relu",
-    "z_h": "mlp_hidden_relu",
-    "z_q_gate": "query_gate_output",
-    "z_k_gate": "key_gate_output",
-    "z_v_gate": "value_gate_output",
+    "z_a": "a",
+    "z_m": "m",
+    "z_h": "h",
+    "z_q_pre": "q_pre",
+    "z_k_pre": "k_pre",
+    "z_q_post": "q_post",
+    "z_k_post": "k_post",
+    "z_v": "v",
+    "z_a_gate": "attention_input_gate",
+    "z_m_gate": "mlp_input_gate",
+    "z_h_gate": "mlp_hidden_gate",
+    "z_q_pre_gate": "q_pre_gate_output",
+    "z_k_pre_gate": "k_pre_gate_output",
+    "z_q_post_gate": "q_post_gate_output",
+    "z_k_post_gate": "k_post_gate_output",
+    "z_v_gate": "v_gate_output",
     "z_q_qk": "query_qk_input",
     "z_k_qk": "key_qk_input",
     "z_v_pv": "value_pv_input",
@@ -88,20 +123,23 @@ ENDPOINT_ZERO_STAGES = {
 }
 
 
-def _post_qkv_relu_metadata(layers: list[Any]) -> dict[str, Any]:
+def _attention_gate_metadata(layers: list[Any]) -> dict[str, Any]:
+    aliases = ("q_pre", "k_pre", "q_post", "k_post", "v")
     per_layer = []
     for layer_index, layer in enumerate(layers):
         attention = layer.attention
         gate_specs = {
-            name: activation_gate_metadata(getattr(attention, f"{name}_relu", None))
-            for name in ("query", "key", "value")
+            alias: activation_gate_metadata(getattr(attention, f"{alias}_gate", None))
+            for alias in aliases
         }
+        active_sites = [alias for alias in aliases if gate_specs[alias] is not None]
         row = {
             "layer": layer_index,
-            "query": gate_specs["query"] is not None,
-            "key": gate_specs["key"] is not None,
-            "value": gate_specs["value"] is not None,
-            "qk_placement": getattr(attention, "qk_relu_placement", None),
+            "active_sites": active_sites,
+            "gate_presence": {
+                alias: gate_specs[alias] is not None for alias in aliases
+            },
+            "qk_gate_placement": getattr(attention, "qk_gate_placement", None),
             "rotary_dim": int(attention.rotary_ndims),
             "head_width": int(attention.head_size),
             "gate_specs": gate_specs,
@@ -109,38 +147,48 @@ def _post_qkv_relu_metadata(layers: list[Any]) -> dict[str, Any]:
         per_layer.append(row)
 
     signatures = {
-        (row["query"], row["key"], row["value"], row["qk_placement"])
+        (tuple(row["active_sites"]), row["qk_gate_placement"])
         for row in per_layer
     }
     if len(signatures) != 1:
-        raise ValueError("Post-QKV gate presence and placement must match across all layers.")
-    query, key, value, placement = next(iter(signatures))
-    if (query or key) and placement not in {"pre_rope", "post_rope"}:
+        raise ValueError("Attention gate presence and placement must match across all layers.")
+    active_sites_tuple, placement = next(iter(signatures))
+    active_sites = list(active_sites_tuple)
+    if set(active_sites).intersection({"q_pre", "k_pre"}) and placement != "pre_rope":
+        raise ValueError("q_pre/k_pre gates require qk_gate_placement pre_rope.")
+    if set(active_sites).intersection({"q_post", "k_post"}) and placement != "post_rope":
+        raise ValueError("q_post/k_post gates require qk_gate_placement post_rope.")
+    if not set(active_sites).intersection({"q_pre", "k_pre", "q_post", "k_post"}):
+        placement = None
+    if placement not in {None, "pre_rope", "post_rope"}:
         raise ValueError("Q/K gates require qk_placement pre_rope or post_rope.")
 
     entries = [
-        (row["layer"], {"query": "q", "key": "k", "value": "v"}[name], row["gate_specs"][name])
+        (row["layer"], alias, row["gate_specs"][alias])
         for row in per_layer
-        for name in ("query", "key", "value")
-        if row["gate_specs"][name] is not None
+        for alias in aliases
+        if row["gate_specs"][alias] is not None
     ]
-    _validate_gate_spec_entries(entries, context="Post-QKV")
+    _validate_gate_spec_entries(entries, context="Attention")
     gate_specs = {
-        name: _summarize_gate_specs(
-            [row["gate_specs"][name] for row in per_layer if row["gate_specs"][name] is not None]
+        alias: _summarize_gate_specs(
+            [
+                row["gate_specs"][alias]
+                for row in per_layer
+                if row["gate_specs"][alias] is not None
+            ]
         )
-        for name in ("query", "key", "value")
+        for alias in aliases
     }
     enabled_specs = [spec for _layer, _site, spec in entries]
     common_spec = _summarize_gate_specs(enabled_specs)
     return {
-        "enabled": bool(query or key or value),
-        "query": query,
-        "key": key,
-        "value": value,
-        "qk_placement": placement,
+        "enabled": bool(active_sites),
+        "active_sites": active_sites,
+        "gate_presence": {alias: alias in active_sites for alias in aliases},
+        "qk_gate_placement": placement,
         "gate_family": common_spec["gate_family"] if common_spec is not None else None,
-        "gate_type": common_spec["gate_type"] if common_spec is not None else None,
+        "operator": common_spec["operator"] if common_spec is not None else None,
         "kappa": common_spec.get("kappa") if common_spec is not None else None,
         "gate_specs": gate_specs,
         "layers": per_layer,
@@ -150,7 +198,7 @@ def _post_qkv_relu_metadata(layers: list[Any]) -> dict[str, Any]:
 def _gate_structure(spec: dict[str, Any]) -> tuple[Any, ...]:
     return (
         spec["gate_family"],
-        spec["gate_type"],
+        spec["operator"],
         float(spec["kappa"]),
     )
 
@@ -164,7 +212,9 @@ def _validate_gate_spec_entries(
         return
     structures = {_gate_structure(spec) for _layer, _site, spec in entries}
     if len(structures) != 1:
-        raise ValueError(f"{context} gate family and kappa must match across enabled sites and layers.")
+        raise ValueError(
+            f"{context} gate operator and kappa must match across enabled sites and layers."
+        )
 
 
 def _summarize_gate_specs(specs: list[dict[str, Any]]) -> dict[str, Any] | None:
@@ -177,7 +227,7 @@ def _architecture_metadata(
     model: Any,
     *,
     layers: list[Any],
-    post_qkv_relu: dict[str, Any],
+    attention_gates: dict[str, Any],
     block_size: int,
     torch: Any,
 ) -> dict[str, Any]:
@@ -186,38 +236,61 @@ def _architecture_metadata(
     if block_size <= 0:
         raise ValueError("Architecture accounting requires a positive sequence length.")
 
-    branch_gate_specs_per_layer = [
-        {
-            "a": activation_gate_metadata(getattr(layer, "attention_input_relu", None)),
-            "m": activation_gate_metadata(getattr(layer, "mlp_input_relu", None)),
-            "h": activation_gate_metadata(layer.mlp.act),
-        }
-        for layer in layers
+    del torch  # Kept in the call signature alongside the other diagnostic reducers.
+    topology = model_topology_metadata(model)
+    active_sites = list(topology["active_sites"])
+    active_site_set = frozenset(active_sites)
+    expected_attention_sites = [
+        site
+        for site in active_sites
+        if site in {"q_pre", "k_pre", "q_post", "k_post", "v"}
     ]
-    branch_signatures = {
-        (
-            specs["a"] is not None,
-            specs["m"] is not None,
-            specs["h"] is not None,
-        )
-        for specs in branch_gate_specs_per_layer
-    }
-    if len(branch_signatures) != 1:
+    if attention_gates["active_sites"] != expected_attention_sites:
         raise ValueError(
-            "Branch and MLP-hidden gate presence must match across all layers."
+            "Measured attention gate sites do not match the configured activation topology."
         )
-    attention_input, mlp_input, mlp_hidden = next(iter(branch_signatures))
-    branch_entries = [
-        (layer_index, site, specs[site])
-        for layer_index, specs in enumerate(branch_gate_specs_per_layer)
-        for site in ("a", "m", "h")
-        if specs[site] is not None
+    if attention_gates["qk_gate_placement"] != topology["qk_placement"]:
+        raise ValueError(
+            "Measured Q/K gate placement does not match the configured activation topology."
+        )
+
+    attention_layers = attention_gates.get("layers", [])
+    if len(attention_layers) != len(layers):
+        raise ValueError("Expected one attention-gate metadata row per layer.")
+    gate_specs_per_layer = []
+    for layer_index, layer in enumerate(layers):
+        attention_specs = attention_layers[layer_index]["gate_specs"]
+        modules = {
+            "a": getattr(layer, "a_gate", None),
+            "m": getattr(layer, "m_gate", None),
+            "h": layer.mlp.act if "h" in active_site_set else None,
+        }
+        row = {
+            "layer": layer_index,
+            **{
+                alias: (
+                    activation_gate_metadata(modules[alias])
+                    if alias in modules
+                    else attention_specs[alias]
+                )
+                for alias in SITE_ALIAS_ORDER
+            },
+        }
+        gate_specs_per_layer.append(row)
+
+    gate_entries = [
+        (row["layer"], alias, row[alias])
+        for row in gate_specs_per_layer
+        for alias in SITE_ALIAS_ORDER
+        if row[alias] is not None
     ]
-    for site in ("a", "m", "h"):
-        _validate_gate_spec_entries(
-            [entry for entry in branch_entries if entry[1] == site],
-            context=f"Branch site {site}",
+    _validate_gate_spec_entries(gate_entries, context="Activation topology")
+    gate_specs = {
+        alias: _summarize_gate_specs(
+            [row[alias] for row in gate_specs_per_layer if row[alias] is not None]
         )
+        for alias in SITE_ALIAS_ORDER
+    }
 
     projection_signatures = {
         (
@@ -269,42 +342,6 @@ def _architecture_metadata(
     vocab_size, hidden_size = output_shape
     intermediate_size = w1_out
 
-    active = {
-        "a": attention_input,
-        "m": mlp_input,
-        "h": mlp_hidden,
-        "q": bool(post_qkv_relu["query"]),
-        "k": bool(post_qkv_relu["key"]),
-        "v": bool(post_qkv_relu["value"]),
-    }
-    active_sites = [
-        site for site in ("a", "m", "h", "q", "k", "v") if active[site]
-    ]
-    placement = post_qkv_relu["qk_placement"] if active["q"] or active["k"] else None
-    qkv_gate_specs = post_qkv_relu.get("gate_specs", {})
-    gate_specs = {
-        "a": _summarize_gate_specs([specs["a"] for specs in branch_gate_specs_per_layer if specs["a"] is not None]),
-        "m": _summarize_gate_specs([specs["m"] for specs in branch_gate_specs_per_layer if specs["m"] is not None]),
-        "h": _summarize_gate_specs([specs["h"] for specs in branch_gate_specs_per_layer if specs["h"] is not None]),
-        "q": qkv_gate_specs.get("query"),
-        "k": qkv_gate_specs.get("key"),
-        "v": qkv_gate_specs.get("value"),
-    }
-    qkv_layers = post_qkv_relu.get("layers", [])
-    gate_specs_per_layer = []
-    for layer_index, branch_specs in enumerate(branch_gate_specs_per_layer):
-        attention_specs = qkv_layers[layer_index]["gate_specs"] if qkv_layers else {}
-        row = {
-            "layer": layer_index,
-            "a": branch_specs["a"],
-            "m": branch_specs["m"],
-            "h": branch_specs["h"],
-            "q": attention_specs.get("query"),
-            "k": attention_specs.get("key"),
-            "v": attention_specs.get("value"),
-        }
-        gate_specs_per_layer.append(row)
-
     attention_core_products = hidden_size * block_size * (block_size + 1) // 2
     operation_products_per_sequence_per_layer = {
         "qkv_projection": block_size * qkv_in * qkv_out,
@@ -319,12 +356,16 @@ def _architecture_metadata(
     )
 
     return {
-        "active_gate_sites": active_sites,
-        "gate_presence": active,
+        "topology_id": topology["topology_id"],
+        "active_sites": active_sites,
+        "gate_presence": {
+            alias: alias in active_site_set for alias in SITE_ALIAS_ORDER
+        },
+        "site_gate": topology["site_gate"],
         "gate_specs": gate_specs,
         "gate_specs_per_layer": gate_specs_per_layer,
-        "qk_gate_placement": placement,
-        "hidden_activation": str(getattr(model.config, "hidden_act", "")),
+        "qk_gate_placement": topology["qk_placement"],
+        "base_hidden_activation": str(getattr(model.config, "hidden_act", "")),
         "num_layers": len(layers),
         "hidden_size": hidden_size,
         "intermediate_size": intermediate_size,

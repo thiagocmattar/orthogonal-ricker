@@ -24,33 +24,72 @@ store newly initialized parameters in a numerically unsafe dtype.
 
 Pythia/GPT-NeoX uses parallel attention and MLP residual branches. For block
 input `H_l`, both branches consume normalized views of the same input and the
-block produces a residual sum. Architecture gates can change the branch inputs,
-MLP hidden activation, or Q/K/V operands; the final LayerNorm remains unchanged
-unless a future reviewed plan and implementation explicitly add another path.
+block produces a residual sum. A named topology can gate branch inputs, the MLP
+hidden activation, or Q/K/V ports; the final LayerNorm remains unchanged unless
+a future reviewed plan and implementation explicitly add another path.
 
-## Activation Sites
+## Transformer Sites
 
-Site aliases identify exact tensors, not broad conceptual regions. The capture
-implementation records one named tensor per layer.
+A transformer site is an input-dependent tensor whose matrix dimensions feed a
+large downstream matrix multiplication. Batch, head, and token axes may appear
+as leading dimensions, but the alias denotes the exact operand port rather than
+a broad conceptual region. These eight aliases are the complete supported
+vocabulary:
 
-| Alias | Captured tensor | Shape | Immediate downstream operation |
+| Alias | Exact tensor port | Shape | Large downstream matrix multiplication |
 | --- | --- | --- | --- |
-| `mlp_hiddens` | Output of `gpt_neox.layers.N.mlp.act` | `[batch, seq, intermediate]` | MLP down projection `dense_4h_to_h` |
-| `attention_inputs` | Output of `attention_input_relu`, or the input LayerNorm output when no gate module exists | `[batch, seq, hidden]` | Fused QKV projection |
-| `mlp_inputs` | Output of `mlp_input_relu`, or the post-attention LayerNorm output when no gate module exists | `[batch, seq, hidden]` | MLP up projection `dense_h_to_4h` |
-| `query_gate_outputs` | Output of the per-layer query gate | `[batch, heads, tokens, head_width]` | Partial RoPE for PRE placement; QK for POST placement |
-| `key_gate_outputs` | Output of the per-layer key gate | `[batch, heads, tokens, head_width]` | Partial RoPE for PRE placement; QK for POST placement |
-| `value_gate_outputs` | Output of the per-layer value gate | `[batch, heads, tokens, head_width]` | PV product |
-| `residual_streams` | Positional input to `gpt_neox.layers.N` | `[batch, seq, hidden]` | The transformer block |
-| `attention_outputs` | First tensor returned by `gpt_neox.layers.N.attention`, before residual addition | `[batch, seq, hidden]` | Residual addition |
+| `a` | Attention-branch LayerNorm output, or the gate output at that port | `[batch, seq, hidden]` | Fused `W_QKV` projection |
+| `m` | MLP-branch LayerNorm output, or the gate output at that port | `[batch, seq, hidden]` | MLP `W1` up projection |
+| `h` | Output of `gpt_neox.layers.N.mlp.act`: stock GELU or the configured gate | `[batch, seq, intermediate]` | MLP `W2` down projection |
+| `q_pre` | Query port immediately before partial RoPE | `[batch, heads, tokens, head_width]` | `QK^T`, after partial RoPE |
+| `k_pre` | Key port immediately before partial RoPE | `[batch, heads, tokens, head_width]` | `QK^T`, after partial RoPE |
+| `q_post` | Query port immediately after partial RoPE | `[batch, heads, tokens, head_width]` | `QK^T` |
+| `k_post` | Key port immediately after partial RoPE | `[batch, heads, tokens, head_width]` | `QK^T` |
+| `v` | Value port from the fused QKV projection | `[batch, heads, tokens, head_width]` | `PV` attention-context product |
 
-`attention_outputs` is not an attention probability tensor. For PRE-RoPE Q/K
-gates, gate-output zeros and actual QK-operand zeros are also different: RoPE
-can rotate a sparse pair into dense coordinates. Diagnostics that claim QK
-opportunity must count the actual post-RoPE operands.
+Aliases are exact in configs, artifacts, metrics, plots, and prose. Do not use
+the retired broad names `mlp_hiddens`, `attention_inputs`, `mlp_inputs`,
+`query_gate_outputs`, `key_gate_outputs`, `value_gate_outputs`,
+`residual_streams`, or `attention_outputs` as synonyms.
+For PRE-RoPE sites, captured gate-output zeros and actual QK-operand zeros are
+different: RoPE can rotate a sparse pair into dense coordinates. Diagnostics
+that claim QK opportunity must count the actual post-RoPE operands.
 
 There is no default activation-pressure target. The reviewed plan and every
-config must name each site explicitly; aliases never broaden silently.
+config must name each pressure or diagnostic site explicitly; an alias never
+broadens silently.
+
+## Activation Topologies
+
+A topology ID specifies only the ports that have active site gates. It does not
+specify the site-gate operator or `kappa`, optimizer, activation-pressure
+method, pressure target, or pressure weight. Those are separate config fields
+and experimental factors.
+
+| Topology ID | Active gate ports | Placement note |
+| --- | --- | --- |
+| `A0` | none | Stock Pythia path, including stock GELU at `h`; `model.site_gate` is `null` |
+| `A1-H` | `h` | MLP hidden port only |
+| `A2` | `m`, `h` | MLP branch input and hidden ports only |
+| `A3` | `a`, `m`, `h` | Both branch inputs and the MLP hidden port |
+| `A4-Q` | `a`, `m`, `h`, `q_post` | Q is POST-RoPE |
+| `A4-K` | `a`, `m`, `h`, `k_post` | K is POST-RoPE |
+| `A4-V` | `a`, `m`, `h`, `v` | V port before `PV` |
+| `A5-QK-PRE` | `a`, `m`, `h`, `q_pre`, `k_pre` | Q and K are PRE-RoPE |
+| `A5-QK-POST` | `a`, `m`, `h`, `q_post`, `k_post` | Q and K are POST-RoPE |
+| `A6-PRE` | `a`, `m`, `h`, `q_pre`, `k_pre`, `v` | Q and K are PRE-RoPE; V is also active |
+| `A6-POST` | `a`, `m`, `h`, `q_post`, `k_post`, `v` | Q and K are POST-RoPE; V is also active |
+
+`A4-Q` and `A4-K` retain concise IDs but always mean the POST-RoPE ports; there
+are no implied PRE variants. To realize the requested ReLU form of `A2`, for
+example, a config combines `model.topology_id: A2` with
+`model.site_gate.operator: relu`. The ID `A2` alone means only `{m, h}`.
+
+[`humans/110-pythia-14m-s1-topology-atlas.pdf`](humans/110-pythia-14m-s1-topology-atlas.pdf)
+is a historical visual reference for the original topology rows, not the
+normative registry. It predates `A2`; no `A2` logical-reach ceiling is defined
+or inferred here. Its ceilings are logical-product reach calculations, not
+measured runtime speedups.
 
 ## Pressure Aggregation
 
@@ -147,9 +186,13 @@ Important boundaries:
 - `step_budget` caps the final pressure/task direction ratio; it is not a
   sparsity target or convergence guarantee.
 
-## Fixed Threshold Gates
+## Site-gate Operators
 
-Two parameter-free hard gates are implemented.
+Every active port in a non-`A0` topology uses the same explicit
+`model.site_gate`. The supported operators are `relu`,
+`one_sided_threshold`, and `symmetric_threshold`. `relu` is the standard
+elementwise ReLU and has no `kappa`. The two parameter-free hard-threshold
+operators require an explicit `kappa`.
 
 One-sided gate:
 
@@ -163,14 +206,16 @@ Signed-magnitude gate:
 Gpm_kappa(x) = x if |x| >= kappa, else 0
 ```
 
-`kappa` is finite, absolute, and nonnegative. Equality survives. The mask is
-formed from a detached comparison: surviving inputs have identity input
-gradient and rejected inputs have zero input gradient. These gates produce
-exact zeros but do not make dense kernels skip work.
+For threshold operators, `kappa` is finite, absolute, and nonnegative.
+Equality survives. The mask is formed from a detached comparison: surviving
+inputs have identity input gradient and rejected inputs have zero input
+gradient. These gates produce exact zeros but do not make dense kernels skip
+work.
 
-Implemented architecture hooks can place gates at the post-LayerNorm attention
-and MLP inputs, the MLP hidden activation, and selected post-QKV Q/K/V sites.
-Q/K placement must explicitly state PRE- or POST-RoPE semantics.
+`model.topology_id` chooses the active ports and `model.site_gate` chooses the
+operator (and `kappa`, when required). `A0` requires `model.site_gate: null` and
+keeps stock GELU at `h`. Optimizer and activation-pressure settings remain
+independent of both fields.
 
 ## Post-hoc Activation Clipping
 
