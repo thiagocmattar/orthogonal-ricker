@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -13,7 +14,7 @@ from paper_exp.integrity import (
 )
 
 
-VALID_CONFIG = """\
+VALID_CONFIG_TEMPLATE = """\
 experiment_name: integrity_test
 model:
   provider: huggingface
@@ -43,150 +44,240 @@ run:
   seed: 0
   max_examples: 1
 output:
-  dir: results
+  dir: {output_dir}
+"""
+
+SMOKE_CONFIG = """\
+experiment_name: harness_smoke
+model:
+  provider: "TODO: provider"
+  name: "TODO: model"
+  architecture: "TODO: architecture"
+  initialization: random
+data:
+  name: "TODO: dataset"
+  split: "TODO: split"
+evaluation:
+  metric: smoke_passed
+run:
+  seed: 0
+  max_examples: 3
+output:
+  dir: experiments/00-infrastructure-smoke/raw
 """
 
 
-def test_configs_are_validated_and_numbered(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    _make_repository_skeleton(tmp_path)
-    folder = _make_launch_folder(tmp_path, "01-a1-grid")
-    _allow_tracked_runners(monkeypatch)
-    (folder / "001-valid.yaml").write_text(VALID_CONFIG, encoding="utf-8")
-    (folder / "001-duplicate.yaml").write_text(
-        VALID_CONFIG, encoding="utf-8"
+@pytest.fixture(autouse=True)
+def _allow_tracked_files(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        integrity,
+        "require_tracked_file",
+        lambda _repository, _path: None,
     )
-    (folder / "bad-name.yaml").write_text(VALID_CONFIG, encoding="utf-8")
-    (folder / "003-invalid.yaml").write_text(
+
+
+def test_configs_are_validated_tracked_and_numbered(tmp_path: Path) -> None:
+    _make_repository_skeleton(tmp_path)
+    scaffold = _make_scientific_scaffold(tmp_path, "01-a1-grid")
+    run_dir = scaffold / "run"
+    _write_config(run_dir / "001-valid.yaml", scaffold)
+    _write_config(run_dir / "001-duplicate.yaml", scaffold)
+    _write_config(run_dir / "bad-name.yaml", scaffold)
+    (run_dir / "003-invalid.yaml").write_text(
         "experiment_name: missing_fields\n", encoding="utf-8"
     )
 
     findings = check_repository(tmp_path)
 
-    assert _has_finding(findings, "config.duplicate_prefix", "configs")
+    assert _has_finding(findings, "config.duplicate_prefix", "experiments")
     assert _has_finding(
         findings,
         "config.filename_invalid",
-        "configs/01-a1-grid/bad-name.yaml",
+        "experiments/01-a1-grid/run/bad-name.yaml",
     )
     assert _has_finding(
         findings,
         "config.invalid",
-        "configs/01-a1-grid/003-invalid.yaml",
+        "experiments/01-a1-grid/run/003-invalid.yaml",
     )
-    assert _has_finding(findings, "config.numbering_gap", "configs")
+    assert _has_finding(findings, "config.numbering_gap", "experiments")
 
 
-def test_scientific_config_folders_require_convention_and_matching_runner(
+def test_scaffold_shape_runner_tracking_and_legacy_roots(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _make_repository_skeleton(tmp_path)
-    invalid_folder = tmp_path / "configs" / "a1-grid"
-    invalid_folder.mkdir()
-    (invalid_folder / "001-case.yaml").write_text(VALID_CONFIG, encoding="utf-8")
-    missing_runner_folder = tmp_path / "configs" / "01-a1-grid"
-    missing_runner_folder.mkdir()
-    (missing_runner_folder / "002-case.yaml").write_text(
-        VALID_CONFIG, encoding="utf-8"
-    )
+    invalid = tmp_path / "experiments" / "a1-grid"
+    invalid.mkdir()
+    scaffold = _make_scaffold(tmp_path, "01-a1-grid")
+    (scaffold / "figs" / ".gitkeep").unlink()
+    (scaffold / "figs").rmdir()
+    (scaffold / "unexpected").mkdir()
+    (scaffold / "misplaced.txt").write_text("wrong\n", encoding="utf-8")
+    _write_config(scaffold / "run" / "001-case.yaml", scaffold)
+    (tmp_path / "results").mkdir()
+    (tmp_path / "run-logs").mkdir()
 
     findings = check_repository(tmp_path)
 
+    assert _has_finding(findings, "scaffold.name_invalid", "experiments/a1-grid")
     assert _has_finding(
         findings,
-        "config.launch_folder_invalid",
-        "configs/a1-grid",
+        "scaffold.directory_missing",
+        "experiments/01-a1-grid/figs",
+    )
+    assert _has_finding(
+        findings,
+        "scaffold.directory_invalid",
+        "experiments/01-a1-grid/unexpected",
+    )
+    assert _has_finding(
+        findings,
+        "scaffold.entry_invalid",
+        "experiments/01-a1-grid/misplaced.txt",
     )
     assert _has_finding(
         findings,
         "config.runner_missing",
-        "runners/01-a1-grid.py",
+        "experiments/01-a1-grid/run/runner.py",
     )
+    assert _has_finding(findings, "layout.legacy_directory", "results")
+    assert _has_finding(findings, "layout.legacy_directory", "run-logs")
 
-    runner_path = tmp_path / "runners" / "01-a1-grid.py"
-    runner_path.write_text("", encoding="utf-8")
+    runner = scaffold / "run" / "runner.py"
+    runner.write_text("", encoding="utf-8")
 
-    def reject_untracked(_repository: Path, _path: Path) -> None:
-        raise integrity.LaunchError("not tracked")
+    def reject_runner(_repository: Path, path: Path) -> None:
+        if path.name == "runner.py":
+            raise integrity.LaunchError("not tracked")
 
-    monkeypatch.setattr(integrity, "require_tracked_file", reject_untracked)
+    monkeypatch.setattr(integrity, "require_tracked_file", reject_runner)
     findings = check_repository(tmp_path)
-
     assert _has_finding(
         findings,
         "config.runner_untracked",
-        "runners/01-a1-grid.py",
+        "experiments/01-a1-grid/run/runner.py",
     )
 
 
-def test_scientific_config_scope_width_and_global_order(
+def test_configs_and_directory_keepers_must_be_tracked(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _make_repository_skeleton(tmp_path)
-    _allow_tracked_runners(monkeypatch)
-    first_folder = _make_launch_folder(tmp_path, "01-a1-grid")
-    second_folder = _make_launch_folder(tmp_path, "02-b1-screen")
-    (first_folder / "002-second.yaml").write_text(VALID_CONFIG, encoding="utf-8")
-    (first_folder / "000-zero.yaml").write_text(VALID_CONFIG, encoding="utf-8")
-    (first_folder / "03-short.yaml").write_text(VALID_CONFIG, encoding="utf-8")
-    (second_folder / "001-first.yaml").write_text(VALID_CONFIG, encoding="utf-8")
-    nested = second_folder / "extra"
+    scaffold = _make_scientific_scaffold(tmp_path, "01-tracking-tests")
+    config = scaffold / "run" / "001-case.yaml"
+    _write_config(config, scaffold)
+
+    def reject_selected(_repository: Path, path: Path) -> None:
+        if path == config.resolve() or path == (scaffold / "raw" / ".gitkeep").resolve():
+            raise integrity.LaunchError("not tracked")
+
+    monkeypatch.setattr(integrity, "require_tracked_file", reject_selected)
+    findings = check_repository(tmp_path)
+
+    assert _has_finding(
+        findings,
+        "config.untracked",
+        "experiments/01-tracking-tests/run/001-case.yaml",
+    )
+    assert _has_finding(
+        findings,
+        "scaffold.keeper_untracked",
+        "experiments/01-tracking-tests/raw/.gitkeep",
+    )
+
+    (scaffold / "figs" / ".gitkeep").unlink()
+    findings = check_repository(tmp_path)
+    assert _has_finding(
+        findings,
+        "scaffold.keeper_missing",
+        "experiments/01-tracking-tests/figs/.gitkeep",
+    )
+
+
+def test_scientific_config_scope_output_ownership_and_global_order(
+    tmp_path: Path,
+) -> None:
+    _make_repository_skeleton(tmp_path)
+    first = _make_scientific_scaffold(tmp_path, "01-a1-grid")
+    second = _make_scientific_scaffold(tmp_path, "02-b1-screen")
+    _write_config(first / "run" / "002-second.yaml", first)
+    _write_config(first / "run" / "000-zero.yaml", first)
+    _write_config(first / "run" / "03-short.yaml", first)
+    wrong_output = _valid_config(second).replace(
+        "experiments/02-b1-screen/raw",
+        "experiments/01-a1-grid/raw",
+    )
+    (second / "run" / "001-first.yaml").write_text(
+        wrong_output, encoding="utf-8"
+    )
+    nested = second / "run" / "extra"
     nested.mkdir()
-    (nested / "003-too-deep.yaml").write_text(VALID_CONFIG, encoding="utf-8")
-    root_config = tmp_path / "configs" / "003-root.yaml"
-    root_config.write_text(VALID_CONFIG, encoding="utf-8")
+    _write_config(nested / "003-too-deep.yaml", second)
+    (tmp_path / "experiments" / "003-root.yaml").write_text(
+        _valid_config(second), encoding="utf-8"
+    )
 
     findings = check_repository(tmp_path)
 
     assert _has_finding(
         findings,
         "config.filename_invalid",
-        "configs/01-a1-grid/03-short.yaml",
+        "experiments/01-a1-grid/run/03-short.yaml",
     )
     assert _has_finding(
         findings,
         "config.filename_invalid",
-        "configs/01-a1-grid/000-zero.yaml",
+        "experiments/01-a1-grid/run/000-zero.yaml",
     )
-    assert _has_finding(findings, "config.order_invalid", "configs")
+    assert _has_finding(findings, "config.order_invalid", "experiments")
     assert _has_finding(
         findings,
         "config.location_invalid",
-        "configs/02-b1-screen/extra/003-too-deep.yaml",
+        "experiments/02-b1-screen/run/extra/003-too-deep.yaml",
     )
     assert _has_finding(
         findings,
-        "config.location_invalid",
-        "configs/003-root.yaml",
+        "config.invalid",
+        "experiments/02-b1-screen/run/001-first.yaml",
+    )
+    assert _has_finding(
+        findings,
+        "experiment.entry_invalid",
+        "experiments/003-root.yaml",
     )
 
 
-def test_config_prefixes_are_unique_across_launch_folders(
+def test_scaffold_and_config_prefixes_are_global_and_sequential(tmp_path: Path) -> None:
+    _make_repository_skeleton(tmp_path)
+    first = _make_scientific_scaffold(tmp_path, "01-a1-grid")
+    duplicate_scaffold = _make_scientific_scaffold(tmp_path, "01-b1-screen")
+    third = _make_scientific_scaffold(tmp_path, "03-c1-confirm")
+    _write_config(first / "run" / "001-first.yaml", first)
+    _write_config(duplicate_scaffold / "run" / "001-second.yaml", duplicate_scaffold)
+    _write_config(third / "run" / "003-third.yaml", third)
+
+    findings = check_repository(tmp_path)
+
+    assert _has_finding(findings, "scaffold.duplicate_prefix", "experiments")
+    assert _has_finding(findings, "scaffold.numbering_gap", "experiments")
+    assert _has_finding(findings, "config.duplicate_prefix", "experiments")
+    assert _has_finding(findings, "config.numbering_gap", "experiments")
+
+
+def test_run_directories_are_classified_from_scaffold_raw_artifacts(
     tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _make_repository_skeleton(tmp_path)
-    _allow_tracked_runners(monkeypatch)
-    first_folder = _make_launch_folder(tmp_path, "01-a1-grid")
-    second_folder = _make_launch_folder(tmp_path, "02-b1-screen")
-    (first_folder / "001-first.yaml").write_text(VALID_CONFIG, encoding="utf-8")
-    (second_folder / "001-second.yaml").write_text(VALID_CONFIG, encoding="utf-8")
-
-    findings = check_repository(tmp_path)
-
-    assert _has_finding(findings, "config.duplicate_prefix", "configs")
-
-
-def test_run_directories_are_classified_from_artifacts(tmp_path: Path) -> None:
-    _make_repository_skeleton(tmp_path)
+    scaffold = _make_scientific_scaffold(tmp_path, "01-run-tests")
+    _write_config(scaffold / "run" / "001-test.yaml", scaffold)
     (tmp_path / "docs" / "experiment_log.md").write_text(
-        "Audit `results/01-test/`.\n", encoding="utf-8"
+        "Audit `experiments/01-run-tests/raw/001-test/`.\n",
+        encoding="utf-8",
     )
-    result_group = tmp_path / "results" / "01-test"
+    result_group = scaffold / "raw" / "001-test"
 
     active = result_group / "001-active"
     active.mkdir(parents=True)
@@ -194,175 +285,168 @@ def test_run_directories_are_classified_from_artifacts(tmp_path: Path) -> None:
 
     partial = result_group / "002-partial"
     partial.mkdir()
-    (partial / "config.yaml").write_text(VALID_CONFIG, encoding="utf-8")
+    (partial / "config.yaml").write_text(_valid_config(scaffold), encoding="utf-8")
 
     complete = result_group / "003-complete"
-    complete.mkdir()
-    (complete / "config.yaml").write_text(VALID_CONFIG, encoding="utf-8")
-    (complete / "metrics.json").write_text("{}\n", encoding="utf-8")
-    (complete / "predictions.jsonl").write_text("{}\n", encoding="utf-8")
-    (complete / "manifest.json").write_text(
-        '{"config_id": "01-test", "run_id": "003-complete", '
-        '"mode": "smoke", "git_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", '
-        '"git_dirty": false}\n',
-        encoding="utf-8",
-    )
+    _write_core_run(complete, scaffold, status=None)
 
     running = result_group / "004-running"
-    running.mkdir()
-    (running / "config.yaml").write_text(VALID_CONFIG, encoding="utf-8")
-    (running / "manifest.json").write_text(
-        '{"config_id": "01-test", "run_id": "004-running", '
-        '"status": "running", "started_at": "2026-01-01T00:00:00Z", '
-        '"mode": "smoke", "git_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", '
-        '"git_dirty": false}\n',
-        encoding="utf-8",
-    )
+    _write_lifecycle_run(running, scaffold, status="running", core=False)
 
     failed = result_group / "005-failed"
-    failed.mkdir()
-    (failed / "config.yaml").write_text(VALID_CONFIG, encoding="utf-8")
-    (failed / "manifest.json").write_text(
-        '{"config_id": "01-test", "run_id": "005-failed", '
-        '"status": "failed", "started_at": "2026-01-01T00:00:00Z", '
-        '"finished_at": "2026-01-01T00:01:00Z", '
-        '"failure": {"type": "RuntimeError", "message": "test"}, '
-        '"mode": "smoke", "git_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", '
-        '"git_dirty": false}\n',
-        encoding="utf-8",
-    )
+    _write_lifecycle_run(failed, scaffold, status="failed", core=False)
 
     inconsistent = result_group / "006-inconsistent"
-    inconsistent.mkdir()
-    (inconsistent / "config.yaml").write_text(VALID_CONFIG, encoding="utf-8")
-    (inconsistent / "manifest.json").write_text(
-        '{"config_id": "01-test", "run_id": "006-inconsistent", '
-        '"status": "completed", "started_at": "2026-01-01T00:00:00Z", '
-        '"finished_at": "2026-01-01T00:01:00Z", '
-        '"mode": "smoke", "git_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", '
-        '"git_dirty": false}\n',
-        encoding="utf-8",
-    )
+    _write_lifecycle_run(inconsistent, scaffold, status="completed", core=False)
 
     mismatched = result_group / "007-mismatched"
-    mismatched.mkdir()
-    for artifact in ("config.yaml", "metrics.json", "predictions.jsonl"):
-        (mismatched / artifact).write_text("{}\n", encoding="utf-8")
-    (mismatched / "manifest.json").write_text(
-        '{"config_id": "wrong", "run_id": "007-mismatched"}\n',
-        encoding="utf-8",
-    )
+    _write_core_run(mismatched, scaffold, status=None, config_id="wrong")
 
     completed = result_group / "008-completed"
-    completed.mkdir()
-    (completed / "config.yaml").write_text(VALID_CONFIG, encoding="utf-8")
-    (completed / "metrics.json").write_text("{}\n", encoding="utf-8")
-    (completed / "predictions.jsonl").write_text("{}\n", encoding="utf-8")
-    (completed / "manifest.json").write_text(
-        '{"config_id": "01-test", "run_id": "008-completed", '
-        '"status": "completed", "started_at": "2026-01-01T00:00:00Z", '
-        '"finished_at": "2026-01-01T00:01:00Z", '
-        '"mode": "smoke", "git_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", '
-        '"git_dirty": false}\n',
-        encoding="utf-8",
+    _write_lifecycle_run(completed, scaffold, status="completed", core=True)
+
+    wrong_tranche = result_group / "009-wrong-tranche"
+    _write_lifecycle_run(wrong_tranche, scaffold, status="completed", core=True)
+    manifest = json.loads(
+        (wrong_tranche / "manifest.json").read_text(encoding="utf-8")
+    )
+    manifest["tranche_id"] = "02-other-tranche"
+    (wrong_tranche / "manifest.json").write_text(
+        json.dumps(manifest) + "\n", encoding="utf-8"
     )
 
-    assert classify_run_directory(active) == "inconsistent"
-    assert classify_run_directory(partial) == "inconsistent"
-    assert classify_run_directory(complete) == "complete"
-    assert classify_run_directory(running) == "running"
-    assert classify_run_directory(failed) == "failed"
-    assert classify_run_directory(inconsistent) == "inconsistent"
-    assert classify_run_directory(mismatched) == "inconsistent"
-    assert classify_run_directory(completed) == "complete"
+    expected = {
+        active: "inconsistent",
+        partial: "inconsistent",
+        complete: "complete",
+        running: "running",
+        failed: "failed",
+        inconsistent: "inconsistent",
+        mismatched: "inconsistent",
+        completed: "complete",
+        wrong_tranche: "inconsistent",
+    }
+    for run_dir, status in expected.items():
+        assert classify_run_directory(run_dir) == status
 
     findings = check_repository(tmp_path)
-
-    active_finding = _finding(findings, "run.inconsistent", "results/01-test/001-active")
-    partial_finding = _finding(findings, "run.inconsistent", "results/01-test/002-partial")
-    complete_finding = _finding(findings, "run.complete", "results/01-test/003-complete")
-    running_finding = _finding(findings, "run.running", "results/01-test/004-running")
-    failed_finding = _finding(findings, "run.failed", "results/01-test/005-failed")
-    inconsistent_finding = _finding(
-        findings,
-        "run.inconsistent",
-        "results/01-test/006-inconsistent",
-    )
-    mismatched_finding = _finding(
-        findings,
-        "run.inconsistent",
-        "results/01-test/007-mismatched",
-    )
-    completed_finding = _finding(
-        findings,
-        "run.complete",
-        "results/01-test/008-completed",
-    )
-    assert active_finding.severity == "error"
-    assert partial_finding.severity == "error"
-    assert complete_finding.severity == "info"
-    assert running_finding.severity == "warning"
-    assert failed_finding.severity == "warning"
-    assert inconsistent_finding.severity == "error"
-    assert mismatched_finding.severity == "error"
-    assert completed_finding.severity == "info"
+    prefix = "experiments/01-run-tests/raw/001-test"
+    assert _finding(findings, "run.inconsistent", f"{prefix}/001-active").severity == "error"
+    assert _finding(findings, "run.inconsistent", f"{prefix}/002-partial").severity == "error"
+    assert _finding(findings, "run.complete", f"{prefix}/003-complete").severity == "info"
+    assert _finding(findings, "run.running", f"{prefix}/004-running").severity == "warning"
+    assert _finding(findings, "run.failed", f"{prefix}/005-failed").severity == "warning"
+    assert _finding(findings, "run.inconsistent", f"{prefix}/006-inconsistent").severity == "error"
+    assert _finding(findings, "run.inconsistent", f"{prefix}/007-mismatched").severity == "error"
+    assert _finding(findings, "run.complete", f"{prefix}/008-completed").severity == "info"
+    assert _finding(
+        findings, "run.inconsistent", f"{prefix}/009-wrong-tranche"
+    ).severity == "error"
 
 
-def test_literal_references_and_paper_outputs_are_checked(tmp_path: Path) -> None:
+def test_literal_scaffold_references_and_paper_outputs_are_checked(
+    tmp_path: Path,
+) -> None:
     _make_repository_skeleton(tmp_path)
-    (tmp_path / "figures" / "01-first.pdf").write_bytes(b"pdf")
-    (tmp_path / "figures" / "01-second.pdf").write_bytes(b"pdf")
+    scaffold = _make_scientific_scaffold(tmp_path, "01-figure-tests")
+    _write_config(scaffold / "run" / "001-case.yaml", scaffold)
+    (scaffold / "figs" / "01-first.pdf").write_bytes(b"pdf")
+    (scaffold / "figs" / "01-second.pdf").write_bytes(b"pdf")
     (tmp_path / "docs" / "paper_map.md").write_text(
         """\
 # Paper Map
 
 | Paper item | Claim / purpose | Config | Result | Figure |
 | ---------- | --------------- | ------ | ------ | ------ |
-| Present | Test | TODO | TODO | `figures/01-first.pdf` |
-| Missing | Test | `configs/99-missing.yaml` | `results/99-test/001-run/` | `figures/02-missing.pdf` |
-| Exploratory | Test | TODO | See `results/*-sweep/` | TODO |
+| Present | Test | TODO | TODO | `experiments/01-figure-tests/figs/01-first.pdf` |
+| Missing | Test | `experiments/99-missing/run/999-missing.yaml` | `experiments/99-missing/raw/999-test/001-run/` | `experiments/01-figure-tests/figs/02-missing.pdf` |
+| Exploratory | Test | TODO | See `experiments/01-figure-tests/raw/*-sweep/` | TODO |
 """,
         encoding="utf-8",
     )
     (tmp_path / "docs" / "experiment_log.md").write_text(
         "Literal missing report: `report/01-missing/01-missing.pdf`.\n"
-        "Ignored glob: `results/01-*/001-*`.\n",
+        "Ignored glob: `experiments/01-figure-tests/raw/001-*/001-*`.\n",
         encoding="utf-8",
     )
 
     findings = check_repository(tmp_path)
 
-    assert _has_finding(findings, "figure.duplicate_prefix", "figures")
+    assert _has_finding(
+        findings,
+        "figure.duplicate_prefix",
+        "experiments/01-figure-tests/figs",
+    )
     assert _finding(
-        findings, "reference.missing", "configs/99-missing.yaml"
+        findings,
+        "reference.missing",
+        "experiments/99-missing/run/999-missing.yaml",
     ).severity == "error"
     assert _finding(
-        findings, "reference.missing", "results/99-test/001-run/"
+        findings,
+        "reference.missing",
+        "experiments/99-missing/raw/999-test/001-run/",
     ).severity == "warning"
     assert _finding(
-        findings, "reference.missing", "report/01-missing/01-missing.pdf"
+        findings,
+        "reference.missing",
+        "report/01-missing/01-missing.pdf",
     ).severity == "error"
     assert _finding(
-        findings, "paper_map.output_missing", "figures/02-missing.pdf"
+        findings,
+        "paper_map.output_missing",
+        "experiments/01-figure-tests/figs/02-missing.pdf",
     ).severity == "warning"
-    assert not any(finding.path == "results/*-sweep/" for finding in findings)
+    assert not any("*" in finding.path for finding in findings)
+
+
+def test_completed_checkpoint_uses_shared_source_path_resolver(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    run_dir = tmp_path / "arbitrary" / "run"
+    run_dir.mkdir(parents=True)
+    (run_dir / "config.yaml").write_text(
+        "checkpoint:\n  save_final: true\n  save_optimizer: false\n",
+        encoding="utf-8",
+    )
+    (run_dir / "metrics.json").write_text("{}\n", encoding="utf-8")
+    (run_dir / "predictions.jsonl").write_text("{}\n", encoding="utf-8")
+    (run_dir / "events.jsonl").write_text('{"event": "train"}\n', encoding="utf-8")
+    (run_dir / "manifest.json").write_text(
+        json.dumps(
+            {
+                "mode": "pretrain",
+                "git_dirty": False,
+                "checkpoint": {"saved": True, "path": "recorded/checkpoint"},
+            }
+        ),
+        encoding="utf-8",
+    )
+    checkpoint = tmp_path / "resolved-checkpoint"
+    checkpoint.mkdir()
+    (checkpoint / "config.json").write_text("{}\n", encoding="utf-8")
+    (checkpoint / "model.safetensors").write_bytes(b"model")
+    calls: list[tuple[object, Path]] = []
+
+    def resolve(value: object, *, source_run: Path) -> Path:
+        calls.append((value, source_run))
+        return checkpoint
+
+    monkeypatch.setattr(integrity, "resolve_source_path", resolve)
+    monkeypatch.setattr(integrity, "validate_training_config", lambda _config: None)
+
+    assert integrity._completed_artifacts_are_coherent(run_dir) is True
+    assert calls == [("recorded/checkpoint", run_dir)]
 
 
 def test_completed_run_rejects_corrupt_core_artifact(tmp_path: Path) -> None:
     _make_repository_skeleton(tmp_path)
-    run_dir = tmp_path / "results" / "01-test" / "001-corrupt"
-    run_dir.mkdir(parents=True)
-    (run_dir / "config.yaml").write_text(VALID_CONFIG, encoding="utf-8")
+    scaffold = _make_scientific_scaffold(tmp_path, "01-corrupt-tests")
+    _write_config(scaffold / "run" / "001-test.yaml", scaffold)
+    run_dir = scaffold / "raw" / "001-test" / "001-corrupt"
+    _write_lifecycle_run(run_dir, scaffold, status="completed", core=True)
     (run_dir / "metrics.json").write_text("not-json\n", encoding="utf-8")
-    (run_dir / "predictions.jsonl").write_text("{}\n", encoding="utf-8")
-    (run_dir / "manifest.json").write_text(
-        '{"config_id": "01-test", "run_id": "001-corrupt", '
-        '"status": "completed", "started_at": "2026-01-01T00:00:00Z", '
-        '"finished_at": "2026-01-01T00:01:00Z", "mode": "smoke", '
-        '"git_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", '
-        '"git_dirty": false}\n',
-        encoding="utf-8",
-    )
 
     assert classify_run_directory(run_dir) == "inconsistent"
 
@@ -377,18 +461,21 @@ def test_check_is_read_only(tmp_path: Path) -> None:
 
 
 def test_check_command_reports_warnings_and_supports_strict_mode(
-    tmp_path: Path, capsys
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     _make_repository_skeleton(tmp_path)
-    (tmp_path / "figures" / "01-first.pdf").write_bytes(b"pdf")
-    (tmp_path / "figures" / "01-second.pdf").write_bytes(b"pdf")
+    scaffold = _make_scientific_scaffold(tmp_path, "01-figure-tests")
+    _write_config(scaffold / "run" / "001-case.yaml", scaffold)
+    (scaffold / "figs" / "01-first.pdf").write_bytes(b"pdf")
+    (scaffold / "figs" / "01-second.pdf").write_bytes(b"pdf")
     (tmp_path / "docs" / "paper_map.md").write_text(
         """\
 # Paper Map
 
 | Paper item | Claim / purpose | Config | Result | Figure |
 | ---------- | --------------- | ------ | ------ | ------ |
-| Example | Test | TODO | TODO | `figures/01-first.pdf` |
+| Example | Test | TODO | TODO | `experiments/01-figure-tests/figs/01-first.pdf` |
 """,
         encoding="utf-8",
     )
@@ -402,8 +489,10 @@ def test_check_command_reports_warnings_and_supports_strict_mode(
 
 
 def _make_repository_skeleton(root: Path) -> None:
-    for relative in ("configs", "runners", "results", "figures", "report", "docs"):
+    for relative in ("experiments", "report", "docs"):
         (root / relative).mkdir(parents=True)
+    smoke = _make_scaffold(root, "00-infrastructure-smoke")
+    (smoke / "run" / "00-smoke.yaml").write_text(SMOKE_CONFIG, encoding="utf-8")
     (root / "docs" / "paper_map.md").write_text(
         """\
 # Paper Map
@@ -419,18 +508,90 @@ def _make_repository_skeleton(root: Path) -> None:
     )
 
 
-def _make_launch_folder(root: Path, name: str) -> Path:
-    folder = root / "configs" / name
-    folder.mkdir()
-    (root / "runners" / f"{name}.py").write_text("", encoding="utf-8")
-    return folder
+def _make_scaffold(root: Path, name: str) -> Path:
+    scaffold = root / "experiments" / name
+    for member in ("run", "raw", "figs"):
+        (scaffold / member).mkdir(parents=True, exist_ok=True)
+    for member in ("raw", "figs"):
+        (scaffold / member / ".gitkeep").write_text("", encoding="utf-8")
+    return scaffold
 
 
-def _allow_tracked_runners(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(
-        integrity,
-        "require_tracked_file",
-        lambda _repository, _path: None,
+def _make_scientific_scaffold(root: Path, name: str) -> Path:
+    scaffold = _make_scaffold(root, name)
+    (scaffold / "run" / "runner.py").write_text("", encoding="utf-8")
+    return scaffold
+
+
+def _valid_config(scaffold: Path) -> str:
+    return VALID_CONFIG_TEMPLATE.format(
+        output_dir=f"experiments/{scaffold.name}/raw"
+    )
+
+
+def _write_config(path: Path, scaffold: Path) -> None:
+    path.write_text(_valid_config(scaffold), encoding="utf-8")
+
+
+def _manifest(
+    run_dir: Path,
+    *,
+    status: str | None,
+    config_id: str | None = None,
+) -> dict[str, object]:
+    value: dict[str, object] = {
+        "config_id": config_id or run_dir.parent.name,
+        "run_id": run_dir.name,
+        "mode": "smoke",
+        "git_commit": "a" * 40,
+        "git_dirty": False,
+    }
+    if status is not None:
+        value.update(
+            {
+                "status": status,
+                "started_at": "2026-01-01T00:00:00Z",
+            }
+        )
+        if status != "running":
+            value["finished_at"] = "2026-01-01T00:01:00Z"
+        if status == "failed":
+            value["failure"] = {"type": "RuntimeError", "message": "test"}
+    return value
+
+
+def _write_core_run(
+    run_dir: Path,
+    scaffold: Path,
+    *,
+    status: str | None,
+    config_id: str | None = None,
+) -> None:
+    run_dir.mkdir(parents=True)
+    (run_dir / "config.yaml").write_text(_valid_config(scaffold), encoding="utf-8")
+    (run_dir / "metrics.json").write_text("{}\n", encoding="utf-8")
+    (run_dir / "predictions.jsonl").write_text("{}\n", encoding="utf-8")
+    (run_dir / "manifest.json").write_text(
+        json.dumps(_manifest(run_dir, status=status, config_id=config_id)) + "\n",
+        encoding="utf-8",
+    )
+
+
+def _write_lifecycle_run(
+    run_dir: Path,
+    scaffold: Path,
+    *,
+    status: str,
+    core: bool,
+) -> None:
+    if core:
+        _write_core_run(run_dir, scaffold, status=status)
+        return
+    run_dir.mkdir(parents=True)
+    (run_dir / "config.yaml").write_text(_valid_config(scaffold), encoding="utf-8")
+    (run_dir / "manifest.json").write_text(
+        json.dumps(_manifest(run_dir, status=status)) + "\n",
+        encoding="utf-8",
     )
 
 

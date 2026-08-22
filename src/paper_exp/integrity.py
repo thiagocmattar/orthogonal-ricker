@@ -16,7 +16,14 @@ from paper_exp.config import (
     validate_smoke_config,
     validate_training_config,
 )
-from paper_exp.launch import LaunchError, require_tracked_file
+from paper_exp.diagnostics.sources import resolve_source_path
+from paper_exp.launch import (
+    EXPERIMENTS_DIR_NAME,
+    SCAFFOLD_NAME_RE,
+    SMOKE_SCAFFOLD_ID,
+    LaunchError,
+    require_tracked_file,
+)
 from paper_exp.run import CORE_RUN_ARTIFACTS
 from paper_exp.utils import read_json
 
@@ -41,7 +48,6 @@ class IntegrityFinding:
 
 
 _NUMBERED_PREFIX_RE = re.compile(r"^(\d+)-")
-_LAUNCH_FOLDER_RE = re.compile(r"^\d{2}-[a-z0-9]+-[a-z0-9][a-z0-9-]*$")
 _SCIENTIFIC_CONFIG_RE = re.compile(
     r"^(\d{3})-[a-z0-9][a-z0-9-]*\.yaml$"
 )
@@ -49,11 +55,12 @@ _YAML_SUFFIXES = frozenset({".yaml", ".yml"})
 _INLINE_CODE_RE = re.compile(r"`([^`\r\n]+)`")
 _REFERENCE_RE = re.compile(
     r"(?<![A-Za-z0-9_])"
-    r"((?:configs|results|figures|report)/"
+    r"((?:experiments|report)/"
     r"[A-Za-z0-9][A-Za-z0-9._/{}*?\[\],-]*)"
 )
 _GLOB_CHARS = frozenset("*?[]{}")
-_IGNORED_ARTIFACT_PREFIXES = ("results/", "figures/")
+_LEGACY_DIRECTORIES = ("configs", "runners", "results", "figures", "run-logs")
+_SCAFFOLD_DIRECTORIES = frozenset({"run", "raw", "figs"})
 
 
 def check_repository(root: str | Path = ".") -> list[IntegrityFinding]:
@@ -63,8 +70,8 @@ def check_repository(root: str | Path = ".") -> list[IntegrityFinding]:
     paper_map = repository / "docs" / "paper_map.md"
     experiment_log = repository / "docs" / "experiment_log.md"
     artifact_references = _document_artifact_references(paper_map, experiment_log)
-    findings: list[IntegrityFinding] = []
-    findings.extend(_check_configs(repository))
+    findings: list[IntegrityFinding] = _check_legacy_directories(repository)
+    findings.extend(_check_experiments(repository))
     findings.extend(_check_runs(repository, references=artifact_references))
 
     paper_output_references: set[str] = set()
@@ -115,146 +122,232 @@ def classify_run_directory(run_dir: str | Path) -> RunStatus:
     return "inconsistent"
 
 
-def _check_configs(repository: Path) -> list[IntegrityFinding]:
-    config_dir = repository / "configs"
-    if not config_dir.is_dir():
+def _check_legacy_directories(repository: Path) -> list[IntegrityFinding]:
+    return [
+        IntegrityFinding(
+            severity="error",
+            code="layout.legacy_directory",
+            message="Legacy top-level experiment directory must be removed.",
+            path=name,
+        )
+        for name in _LEGACY_DIRECTORIES
+        if (repository / name).is_dir()
+    ]
+
+
+def _check_experiments(repository: Path) -> list[IntegrityFinding]:
+    experiments_dir = repository / EXPERIMENTS_DIR_NAME
+    if not experiments_dir.is_dir():
         return [
             IntegrityFinding(
                 severity="error",
-                code="config.directory_missing",
-                message="Config directory does not exist.",
-                path="configs",
+                code="experiment.directory_missing",
+                message="Canonical experiment scaffold directory does not exist.",
+                path=EXPERIMENTS_DIR_NAME,
             )
         ]
 
     findings: list[IntegrityFinding] = []
-    prefixes: dict[int, list[Path]] = {}
-    ordered_prefixes: list[int] = []
-    config_paths: list[tuple[Path, bool]] = []
-
-    root_configs = sorted(
-        path
-        for path in config_dir.iterdir()
-        if path.is_file() and path.suffix.lower() in _YAML_SUFFIXES
-    )
-    for path in root_configs:
-        is_smoke = path.name == "00-smoke.yaml"
-        config_paths.append((path, is_smoke))
-        if not is_smoke:
+    scaffolds: list[Path] = []
+    scientific_scaffold_prefixes: dict[int, list[Path]] = {}
+    for path in sorted(child for child in experiments_dir.iterdir() if child.is_file()):
+        if path.name != "README.md":
             findings.append(
                 IntegrityFinding(
                     severity="error",
-                    code="config.location_invalid",
-                    message=(
-                        "Scientific configs must live directly inside their matching "
-                        "configs/NN-<phase>-<tranche>/ folder."
-                    ),
+                    code="experiment.entry_invalid",
+                    message="Only README.md may live beside experiment scaffolds.",
                     path=_relative_path(repository, path),
                 )
             )
-
-    for folder in sorted(path for path in config_dir.iterdir() if path.is_dir()):
-        direct_configs = sorted(
-            path
-            for path in folder.iterdir()
-            if path.is_file() and path.suffix.lower() in _YAML_SUFFIXES
-        )
-        deeper_configs = sorted(
-            path
-            for path in folder.rglob("*")
-            if (
-                path.is_file()
-                and path.suffix.lower() in _YAML_SUFFIXES
-                and path.parent != folder
-            )
-        )
-        if not direct_configs and not deeper_configs:
-            continue
-
-        if (
-            _LAUNCH_FOLDER_RE.fullmatch(folder.name) is None
-            or int(folder.name[:2]) == 0
+    for path in sorted(child for child in experiments_dir.iterdir() if child.is_dir()):
+        match = SCAFFOLD_NAME_RE.fullmatch(path.name)
+        if match is None or (int(match.group(1)) == 0) != (
+            path.name == SMOKE_SCAFFOLD_ID
         ):
             findings.append(
                 IntegrityFinding(
                     severity="error",
-                    code="config.launch_folder_invalid",
+                    code="scaffold.name_invalid",
                     message=(
-                        "Scientific config folders must be named "
-                        "NN-<phase>-<tranche>."
+                        "Scaffolds must be NN-<phase>-<tranche>; prefix 00 is "
+                        f"reserved for {SMOKE_SCAFFOLD_ID}."
                     ),
-                    path=_relative_path(repository, folder),
+                    path=_relative_path(repository, path),
                 )
             )
-        else:
-            findings.extend(_check_matching_runner(repository, folder))
+            continue
+        scaffolds.append(path)
+        prefix = int(match.group(1))
+        if prefix:
+            scientific_scaffold_prefixes.setdefault(prefix, []).append(path)
 
-        config_paths.extend((path, False) for path in direct_configs)
+    if not (experiments_dir / SMOKE_SCAFFOLD_ID).is_dir():
+        findings.append(
+            IntegrityFinding(
+                severity="error",
+                code="scaffold.smoke_missing",
+                message="The reserved infrastructure-smoke scaffold is missing.",
+                path=f"{EXPERIMENTS_DIR_NAME}/{SMOKE_SCAFFOLD_ID}",
+            )
+        )
+
+    for prefix, paths in sorted(scientific_scaffold_prefixes.items()):
+        if len(paths) > 1:
+            findings.append(
+                IntegrityFinding(
+                    severity="error",
+                    code="scaffold.duplicate_prefix",
+                    message=(
+                        f"Scaffold prefix {prefix:02d} is used by: "
+                        + ", ".join(path.name for path in paths)
+                        + "."
+                    ),
+                    path=EXPERIMENTS_DIR_NAME,
+                )
+            )
+    if scientific_scaffold_prefixes:
+        missing = sorted(
+            set(range(1, max(scientific_scaffold_prefixes) + 1))
+            - set(scientific_scaffold_prefixes)
+        )
+        if missing:
+            findings.append(
+                IntegrityFinding(
+                    severity="error",
+                    code="scaffold.numbering_gap",
+                    message=(
+                        "Sequential scaffold prefixes are missing: "
+                        f"{_format_number_ranges(missing)}."
+                    ),
+                    path=EXPERIMENTS_DIR_NAME,
+                )
+            )
+
+    config_prefixes: dict[int, list[Path]] = {}
+    ordered_config_prefixes: list[int] = []
+    for scaffold in scaffolds:
+        findings.extend(_check_scaffold_shape(repository, scaffold))
+        run_dir = scaffold / "run"
+        if not run_dir.is_dir():
+            continue
+        direct_configs = sorted(
+            path
+            for path in run_dir.iterdir()
+            if path.is_file() and path.suffix.lower() in _YAML_SUFFIXES
+        )
+        deeper_configs = sorted(
+            path
+            for path in run_dir.rglob("*")
+            if path.is_file()
+            and path.suffix.lower() in _YAML_SUFFIXES
+            and path.parent != run_dir
+        )
         for path in deeper_configs:
             findings.append(
                 IntegrityFinding(
                     severity="error",
                     code="config.location_invalid",
-                    message=(
-                        "Scientific configs may be nested only one folder below configs/."
-                    ),
+                    message="Configs must live directly in their scaffold run directory.",
                     path=_relative_path(repository, path),
                 )
             )
 
-    for path, is_smoke in config_paths:
-        if not is_smoke:
-            filename_match = _SCIENTIFIC_CONFIG_RE.fullmatch(path.name)
-            if filename_match is None or int(filename_match.group(1)) == 0:
+        is_smoke = scaffold.name == SMOKE_SCAFFOLD_ID
+        runner_path = run_dir / "runner.py"
+        if is_smoke:
+            if runner_path.exists():
                 findings.append(
                     IntegrityFinding(
                         severity="error",
-                        code="config.filename_invalid",
-                        message=(
-                            "Scientific config filenames must start with a three-digit "
-                            "prefix of 001 or greater and use lowercase letters, digits, "
-                            "and hyphens with the .yaml extension."
-                        ),
-                        path=_relative_path(repository, path),
+                        code="config.smoke_runner_invalid",
+                        message="The infrastructure-smoke scaffold is runner-free.",
+                        path=_relative_path(repository, runner_path),
                     )
                 )
-                continue
-            prefix = int(filename_match.group(1))
-            prefixes.setdefault(prefix, []).append(path)
-            ordered_prefixes.append(prefix)
+            if not (run_dir / "00-smoke.yaml").is_file():
+                findings.append(
+                    IntegrityFinding(
+                        severity="error",
+                        code="config.smoke_missing",
+                        message="The infrastructure-smoke config is missing.",
+                        path=_relative_path(repository, run_dir / "00-smoke.yaml"),
+                    )
+                )
+        else:
+            findings.extend(_check_matching_runner(repository, runner_path))
+            if not direct_configs:
+                findings.append(
+                    IntegrityFinding(
+                        severity="error",
+                        code="config.scaffold_empty",
+                        message="A scientific scaffold must contain at least one config.",
+                        path=_relative_path(repository, run_dir),
+                    )
+                )
 
-        finding = _validate_config_file(repository, path, is_smoke=is_smoke)
-        if finding is not None:
-            findings.append(finding)
-
-    for prefix, paths in sorted(prefixes.items()):
-        if len(paths) <= 1:
-            continue
-        names = ", ".join(path.name for path in paths)
-        findings.append(
-            IntegrityFinding(
-                severity="error",
-                code="config.duplicate_prefix",
-                message=f"Config prefix {prefix:03d} is used by: {names}.",
-                path="configs",
+        for path in direct_configs:
+            config_is_smoke = is_smoke and path.name == "00-smoke.yaml"
+            if not config_is_smoke:
+                filename_match = _SCIENTIFIC_CONFIG_RE.fullmatch(path.name)
+                if is_smoke or filename_match is None or int(filename_match.group(1)) == 0:
+                    findings.append(
+                        IntegrityFinding(
+                            severity="error",
+                            code="config.filename_invalid",
+                            message=(
+                                "Scientific configs must be CCC-<case>.yaml with a "
+                                "prefix of 001 or greater."
+                            ),
+                            path=_relative_path(repository, path),
+                        )
+                    )
+                    continue
+                prefix = int(filename_match.group(1))
+                config_prefixes.setdefault(prefix, []).append(path)
+                ordered_config_prefixes.append(prefix)
+            tracking = _tracked_file_finding(
+                repository,
+                path,
+                code="config.untracked",
+                message="Every scaffold config must be tracked by Git.",
             )
-        )
+            if tracking is not None:
+                findings.append(tracking)
+            finding = _validate_config_file(
+                repository,
+                path,
+                scaffold=scaffold,
+                is_smoke=config_is_smoke,
+            )
+            if finding is not None:
+                findings.append(finding)
 
-    if ordered_prefixes != sorted(ordered_prefixes):
+    for prefix, paths in sorted(config_prefixes.items()):
+        if len(paths) > 1:
+            findings.append(
+                IntegrityFinding(
+                    severity="error",
+                    code="config.duplicate_prefix",
+                    message=(
+                        f"Config prefix {prefix:03d} is used by: "
+                        + ", ".join(path.name for path in paths)
+                        + "."
+                    ),
+                    path=EXPERIMENTS_DIR_NAME,
+                )
+            )
+    if ordered_config_prefixes != sorted(ordered_config_prefixes):
         findings.append(
             IntegrityFinding(
                 severity="error",
                 code="config.order_invalid",
-                message=(
-                    "Scientific config prefixes must increase globally in launch-folder "
-                    "and filename order."
-                ),
-                path="configs",
+                message="Config prefixes must increase across chronological scaffolds.",
+                path=EXPERIMENTS_DIR_NAME,
             )
         )
-
-    if prefixes:
-        missing = sorted(set(range(1, max(prefixes) + 1)) - set(prefixes))
+    if config_prefixes:
+        missing = sorted(set(range(1, max(config_prefixes) + 1)) - set(config_prefixes))
         if missing:
             findings.append(
                 IntegrityFinding(
@@ -262,44 +355,117 @@ def _check_configs(repository: Path) -> list[IntegrityFinding]:
                     code="config.numbering_gap",
                     message=(
                         "Sequential config prefixes are missing: "
-                        f"{_format_number_ranges(missing)}."
+                        + ", ".join(f"{number:03d}" for number in missing)
+                        + "."
                     ),
-                    path="configs",
+                    path=EXPERIMENTS_DIR_NAME,
                 )
             )
     return findings
 
 
-def _check_matching_runner(repository: Path, folder: Path) -> list[IntegrityFinding]:
-    runner_path = repository / "runners" / f"{folder.name}.py"
-    display = _relative_path(repository, runner_path)
+def _check_scaffold_shape(repository: Path, scaffold: Path) -> list[IntegrityFinding]:
+    findings: list[IntegrityFinding] = []
+    for name in sorted(_SCAFFOLD_DIRECTORIES):
+        path = scaffold / name
+        if not path.is_dir():
+            findings.append(
+                IntegrityFinding(
+                    severity="error",
+                    code="scaffold.directory_missing",
+                    message="Scaffold must contain run, raw, and figs directories.",
+                    path=_relative_path(repository, path),
+                )
+            )
+            continue
+        if name in {"raw", "figs"}:
+            keeper = path / ".gitkeep"
+            if not keeper.is_file():
+                findings.append(
+                    IntegrityFinding(
+                        severity="error",
+                        code="scaffold.keeper_missing",
+                        message=(
+                            "Generated-output directories require a tracked "
+                            ".gitkeep file."
+                        ),
+                        path=_relative_path(repository, keeper),
+                    )
+                )
+            else:
+                tracking = _tracked_file_finding(
+                    repository,
+                    keeper,
+                    code="scaffold.keeper_untracked",
+                    message="Scaffold directory keepers must be tracked by Git.",
+                )
+                if tracking is not None:
+                    findings.append(tracking)
+    for path in sorted(child for child in scaffold.iterdir() if child.is_dir()):
+        if path.name not in _SCAFFOLD_DIRECTORIES:
+            findings.append(
+                IntegrityFinding(
+                    severity="error",
+                    code="scaffold.directory_invalid",
+                    message="Scaffold contains an unexpected owned directory.",
+                    path=_relative_path(repository, path),
+                )
+            )
+    for path in sorted(child for child in scaffold.iterdir() if child.is_file()):
+        findings.append(
+            IntegrityFinding(
+                severity="error",
+                code="scaffold.entry_invalid",
+                message="Files belong inside run, raw, or figs, not beside them.",
+                path=_relative_path(repository, path),
+            )
+        )
+    return findings
+
+
+def _check_matching_runner(repository: Path, runner_path: Path) -> list[IntegrityFinding]:
     if not runner_path.is_file():
         return [
             IntegrityFinding(
                 severity="error",
                 code="config.runner_missing",
-                message="Scientific config folder has no same-named case runner.",
-                path=display,
+                message="Scientific scaffold has no run/runner.py.",
+                path=_relative_path(repository, runner_path),
             )
         ]
+    finding = _tracked_file_finding(
+        repository,
+        runner_path,
+        code="config.runner_untracked",
+        message="Scientific run/runner.py must be tracked by Git.",
+    )
+    return [] if finding is None else [finding]
+
+
+def _tracked_file_finding(
+    repository: Path,
+    path: Path,
+    *,
+    code: str,
+    message: str,
+) -> IntegrityFinding | None:
     try:
-        require_tracked_file(repository.resolve(), runner_path.resolve())
+        require_tracked_file(repository.resolve(), path.resolve())
     except LaunchError:
-        return [
-            IntegrityFinding(
-                severity="error",
-                code="config.runner_untracked",
-                message="The same-named case runner must be tracked by Git.",
-                path=display,
-            )
-        ]
-    return []
+        return IntegrityFinding(
+            severity="error",
+            code=code,
+            message=message,
+            path=_relative_path(repository, path),
+        )
+    return None
 
 
 def _validate_config_file(
     repository: Path,
     path: Path,
     *,
+    scaffold: Path,
     is_smoke: bool,
 ) -> IntegrityFinding | None:
     try:
@@ -335,9 +501,14 @@ def _validate_config_file(
                     "Non-smoke configs must declare one recognized workflow section."
                 )
         output_dir = str(config.get("output", {}).get("dir", ""))
-        if Path(output_dir).is_absolute() or Path(output_dir).as_posix() != "results":
+        expected_output = Path(EXPERIMENTS_DIR_NAME, scaffold.name, "raw").as_posix()
+        if (
+            Path(output_dir).is_absolute()
+            or Path(output_dir).as_posix() != expected_output
+        ):
             raise ConfigError(
-                "Config field output.dir must be the relative path 'results'."
+                "Config field output.dir must be the portable relative path "
+                f"'{expected_output}'."
             )
         preprocessing = config.get("preprocessing")
         if isinstance(preprocessing, dict):
@@ -363,86 +534,103 @@ def _validate_config_file(
 def _check_runs(
     repository: Path, *, references: set[str]
 ) -> list[IntegrityFinding]:
-    results_dir = repository / "results"
-    if not results_dir.is_dir():
-        return []
-
-    config_dir = repository / "configs"
-    current_config_ids = {
-        path.stem
-        for path in config_dir.rglob("*.yaml")
-        if path.is_file()
-    } if config_dir.is_dir() else set()
-    referenced_groups = {
-        parts[1]
-        for reference in references
-        if reference.startswith("results/")
-        and len(parts := reference.rstrip("/").split("/")) >= 2
-    }
-
     findings: list[IntegrityFinding] = []
-    for result_group in sorted(path for path in results_dir.iterdir() if path.is_dir()):
-        belongs_to_current_config = any(
-            result_group.name == config_id
-            or result_group.name.startswith(f"{config_id}-clip-")
-            for config_id in current_config_ids
-        )
-        if not belongs_to_current_config and result_group.name not in referenced_groups:
+    referenced_groups = {
+        (parts[1], parts[3])
+        for reference in references
+        if len(parts := reference.rstrip("/").split("/")) >= 4
+        and parts[0] == EXPERIMENTS_DIR_NAME
+        and parts[2] == "raw"
+    }
+    for scaffold in _canonical_scaffolds(repository):
+        raw_dir = scaffold / "raw"
+        run_recipe_dir = scaffold / "run"
+        if not raw_dir.is_dir():
             continue
-        for run_dir in sorted(path for path in result_group.iterdir() if path.is_dir()):
-            missing = [name for name in CORE_RUN_ARTIFACTS if not (run_dir / name).is_file()]
-            run_path = _relative_path(repository, run_dir)
-            status = classify_run_directory(run_dir)
-            if status == "complete":
-                findings.append(
-                    IntegrityFinding(
-                        severity="info",
-                        code="run.complete",
-                        message="Run has the complete core artifact envelope.",
-                        path=run_path,
-                    )
-                )
+        current_config_ids = {
+            path.stem
+            for path in run_recipe_dir.glob("*.yaml")
+            if path.is_file()
+        }
+        for result_group in sorted(path for path in raw_dir.iterdir() if path.is_dir()):
+            belongs_to_current_config = any(
+                result_group.name == config_id
+                or result_group.name.startswith(f"{config_id}-clip-")
+                for config_id in current_config_ids
+            )
+            if (
+                not belongs_to_current_config
+                and (scaffold.name, result_group.name) not in referenced_groups
+            ):
                 continue
-
-            missing_text = ", ".join(missing)
-            if status == "running":
-                findings.append(
-                    IntegrityFinding(
-                        severity="warning",
-                        code="run.running",
-                        message=(
-                            "Run manifest is explicitly running and must not be consumed "
-                            f"as completed. Missing: {missing_text or 'none'}."
-                        ),
-                        path=run_path,
-                    )
-                )
-            elif status == "failed":
-                findings.append(
-                    IntegrityFinding(
-                        severity="warning",
-                        code="run.failed",
-                        message=(
-                            "Run manifest records a failed terminal state. "
-                            f"Missing: {missing_text or 'none'}."
-                        ),
-                        path=run_path,
-                    )
-                )
-            elif status == "inconsistent":
-                findings.append(
-                    IntegrityFinding(
-                        severity="error",
-                        code="run.inconsistent",
-                        message=(
-                            "Run has no valid explicit lifecycle manifest, or claims "
-                            "completion without the core artifact envelope. "
-                            f"Missing: {missing_text or 'none'}."
-                        ),
-                        path=run_path,
-                    )
-                )
+            for run_dir in sorted(path for path in result_group.iterdir() if path.is_dir()):
+                findings.extend(_check_run_directory(repository, run_dir))
     return findings
+
+
+def _check_run_directory(repository: Path, run_dir: Path) -> list[IntegrityFinding]:
+    missing = [name for name in CORE_RUN_ARTIFACTS if not (run_dir / name).is_file()]
+    run_path = _relative_path(repository, run_dir)
+    status = classify_run_directory(run_dir)
+    if status == "complete":
+        return [
+            IntegrityFinding(
+                severity="info",
+                code="run.complete",
+                message="Run has the complete core artifact envelope.",
+                path=run_path,
+            )
+        ]
+
+    missing_text = ", ".join(missing)
+    if status == "running":
+        return [
+            IntegrityFinding(
+                severity="warning",
+                code="run.running",
+                message=(
+                    "Run manifest is explicitly running and must not be consumed "
+                    f"as completed. Missing: {missing_text or 'none'}."
+                ),
+                path=run_path,
+            )
+        ]
+    if status == "failed":
+        return [
+            IntegrityFinding(
+                severity="warning",
+                code="run.failed",
+                message=(
+                    "Run manifest records a failed terminal state. "
+                    f"Missing: {missing_text or 'none'}."
+                ),
+                path=run_path,
+            )
+        ]
+    return [
+        IntegrityFinding(
+            severity="error",
+            code="run.inconsistent",
+            message=(
+                "Run has no valid explicit lifecycle manifest, or claims "
+                "completion without the core artifact envelope. "
+                f"Missing: {missing_text or 'none'}."
+            ),
+            path=run_path,
+        )
+    ]
+
+
+def _canonical_scaffolds(repository: Path) -> list[Path]:
+    experiments_dir = repository / EXPERIMENTS_DIR_NAME
+    if not experiments_dir.is_dir():
+        return []
+    return [
+        path
+        for path in sorted(child for child in experiments_dir.iterdir() if child.is_dir())
+        if (match := SCAFFOLD_NAME_RE.fullmatch(path.name)) is not None
+        and (int(match.group(1)) == 0) == (path.name == SMOKE_SCAFFOLD_ID)
+    ]
 
 
 def _explicit_manifest_status(run_dir: Path) -> tuple[str | None, bool]:
@@ -458,6 +646,8 @@ def _explicit_manifest_status(run_dir: Path) -> tuple[str | None, bool]:
     if manifest.get("config_id") != run_dir.parent.name:
         return None, False
     if manifest.get("run_id") != run_dir.name:
+        return None, False
+    if not _manifest_tranche_is_coherent(run_dir, manifest):
         return None, False
     status = manifest.get("status")
     if status is None:
@@ -583,9 +773,13 @@ def _completed_artifacts_are_coherent(run_dir: Path) -> bool:
             checkpoint_path_text = checkpoint_manifest.get("path")
             if not isinstance(checkpoint_path_text, str) or not checkpoint_path_text.strip():
                 return False
-            checkpoint_path = Path(checkpoint_path_text)
-            if not checkpoint_path.is_absolute():
-                checkpoint_path = run_dir.parents[2] / checkpoint_path
+            try:
+                checkpoint_path = resolve_source_path(
+                    checkpoint_path_text,
+                    source_run=run_dir,
+                )
+            except (OSError, ValueError):
+                return False
             if not checkpoint_path.is_dir():
                 return False
             if not (checkpoint_path / "config.json").is_file():
@@ -618,6 +812,7 @@ def _statusless_core_artifacts_are_coherent(run_dir: Path) -> bool:
         and "status" not in manifest
         and manifest.get("config_id") == run_dir.parent.name
         and manifest.get("run_id") == run_dir.name
+        and _manifest_tranche_is_coherent(run_dir, manifest)
         and isinstance(config, dict)
         and bool(config)
         and isinstance(metrics, dict)
@@ -645,41 +840,51 @@ def _is_nonempty_string(value: Any) -> bool:
     return isinstance(value, str) and bool(value.strip())
 
 
+def _manifest_tranche_is_coherent(run_dir: Path, manifest: dict[str, Any]) -> bool:
+    if run_dir.parent.parent.name != "raw":
+        return True
+    expected = run_dir.parents[2].name
+    return manifest.get("tranche_id") in {None, expected}
+
+
 def _check_numbered_figures(
     repository: Path, *, references: set[str]
 ) -> list[IntegrityFinding]:
-    figure_dir = repository / "figures"
-    if not figure_dir.is_dir():
-        return []
-
-    referenced_prefixes = {
-        int(match.group(1))
-        for reference in references
-        if reference.startswith("figures/")
-        and (match := _NUMBERED_PREFIX_RE.match(Path(reference).name)) is not None
-    }
-    if not referenced_prefixes:
-        return []
-
-    prefixes: dict[int, list[Path]] = {}
-    for path in sorted(figure_dir.glob("*.pdf")):
-        match = _NUMBERED_PREFIX_RE.match(path.name)
-        if match is not None and int(match.group(1)) in referenced_prefixes:
-            prefixes.setdefault(int(match.group(1)), []).append(path)
-
     findings: list[IntegrityFinding] = []
-    for prefix, paths in sorted(prefixes.items()):
-        if len(paths) <= 1:
+    referenced_prefixes: dict[str, set[int]] = {}
+    for reference in references:
+        parts = reference.rstrip("/").split("/")
+        if len(parts) < 4 or parts[0] != EXPERIMENTS_DIR_NAME or parts[2] != "figs":
             continue
-        names = ", ".join(path.name for path in paths)
-        findings.append(
-            IntegrityFinding(
-                severity="warning",
-                code="figure.duplicate_prefix",
-                message=f"Figure prefix {prefix:02d} is used by: {names}.",
-                path="figures",
+        match = _NUMBERED_PREFIX_RE.match(parts[-1])
+        if match is not None:
+            referenced_prefixes.setdefault(parts[1], set()).add(int(match.group(1)))
+
+    for scaffold in _canonical_scaffolds(repository):
+        selected = referenced_prefixes.get(scaffold.name, set())
+        if not selected:
+            continue
+        figure_dir = scaffold / "figs"
+        prefixes: dict[int, list[Path]] = {}
+        for path in sorted(figure_dir.glob("*.pdf")):
+            match = _NUMBERED_PREFIX_RE.match(path.name)
+            if match is not None and int(match.group(1)) in selected:
+                prefixes.setdefault(int(match.group(1)), []).append(path)
+        for prefix, paths in sorted(prefixes.items()):
+            if len(paths) <= 1:
+                continue
+            findings.append(
+                IntegrityFinding(
+                    severity="warning",
+                    code="figure.duplicate_prefix",
+                    message=(
+                        f"Figure prefix {prefix:02d} is used by: "
+                        + ", ".join(path.name for path in paths)
+                        + "."
+                    ),
+                    path=_relative_path(repository, figure_dir),
+                )
             )
-        )
     return findings
 
 
@@ -714,7 +919,10 @@ def _check_paper_map_outputs(
             continue
 
         for reference in references:
-            if not reference.startswith(("figures/", "report/")):
+            if not (
+                reference.startswith("report/")
+                or _is_scaffold_figure_reference(reference)
+            ):
                 continue
             if not (repository / Path(reference)).exists():
                 findings.append(
@@ -803,9 +1011,23 @@ def _relative_path(repository: Path, path: Path) -> str:
 
 
 def _missing_reference_severity(reference: str) -> Severity:
-    if reference.startswith(_IGNORED_ARTIFACT_PREFIXES):
+    parts = reference.rstrip("/").split("/")
+    if (
+        len(parts) >= 3
+        and parts[0] == EXPERIMENTS_DIR_NAME
+        and parts[2] in {"raw", "figs"}
+    ):
         return "warning"
     return "error"
+
+
+def _is_scaffold_figure_reference(reference: str) -> bool:
+    parts = reference.rstrip("/").split("/")
+    return (
+        len(parts) >= 4
+        and parts[0] == EXPERIMENTS_DIR_NAME
+        and parts[2] == "figs"
+    )
 
 
 def _format_number_ranges(numbers: list[int]) -> str:
