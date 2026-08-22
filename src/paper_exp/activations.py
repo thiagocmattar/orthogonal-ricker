@@ -274,9 +274,7 @@ def resolve_site_aliases(sites: list[str]) -> set[str]:
         raise ValueError("At least one activation site must be configured.")
     resolved: set[str] = set()
     for site in sites:
-        if site == "all_sites":
-            resolved.add("mlp_hiddens")
-        elif site in SUPPORTED_SITE_ALIASES:
+        if site in SUPPORTED_SITE_ALIASES:
             resolved.add(site)
         else:
             raise ValueError(f"Unsupported activation site for this harness: {site}")
@@ -399,4 +397,4 @@ def _site_clipping_enabled(cfg: dict[str, Any], alias: str, name: str) -> bool:
     if not cfg.get("enabled", False):
         return False
     sites = cfg.get("sites", [])
-    return alias in sites or name in sites or "all_sites" in sites
+    return alias in sites or name in sites

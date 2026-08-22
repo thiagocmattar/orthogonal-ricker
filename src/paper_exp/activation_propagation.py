@@ -7,9 +7,11 @@ from typing import Any, Iterator
 
 import yaml
 
+from paper_exp.config import validate_diagnostic_config
+from paper_exp.data import verify_token_cache
 from paper_exp.modeling import activation_gate_metadata, load_checkpoint_model
-from paper_exp.run import create_run_dir, write_run_artifacts
-from paper_exp.utils import build_manifest, read_json, write_json
+from paper_exp.run import CORE_RUN_ARTIFACTS, RunHandle, complete_run, run_lifecycle
+from paper_exp.utils import read_json, write_json
 
 
 ACTIVATION_STAGE_ORDER = [
@@ -28,10 +30,6 @@ ACTIVATION_STAGE_ORDER = [
     "query_qk_input",
     "key_qk_input",
     "value_pv_input",
-    # Retained aliases keep the schema consumable by the Report 04 plotting code.
-    "query_post_rope",
-    "key_post_rope",
-    "value",
     "attention_probabilities",
     "attention_context",
     "attention_output",
@@ -68,9 +66,6 @@ ACTIVATION_STAGE_LABELS = {
     "query_qk_input": "Actual Q operand of QK^T",
     "key_qk_input": "Actual K operand of QK^T",
     "value_pv_input": "Actual V operand of PV",
-    "query_post_rope": "Legacy alias: actual Q operand of QK^T",
-    "key_post_rope": "Legacy alias: actual K operand of QK^T",
-    "value": "Legacy alias: actual V operand of PV",
     "attention_probabilities": "P = softmax(masked QK^T)",
     "attention_context": "C = PV",
     "attention_output": "O = C W_o + b_o",
@@ -104,14 +99,6 @@ ENDPOINT_ZERO_STAGES = {
     "z_context_wo": "attention_context",
 }
 
-_GATE_TO_TARGETABLE_MATMULS = {
-    "a": ("qkv_projection",),
-    "m": ("mlp_w1",),
-    "h": ("mlp_w2",),
-    "q_or_k": ("qk_scores",),
-    "v": ("probability_value", "attention_output_projection"),
-}
-
 
 def run_activation_propagation(
     config: dict[str, Any],
@@ -120,6 +107,19 @@ def run_activation_propagation(
     command: str,
     run_id: str | None = None,
 ) -> Path:
+    validate_diagnostic_config(config, "activation_propagation")
+    with run_lifecycle(
+        config,
+        config_path=config_path,
+        command=command,
+        mode="activation-propagation",
+        run_id=run_id,
+    ) as run:
+        return _run_activation_propagation(run)
+
+
+def _run_activation_propagation(run: RunHandle) -> Path:
+    config = run.config
     torch, np, auto_model, modeling_gpt_neox = _load_dependencies()
     propagation_config = config["activation_propagation"]
     validation_config = config["validation"]
@@ -138,18 +138,18 @@ def run_activation_propagation(
     )
     if validation_metadata is None:
         raise ValueError("Selected source runs have no validation token cache in their manifests.")
-    _validate_shared_validation_cache(
-        source_manifests,
-        validation_metadata,
-        selected_runs=selected_runs,
-    )
+    _validate_shared_validation_cache(source_manifests, validation_metadata)
     _validate_requested_validation_cache(validation_config, validation_metadata)
     source_checkpoints = [
-        _source_checkpoint(selected, manifest)
-        for selected, manifest in zip(selected_runs, source_manifests, strict=True)
+        _source_checkpoint(source_run, manifest)
+        for source_run, manifest in zip(source_runs, source_manifests, strict=True)
     ]
 
-    validation_tokens = np.memmap(validation_metadata["tokens_path"], dtype=np.int32, mode="r")
+    validation_tokens_path = verify_token_cache(
+        validation_metadata,
+        context="Activation propagation validation cache",
+    )
+    validation_tokens = np.memmap(validation_tokens_path, dtype=np.int32, mode="r")
     block_size = int(validation_metadata["block_size"])
     batch_size = int(validation_config["batch_size"])
     eval_batches = validation_config.get("eval_batches")
@@ -161,13 +161,19 @@ def run_activation_propagation(
         np=np,
     )
 
-    source_training = yaml.safe_load((source_runs[0] / "config.yaml").read_text(encoding="utf-8"))["training"]
-    device = _select_device(torch, source_training.get("device", "auto"))
-    dtype = _select_dtype(torch, device, source_training.get("precision", "auto"))
+    execution_request = _shared_execution_request(source_runs)
+    device = _select_device(torch, execution_request["device"])
+    dtype = _select_dtype(torch, device, execution_request["precision"])
+    execution = {
+        "requested_device": execution_request["device"],
+        "requested_precision": execution_request["precision"],
+        "resolved_device": str(device),
+        "resolved_precision": _resolved_precision(dtype),
+    }
     if device.type == "cuda":
         torch.cuda.reset_peak_memory_stats(device)
 
-    experiment_id, numbered_run_id, output_dir = create_run_dir(config, config_path, run_id=run_id)
+    output_dir = run.run_dir
     results: list[dict[str, Any]] = []
     started = time.perf_counter()
 
@@ -237,9 +243,6 @@ def run_activation_propagation(
             {
                 f"{prefix}/R_block": endpoint["R_block"],
                 f"{prefix}/R_model": endpoint["R_model"],
-                f"{prefix}/R_block_max": endpoint["R_block_max"],
-                f"{prefix}/R_model_max": endpoint["R_model_max"],
-                f"{prefix}/U_arch": endpoint["U_arch"],
             }
         )
     if len(results) == 1:
@@ -248,9 +251,6 @@ def run_activation_propagation(
             {
                 "activation_propagation/R_block": endpoint["R_block"],
                 "activation_propagation/R_model": endpoint["R_model"],
-                "activation_propagation/R_block_max": endpoint["R_block_max"],
-                "activation_propagation/R_model_max": endpoint["R_model_max"],
-                "activation_propagation/U_arch": endpoint["U_arch"],
             }
         )
 
@@ -268,10 +268,8 @@ def run_activation_propagation(
     compute_endpoint_definition = (
         "R_block is the pooled direct zero-product count across QKV, valid-causal QK, valid-causal PV, Wo, "
         "W1, and W2 divided by all products in those block operations. R_model keeps that numerator and "
-        "adds the dense hidden-to-vocabulary LM head to the denominator. R_block_max and R_model_max replace "
-        "the numerator by the union of operations reachable when every runtime-detected gate output is zero; "
-        "Q/K share QK, while V reaches PV and Wo. U_arch is R_model/R_model_max and is undefined for a "
-        "zero-ceiling topology. These are logical scalar products, not measured kernel speedups."
+        "adds the dense hidden-to-vocabulary LM head to the denominator. These are direct logical scalar "
+        "product counters, not architecture ceilings or measured kernel speedups."
     )
     rope_survival_definition = (
         "For PRE-RoPE Q/K gates only, compare each exact-zero gate-output coordinate with the "
@@ -283,45 +281,39 @@ def run_activation_propagation(
         "the paired first-half/second-half coordinates mixed by GPT-NeoX rotate_half. POST-RoPE "
         "and absent-gate checkpoints report these placement-specific metrics as unavailable."
     )
-    manifest = build_manifest(
-        config=config,
-        config_path=config_path,
-        run_id=numbered_run_id,
-        command=command,
-        mode="activation-propagation",
-        config_id=experiment_id,
-        result_path=output_dir,
-    )
-    manifest["source_runs"] = [str(path) for path in source_runs]
-    manifest["source_checkpoints"] = [str(path) for path in source_checkpoints]
-    manifest["source_manifest_statuses"] = [
-        source_manifest.get("status") for source_manifest in source_manifests
-    ]
-    manifest["tokenized_data"] = {"validation": validation_metadata}
-    manifest["activation_propagation"] = {
-        "selected_runs": selected_runs,
-        "attention_implementation": "eager",
-        "future_causal_positions_excluded": True,
-        "exact_zero_definition": exact_zero_definition,
-        "matmul_zero_product_definition": matmul_definition,
-        "compute_endpoint_definition": compute_endpoint_definition,
-        "rope_zero_survival_definition": rope_survival_definition,
-        "eval_batches": eval_batches,
-        "batch_size": batch_size,
-        "validation_sequences": validation_sequences,
-        "validation_tokens": validation_token_count,
-        "validation_cache_tokens": validation_cache_tokens,
-        "trailing_tokens_excluded": trailing_tokens_excluded,
-        "validation_partition": validation_metadata.get("partition"),
-        "validation_partition_hash": validation_metadata.get(
-            "source_document_indices_sha256"
-        ),
-        "complete_named_partition": bool(validation_metadata.get("partition"))
-        and eval_batches is None,
+    manifest_updates = {
+        "source_runs": [_portable_path(path) for path in source_runs],
+        "source_checkpoints": [_portable_path(path) for path in source_checkpoints],
+        "source_manifest_statuses": [
+            source_manifest.get("status") for source_manifest in source_manifests
+        ],
+        "tokenized_data": {"validation": validation_metadata},
+        "activation_propagation": {
+            "selected_runs": selected_runs,
+            "attention_implementation": "eager",
+            "future_causal_positions_excluded": True,
+            "exact_zero_definition": exact_zero_definition,
+            "matmul_zero_product_definition": matmul_definition,
+            "compute_endpoint_definition": compute_endpoint_definition,
+            "rope_zero_survival_definition": rope_survival_definition,
+            "eval_batches": eval_batches,
+            "batch_size": batch_size,
+            "validation_sequences": validation_sequences,
+            "validation_tokens": validation_token_count,
+            "validation_cache_tokens": validation_cache_tokens,
+            "trailing_tokens_excluded": trailing_tokens_excluded,
+            "validation_partition": validation_metadata.get("partition"),
+            "validation_partition_hash": validation_metadata.get(
+                "source_document_indices_sha256"
+            ),
+            "complete_named_partition": bool(validation_metadata.get("partition"))
+            and eval_batches is None,
+            "execution": execution,
+        },
     }
 
     payload = {
-        "schema_version": 3,
+        "schema_version": 4,
         "validation_batches": results[0]["batches"] if results else 0,
         "validation_sequences": validation_sequences,
         "validation_tokens": validation_token_count,
@@ -333,6 +325,7 @@ def run_activation_propagation(
         ),
         "complete_named_partition": bool(validation_metadata.get("partition"))
         and eval_batches is None,
+        "execution": execution,
         "block_size": block_size,
         "batch_size": batch_size,
         "attention_implementation": "eager",
@@ -347,9 +340,13 @@ def run_activation_propagation(
         "matmul_stage_labels": MATMUL_STAGE_LABELS,
         "methods": results,
     }
-    write_run_artifacts(output_dir, config=config, metrics=metrics, manifest=manifest, predictions=[])
     write_json(output_dir / "activation_propagation.json", payload)
-    return output_dir
+    return complete_run(
+        run,
+        metrics=metrics,
+        predictions=[],
+        manifest_updates=manifest_updates,
+    )
 
 
 def _measure_one_run(
@@ -422,8 +419,8 @@ def _measure_one_run(
         "label": label,
         "config_id": source_manifest["config_id"],
         "run_id": source_manifest["run_id"],
-        "source_run": str(source_run),
-        "source_checkpoint": str(checkpoint_path),
+        "source_run": _portable_path(source_run),
+        "source_checkpoint": _portable_path(checkpoint_path),
         "source_manifest_status": source_manifest.get("status"),
         "num_layers": len(layers),
         "use_parallel_residual": True,
@@ -755,7 +752,6 @@ def _architecture_metadata(
     )
 
     return {
-        "topology_id": _topology_id(active, placement),
         "active_gate_sites": active_sites,
         "gate_presence": active,
         "gate_specs": gate_specs,
@@ -776,30 +772,6 @@ def _architecture_metadata(
     }
 
 
-def _topology_id(active: dict[str, bool], placement: str | None) -> str:
-    sites = frozenset(site for site, enabled in active.items() if enabled)
-    fixed = {
-        frozenset(): "A0",
-        frozenset({"h"}): "A1-H",
-        frozenset({"a", "m", "h"}): "A3",
-        frozenset({"a", "m", "h", "v"}): "A4-V",
-    }
-    if sites in fixed:
-        return fixed[sites]
-    if sites == frozenset({"a", "m", "h", "q"}) and placement == "post_rope":
-        return "A4-Q"
-    if sites == frozenset({"a", "m", "h", "k"}) and placement == "post_rope":
-        return "A4-K"
-    if sites == frozenset({"a", "m", "h", "q", "k"}):
-        return "A5-QK-PRE" if placement == "pre_rope" else "A5-QK-POST"
-    if sites == frozenset({"a", "m", "h", "q", "k", "v"}):
-        return "A6-PRE" if placement == "pre_rope" else "A6-POST"
-    custom = "custom:" + ",".join(
-        site for site in ("a", "m", "h", "q", "k", "v") if site in sites
-    )
-    return f"{custom}@{placement}" if sites & {"q", "k"} else custom
-
-
 def _endpoint_summary(
     *,
     architecture: dict[str, Any],
@@ -807,7 +779,7 @@ def _endpoint_summary(
     matmul_rows: list[dict[str, Any]],
     validation_tokens: int,
 ) -> dict[str, Any]:
-    """Reduce direct integer counters to architecture-aware campaign endpoints."""
+    """Reduce direct integer counters to the documented block and model ratios."""
 
     block_size = int(architecture["sequence_length"])
     num_layers = int(architecture["num_layers"])
@@ -853,46 +825,22 @@ def _endpoint_summary(
     )
     model_product_count = block_product_count + lm_head_product_count
 
-    gates = architecture["gate_presence"]
-    targetable_stages: list[str] = []
-    for site in ("a", "m", "h"):
-        if gates[site]:
-            targetable_stages.extend(_GATE_TO_TARGETABLE_MATMULS[site])
-    if gates["q"] or gates["k"]:
-        targetable_stages.extend(_GATE_TO_TARGETABLE_MATMULS["q_or_k"])
-    if gates["v"]:
-        targetable_stages.extend(_GATE_TO_TARGETABLE_MATMULS["v"])
-    targetable_stages = [
-        stage for stage in MATMUL_STAGE_ORDER if stage in set(targetable_stages)
-    ]
-    ceiling_count = sum(
-        int(per_operation[stage]["product_count"]) for stage in targetable_stages
-    )
     r_block = block_zero_count / block_product_count
     r_model = block_zero_count / model_product_count
-    r_block_max = ceiling_count / block_product_count
-    r_model_max = ceiling_count / model_product_count
 
     zero_sites = {
         alias: _pooled_activation_stage(activation_rows, stage, num_layers=num_layers)
         for alias, stage in ENDPOINT_ZERO_STAGES.items()
     }
     return {
-        "architecture_id": architecture["topology_id"],
-        "active_gate_sites": list(architecture["active_gate_sites"]),
         "validation_sequences": sequences,
         "validation_tokens": int(validation_tokens),
         "R_block": r_block,
         "R_model": r_model,
-        "R_block_max": r_block_max,
-        "R_model_max": r_model_max,
-        "U_arch": r_model / r_model_max if r_model_max > 0.0 else None,
         "block_zero_product_count": block_zero_count,
         "block_product_count": block_product_count,
         "lm_head_product_count": lm_head_product_count,
         "model_product_count": model_product_count,
-        "architecture_ceiling_zero_product_count": ceiling_count,
-        "targetable_matmul_stages": targetable_stages,
         "per_operation": per_operation,
         "zero_sites": zero_sites,
     }
@@ -1499,17 +1447,14 @@ def _patched_eager_attention(
             **kwargs,
         )
         layer_index = int(module.layer_idx)
-        for stage, legacy_stage, operand in (
-            ("query_qk_input", "query_post_rope", query),
-            ("key_qk_input", "key_post_rope", key),
-            ("value_pv_input", "value", value),
+        for stage, operand in (
+            ("query_qk_input", query),
+            ("key_qk_input", key),
+            ("value_pv_input", value),
         ):
             zero_count, total = _exact_zero_counts(operand, torch=torch)
             accumulator.add_counts(
                 "activations", stage, layer_index, zero_count, total
-            )
-            accumulator.add_counts(
-                "activations", legacy_stage, layer_index, zero_count, total
             )
         accumulator.add_rope_survival_from_actual_operand("query", layer_index, query)
         accumulator.add_rope_survival_from_actual_operand("key", layer_index, key)
@@ -1703,62 +1648,76 @@ def _probability_value_zero_product_counts(
 def _validate_shared_validation_cache(
     source_manifests: list[dict[str, Any]],
     reference: dict[str, Any],
-    *,
-    selected_runs: list[dict[str, Any]] | None = None,
 ) -> None:
-    reference_key = (reference["tokens_path"], reference["block_size"], reference["tokens"])
-    selected = selected_runs or [{} for _ in source_manifests]
-    available_metadata = [reference]
-    for manifest, selection in zip(source_manifests, selected, strict=True):
+    identity_fields = [
+        "tokens_path",
+        "dtype",
+        "block_size",
+        "tokens",
+        "tokens_bytes",
+        "tokens_sha256",
+    ]
+    if reference.get("partition") in {"selection", "confirmation"}:
+        identity_fields.extend(
+            [
+                "partition",
+                "partition_scheme",
+                "partition_seed",
+                "source_document_indices_sha256",
+            ]
+        )
+    missing_reference = [field for field in identity_fields if reference.get(field) is None]
+    if missing_reference:
+        raise ValueError(
+            "Reference validation cache is missing required identity fields: "
+            + ", ".join(missing_reference)
+            + "."
+        )
+
+    for manifest in source_manifests:
         candidate = (manifest.get("tokenized_data") or {}).get("validation")
         if candidate is None:
-            if bool(selection.get("allow_incomplete_source", False)):
-                continue
             raise ValueError(f"Source run {manifest['config_id']} has no validation token cache.")
-        candidate_key = (candidate["tokens_path"], candidate["block_size"], candidate["tokens"])
-        if candidate_key != reference_key:
-            raise ValueError("Selected runs do not share the same validation token cache.")
-        available_metadata.append(candidate)
-
-    # Historical manifests do not necessarily carry partition or file hashes,
-    # so missing optional identity fields remain compatible. Any identities
-    # that are present must nevertheless agree across every selected source.
-    identity_fields = (
-        "partition",
-        "partition_scheme",
-        "partition_seed",
-        "source_document_indices_sha256",
-        "tokens_sha256",
-    )
-    for field in identity_fields:
-        observed = {
-            metadata[field]
-            for metadata in available_metadata
-            if metadata.get(field) is not None
-        }
-        if len(observed) > 1:
+        if candidate.get("partition") != reference.get("partition"):
             raise ValueError(
                 "Selected runs do not share the same validation token cache "
-                f"identity field {field}."
+                "identity field partition."
             )
+        for field in identity_fields:
+            if candidate.get(field) != reference[field]:
+                raise ValueError(
+                    "Selected runs do not share the same validation token cache "
+                    f"identity field {field}."
+                )
 
 
 def _validate_requested_validation_cache(
     validation_config: dict[str, Any], metadata: dict[str, Any]
 ) -> None:
-    """Bind campaign diagnostics to the complete named validation partition."""
+    """Bind diagnostics to the exact requested validation cache."""
 
     requested_partition = validation_config.get("partition")
+    realized_partition = metadata.get("partition")
     if requested_partition is None:
-        return
-    if metadata.get("partition") != requested_partition:
+        if realized_partition not in {None, "full"}:
+            raise ValueError(
+                "Activation propagation validation partition does not match the source cache."
+            )
+    elif realized_partition != requested_partition:
         raise ValueError(
             "Activation propagation validation partition does not match the source cache."
         )
+    for field in ("split", "max_documents"):
+        expected = validation_config.get(field)
+        if expected is not None and metadata.get(field) != expected:
+            raise ValueError(
+                f"Activation propagation validation {field} does not match the source cache."
+            )
+    if requested_partition not in {"selection", "confirmation"}:
+        return
     expected_fields = {
         "partition_scheme": validation_config.get("partition_scheme"),
         "partition_seed": validation_config.get("partition_seed"),
-        "max_documents": validation_config.get("max_documents"),
     }
     for field, expected in expected_fields.items():
         if expected is not None and metadata.get(field) != expected:
@@ -1778,57 +1737,100 @@ def _validate_requested_validation_cache(
         )
 
 
+def _shared_execution_request(source_runs: list[Path]) -> dict[str, str]:
+    requests: list[dict[str, str]] = []
+    for source_run in source_runs:
+        source_config = yaml.safe_load(
+            (source_run / "config.yaml").read_text(encoding="utf-8")
+        )
+        training = source_config.get("training") if isinstance(source_config, dict) else None
+        if not isinstance(training, dict):
+            raise ValueError(f"Source run has no training configuration: {source_run}")
+        requests.append(
+            {
+                "device": str(training.get("device", "auto")),
+                "precision": str(training.get("precision", "auto")),
+            }
+        )
+    reference = requests[0]
+    if any(request != reference for request in requests[1:]):
+        raise ValueError(
+            "Selected runs do not share the same diagnostic device and precision request."
+        )
+    return reference
+
+
+def _resolved_precision(dtype: Any) -> str:
+    if dtype is None:
+        return "float32"
+    return str(dtype).removeprefix("torch.")
+
+
 def _find_source_run(config: dict[str, Any], selected: dict[str, Any]) -> Path:
     config_id = str(selected["config_id"])
     run_id = selected.get("run_id")
     if run_id is None:
-        return _find_latest_source_run(config, config_id)
+        raise ValueError(
+            "activation_propagation.selected_runs entries require exact config_id and run_id."
+        )
 
     run_dir = Path(config["output"]["dir"]) / config_id / str(run_id)
-    if not run_dir.is_dir() or not (run_dir / "manifest.json").is_file():
-        raise FileNotFoundError(f"Missing explicitly selected source run: {run_dir}")
+    missing = [name for name in CORE_RUN_ARTIFACTS if not (run_dir / name).is_file()]
+    if missing:
+        raise FileNotFoundError(
+            f"Selected source run is missing required artifacts ({', '.join(missing)}): {run_dir}"
+        )
+    manifest = read_json(run_dir / "manifest.json")
+    if not isinstance(manifest, dict):
+        raise ValueError(f"Selected source manifest is not an object: {run_dir}")
+    if manifest.get("config_id") != config_id or manifest.get("run_id") != str(run_id):
+        raise ValueError(f"Selected source run identity is inconsistent: {run_dir}")
+    if manifest.get("status") != "completed":
+        raise ValueError(f"Selected source run is not completed: {run_dir}")
     return run_dir
 
 
-def _source_checkpoint(selected: dict[str, Any], manifest: dict[str, Any]) -> Path:
-    override = selected.get("checkpoint_path")
-    if override is not None:
-        if not bool(selected.get("allow_incomplete_source", False)):
-            raise ValueError(
-                "activation_propagation checkpoint_path overrides require "
-                "allow_incomplete_source: true."
-            )
-        checkpoint_path = Path(str(override))
-    else:
-        checkpoint = manifest.get("checkpoint") or {}
-        checkpoint_path = Path(str(checkpoint.get("path", "")))
-        if not bool(checkpoint.get("saved")):
-            raise ValueError(
-                f"Source run {manifest.get('config_id')} has no saved checkpoint in its manifest."
-            )
+def _portable_path(path: Path) -> str:
+    resolved = path.resolve()
+    try:
+        return resolved.relative_to(Path.cwd().resolve()).as_posix()
+    except ValueError:
+        return resolved.as_posix()
 
-    if not checkpoint_path.is_dir():
-        raise FileNotFoundError(f"Missing source checkpoint: {checkpoint_path}")
+
+def _source_checkpoint(source_run: Path, manifest: dict[str, Any]) -> Path:
+    checkpoint = manifest.get("checkpoint")
+    if not isinstance(checkpoint, dict) or checkpoint.get("saved") is not True:
+        raise ValueError(
+            f"Source run {manifest.get('config_id')} has no saved checkpoint in its manifest."
+        )
+    checkpoint_path = _resolve_source_path(checkpoint.get("path"), source_run=source_run)
+    model_files = (
+        checkpoint_path / "model.safetensors",
+        checkpoint_path / "model.safetensors.index.json",
+    )
+    if not checkpoint_path.is_dir() or not any(path.is_file() for path in model_files):
+        raise FileNotFoundError(f"Missing or incomplete source checkpoint: {checkpoint_path}")
     return checkpoint_path
 
 
-def _find_latest_source_run(config: dict[str, Any], config_id: str) -> Path:
-    experiment_dir = Path(config["output"]["dir"]) / config_id
-    if not experiment_dir.exists():
-        raise FileNotFoundError(f"Missing result directory for selected config: {experiment_dir}")
-    candidates = []
-    for run_dir in sorted(experiment_dir.iterdir()):
-        manifest_path = run_dir / "manifest.json"
-        if not manifest_path.exists():
-            continue
-        manifest = read_json(manifest_path)
-        checkpoint = manifest.get("checkpoint") or {}
-        checkpoint_path = Path(str(checkpoint.get("path", "")))
-        if bool(checkpoint.get("saved")) and checkpoint_path.exists():
-            candidates.append((int(manifest.get("run_sequence", 0)), run_dir))
-    if not candidates:
-        raise FileNotFoundError(f"No checkpointed runs found for selected config: {experiment_dir}")
-    return max(candidates, key=lambda item: item[0])[1]
+def _resolve_source_path(value: Any, *, source_run: Path) -> Path:
+    path_text = str(value or "").strip()
+    if not path_text:
+        raise ValueError(f"Source run has no checkpoint path: {source_run}")
+    recorded = Path(path_text)
+    if recorded.is_absolute():
+        return recorded.resolve()
+    repository_path = (Path.cwd() / recorded).resolve()
+    run_relative_path = (source_run / recorded).resolve()
+    try:
+        repository_path.relative_to(source_run.resolve())
+        return repository_path
+    except ValueError:
+        pass
+    if run_relative_path.exists() or not repository_path.exists():
+        return run_relative_path
+    return repository_path
 
 
 def _eval_starts(

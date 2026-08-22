@@ -5,8 +5,9 @@ import time
 from pathlib import Path
 from typing import Any
 
-from paper_exp.run import create_run_dir, write_run_artifacts
-from paper_exp.utils import build_manifest, read_json, write_json
+from paper_exp.config import validate_diagnostic_config
+from paper_exp.run import CORE_RUN_ARTIFACTS, RunHandle, complete_run, run_lifecycle
+from paper_exp.utils import read_json, write_json
 
 
 MLP_WEIGHT_RE = re.compile(
@@ -28,10 +29,30 @@ def run_weight_histograms(
     command: str,
     run_id: str | None = None,
 ) -> Path:
+    validate_diagnostic_config(config, "weight_histograms")
+    with run_lifecycle(
+        config,
+        config_path=config_path,
+        command=command,
+        mode="weight-histograms",
+        run_id=run_id,
+    ) as run:
+        return _run_weight_histograms(run)
+
+
+def _run_weight_histograms(run: RunHandle) -> Path:
+    config = run.config
     torch, np, load_file = _load_dependencies()
     histogram_config = config["weight_histograms"]
     selected_runs = histogram_config["selected_runs"]
-    scope = str(histogram_config.get("scope", "mlp_weights"))
+    if not isinstance(selected_runs, list) or not selected_runs:
+        raise ValueError(
+            "weight_histograms.selected_runs must be an explicit non-empty list."
+        )
+    configured_scope = histogram_config.get("scope")
+    if not isinstance(configured_scope, str) or not configured_scope.strip():
+        raise ValueError("weight_histograms.scope must be explicitly configured.")
+    scope = configured_scope.strip()
     if scope not in WEIGHT_SCOPES:
         valid_scopes = ", ".join(sorted(WEIGHT_SCOPES))
         raise ValueError(f"Unsupported weight_histograms.scope {scope!r}; expected one of: {valid_scopes}.")
@@ -43,8 +64,8 @@ def run_weight_histograms(
     if range_min >= range_max:
         raise ValueError("weight_histograms.range_min must be less than range_max.")
 
-    source_runs = [_find_latest_source_run(config, item["config_id"]) for item in selected_runs]
-    experiment_id, numbered_run_id, output_dir = create_run_dir(config, config_path, run_id=run_id)
+    source_runs = [_find_source_run(config, item) for item in selected_runs]
+    output_dir = run.run_dir
     bin_edges = np.linspace(range_min, range_max, bins + 1).tolist()
     results: list[dict[str, Any]] = []
     start_time = time.perf_counter()
@@ -76,24 +97,22 @@ def run_weight_histograms(
         "weight_histograms/wall_seconds": wall_seconds,
         "weight_histograms/weights_per_second": total_weights / wall_seconds if wall_seconds > 0 else None,
     }
-    manifest = build_manifest(
-        config=config,
-        config_path=config_path,
-        run_id=numbered_run_id,
-        command=command,
-        mode="weight-histograms",
-        config_id=experiment_id,
-        result_path=output_dir,
-    )
-    manifest["source_runs"] = [str(path) for path in source_runs]
-    manifest["source_checkpoints"] = [str(Path(read_json(path / "manifest.json")["checkpoint"]["path"])) for path in source_runs]
-    manifest["weight_histograms"] = {
-        "scope": scope,
-        "biases_included": False,
-        "bins": bins,
-        "range_min": range_min,
-        "range_max": range_max,
-        "selected_runs": selected_runs,
+    manifest_updates = {
+        "source_runs": [_portable_path(path) for path in source_runs],
+        "source_checkpoints": [
+            _portable_path(
+                _source_checkpoint_path(path, read_json(path / "manifest.json"))
+            )
+            for path in source_runs
+        ],
+        "weight_histograms": {
+            "scope": scope,
+            "biases_included": False,
+            "bins": bins,
+            "range_min": range_min,
+            "range_max": range_max,
+            "selected_runs": selected_runs,
+        },
     }
 
     payload = {
@@ -107,9 +126,13 @@ def run_weight_histograms(
         "biases_included": False,
         "methods": results,
     }
-    write_run_artifacts(output_dir, config=config, metrics=metrics, manifest=manifest, predictions=[])
     write_json(output_dir / "weight_histograms.json", payload)
-    return output_dir
+    return complete_run(
+        run,
+        metrics=metrics,
+        predictions=[],
+        manifest_updates=manifest_updates,
+    )
 
 
 def _measure_one_run(
@@ -124,7 +147,7 @@ def _measure_one_run(
     range_max: float,
 ) -> dict[str, Any]:
     source_manifest = read_json(source_run / "manifest.json")
-    checkpoint_path = Path(source_manifest["checkpoint"]["path"])
+    checkpoint_path = _source_checkpoint_path(source_run, source_manifest)
     method_start = time.perf_counter()
     state = load_file(str(checkpoint_path / "model.safetensors"), device="cpu")
     pattern, layer_prefix = WEIGHT_SCOPES[scope]
@@ -167,27 +190,75 @@ def _measure_one_run(
         "label": label,
         "config_id": source_manifest["config_id"],
         "run_id": source_manifest["run_id"],
-        "source_run": str(source_run),
-        "source_checkpoint": str(checkpoint_path),
+        "source_run": _portable_path(source_run),
+        "source_checkpoint": _portable_path(checkpoint_path),
         "layers": layer_rows,
         "wall_seconds": time.perf_counter() - method_start,
     }
 
 
-def _find_latest_source_run(config: dict[str, Any], config_id: str) -> Path:
-    experiment_dir = Path(config["output"]["dir"]) / config_id
-    if not experiment_dir.exists():
-        raise FileNotFoundError(f"Missing result directory for selected config: {experiment_dir}")
-    candidates = []
-    for run_dir in sorted(experiment_dir.iterdir()):
-        manifest_path = run_dir / "manifest.json"
-        checkpoint_path = run_dir / "checkpoints" / "final" / "model.safetensors"
-        if manifest_path.exists() and checkpoint_path.exists():
-            manifest = read_json(manifest_path)
-            candidates.append((int(manifest.get("run_sequence", 0)), run_dir))
-    if not candidates:
-        raise FileNotFoundError(f"No checkpointed runs found for selected config: {experiment_dir}")
-    return sorted(candidates, key=lambda item: item[0])[-1][1]
+def _find_source_run(config: dict[str, Any], selected: dict[str, Any]) -> Path:
+    config_id = str(selected.get("config_id") or "").strip()
+    run_id = str(selected.get("run_id") or "").strip()
+    if not config_id or not run_id:
+        raise ValueError(
+            "weight_histograms.selected_runs entries require exact config_id and run_id."
+        )
+    run_dir = Path(config["output"]["dir"]) / config_id / run_id
+    _verify_completed_checkpoint_run(run_dir, config_id=config_id, run_id=run_id)
+    return run_dir
+
+
+def _verify_completed_checkpoint_run(run_dir: Path, *, config_id: str, run_id: str) -> None:
+    missing = [name for name in CORE_RUN_ARTIFACTS if not (run_dir / name).is_file()]
+    if missing:
+        raise FileNotFoundError(
+            f"Selected source run is missing required artifacts ({', '.join(missing)}): {run_dir}"
+        )
+    manifest = read_json(run_dir / "manifest.json")
+    if not isinstance(manifest, dict):
+        raise ValueError(f"Selected source manifest is not an object: {run_dir}")
+    if manifest.get("config_id") != config_id or manifest.get("run_id") != run_id:
+        raise ValueError(f"Selected source run identity is inconsistent: {run_dir}")
+    if manifest.get("status") != "completed":
+        raise ValueError(f"Selected source run is not completed: {run_dir}")
+    checkpoint_path = _source_checkpoint_path(run_dir, manifest)
+    if not checkpoint_path.is_dir() or not (checkpoint_path / "model.safetensors").is_file():
+        raise FileNotFoundError(f"Selected source checkpoint is incomplete: {checkpoint_path}")
+
+
+def _source_checkpoint_path(source_run: Path, manifest: dict[str, Any]) -> Path:
+    checkpoint = manifest.get("checkpoint")
+    if not isinstance(checkpoint, dict) or checkpoint.get("saved") is not True:
+        raise ValueError(f"Selected source run has no saved checkpoint: {source_run}")
+    return _resolve_source_path(checkpoint.get("path"), source_run=source_run)
+
+
+def _resolve_source_path(value: Any, *, source_run: Path) -> Path:
+    path_text = str(value or "").strip()
+    if not path_text:
+        raise ValueError(f"Source run has no checkpoint path: {source_run}")
+    recorded = Path(path_text)
+    if recorded.is_absolute():
+        return recorded.resolve()
+    repository_path = (Path.cwd() / recorded).resolve()
+    run_relative_path = (source_run / recorded).resolve()
+    try:
+        repository_path.relative_to(source_run.resolve())
+        return repository_path
+    except ValueError:
+        pass
+    if run_relative_path.exists() or not repository_path.exists():
+        return run_relative_path
+    return repository_path
+
+
+def _portable_path(path: Path) -> str:
+    resolved = path.resolve()
+    try:
+        return resolved.relative_to(Path.cwd().resolve()).as_posix()
+    except ValueError:
+        return resolved.as_posix()
 
 
 def _load_dependencies() -> tuple[Any, Any, Any]:

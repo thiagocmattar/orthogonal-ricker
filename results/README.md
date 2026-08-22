@@ -1,55 +1,120 @@
 # Results
 
-Run outputs are written here:
+Run artifacts are written under:
 
 ```text
-results/<config_id>/<run_id>/
+results/<config-id>/<run-id>/
 ```
 
-Example:
+`config-id` is the config filename without `.yaml`. `run-id` uses a sequential
+attempt prefix plus UTC timestamp and short unique suffix:
 
 ```text
-results/01-baseline/001-20260626-173041-33e1187b/
+001-YYYYMMDD-HHMMSS-xxxxxxxx
 ```
 
-Completed run directories should contain the core envelope:
+Results are local artifacts and are ignored by Git. Do not commit checkpoints,
+large event streams, or derived diagnostic outputs accidentally.
 
-- `config.yaml`
-- `metrics.json`
-- `manifest.json`
-- `predictions.jsonl`
+## Core Envelope
 
-## Lifecycle Status
+The common completed envelope is:
 
-Smoke and calibration/pretrain runs save `config.yaml` and `manifest.json` at
-launch. Their manifest transitions as follows:
+```text
+config.yaml
+manifest.json
+metrics.json
+predictions.jsonl
+```
+
+Both training workflows (`calibrate` and `pretrain`) additionally write:
+
+```text
+events.jsonl
+checkpoints/final/    # when checkpoint.save_final is true
+```
+
+For both training workflows, `predictions.jsonl` duplicates the train and
+validation event history stored in `events.jsonl`; it is not generated-token
+output. Keep that meaning explicit in downstream tools. The final checkpoint is
+conditional on `checkpoint.save_final` in either workflow.
+
+Pretraining metrics use the `training/` namespace. Throughput-calibration
+metrics use `calibration/`; downstream tools must not conflate the two modes.
+
+Specialized workflows add one primary artifact:
+
+- clipping: `clipping_frontier.jsonl`;
+- activation histograms: `activation_histograms.json`;
+- weight histograms: `weight_histograms.json`;
+- activation propagation: `activation_propagation.json`.
+
+See [`docs/diagnostics.md`](../docs/diagnostics.md) for their measurement
+contracts.
+
+## Run Lifecycle
+
+Every retained workflow uses the same explicit lifecycle:
 
 ```text
 running -> completed
         -> failed
 ```
 
-- `running`: the immutable config and launch provenance are durable; metrics
-  and predictions are not expected yet.
-- `completed`: metrics and predictions were written before the terminal
-  manifest, which includes `finished_at`.
-- `failed`: an escaping exception was recorded with its type and message and a
-  `finished_at` timestamp; partial artifacts may remain. Exiting a lifecycle
-  without explicitly completing it is also recorded as a failure.
+At launch, the harness creates the run directory and atomically writes:
 
-The Git commit and dirty state in these manifests describe launch time and are
-not recomputed at completion. A statusless historical manifest is still
-treated as completed when the full core envelope is coherent.
+- the immutable `config.yaml` snapshot;
+- a `manifest.json` with `status: running`, `started_at`, config/run identity,
+  command, environment, and launch Git provenance.
 
-This lifecycle currently covers only smoke and calibration/pretrain. Data
-preparation, activation and weight histogram diagnostics, activation
-propagation, and clipping sweeps retain the legacy end-of-run writer until a
-second migration.
+On success, required metrics and predictions are written before the terminal
+manifest is atomically published with `status: completed` and `finished_at`.
+Pretraining writes its event stream and required checkpoint before completion.
+Clipping and the retained histogram/propagation diagnostics write their
+specialized artifact before the common result envelope and terminal manifest.
+Data preparation publishes its cache metadata only after the declared token
+cache is complete.
 
-For calibration/pretrain, `predictions.jsonl` is currently the training and
-validation event history also saved as `events.jsonl`, not generated-token
-predictions. `calibration/wall_seconds_train` includes validation executed
-inside the timed training interval; validation time is also broken out in its
-own metrics.
+On an escaping exception, the original error is re-raised after the manifest is
+updated to `status: failed`, `finished_at`, and a failure type/message. Partial
+artifacts may remain. A lifecycle scope that exits without explicit completion
+is also failed.
 
-Keep raw results here. Regenerated figures belong in `figures/`.
+Terminal manifests are derived from the immutable launch snapshot. Git commit
+and dirty state always describe launch time, even if the working tree changes
+later.
+
+## Consumption Rules
+
+- A paper input must name an exact config ID, run ID, and specialized artifact.
+- A source is consumable only when its terminal manifest says `completed`, its
+  config/run identity matches its directory, and its required artifacts are
+  coherent.
+- Activation and weight diagnostics must pin every source with both
+  `config_id` and `run_id`; they never select the latest run.
+- Statusless historical attempts are not definitive inputs on this branch.
+- A failed or incomplete attempt is never silently selected as completed.
+- Provisional use requires an explicit limitation and exact durable source.
+- Never overwrite an attempt. A retry creates the next run ID.
+
+Run the read-only integrity scan with:
+
+```bash
+make check
+paper-exp check --strict
+```
+
+## Sequential Runner State
+
+`paper-exp run-configs` stores ignored atomic state and logs under `run-logs/`
+by default. These are orchestration aids; child manifests and artifacts remain
+the authority.
+
+Inspect state without mutation:
+
+```bash
+paper-exp run-status --state run-logs/runner-state.json
+```
+
+Do not reuse a failed state file for a new queue. Preserve it for diagnosis and
+choose a new state path for a reviewed retry.

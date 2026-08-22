@@ -1,15 +1,17 @@
 from __future__ import annotations
 
 import hashlib
+import json
+import os
 from pathlib import Path
 from typing import Any
+from uuid import uuid4
 
-from paper_exp.config import validate_config
+from paper_exp.config import validate_data_config
 from paper_exp.reproducibility import VALIDATION_PARTITION_SCHEME
 from paper_exp.reproducibility import validation_document_indices
 from paper_exp.reproducibility import validation_document_indices_sha256
-from paper_exp.run import create_run_dir, write_run_artifacts
-from paper_exp.utils import build_manifest, write_json
+from paper_exp.run import RunHandle, complete_run, run_lifecycle
 
 
 def prepare_tokenized_data(
@@ -19,11 +21,23 @@ def prepare_tokenized_data(
     command: str,
     run_id: str | None = None,
 ) -> Path:
-    validate_config(config, allow_todos=False)
+    validate_data_config(config)
+    with run_lifecycle(
+        config,
+        config_path=config_path,
+        command=command,
+        mode="prepare-data",
+        run_id=run_id,
+    ) as run:
+        return _prepare_tokenized_data(run)
+
+
+def _prepare_tokenized_data(run: RunHandle) -> Path:
+    config = run.config
 
     np, load_dataset, auto_tokenizer = _load_data_dependencies()
-    experiment_id, numbered_run_id, run_dir = create_run_dir(config, config_path, run_id=run_id)
-    cache_dir = tokenized_cache_dir(config, experiment_id)
+    run_dir = run.run_dir
+    cache_dir = tokenized_cache_dir(config, run.config_id)
     cache_dir.mkdir(parents=True, exist_ok=True)
     metadata = _load_or_write_cache(
         config=config,
@@ -114,19 +128,12 @@ def prepare_tokenized_data(
                 ),
             }
         )
-    manifest = build_manifest(
-        config=config,
-        config_path=config_path,
-        run_id=numbered_run_id,
-        command=command,
-        mode="prepare-data",
-        config_id=experiment_id,
-        result_path=run_dir,
-    )
-    manifest["tokenized_data"] = {
-        "train": metadata,
-        "validation": validation_metadata,
-        "validation_partitions": validation_partitions or None,
+    manifest_updates = {
+        "tokenized_data": {
+            "train": metadata,
+            "validation": validation_metadata,
+            "validation_partitions": validation_partitions or None,
+        }
     }
     predictions = [
         {
@@ -152,12 +159,16 @@ def prepare_tokenized_data(
                 }
             )
 
-    write_run_artifacts(run_dir, config=config, metrics=metrics, manifest=manifest, predictions=predictions)
-    return run_dir
+    return complete_run(
+        run,
+        metrics=metrics,
+        predictions=predictions,
+        manifest_updates=manifest_updates,
+    )
 
 
 def tokenized_cache_dir(config: dict[str, Any], config_id: str) -> Path:
-    cache_id = config["preprocessing"].get("cache_id", config_id)
+    cache_id = config["preprocessing"]["cache_id"]
     return Path(config["preprocessing"]["output_dir"]) / cache_id
 
 
@@ -188,6 +199,49 @@ def metadata_matches_config(
     )
 
 
+def verify_token_cache(
+    metadata: dict[str, Any], *, context: str = "Token cache"
+) -> Path:
+    """Return the resolved token path after verifying its int32 byte envelope."""
+
+    if not isinstance(metadata, dict):
+        raise ValueError(f"{context} metadata must be an object.")
+    recorded_path = metadata.get("tokens_path")
+    if not isinstance(recorded_path, str) or not recorded_path.strip():
+        raise ValueError(f"{context} metadata has no tokens_path.")
+    tokens_path = Path(recorded_path)
+    if not tokens_path.is_absolute():
+        tokens_path = Path.cwd() / tokens_path
+    tokens_path = tokens_path.resolve()
+
+    tokens = metadata.get("tokens")
+    tokens_bytes = metadata.get("tokens_bytes")
+    tokens_sha256 = metadata.get("tokens_sha256")
+    if (
+        metadata.get("dtype") != "int32"
+        or isinstance(tokens, bool)
+        or not isinstance(tokens, int)
+        or tokens < 0
+        or isinstance(tokens_bytes, bool)
+        or not isinstance(tokens_bytes, int)
+        or tokens_bytes < 0
+        or tokens_bytes != tokens * 4
+        or not isinstance(tokens_sha256, str)
+        or len(tokens_sha256) != 64
+        or any(character not in "0123456789abcdef" for character in tokens_sha256)
+    ):
+        raise ValueError(f"{context} token identity is incomplete or invalid.")
+    try:
+        actual_bytes = tokens_path.stat().st_size
+    except OSError as error:
+        raise ValueError(f"{context} token file is not readable: {tokens_path}") from error
+    if actual_bytes != tokens_bytes:
+        raise ValueError(f"{context} token file size does not match its metadata.")
+    if _file_sha256(tokens_path) != tokens_sha256:
+        raise ValueError(f"{context} token file hash does not match its metadata.")
+    return tokens_path
+
+
 def _load_or_write_cache(
     *,
     config: dict[str, Any],
@@ -205,35 +259,56 @@ def _load_or_write_cache(
     metadata_path = cache_dir / "metadata.json"
     tokens_path = cache_dir / "tokens.int32.bin"
     if tokens_path.exists() and metadata_path.exists() and not config["preprocessing"].get("overwrite", False):
-        metadata = _read_metadata(metadata_path)
-        if _metadata_matches_config(
-            metadata,
-            config,
+        try:
+            metadata = _read_metadata(metadata_path)
+        except (UnicodeError, json.JSONDecodeError):
+            metadata = None
+        if isinstance(metadata, dict):
+            if _metadata_matches_config(
+                metadata,
+                config,
+                split=split,
+                max_documents=max_documents,
+                partition=partition,
+                partition_seed=partition_seed,
+                document_indices=document_indices,
+                expected_partition_hash=expected_partition_hash,
+            ) and _token_cache_matches_metadata(tokens_path, metadata):
+                return metadata
+
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    temporary_tokens_path = tokens_path.with_name(
+        f".{tokens_path.name}.{uuid4().hex}.tmp"
+    )
+    temporary_metadata_path = metadata_path.with_name(
+        f".{metadata_path.name}.{uuid4().hex}.tmp"
+    )
+    try:
+        metadata = _write_token_cache(
+            config=config,
+            cache_dir=cache_dir,
+            tokens_path=temporary_tokens_path,
             split=split,
             max_documents=max_documents,
+            document_indices=document_indices,
             partition=partition,
             partition_seed=partition_seed,
-            document_indices=document_indices,
             expected_partition_hash=expected_partition_hash,
-        ):
-            return metadata
+            np=np,
+            load_dataset=load_dataset,
+            auto_tokenizer=auto_tokenizer,
+        )
+        metadata["tokens_path"] = str(tokens_path)
+        _write_durable_metadata(temporary_metadata_path, metadata)
 
-    metadata = _write_token_cache(
-        config=config,
-        cache_dir=cache_dir,
-        tokens_path=tokens_path,
-        split=split,
-        max_documents=max_documents,
-        document_indices=document_indices,
-        partition=partition,
-        partition_seed=partition_seed,
-        expected_partition_hash=expected_partition_hash,
-        np=np,
-        load_dataset=load_dataset,
-        auto_tokenizer=auto_tokenizer,
-    )
-    write_json(metadata_path, metadata)
-    return metadata
+        # The metadata is the commit record. Publish it only after the complete
+        # token file is in place, so interrupted writes can never look valid.
+        temporary_tokens_path.replace(tokens_path)
+        temporary_metadata_path.replace(metadata_path)
+        return metadata
+    finally:
+        temporary_tokens_path.unlink(missing_ok=True)
+        temporary_metadata_path.unlink(missing_ok=True)
 
 
 def _write_token_cache(
@@ -257,10 +332,10 @@ def _write_token_cache(
 
     tokenizer = auto_tokenizer.from_pretrained(
         tokenizer_config["name"],
-        revision=tokenizer_config.get("revision"),
+        revision=tokenizer_config["revision"],
     )
     if tokenizer.eos_token_id is None:
-        raise ValueError("Tokenizer must define eos_token_id for MiniPile preprocessing.")
+        raise ValueError("Tokenizer must define eos_token_id for token-cache preparation.")
 
     requested_split = split
     dataset_split = f"{split}[:{max_documents}]" if max_documents else split
@@ -268,7 +343,7 @@ def _write_token_cache(
     dataset = load_dataset(
         data_config["name"],
         split=dataset_split,
-        revision=data_config.get("revision"),
+        revision=data_config["revision"],
     )
     source_documents = len(dataset)
     dataset_fingerprint = getattr(dataset, "_fingerprint", None)
@@ -298,18 +373,16 @@ def _write_token_cache(
                 f"expected {frozen_partition_hash}, got {selected_indices_hash}."
             )
         dataset = dataset.select(selected_indices)
-    text_column = data_config.get("text_column", "text")
-    append_eos = bool(preprocessing.get("append_eos", True))
+    text_column = data_config["text_column"]
+    append_eos = preprocessing["append_eos"]
 
     tokens = 0
     documents = 0
     buffer: list[int] = []
     flush_tokens = 1_000_000
     tokens_path.parent.mkdir(parents=True, exist_ok=True)
-    if tokens_path.exists():
-        tokens_path.unlink()
 
-    with tokens_path.open("ab") as handle:
+    with tokens_path.open("xb") as handle:
         for row in dataset:
             text = row.get(text_column)
             if not text:
@@ -326,13 +399,15 @@ def _write_token_cache(
 
         if buffer:
             np.asarray(buffer, dtype=np.int32).tofile(handle)
+        handle.flush()
+        os.fsync(handle.fileno())
 
     metadata = {
         "cache_dir": str(cache_dir),
         "tokens_path": str(tokens_path),
         "dtype": "int32",
         "dataset_name": data_config["name"],
-        "dataset_revision": data_config.get("revision"),
+        "dataset_revision": data_config["revision"],
         "split": requested_split,
         "text_column": text_column,
         "max_documents": max_documents,
@@ -341,7 +416,7 @@ def _write_token_cache(
         "tokens_bytes": tokens_path.stat().st_size,
         "tokens_sha256": _file_sha256(tokens_path),
         "tokenizer_name": tokenizer_config["name"],
-        "tokenizer_revision": tokenizer_config.get("revision"),
+        "tokenizer_revision": tokenizer_config["revision"],
         "block_size": preprocessing["block_size"],
         "append_eos": append_eos,
         "dataset_fingerprint": dataset_fingerprint,
@@ -361,10 +436,24 @@ def _write_token_cache(
 
 
 def _read_metadata(metadata_path: Path) -> dict[str, Any]:
-    import json
-
     with metadata_path.open("r", encoding="utf-8-sig") as handle:
         return json.load(handle)
+
+
+def _write_durable_metadata(path: Path, metadata: dict[str, Any]) -> None:
+    with path.open("x", encoding="utf-8", newline="\n") as handle:
+        json.dump(metadata, handle, indent=2, sort_keys=True)
+        handle.write("\n")
+        handle.flush()
+        os.fsync(handle.fileno())
+
+
+def _token_cache_matches_metadata(tokens_path: Path, metadata: dict[str, Any]) -> bool:
+    try:
+        verified_path = verify_token_cache(metadata)
+    except (OSError, ValueError):
+        return False
+    return verified_path == tokens_path.resolve()
 
 
 def _file_sha256(path: Path) -> str:
@@ -391,14 +480,14 @@ def _metadata_matches_config(
     tokenizer_config = config["tokenizer"]
     expected = {
         "dataset_name": data_config["name"],
-        "dataset_revision": data_config.get("revision"),
+        "dataset_revision": data_config["revision"],
         "split": split,
-        "text_column": data_config.get("text_column", "text"),
+        "text_column": data_config["text_column"],
         "max_documents": max_documents,
         "tokenizer_name": tokenizer_config["name"],
-        "tokenizer_revision": tokenizer_config.get("revision"),
+        "tokenizer_revision": tokenizer_config["revision"],
         "block_size": preprocessing["block_size"],
-        "append_eos": bool(preprocessing.get("append_eos", True)),
+        "append_eos": preprocessing["append_eos"],
     }
     matches = all(_metadata_value_matches(metadata, key, value) for key, value in expected.items())
     if not matches:
@@ -474,6 +563,7 @@ def _load_data_dependencies() -> tuple[Any, Any, Any]:
         from transformers import AutoTokenizer
     except ImportError as exc:
         raise RuntimeError(
-            "MiniPile preparation requires numpy, datasets, and transformers. Run `make install` first."
+            "Token-cache preparation requires numpy, datasets, and transformers. "
+            "Run `make install` first."
         ) from exc
     return np, load_dataset, AutoTokenizer

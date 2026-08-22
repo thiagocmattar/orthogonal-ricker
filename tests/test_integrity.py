@@ -15,12 +15,26 @@ VALID_CONFIG = """\
 experiment_name: integrity_test
 model:
   provider: huggingface
-  name: pythia-14m-random
-  architecture: EleutherAI/pythia-14m-deduped
+  name: test-random-model
+  architecture: test/architecture
   initialization: random
 data:
-  name: JeanKaddour/minipile
+  name: test/dataset
+  revision: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
   split: train
+  text_column: text
+  max_documents: 1
+tokenizer:
+  name: test/tokenizer
+  revision: cccccccccccccccccccccccccccccccccccccccc
+preprocessing:
+  output_dir: data/tokenized
+  cache_id: integrity-test
+  block_size: 128
+  append_eos: true
+  overwrite: false
+validation:
+  enabled: false
 evaluation:
   metric: training_loss
 run:
@@ -68,7 +82,9 @@ def test_run_directories_are_classified_from_artifacts(tmp_path: Path) -> None:
     for artifact in ("config.yaml", "metrics.json", "predictions.jsonl"):
         (complete / artifact).write_text("{}\n", encoding="utf-8")
     (complete / "manifest.json").write_text(
-        '{"config_id": "01-test", "run_id": "003-complete"}\n',
+        '{"config_id": "01-test", "run_id": "003-complete", '
+        '"mode": "smoke", "git_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", '
+        '"git_dirty": false}\n',
         encoding="utf-8",
     )
 
@@ -77,7 +93,9 @@ def test_run_directories_are_classified_from_artifacts(tmp_path: Path) -> None:
     (running / "config.yaml").write_text(VALID_CONFIG, encoding="utf-8")
     (running / "manifest.json").write_text(
         '{"config_id": "01-test", "run_id": "004-running", '
-        '"status": "running", "started_at": "2026-01-01T00:00:00Z"}\n',
+        '"status": "running", "started_at": "2026-01-01T00:00:00Z", '
+        '"mode": "smoke", "git_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", '
+        '"git_dirty": false}\n',
         encoding="utf-8",
     )
 
@@ -88,7 +106,9 @@ def test_run_directories_are_classified_from_artifacts(tmp_path: Path) -> None:
         '{"config_id": "01-test", "run_id": "005-failed", '
         '"status": "failed", "started_at": "2026-01-01T00:00:00Z", '
         '"finished_at": "2026-01-01T00:01:00Z", '
-        '"failure": {"type": "RuntimeError", "message": "test"}}\n',
+        '"failure": {"type": "RuntimeError", "message": "test"}, '
+        '"mode": "smoke", "git_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", '
+        '"git_dirty": false}\n',
         encoding="utf-8",
     )
 
@@ -98,7 +118,9 @@ def test_run_directories_are_classified_from_artifacts(tmp_path: Path) -> None:
     (inconsistent / "manifest.json").write_text(
         '{"config_id": "01-test", "run_id": "006-inconsistent", '
         '"status": "completed", "started_at": "2026-01-01T00:00:00Z", '
-        '"finished_at": "2026-01-01T00:01:00Z"}\n',
+        '"finished_at": "2026-01-01T00:01:00Z", '
+        '"mode": "smoke", "git_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", '
+        '"git_dirty": false}\n',
         encoding="utf-8",
     )
 
@@ -113,18 +135,21 @@ def test_run_directories_are_classified_from_artifacts(tmp_path: Path) -> None:
 
     completed = result_group / "008-completed"
     completed.mkdir()
-    for artifact in ("config.yaml", "metrics.json", "predictions.jsonl"):
-        (completed / artifact).write_text("{}\n", encoding="utf-8")
+    (completed / "config.yaml").write_text(VALID_CONFIG, encoding="utf-8")
+    (completed / "metrics.json").write_text("{}\n", encoding="utf-8")
+    (completed / "predictions.jsonl").write_text("{}\n", encoding="utf-8")
     (completed / "manifest.json").write_text(
         '{"config_id": "01-test", "run_id": "008-completed", '
         '"status": "completed", "started_at": "2026-01-01T00:00:00Z", '
-        '"finished_at": "2026-01-01T00:01:00Z"}\n',
+        '"finished_at": "2026-01-01T00:01:00Z", '
+        '"mode": "smoke", "git_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", '
+        '"git_dirty": false}\n',
         encoding="utf-8",
     )
 
-    assert classify_run_directory(active) == "event_stream"
-    assert classify_run_directory(partial) == "partial"
-    assert classify_run_directory(complete) == "complete"
+    assert classify_run_directory(active) == "inconsistent"
+    assert classify_run_directory(partial) == "inconsistent"
+    assert classify_run_directory(complete) == "inconsistent"
     assert classify_run_directory(running) == "running"
     assert classify_run_directory(failed) == "failed"
     assert classify_run_directory(inconsistent) == "inconsistent"
@@ -133,13 +158,9 @@ def test_run_directories_are_classified_from_artifacts(tmp_path: Path) -> None:
 
     findings = check_repository(tmp_path)
 
-    active_finding = _finding(
-        findings,
-        "run.event_stream_incomplete",
-        "results/01-test/001-active",
-    )
-    partial_finding = _finding(findings, "run.partial", "results/01-test/002-partial")
-    complete_finding = _finding(findings, "run.complete", "results/01-test/003-complete")
+    active_finding = _finding(findings, "run.inconsistent", "results/01-test/001-active")
+    partial_finding = _finding(findings, "run.inconsistent", "results/01-test/002-partial")
+    complete_finding = _finding(findings, "run.inconsistent", "results/01-test/003-complete")
     running_finding = _finding(findings, "run.running", "results/01-test/004-running")
     failed_finding = _finding(findings, "run.failed", "results/01-test/005-failed")
     inconsistent_finding = _finding(
@@ -157,9 +178,9 @@ def test_run_directories_are_classified_from_artifacts(tmp_path: Path) -> None:
         "run.complete",
         "results/01-test/008-completed",
     )
-    assert active_finding.severity == "warning"
-    assert partial_finding.severity == "warning"
-    assert complete_finding.severity == "info"
+    assert active_finding.severity == "error"
+    assert partial_finding.severity == "error"
+    assert complete_finding.severity == "error"
     assert running_finding.severity == "warning"
     assert failed_finding.severity == "warning"
     assert inconsistent_finding.severity == "error"
@@ -206,6 +227,25 @@ def test_literal_references_and_paper_outputs_are_checked(tmp_path: Path) -> Non
         findings, "paper_map.output_missing", "figures/02-missing.pdf"
     ).severity == "warning"
     assert not any(finding.path == "results/*-sweep/" for finding in findings)
+
+
+def test_completed_run_rejects_corrupt_core_artifact(tmp_path: Path) -> None:
+    _make_repository_skeleton(tmp_path)
+    run_dir = tmp_path / "results" / "01-test" / "001-corrupt"
+    run_dir.mkdir(parents=True)
+    (run_dir / "config.yaml").write_text(VALID_CONFIG, encoding="utf-8")
+    (run_dir / "metrics.json").write_text("not-json\n", encoding="utf-8")
+    (run_dir / "predictions.jsonl").write_text("{}\n", encoding="utf-8")
+    (run_dir / "manifest.json").write_text(
+        '{"config_id": "01-test", "run_id": "001-corrupt", '
+        '"status": "completed", "started_at": "2026-01-01T00:00:00Z", '
+        '"finished_at": "2026-01-01T00:01:00Z", "mode": "smoke", '
+        '"git_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", '
+        '"git_dirty": false}\n',
+        encoding="utf-8",
+    )
+
+    assert classify_run_directory(run_dir) == "inconsistent"
 
 
 def test_check_is_read_only(tmp_path: Path) -> None:

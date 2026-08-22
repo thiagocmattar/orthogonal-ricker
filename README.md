@@ -1,228 +1,195 @@
-# Paper Experiment Harness
+# Orthogonal Sparsity Pressure
 
-This repository is a lean, auditable harness for reproducible paper experiments. It is intentionally small: configs define runs, commands create saved artifacts, and plots are regenerated from saved results.
+This repository is a lean experiment harness for studying activation sparsity
+during random-initialized language-model pretraining. It contains reusable
+training methods, diagnostics, run lifecycle controls, and publication-quality
+plotting utilities.
 
-Author: Thiago Mattar <thiagocmattar@gmail.com>
+## Status
 
-## Current Status
+The definitive paper experiment plan has not yet been added. Scientific
+launches are blocked until the user-provided plan replaces the placeholder in
+[`docs/experiment_plan.md`](docs/experiment_plan.md) and is reviewed against
+the implemented method and diagnostic contracts. The reviewed document must
+declare `Plan status: reviewed`; the CLI enforces this launch gate.
 
-- The current target is Pythia-14M architecture pretraining on MiniPile.
-- Model weights are randomly initialized. We do not load Pythia checkpoint weights for baseline pretraining runs.
-- Earlier local runs that loaded pretrained Pythia weights were removed from the experiment log, result folders, and paper map.
-- Data preparation tokenizes MiniPile into a local cache before calibration or paper runs.
-- Repository files, documentation, result records, plot labels, and generated outputs are kept in English.
-- The next experiment round is a staged 2,048-step Pythia-14M screen followed by
-  token and model scaling through Pythia-410M. Its authoritative design and
-  registries live in [`docs/experimental-design/`](docs/experimental-design/README.md).
+The tracked release tree intentionally contains no earlier campaign configs, reports, or
+results. Those remain available through Git history on the branches and commits
+where they were produced. Nothing in the current branch should be interpreted
+as a paper result.
 
-## Code Navigation
+## Scientific Invariants
 
-See [`docs/code_map.md`](docs/code_map.md) for module ownership, CLI-to-artifact
-routes, config ownership, and surgical recipes for adding methods, activation
-sites, diagnostics, and paper figures. See [`configs/README.md`](configs/README.md)
-before creating or promoting an experiment config. See
-[`docs/plotting.md`](docs/plotting.md) for the Report 04/05 visual contracts,
-plotting-module boundaries, and the parity checks required for figure changes.
-Before creating or launching a config in the scaling campaign, read
-[`docs/experimental-design/README.md`](docs/experimental-design/README.md).
+- Pythia experiments are pretraining runs unless a plan explicitly says
+  otherwise.
+- `model.architecture` identifies the architecture/config source.
+- `model.initialization: random` means released checkpoint weights are not
+  loaded.
+- Naive loss pressure and Adam-step orthogonal pressure are separate methods,
+  with separate config names, metrics, and interpretation.
+- Exact zeros, near-zero activations, logical zero-product opportunities, and
+  measured runtime speedups are different quantities.
+- Every launched experiment has an immutable numbered config and a durable run
+  artifact envelope.
+
+See [`docs/methods.md`](docs/methods.md) and
+[`docs/diagnostics.md`](docs/diagnostics.md) for the complete contracts.
 
 ## Install
+
+Create an isolated Python environment, then install the package and development
+dependencies:
 
 ```bash
 make install
 ```
 
-For GPU calibration on this Windows/CUDA machine, verify PyTorch sees CUDA:
+[`constraints/requirements-ci.txt`](constraints/requirements-ci.txt) records
+the exact dependency snapshot exercised by the Linux/Python 3.11 and
+Windows/Python 3.12 CI matrix. Release experiments should install with that
+constraint file unless the reviewed plan deliberately records and tests a new
+snapshot.
+
+Run the repository checks:
 
 ```bash
-python -c "import torch; print(torch.__version__, torch.cuda.is_available())"
+make test
+make check
+make smoke
 ```
 
-## Commands
+`make` is a convenience layer. On systems without GNU Make, use the equivalent
+cross-platform commands:
 
 ```bash
-make test      # run lightweight unit tests
-make check     # read-only config, run-artifact, and paper-reference checks
-make smoke     # run a tiny harness sanity check
-make prepare-minipile      # tokenize the configured MiniPile subset locally
-make calibrate-pythia-14m  # random-init Pythia-14M pretraining calibration
-make pretrain-pythia-14m-full-10min  # 10-minute full-MiniPile pretraining checkpoint
-make pressure-smoke-ricker-naive
-make pressure-smoke-l1-naive
-make pressure-smoke-orthogonal-ricker
-make pressure-smoke-orthogonal-l1
-make pressure-short-all  # four short full-MiniPile pressure checks
-make baseline  # blocked until the pretraining budget is chosen
-make plots     # regenerate figures from saved results
-make plot-report04  # strict Report 04 suite + deterministic input provenance
-make plot-report05  # strict Report 05 architecture-comparison suite
-make plot-fixed-step-l1-coupling  # FFN-only L1 MLP/attention near-zero scatter
+python -m pip install -c constraints/requirements-ci.txt -e ".[dev]"
+python scripts/run_tests.py
+python -m paper_exp.cli check --strict
+python -m paper_exp.cli smoke --config configs/00-smoke.yaml
 ```
 
-`make check` reports warnings for incomplete run directories and reused figure
-prefixes but exits nonzero only for errors. Use
-`python -m paper_exp.cli check --strict` as a release gate when warnings must
-also fail.
+The smoke config is infrastructure-only. It writes and validates a tiny local
+artifact envelope without downloading a model or dataset, and it does not
+authorize or stand in for a scientific run.
 
-## Human-facing Notes
+## Experiment Workflow
 
-Documents written for human reading live under `docs/humans/`.
+After the definitive plan is present and reviewed:
 
-Current notes:
+1. Create the numbered configs specified by the plan.
+2. Commit the reviewed configs before launch.
+3. Prepare the declared dataset cache.
+4. Run a calibration when no reliable same-hardware throughput estimate exists.
+5. Launch one pretraining config directly, or multiple pretraining configs
+   through one sequential runner.
+6. Verify terminal artifacts before running diagnostics or plotting.
+7. Record accepted evidence in the experiment and paper maps.
 
-- `docs/humans/01-pythia-14m-architecture.md`: Pythia-14M architecture, block equations, pseudocode, and activation-pressure hook sites.
-- `docs/humans/02-fixed-step-pressure-screen.md`: fixed-step Pythia-14M MiniPile pressure screen, metrics table, figures, and interpretation boundary.
-- `docs/humans/03-research-agenda-to-publication.md`: internal research agenda that separates observations, hypotheses, candidate claims, and publication-stage evidence requirements.
-- `docs/humans/04-attention-sparsification-paths.md`: selected post-QKV Q/K/V ReLU placement experiment, implementation contract, launch matrix, diagnostics, and deferred probability-threshold hypothesis.
-
-## Model Initialization
-
-For this project, "Pythia-14M" means the Pythia-14M architecture, not the released checkpoint weights.
-
-Configs must make this explicit:
-
-```yaml
-model:
-  provider: huggingface
-  name: pythia-14m-random
-  architecture: EleutherAI/pythia-14m-deduped
-  revision: main
-  initialization: random
-```
-
-The harness builds the model with `AutoConfig.from_pretrained(model.architecture)` followed by `AutoModelForCausalLM.from_config(...)`. This loads the architecture/config only and initializes weights randomly.
-
-## Activation Pressure
-
-The harness supports the first activation-pressure methods on Pythia MLP hidden activations:
-
-- `ricker_naive`: adds Ricker pressure directly to task loss.
-- `l1_naive`: adds activation L1 pressure directly to task loss.
-- `orthogonal_ricker`: AdamW moments see task gradients only, then a projected Ricker correction is applied after the AdamW step.
-- `orthogonal_l1`: same Adam-step orthogonal correction using activation L1 pressure.
-
-The initial site target is `mlp_hiddens`, implemented with hooks on each Pythia layer's MLP activation module. The harness logs pressure loss, task/pressure gradient interference metrics, Adam-step projection metrics for orthogonal methods, and near-zero activation mass.
-
-Post-hoc clipping frontiers can be run with:
+Single-config commands:
 
 ```bash
-python -m paper_exp.cli clip-sweep --run-dir <checkpoint-run-dir> --thresholds 0,0.001,0.01,0.03 --eval-batches 2
+make prepare-data CONFIG=configs/01-example.yaml
+make calibrate CONFIG=configs/01-example.yaml
+make pretrain CONFIG=configs/01-example.yaml
 ```
 
-and plotted with:
+Multiple pretraining configs must be supplied to one runner and execute
+sequentially:
 
 ```bash
-python -m paper_exp.cli plot-clipping-frontier --run-dir <clipping-sweep-run-dir> --output figures/02-pythia-14m-minipile-clipping-frontier-smoke.pdf --png
+make run-configs CONFIGS="configs/01-example.yaml configs/02-example.yaml"
 ```
 
-## Numbering Convention
+The equivalent package command is:
 
-Use sequential prefixes for files and directories that accumulate over time:
+```bash
+paper-exp run-configs \
+  --config configs/01-example.yaml \
+  --config configs/02-example.yaml
+```
+
+Every mutating scientific command requires a clean committed checkout and an
+exclusive experiment lock. A direct command cannot start while a sequential
+runner owns that lock.
+
+Before launch, report the estimated time to completion (ETC) for the first run
+and the complete queue, including the estimate basis and uncertainty. Inspect a
+live queue without mutating it:
+
+```bash
+make run-status STATE=run-logs/runner-state.json
+# or
+paper-exp run-status --state run-logs/runner-state.json
+```
+
+See [`docs/runbook.md`](docs/runbook.md) for preflight, monitoring, ETC, failure,
+and retry requirements.
+
+## Artifacts
+
+Run outputs are stored under:
 
 ```text
-configs/01-pythia-14m-minipile-smoke.yaml
-configs/02-pythia-14m-minipile-baseline.yaml
-results/01-pythia-14m-minipile-smoke/001-<timestamp>-<short_id>/
-figures/01-results-summary.pdf
+results/<config-id>/<run-id>/
 ```
 
-The number is for human ordering. Run directories still include a timestamp and short id for uniqueness.
-
-## Results
-
-Completed run directories normally contain:
+A completed pretraining run contains at least:
 
 ```text
 config.yaml
-metrics.json
 manifest.json
+metrics.json
 predictions.jsonl
-events.jsonl          # calibration/pretrain only
-checkpoints/final/    # when enabled
+events.jsonl
+checkpoints/final/    # when required by the config
 ```
 
-Smoke and calibration/pretrain runs use the first explicit run lifecycle. At
-launch they save an immutable `config.yaml` snapshot and a manifest with
-`status: running`. The manifest records the model architecture, random
-initialization, config path, command, seed, dataset, Python version, package
-versions, and Git commit/dirty state as observed at launch. Completion writes
-metrics and predictions before atomically publishing `status: completed` and
-`finished_at` in the manifest. An escaping exception is re-raised after the
-manifest is updated to `status: failed`, `finished_at`, and its exception type
-and message; metrics and predictions may therefore be absent from failed runs.
+The launch config and provenance are written before work begins. A completed
+manifest is published only after required outputs are durable; an escaping
+exception leaves a failed terminal manifest. See
+[`results/README.md`](results/README.md).
 
-Statusless historical runs remain supported as completed runs when their core
-config, metrics, manifest, and predictions envelope is coherent. Data
-preparation, activation/weight histogram diagnostics, activation propagation,
-and clipping sweeps still use the legacy end-of-run artifact writer; they will
-receive the same lifecycle in a separate migration.
+Local datasets, token caches, results, logs, and generated figures are not
+source files and are ignored by Git. Paper figures must nevertheless be fully
+regenerable from pinned saved artifacts.
 
-For calibration/pretrain runs, `predictions.jsonl` currently stores the same
-training and validation event history represented by `events.jsonl`; it does
-not contain generated-token predictions. The metric
-`calibration/wall_seconds_train` measures the timed training interval including
-validation performed inside that interval. Validation duration is also
-reported separately, while `calibration/wall_seconds_total` additionally
-includes final checkpoint work but not the final artifact writes.
+The wheel contains the Python library and console entry point, not repository
+configs or the experiment plan. Experiment execution is checkout-scoped: pass
+an explicit config, and run scientific commands from the clean Git checkout
+that owns it. CI installs the built wheel and exercises `paper-exp --help` so
+the distribution boundary remains explicit.
 
-First valid full-MiniPile random-init checkpoint:
+## Plotting
 
-```text
-config: configs/03-pythia-14m-minipile-random-full-10min.yaml
-result: results/03-pythia-14m-minipile-random-full-10min/003-20260627-142522-7fc1e76f/
-figure: figures/01-pythia-14m-minipile-random-full-10min-diagnostics.pdf
-tokens seen: 86,245,376
-final train loss: 7.6701
-final validation loss: 7.5450
+Generate a supported diagnostic figure from one saved run with:
+
+```bash
+make plot KIND=run RUN_DIR=results/<config-id>/<run-id> \
+  OUTPUT=figures/01-run-diagnostics.pdf PNG=1
 ```
 
-First pressure smoke checks completed for all four method variants on the 128-document MiniPile smoke subset. These are plumbing checks only.
+Supported plot kinds are listed by `paper-exp plot --help`. The clean plotting
+boundary, deterministic provenance sidecar, and publication requirements are documented in
+[`docs/plotting.md`](docs/plotting.md).
 
-First post-hoc clipping smoke frontier:
+## Repository Map
 
-```text
-result: results/03-pythia-14m-minipile-random-full-10min-clipping-sweep/002-20260627-150326-6a61b34d/
-figure: figures/02-pythia-14m-minipile-clipping-frontier-smoke.pdf
-```
+- `src/paper_exp/`: training, methods, diagnostics, lifecycle, runner, and
+  plotting implementation.
+- `configs/`: immutable experiment configs; currently only the non-paper smoke
+  config.
+- `docs/experiment_plan.md`: authoritative definitive plan once supplied.
+- `docs/methods.md`: mathematical and optimization semantics.
+- `docs/diagnostics.md`: metric definitions and interpretation limits.
+- `docs/runbook.md`: launch, monitoring, ETC, and terminal verification.
+- `docs/plotting.md`: artifact-to-figure contract.
+- `docs/code_map.md`: code ownership and change routes.
+- `results/`: ignored run artifacts.
+- `figures/`: ignored generated figures.
+- `tests/`: focused scientific and infrastructure contracts.
 
-Fixed-step activation-pressure screen:
+## Releasing and Citing
 
-```text
-configs: configs/12-pythia-14m-minipile-adamw-fixed-2048.yaml through configs/48-pythia-14m-minipile-orthogonal-l1-fixed-2048-w5.yaml
-tokens/run: 134,217,728
-summary: docs/humans/02-fixed-step-pressure-screen.md
-figures: figures/05-pythia-14m-pressure-fixed-2048-summary.pdf through figures/20-pythia-14m-pressure-fixed-2048-high-pressure-clipping-frontiers.pdf
-```
-
-Post-LayerNorm ReLU pressure comparison:
-
-```text
-training configs: configs/98-pythia-14m-minipile-post-layernorm-relu-adamw-full-pass.yaml, configs/99-pythia-14m-minipile-post-layernorm-relu-orthogonal-l1-full-pass-w5.yaml, configs/103-pythia-14m-minipile-post-layernorm-relu-orthogonal-ricker-full-pass-w1-c0p05-s0p05.yaml, and configs/104-pythia-14m-minipile-post-layernorm-relu-l1-naive-full-pass-w5.yaml
-validation diagnostics: configs/100-pythia-14m-minipile-post-layernorm-relu-input-histograms.yaml through configs/102-pythia-14m-minipile-post-layernorm-relu-activation-propagation.yaml, plus full-cache site-specific and joint clipping sweeps
-report: report/04-2026-07-11-post-layernorm-relu-ol1-comparison/04-2026-07-11-post-layernorm-relu-ol1-comparison.pdf
-figures: figures/79-pythia-14m-minipile-post-layernorm-relu-learning-diagnostics.pdf through figures/90-pythia-family-three-relu-model-compute-ceilings.pdf
-```
-
-This one-seed test applies ReLU after both branch LayerNorms in every transformer block, keeps the MLP-hidden ReLU, and leaves the final LayerNorm unchanged. Pressure is applied only to `attention_inputs`, `mlp_inputs`, and `mlp_hiddens`. The tested settings are OR weight 1 with `c = sigma = 0.05` and step budget 0.5, L1N weight 5, and OL1 weight 5 with step budget 0.5.
-
-Config `102` compares AdamW, OR, L1N, and OL1 by counting exact zeros at every attention, MLP, and residual boundary and the corresponding logical zero-input products in QKV, QK, PV, attention output, W1, and W2 matmuls. It covers all 692,224 evaluated validation tokens and excludes future causal-mask entries from attention-core denominators.
-
-Post-QKV ReLU placement comparison:
-
-```text
-training configs: configs 107 through 112, compared with the pinned Stock, One-ReLU, and Three-ReLU controls
-validation diagnostics: configs 114 through 117 plus full-cache site-specific and exact-joint clipping sweeps
-report: report/05-2026-07-17-post-qkv-relu-placement-comparison/
-figures: figures 91 through 102
-```
-
-The strict Report 05 suite compares One-ReLU, Three-ReLU, Six-ReLU PRE-RoPE,
-and Six-ReLU POST-RoPE architectures under AdamW, OR, and OL1. Regenerate it
-with `make plot-report05`; see `docs/plotting.md` for the pinned cohort and
-saved-artifact contract.
-
-## Known TODOs
-
-- `TODO:` choose the longer MiniPile pretraining budget for the full ablation.
-- `TODO:` repeat key candidates over multiple seeds.
-- `TODO:` consider scaling within the Pythia family up to 160M only after the 14M random-init path is reproducible.
+`TODO:` add the user-selected open-source license and final citation metadata
+before public release. Dataset and model licenses must also be reviewed for the
+exact resources named by the definitive experiment plan.

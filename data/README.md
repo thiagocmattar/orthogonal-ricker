@@ -1,22 +1,34 @@
 # Data
 
-Local datasets and tokenized caches belong here, but the data itself is not committed.
+Downloaded data and tokenized caches live under this directory but are not
+committed.
 
-Workflow:
+The definitive experiment plan will name the dataset, revision, tokenizer,
+splits, preprocessing, partitions, and license requirements. Do not infer those
+choices from historical caches or `configs/00-smoke.yaml`.
+
+After a scientific config is authorized:
 
 ```bash
-make prepare-minipile
-make calibrate-pythia-14m
+make prepare-data CONFIG=configs/01-example.yaml
+# or
+paper-exp prepare-data --config configs/01-example.yaml
 ```
 
-The first command downloads MiniPile through Hugging Face datasets and writes an int32 token cache under `data/tokenized/<config_id>/`. The second command trains for a few calibration steps from that local token cache and records throughput metrics under `results/`.
+A token cache must record enough metadata to reject incompatible reuse:
 
-When validation is enabled in the config, preparation also writes:
+- dataset name, configuration, split, and revision;
+- tokenizer name and revision;
+- text column and document limits;
+- block size, EOS policy, and token dtype;
+- source-document and token counts;
+- validation partition scheme, seed, indices hash, and excluded tail where
+  applicable;
+- creation provenance and content hashes required by the plan.
 
-```text
-data/tokenized/<config_id>/validation/
-|-- metadata.json
-`-- tokens.int32.bin
-```
+Paper runs use local, validated caches rather than an unpinned streaming data
+source. Cache compatibility is determined from metadata, not directory name.
 
-For paper runs, use local cached/tokenized data rather than streaming. The manifest and tokenized metadata should record dataset name, split, revision, tokenizer, block size, number of documents, and number of tokens.
+Before public release, review and document the dataset and tokenizer licenses
+specified by the definitive plan. Never commit credentials, access tokens,
+download URLs containing secrets, raw restricted data, or private cache paths.

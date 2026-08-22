@@ -1,13 +1,22 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import json
 from pathlib import Path
 import re
 from typing import Any, Literal
 
-from yaml import YAMLError
+from yaml import YAMLError, safe_load
 
-from paper_exp.config import CONFIG_FILE_RE, ConfigError, load_config
+from paper_exp.config import (
+    CONFIG_FILE_RE,
+    ConfigError,
+    load_config,
+    validate_data_config,
+    validate_diagnostic_config,
+    validate_smoke_config,
+    validate_training_config,
+)
 from paper_exp.run import CORE_RUN_ARTIFACTS
 from paper_exp.utils import read_json
 
@@ -18,8 +27,6 @@ RunStatus = Literal[
     "failed",
     "complete",
     "inconsistent",
-    "event_stream",
-    "partial",
 ]
 
 
@@ -89,12 +96,12 @@ def classify_run_directory(run_dir: str | Path) -> RunStatus:
     if manifest_status == "failed":
         return "failed"
     if manifest_status == "completed":
-        return "complete" if has_core_envelope else "inconsistent"
-    if has_core_envelope:
-        return "complete"
-    if (path / "events.jsonl").is_file():
-        return "event_stream"
-    return "partial"
+        return (
+            "complete"
+            if has_core_envelope and _completed_artifacts_are_coherent(path)
+            else "inconsistent"
+        )
+    return "inconsistent"
 
 
 def _check_configs(repository: Path) -> list[IntegrityFinding]:
@@ -137,7 +144,53 @@ def _check_configs(repository: Path) -> list[IntegrityFinding]:
             continue
 
         try:
-            load_config(path, allow_todos=True)
+            config = load_config(
+                path,
+                allow_todos=(path.name == "00-smoke.yaml"),
+            )
+            if path.name == "00-smoke.yaml":
+                validate_smoke_config(config)
+            else:
+                diagnostic_kinds = [
+                    kind
+                    for kind in (
+                        "activation_histograms",
+                        "weight_histograms",
+                        "activation_propagation",
+                    )
+                    if kind in config
+                ]
+                if "training" in config and diagnostic_kinds:
+                    raise ConfigError(
+                        "A config cannot combine training with a diagnostic workflow."
+                    )
+                if len(diagnostic_kinds) > 1:
+                    raise ConfigError(
+                        "A config must select exactly one diagnostic workflow."
+                    )
+                if "training" in config:
+                    validate_training_config(config)
+                elif diagnostic_kinds:
+                    validate_diagnostic_config(config, diagnostic_kinds[0])
+                elif "tokenizer" in config or "preprocessing" in config:
+                    validate_data_config(config)
+                else:
+                    raise ConfigError(
+                        "Non-smoke configs must declare one recognized workflow section."
+                    )
+            output_dir = str(config.get("output", {}).get("dir", ""))
+            if Path(output_dir).is_absolute() or Path(output_dir).as_posix() != "results":
+                raise ConfigError("Config field output.dir must be the relative path 'results'.")
+            preprocessing = config.get("preprocessing")
+            if isinstance(preprocessing, dict):
+                cache_output = str(preprocessing.get("output_dir", ""))
+                if (
+                    Path(cache_output).is_absolute()
+                    or Path(cache_output).as_posix() != "data/tokenized"
+                ):
+                    raise ConfigError(
+                        "Config field preprocessing.output_dir must be the relative path 'data/tokenized'."
+                    )
         except (ConfigError, OSError, UnicodeError, YAMLError) as error:
             findings.append(
                 IntegrityFinding(
@@ -231,34 +284,9 @@ def _check_runs(repository: Path) -> list[IntegrityFinding]:
                         severity="error",
                         code="run.inconsistent",
                         message=(
-                            "Run manifest is malformed, has an unknown status, or claims "
+                            "Run has no valid explicit lifecycle manifest, or claims "
                             "completion without the core artifact envelope. "
                             f"Missing: {missing_text or 'none'}."
-                        ),
-                        path=run_path,
-                    )
-                )
-            elif status == "event_stream":
-                findings.append(
-                    IntegrityFinding(
-                        severity="warning",
-                        code="run.event_stream_incomplete",
-                        message=(
-                            "Run has an event stream but not a complete artifact envelope; "
-                            "it may be active or interrupted and must not be consumed as a "
-                            f"completed run. Missing: {missing_text}."
-                        ),
-                        path=run_path,
-                    )
-                )
-            else:
-                findings.append(
-                    IntegrityFinding(
-                        severity="warning",
-                        code="run.partial",
-                        message=(
-                            "Run has no event stream and its artifact envelope is incomplete; "
-                            f"it is classified as partial. Missing: {missing_text}."
                         ),
                         path=run_path,
                     )
@@ -269,7 +297,7 @@ def _check_runs(repository: Path) -> list[IntegrityFinding]:
 def _explicit_manifest_status(run_dir: Path) -> tuple[str | None, bool]:
     manifest_path = run_dir / "manifest.json"
     if not manifest_path.is_file():
-        return None, True
+        return None, False
     try:
         manifest = read_json(manifest_path)
     except (OSError, UnicodeError, ValueError):
@@ -282,12 +310,19 @@ def _explicit_manifest_status(run_dir: Path) -> tuple[str | None, bool]:
         return None, False
     status = manifest.get("status")
     if status is None:
-        return None, True
+        return None, False
     if status not in {"running", "failed", "completed"}:
         return None, False
     if not (run_dir / "config.yaml").is_file():
         return None, False
     if not _is_nonempty_string(manifest.get("started_at")):
+        return None, False
+    if not _is_nonempty_string(manifest.get("mode")):
+        return None, False
+    git_commit = manifest.get("git_commit")
+    if not isinstance(git_commit, str) or re.fullmatch(r"[0-9a-f]{40,64}", git_commit) is None:
+        return None, False
+    if not isinstance(manifest.get("git_dirty"), bool):
         return None, False
     if status == "running":
         if "finished_at" in manifest or "failure" in manifest:
@@ -306,6 +341,130 @@ def _explicit_manifest_status(run_dir: Path) -> tuple[str | None, bool]:
     elif "failure" in manifest:
         return None, False
     return status, True
+
+
+def _completed_artifacts_are_coherent(run_dir: Path) -> bool:
+    try:
+        manifest = read_json(run_dir / "manifest.json")
+    except (OSError, UnicodeError, ValueError):
+        return False
+    if not isinstance(manifest, dict):
+        return False
+    mode = manifest.get("mode")
+    if mode != "smoke" and manifest.get("git_dirty") is not False:
+        return False
+    try:
+        with (run_dir / "config.yaml").open("r", encoding="utf-8-sig") as handle:
+            config = safe_load(handle) or {}
+        metrics = read_json(run_dir / "metrics.json")
+        predictions = _read_jsonl(run_dir / "predictions.jsonl")
+    except (OSError, UnicodeError, ValueError, YAMLError):
+        return False
+    if not isinstance(config, dict) or not isinstance(metrics, dict):
+        return False
+    if predictions is None:
+        return False
+
+    try:
+        if mode == "smoke":
+            validate_smoke_config(config)
+        elif mode in {"pretrain", "calibrate"}:
+            validate_training_config(config)
+        elif mode == "prepare-data":
+            validate_data_config(config)
+        elif mode in {
+            "activation-histograms",
+            "weight-histograms",
+            "activation-propagation",
+        }:
+            validate_diagnostic_config(config, str(mode).replace("-", "_"))
+    except ConfigError:
+        return False
+    specialized = {
+        "activation-histograms": "activation_histograms.json",
+        "weight-histograms": "weight_histograms.json",
+        "activation-propagation": "activation_propagation.json",
+        "clip-sweep": "clipping_frontier.jsonl",
+    }
+    if mode in {"pretrain", "calibrate"}:
+        events = _read_jsonl(run_dir / "events.jsonl")
+        if events is None or not any(row.get("event") == "train" for row in events):
+            return False
+    if mode in specialized:
+        artifact_path = run_dir / specialized[str(mode)]
+        if mode == "clip-sweep":
+            rows = _read_jsonl(artifact_path)
+            if rows is None or not rows:
+                return False
+        else:
+            try:
+                artifact = read_json(artifact_path)
+            except (OSError, UnicodeError, ValueError):
+                return False
+            expected_schema = {
+                "activation-histograms": 2,
+                "weight-histograms": 1,
+                "activation-propagation": 4,
+            }[str(mode)]
+            if not isinstance(artifact, dict) or artifact.get("schema_version") != expected_schema:
+                return False
+    if mode == "prepare-data":
+        tokenized_data = manifest.get("tokenized_data")
+        if not isinstance(tokenized_data, dict) or not isinstance(
+            tokenized_data.get("train"), dict
+        ):
+            return False
+    if mode not in {
+        "smoke",
+        "pretrain",
+        "calibrate",
+        "prepare-data",
+        *specialized,
+    }:
+        return False
+
+    if mode in {"pretrain", "calibrate"}:
+        checkpoint = config.get("checkpoint") if isinstance(config, dict) else None
+        if isinstance(checkpoint, dict) and checkpoint.get("save_final") is True:
+            checkpoint_manifest = manifest.get("checkpoint")
+            if not isinstance(checkpoint_manifest, dict) or checkpoint_manifest.get("saved") is not True:
+                return False
+            checkpoint_path_text = checkpoint_manifest.get("path")
+            if not isinstance(checkpoint_path_text, str) or not checkpoint_path_text.strip():
+                return False
+            checkpoint_path = Path(checkpoint_path_text)
+            if not checkpoint_path.is_absolute():
+                checkpoint_path = run_dir.parents[2] / checkpoint_path
+            if not checkpoint_path.is_dir():
+                return False
+            if not (checkpoint_path / "config.json").is_file():
+                return False
+            if not any(
+                (checkpoint_path / filename).is_file()
+                for filename in ("model.safetensors", "model.safetensors.index.json")
+            ):
+                return False
+            if checkpoint.get("save_optimizer") is True and not (
+                checkpoint_path / "optimizer.pt"
+            ).is_file():
+                return False
+    return True
+
+
+def _read_jsonl(path: Path) -> list[dict[str, Any]] | None:
+    rows: list[dict[str, Any]] = []
+    try:
+        with path.open("r", encoding="utf-8-sig") as handle:
+            for line in handle:
+                if not line.strip():
+                    continue
+                row = json.loads(line)
+                if not isinstance(row, dict):
+                    return None
+                rows.append(row)
+    except (OSError, UnicodeError, ValueError):
+        return None
+    return rows
 
 
 def _is_nonempty_string(value: Any) -> bool:

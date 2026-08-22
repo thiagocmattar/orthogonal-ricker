@@ -102,11 +102,10 @@ def test_explicit_source_run_pins_the_requested_run(tmp_path: Path) -> None:
     config_id = "118-example"
     experiment_dir = tmp_path / "results" / config_id
     for run_id in ("001-first", "002-latest"):
-        run_dir = experiment_dir / run_id
-        run_dir.mkdir(parents=True)
-        (run_dir / "manifest.json").write_text(
-            json.dumps({"config_id": config_id, "run_id": run_id}),
-            encoding="utf-8",
+        _write_completed_source_run(
+            experiment_dir / run_id,
+            config_id=config_id,
+            run_id=run_id,
         )
 
     selected = {"config_id": config_id, "run_id": "001-first"}
@@ -115,50 +114,43 @@ def test_explicit_source_run_pins_the_requested_run(tmp_path: Path) -> None:
         experiment_dir / "001-first"
     )
 
+    with pytest.raises(ValueError, match="exact config_id and run_id"):
+        _find_source_run(
+            {"output": {"dir": str(tmp_path / "results")}},
+            {"config_id": config_id},
+        )
 
-def test_incomplete_source_checkpoint_override_requires_explicit_opt_in(
-    tmp_path: Path,
-) -> None:
-    checkpoint = tmp_path / "checkpoint"
-    checkpoint.mkdir()
-    selected = {"checkpoint_path": str(checkpoint)}
-
-    with pytest.raises(ValueError, match="allow_incomplete_source"):
-        _source_checkpoint(selected, {"config_id": "failed-run"})
-
-    selected["allow_incomplete_source"] = True
-    assert _source_checkpoint(selected, {"config_id": "failed-run"}) == checkpoint
+    selected_manifest = experiment_dir / "001-first" / "manifest.json"
+    manifest = json.loads(selected_manifest.read_text(encoding="utf-8"))
+    manifest["status"] = "running"
+    selected_manifest.write_text(json.dumps(manifest), encoding="utf-8")
+    with pytest.raises(ValueError, match="not completed"):
+        _find_source_run(
+            {"output": {"dir": str(tmp_path / "results")}},
+            selected,
+        )
 
 
-@pytest.mark.parametrize(
-    ("active_sites", "placement", "topology_id", "targetable_stages"),
-    (
-        (set(), None, "A0", set()),
-        ({"h"}, None, "A1-H", {"mlp_w2"}),
-        ({"a", "m", "h"}, None, "A3", {"qkv_projection", "mlp_w1", "mlp_w2"}),
-        (
-            {"a", "m", "h", "q", "k", "v"},
-            "pre_rope",
-            "A6-PRE",
-            set(MATMUL_STAGE_ORDER),
-        ),
-        (
-            {"a", "m", "h", "q", "k", "v"},
-            "post_rope",
-            "A6-POST",
-            set(MATMUL_STAGE_ORDER),
-        ),
-    ),
-)
-def test_dynamic_endpoint_summary_covers_campaign_anchor_topologies(
-    active_sites: set[str],
-    placement: str | None,
-    topology_id: str,
-    targetable_stages: set[str],
-) -> None:
+def test_source_checkpoint_comes_only_from_completed_manifest(tmp_path: Path) -> None:
+    source_run = tmp_path / "results" / "118-example" / "001-source"
+    checkpoint = source_run / "checkpoints" / "final"
+    checkpoint.mkdir(parents=True)
+    (checkpoint / "model.safetensors").write_bytes(b"checkpoint")
+    manifest = {
+        "config_id": "118-example",
+        "checkpoint": {"saved": True, "path": "checkpoints/final"},
+    }
+
+    assert _source_checkpoint(source_run, manifest) == checkpoint.resolve()
+    with pytest.raises(ValueError, match="no saved checkpoint"):
+        _source_checkpoint(source_run, {"config_id": "118-example"})
+
+
+def test_endpoint_summary_reduces_direct_operation_counters() -> None:
+    active_sites = {"a", "m", "h"}
     model, layers, post_qkv = _fake_architecture(
         active_sites=active_sites,
-        placement=placement,
+        placement=None,
     )
     architecture = _architecture_metadata(
         model,
@@ -177,7 +169,7 @@ def test_dynamic_endpoint_summary_covers_campaign_anchor_topologies(
                     "name": stage,
                     "layer": layer,
                     "available": True,
-                    "zero_count": total // 2 if stage in targetable_stages else 0,
+                    "zero_count": total // 2,
                     "total": total,
                 }
             )
@@ -193,7 +185,7 @@ def test_dynamic_endpoint_summary_covers_campaign_anchor_topologies(
     )
 
     block_total = sum(row["total"] for row in matmul_rows)
-    ceiling = sum(row["total"] for row in matmul_rows if row["name"] in targetable_stages)
+    block_zeros = sum(row["zero_count"] for row in matmul_rows)
     model_total = (
         block_total
         + sequences
@@ -201,18 +193,13 @@ def test_dynamic_endpoint_summary_covers_campaign_anchor_topologies(
         * architecture["hidden_size"]
         * architecture["vocab_size"]
     )
-    assert architecture["topology_id"] == topology_id
     assert architecture["intermediate_size"] == 24  # Deliberately not hard-coded as 4d.
-    assert set(endpoint["targetable_matmul_stages"]) == targetable_stages
-    assert endpoint["architecture_ceiling_zero_product_count"] == ceiling
-    assert endpoint["R_block_max"] == pytest.approx(ceiling / block_total)
-    assert endpoint["R_model_max"] == pytest.approx(ceiling / model_total)
-    if ceiling:
-        assert endpoint["U_arch"] == pytest.approx(0.5)
-    else:
-        assert endpoint["U_arch"] is None
-        assert endpoint["R_block"] == 0.0
-        assert endpoint["R_model"] == 0.0
+    assert endpoint["block_zero_product_count"] == block_zeros
+    assert endpoint["block_product_count"] == block_total
+    assert endpoint["model_product_count"] == model_total
+    assert endpoint["R_block"] == pytest.approx(block_zeros / block_total)
+    assert endpoint["R_model"] == pytest.approx(block_zeros / model_total)
+    assert set(endpoint["per_operation"]) == set(MATMUL_STAGE_ORDER)
 
 
 def test_dynamic_architecture_recognizes_fixed_one_sided_hidden_gate() -> None:
@@ -233,7 +220,6 @@ def test_dynamic_architecture_recognizes_fixed_one_sided_hidden_gate() -> None:
         torch=torch,
     )
 
-    assert architecture["topology_id"] == "A3"
     assert architecture["active_gate_sites"] == ["a", "m", "h"]
     assert architecture["gate_specs"] == {
         "a": {"gate_family": "gplus", "gate_type": "one_sided_threshold", "kappa": 0.1},
@@ -279,6 +265,8 @@ def test_named_partition_diagnostic_requires_the_complete_matching_cache() -> No
         "partition_scheme",
         "partition_seed",
         "source_document_indices_sha256",
+        "dtype",
+        "tokens_bytes",
         "tokens_sha256",
     ),
 )
@@ -287,8 +275,10 @@ def test_shared_validation_cache_rejects_conflicting_optional_identity(
 ) -> None:
     reference = {
         "tokens_path": "selection/tokens.int32.bin",
+        "dtype": "int32",
         "block_size": 2048,
         "tokens": 311_739,
+        "tokens_bytes": 311_739 * 4,
         "partition": "selection",
         "partition_scheme": "shuffled_source_documents_half_v1",
         "partition_seed": 20260718,
@@ -305,24 +295,29 @@ def test_shared_validation_cache_rejects_conflicting_optional_identity(
         _validate_shared_validation_cache(manifests, reference)
 
 
-def test_shared_validation_cache_allows_missing_historical_optional_identity() -> None:
+def test_shared_validation_cache_rejects_missing_file_hash() -> None:
     reference = {
         "tokens_path": "validation/tokens.int32.bin",
+        "dtype": "int32",
         "block_size": 2048,
         "tokens": 692_224,
+        "tokens_bytes": 692_224 * 4,
         "tokens_sha256": "a" * 64,
     }
-    historical = {
+    incomplete = {
         "tokens_path": reference["tokens_path"],
+        "dtype": reference["dtype"],
         "block_size": reference["block_size"],
         "tokens": reference["tokens"],
+        "tokens_bytes": reference["tokens_bytes"],
     }
     manifests = [
         {"config_id": "new", "tokenized_data": {"validation": reference}},
-        {"config_id": "historical", "tokenized_data": {"validation": historical}},
+        {"config_id": "incomplete", "tokenized_data": {"validation": incomplete}},
     ]
 
-    _validate_shared_validation_cache(manifests, reference)
+    with pytest.raises(ValueError, match="tokens_sha256"):
+        _validate_shared_validation_cache(manifests, reference)
 
 
 def test_split_fused_qkv_projection_preserves_gpt_neox_per_head_layout() -> None:
@@ -491,7 +486,7 @@ def test_eager_instrumentation_counts_the_actual_post_gate_qk_and_pv_operands() 
 
 
 @pytest.mark.parametrize("placement", [None, "pre_rope", "post_rope"])
-def test_real_gpt_neox_diagnostic_preserves_gate_placement_and_legacy_na(
+def test_real_gpt_neox_diagnostic_preserves_gate_placement_and_unavailable_rows(
     placement: str | None,
 ) -> None:
     from transformers import GPTNeoXConfig, GPTNeoXForCausalLM
@@ -559,8 +554,6 @@ def test_real_gpt_neox_diagnostic_preserves_gate_placement_and_legacy_na(
     assert by_name["value_pv_input"]["available"] is True
 
     if placement is None:
-        assert architecture_metadata["topology_id"] == "A3"
-        assert 0.0 < endpoint["R_block_max"] < 1.0
         for name in (
             "query_gate_input",
             "key_gate_input",
@@ -577,11 +570,6 @@ def test_real_gpt_neox_diagnostic_preserves_gate_placement_and_legacy_na(
         )
         return
 
-    assert architecture_metadata["topology_id"] == (
-        "A6-PRE" if placement == "pre_rope" else "A6-POST"
-    )
-    assert endpoint["R_block_max"] == pytest.approx(1.0)
-    assert endpoint["R_model_max"] < 1.0
     assert by_name["query_gate_output"]["available"] is True
     assert by_name["key_gate_output"]["available"] is True
     assert by_name["value_gate_output"]["available"] is True
@@ -609,7 +597,7 @@ def test_real_gpt_neox_diagnostic_preserves_gate_placement_and_legacy_na(
         )
 
 
-def test_real_gpt_neox_diagnostic_preserves_fixed_gplus_metadata_and_ceiling() -> None:
+def test_real_gpt_neox_diagnostic_preserves_fixed_gplus_metadata() -> None:
     from transformers import GPTNeoXConfig, GPTNeoXForCausalLM
     from transformers.models.gpt_neox import modeling_gpt_neox
 
@@ -677,18 +665,16 @@ def test_real_gpt_neox_diagnostic_preserves_fixed_gplus_metadata_and_ceiling() -
     assert post_qkv["gate_family"] == "gplus"
     assert post_qkv["gate_type"] == "one_sided_threshold"
     assert post_qkv["kappa"] == pytest.approx(0.1)
-    assert architecture_metadata["topology_id"] == "A6-POST"
     assert all(
         spec == {"gate_family": "gplus", "gate_type": "one_sided_threshold", "kappa": 0.1}
         for spec in architecture_metadata["gate_specs"].values()
     )
-    assert endpoint["active_gate_sites"] == ["a", "m", "h", "q", "k", "v"]
-    assert endpoint["targetable_matmul_stages"] == MATMUL_STAGE_ORDER
-    assert endpoint["R_block_max"] == pytest.approx(1.0)
+    assert architecture_metadata["active_gate_sites"] == ["a", "m", "h", "q", "k", "v"]
+    assert set(endpoint["per_operation"]) == set(MATMUL_STAGE_ORDER)
     assert endpoint["zero_sites"]["z_h"]["available"] is True
 
 
-def test_dynamic_architecture_preserves_nonuniform_learned_a6_gate_metadata() -> None:
+def test_dynamic_architecture_preserves_nonuniform_all_site_gate_metadata() -> None:
     from transformers import GPTNeoXConfig, GPTNeoXForCausalLM
 
     gate = {
@@ -738,7 +724,6 @@ def test_dynamic_architecture_preserves_nonuniform_learned_a6_gate_metadata() ->
         torch=torch,
     )
 
-    assert metadata["topology_id"] == "A6-POST"
     assert post_qkv["kappa"] is None
     assert metadata["gate_specs"]["a"]["kappa_uniform"] is False
     assert len(metadata["gate_specs_per_layer"]) == 2
@@ -760,7 +745,7 @@ def test_dynamic_architecture_preserves_nonuniform_learned_a6_gate_metadata() ->
     assert len(set(observed_kappas)) == 12
 
 
-def test_dynamic_architecture_preserves_nonuniform_learned_a3_branch_metadata() -> None:
+def test_dynamic_architecture_preserves_nonuniform_branch_gate_metadata() -> None:
     from transformers import GPTNeoXConfig, GPTNeoXForCausalLM
 
     gate = {
@@ -801,7 +786,6 @@ def test_dynamic_architecture_preserves_nonuniform_learned_a3_branch_metadata() 
         torch=torch,
     )
 
-    assert metadata["topology_id"] == "A3"
     assert metadata["gate_specs"]["a"]["threshold_scale"] == "rms_relative"
     assert metadata["gate_specs"]["a"]["rms_epsilon"] == pytest.approx(1e-8)
     assert metadata["gate_specs"]["a"]["kappa"] is None
@@ -1005,20 +989,12 @@ def test_real_gpt_neox_diagnostic_supports_stock_and_mlp_relu_checkpoints(
     assert hidden_row["available"] is hidden_relu_available
     assert endpoint["zero_sites"]["z_h"]["available"] is hidden_relu_available
     if hidden_relu_available:
-        assert architecture_metadata["topology_id"] == "A1-H"
-        assert endpoint["targetable_matmul_stages"] == ["mlp_w2"]
-        assert endpoint["R_block_max"] > 0.0
         expected_zero_count, expected_total = _exact_zero_counts(
             observed_inputs["mlp_w2"], torch=torch
         )
         assert hidden_row["zero_count"] == expected_zero_count
         assert hidden_row["total"] == expected_total
     else:
-        assert architecture_metadata["topology_id"] == "A0"
-        assert endpoint["targetable_matmul_stages"] == []
-        assert endpoint["R_block_max"] == 0.0
-        assert endpoint["R_model_max"] == 0.0
-        assert endpoint["U_arch"] is None
         assert hidden_row["unavailable_reason"] == "mlp_hidden_relu_absent"
         assert hidden_row["zero_count"] is None
 
@@ -1087,6 +1063,31 @@ def _fake_architecture(
         "layers": [],
     }
     return FakeModel(), layers, post_qkv
+
+
+def _write_completed_source_run(
+    run_dir: Path,
+    *,
+    config_id: str,
+    run_id: str,
+) -> None:
+    checkpoint = run_dir / "checkpoints" / "final"
+    checkpoint.mkdir(parents=True)
+    (checkpoint / "model.safetensors").write_bytes(b"checkpoint")
+    (run_dir / "config.yaml").write_text("experiment_name: source\n", encoding="utf-8")
+    (run_dir / "metrics.json").write_text("{}\n", encoding="utf-8")
+    (run_dir / "predictions.jsonl").write_text("", encoding="utf-8")
+    (run_dir / "manifest.json").write_text(
+        json.dumps(
+            {
+                "config_id": config_id,
+                "run_id": run_id,
+                "status": "completed",
+                "checkpoint": {"saved": True, "path": str(checkpoint)},
+            }
+        ),
+        encoding="utf-8",
+    )
 
 
 def _fake_endpoint_activation_rows(

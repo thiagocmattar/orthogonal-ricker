@@ -1,220 +1,133 @@
 # Code Map
 
-Use this page to find the smallest safe edit for a run or feature. Read
-`docs/methods.md` before changing scientific behavior and `docs/paper_map.md`
-before changing a paper figure. During active experiments, do not rename,
-rewrite, or clean configs, results, checkpoints, figures, or reports that may be
-in use.
-
-The staged Pythia sparsity campaign is specified under
-[`docs/experimental-design/`](experimental-design/README.md). Its config and run
-registries are the campaign indices; terminal run manifests remain
-authoritative. Read its runbook before allocating config `121` or later.
+Use this map to locate the smallest owning module. Read `methods.md` before
+changing scientific behavior, `diagnostics.md` before changing measurements,
+and `plotting.md` before changing figure behavior.
 
 ## Execution Path
 
-The installed `paper-exp` command and `python -m paper_exp.cli` both enter
-`src/paper_exp/cli.py`. The selected handler loads a YAML config when needed,
-writes numbered runs through `src/paper_exp/run.py`, and records provenance
-through `src/paper_exp/utils.py`.
+The installed `paper-exp` command and `python -m paper_exp.cli` enter
+`src/paper_exp/cli.py`.
 
 ```text
-CLI -> config loader -> workflow module -> run/artifact writers
-                         |
-                         +-> saved results -> plots.py -> paper figures
+config -> CLI workflow -> model/data/method implementation -> run artifacts
+                                                             |
+saved pinned artifact -> loader -> pure reduction -> renderer -> PDF/PNG
 ```
 
-The CLI command selects the workflow; `evaluation.metric` records the intended
-measurement but does not dispatch the command.
+The CLI command selects the workflow. A descriptive config field such as
+`evaluation.metric` does not dispatch a command.
 
-## Package Index
+## Module Ownership
 
-| Module | Owns | Look here when changing |
+| Module | Owns |
+| --- | --- |
+| `cli.py` | Public command names, arguments, validation errors, and dispatch |
+| `config.py` | Shared config validation, random-initialization invariant, architecture/gate contracts, and learned-threshold requirements |
+| `data.py` | Dataset loading, tokenization, cache metadata, and compatibility checks |
+| `reproducibility.py` | Deterministic training schedules and document-disjoint validation partitions/hashes |
+| `calibration.py` | Calibration/pretraining loop, optimizer groups, validation, checkpoints, event logging, and method routing |
+| `modeling.py` | Pythia architecture modifications, fixed and learned gates, threshold ownership, metrics, and checkpoint reconstruction |
+| `activations.py` | Stable activation-site aliases, exact hook locations, tensor metadata, and clipping hooks |
+| `activation_pressure.py` | Pressure parsing, Ricker/L1 scalars, raw-gradient diagnostics, and post-AdamW orthogonal correction |
+| `activation_histograms.py` | Streamed activation distributions and exact/near-zero threshold counters |
+| `weight_histograms.py` | Checkpoint parameter distributions |
+| `activation_propagation.py` | Exact-zero propagation and actual-operand logical zero-product counting |
+| `clipping.py` | Saved-checkpoint threshold, quantile, and RMS clipping sweeps |
+| `run.py` | Run IDs, config snapshots, lifecycle transitions, and common artifact envelope |
+| `runner.py` | Clean-tree, locked, fail-stop sequential execution, atomic state, logs, progress, and ETC |
+| `integrity.py` | Read-only repository, config, run-envelope, and document-reference checks |
+| `utils.py` | JSON/JSONL helpers and environment, Git, GPU, package, and run provenance |
+| `plots.py` | Explicit single-run artifact loaders, reducers, renderers, and plot-kind dispatch |
+| `plot_common.py` | Presentation-neutral numerical helpers shared by plot families |
+| `plot_style.py` | Colorblind-safe palette and repository-wide presentation defaults |
+| `plot_api.py` | Count-derived layouts, publication-profile checks, one-build PDF/PNG export, and atomic output promotion |
+
+## CLI and Artifacts
+
+| Command | Workflow | Primary outputs |
 | --- | --- | --- |
-| `cli.py` | Argument parsing and command dispatch | Command names, flags, or routing |
-| `config.py` | Shared validation, random-initialization invariant, and learned-gate training/checkpoint contracts | Cross-workflow config rules |
-| `integrity.py` | Read-only checks for configs, run envelopes, document references, paper outputs, and figure numbering | Preflight and open-source release checks |
-| `run.py` | Experiment/run directory naming, smoke/calibration lifecycle, and the common config/metrics/manifest/predictions envelope | Launch snapshots, terminal status, and artifacts required of completed runs |
-| `pretrain_queue.py` | Clean-provenance, fail-stop serial execution of prespecified pretraining config tranches | Batched local launches, queue state, locking, and terminal artifact verification |
-| `utils.py` | JSON/JSONL helpers and environment, Git, GPU, package, and run provenance | Manifest contents and serialization |
-| `data.py` | Dataset loading, tokenization, cache metadata, and cache reuse checks | `data`, `tokenizer`, and `preprocessing` behavior |
-| `reproducibility.py` | Deterministic data-order schedules and document-disjoint validation partition definitions/hashes | Campaign seed, schedule, or validation comparability contracts |
-| `calibration.py` | Calibration and pretraining loops, optimizer groups, validation, checkpoints, training events, and naive/orthogonal update routing | Optimizer or training-loop behavior |
-| `modeling.py` | Runtime ReLU/fixed/learned threshold architecture modifications and checkpoint reconstruction | Post-LayerNorm, MLP-hidden, and post-QKV Q/K/V gate behavior; treat as scientific code |
-| `activations.py` | Named activation sites, hooks, captured tensors, and post-hoc clipping | Where a site is measured or modified |
-| `activation_pressure.py` | Pressure config parsing, L1/Ricker losses, gradient diagnostics, and Adam-step orthogonal correction | Pressure mathematics and metrics |
-| `clipping.py` | Checkpoint-based clipping sweeps and logical projection-skip proxies | Post-hoc clipping evaluation |
-| `activation_histograms.py` | Activation-distribution diagnostics across selected checkpoints | `activation_histograms` runs |
-| `weight_histograms.py` | Checkpoint parameter-distribution diagnostics | `weight_histograms` runs |
-| `activation_propagation.py` | Exact-zero propagation, dynamic gate metadata, and logical zero-product accounting | `activation_propagation` runs |
-| `sweeps.py` | The fixed-step pressure matrix, generated configs, and sequential sweep runners | Existing fixed-step sweep composition |
-| `plots.py` | Stable plotting facade, procedural dispatch, result selection, public wrappers, and legacy figure families | CLI compatibility, figure dependencies, output names, or a family not yet extracted |
-| `plot_api.py` | Count-derived panel grids, scoped one-build PDF/PNG export, and publication-profile validation | Shared final-size layout/export behavior that does not change scientific content |
-| `plot_catalog.py` | Metadata-only Report 04/05/07 and standalone figure indexes | Figure numbers, filenames, saved-input kinds, wrapper names, or report embedding status |
-| `plot_style.py` | Shared paper rc parameters, palettes, method colors/markers, and export defaults | Typography, semantic series styling, or repository-wide presentation behavior |
-| `plot_common.py` | Small pure helpers with callers in multiple plotting families | Shared histogram normalization (including zero-atom separation), formatting, and finite-value handling |
-| `plot_report04.py` | Report 04 cohorts, reductions, compute accounting, checkpoint preparation, and renderers for figures `79` through `90` | Post-LayerNorm ReLU report figures or their scientific presentation |
-| `plot_report05.py` | Report 05 pinned cohort, endpoint reductions, architecture schematic, and learning curves | Training-cohort identity or figures `91`--`92` |
-| `plot_report05_diagnostics.py` | Report 05 propagation and activation/weight-distribution reductions and renderers | Figures `93`--`100` |
-| `plot_report05_clipping.py` | Report 05 site and direct logical-product clipping reductions and renderers | Figures `101`--`102` |
-| `plot_report07.py` | Report 07 registry validation, S1 reductions, endpoint tables, provenance, and core renderers | Figures `103`--`109`, including the combined B2 presentation in `106` and separated B3 weight/geometry presentations in `107`--`108` |
-| `plot_topology_atlas.py` | Compact shared-block and gate-occupancy atlas for the executed A0--A6 architectures | Standalone Report 07 topology figure `110` |
-| `plot_b0_learning_rate_effect.py` | Matched B0 learning-rate response and architecture-by-loss endpoint panel at \(10^{-4}\) | Embedded S1 figure `112` |
-| `plot_s1_quality_compute_landscape.py` | Complete endpoint cloud, primary-seed/common-LR descriptive envelope, and synchronized frontier table | Embedded S1 figure `113` and Report 07 frontier table |
-| `plot_s1_fixed_threshold_architecture_tradeoffs.py` | Per-architecture fixed-threshold small multiples and quality-opportunity paths | Supplemental figure `114` and embedded Report 07 figure `116` |
-| `plot_s1_learned_threshold_frontiers.py` | Matched fixed, learned-absolute, and learned-RMS-relative paths in quality-opportunity space | Supplemental S1-B2 figure `117` |
-| `plot_s1_pressure_frontiers.py` | Combined L1N, OL1, RN, and OR pressure-weight paths in quality-opportunity space | Embedded Report 07 figure `118` |
-| `plot_fixed_step_l1_coupling.py` | Explicit fixed-step FFN-only L1 cohort, pooled near-zero reductions, and MLP/attention-output scatter renderer | Retrospective figure `119` and its pinned schema-v2 activation-histogram input |
-| `eval.py` | Tiny harness-only prediction metrics | Smoke-test metrics |
+| `smoke` | Tiny infrastructure check from `configs/00-smoke.yaml` | Common run envelope |
+| `prepare-data` | Download/tokenize configured data | Token cache and metadata; preparation run record |
+| `calibrate` | Short configured training/throughput run | Events, metrics, optional checkpoint, common envelope |
+| `pretrain` | One random-initialized pretraining config | Events, metrics, predictions, checkpoint when configured, common envelope |
+| `run-configs` | Ordered pretraining configs through one child at a time | Atomic runner state, child logs, verified child run envelopes |
+| `run-status` | Read-only runner-state/artifact inspection | Human-readable progress and ETC on stdout |
+| `clip-sweep` | Post-hoc clipping from one saved checkpoint | `clipping_frontier.jsonl` and common envelope |
+| `activation-histograms` | Activation distribution diagnostic | `activation_histograms.json` and common envelope |
+| `weight-histograms` | Parameter distribution diagnostic | `weight_histograms.json` and common envelope |
+| `activation-propagation` | Exact-zero and logical-product diagnostic | `activation_propagation.json` and common envelope |
+| `plot` | Render one explicitly named saved artifact | PDF and optional PNG |
+| `check` | Read-only integrity scan | Findings on stdout |
 
-Focused tests live in `tests/test_config.py`, `tests/test_activation_pressure.py`,
-`tests/test_modeling.py`, `tests/test_activation_propagation.py`, and
-`tests/test_smoke.py`. Repository and plot-selection contracts are covered by
-`tests/test_integrity.py` and `tests/test_plot_selection.py`. Shared plotting
-mechanics and catalog metadata are covered by `tests/test_plot_api.py`,
-`tests/test_plot_catalog.py`, and `tests/test_plot_catalog_cli.py`. Report 04
-suite dispatch, CLI preflight, and selected numerical helpers are locked by
-`tests/test_report04_contract.py`, `tests/test_plot_report04_cli.py`, and
-`tests/test_report04_math.py`. Report 05 catalog, selection, CLI, diagnostics,
-and clipping contracts live in the corresponding `test_*report05*` modules;
-launch/terminal transitions are covered by
-`tests/test_run_lifecycle.py` and `tests/test_calibration_lifecycle.py`; serial
-queue safety is covered by `tests/test_pretrain_queue.py`.
+See `configs/README.md` for config ownership and `results/README.md` for
+lifecycle details.
 
-## Run Lifecycle: First Tranche
+## Change Routes
 
-`run.start_run` snapshots `config.yaml` and a `status: running` manifest before
-smoke or calibration/pretrain work begins. `run.complete_run` writes metrics
-and predictions first, then atomically publishes the terminal manifest with
-`status: completed` and `finished_at`. `run.run_lifecycle` records an escaping
-exception as `status: failed` with `finished_at`, exception type, and message,
-then re-raises it. A normal lifecycle exit without `complete_run` is also
-rejected and recorded as failed. Terminal manifests are derived from the immutable launch
-snapshot, so their Git commit and dirty state remain launch provenance even if
-the working tree changes during a run.
+### Pressure Method
 
-This lifecycle currently applies only to `run.run_smoke` and
-`calibration.run_calibration`, including CLI `calibrate` and `pretrain` calls.
-Data preparation, activation and weight histograms, activation propagation,
-and clipping still use `create_run_dir`, a late `build_manifest`, and
-`write_run_artifacts`. They remain legacy workflows until the second migration;
-do not describe their directories as having explicit `running`, `completed`,
-or `failed` status. Statusless historical runs remain supported when their core
-artifact envelope is coherent.
+1. Specify the scalar, averaging, optimizer timing, and limitations in
+   `methods.md`.
+2. Add parsing and numerical behavior in `activation_pressure.py`.
+3. Touch `calibration.py` only where routing or event logging changes.
+4. Add focused numerical tests for signs, projection condition, caps, zero
+   norms, and device/dtype behavior.
+5. Add plan-authorized configs only after the definitive plan is reviewed.
 
-For calibration/pretrain, `predictions.jsonl` currently duplicates the train
-and validation event history in `events.jsonl`; it is not generated-token
-output. `calibration/wall_seconds_train` includes validation performed inside
-the timed training interval. Separate validation timing metrics expose that
-component, and `calibration/wall_seconds_total` additionally includes final
-checkpoint work but not the final artifact writes.
+Keep naive loss augmentation and post-AdamW orthogonal correction as different
+method identifiers.
 
-## CLI and Artifact Index
+### Activation Site
 
-Commands that accept `--config` first use `config.load_config`; `clip-sweep`
-instead loads the config and manifest saved by its checkpoint run. Smoke and
-calibration/pretrain use the explicit lifecycle above. The remaining
-run-producing workflows still write `config.yaml`, `metrics.json`,
-`manifest.json`, and `predictions.jsonl` together at successful completion via
-the legacy `run.write_run_artifacts`.
+1. Define module path, pre/post-operation location, shape, and downstream
+   operator in `methods.md`.
+2. Add one stable alias and hook path in `activations.py`.
+3. Test capture, hook removal, and clipping replacement.
+4. Update `activation_propagation.py` separately if actual-operand accounting
+   changes.
+5. Require new configs to opt into the site explicitly.
 
-| CLI command | Workflow entry point | Workflow-owned config sections | Additional or primary artifacts |
-| --- | --- | --- | --- |
-| `smoke` | `run.run_smoke` | Shared required fields | Lifecycle launch snapshot, then common completed envelope with canned smoke predictions |
-| `baseline` | `run.run_baseline` | Shared required fields | Currently stops at the explicit budget `TODO`; no baseline run is implemented |
-| `prepare-data` | `data.prepare_tokenized_data` | `data`, `tokenizer`, `preprocessing`, optional `validation` | `tokens.int32.bin` and `metadata.json` under the token cache; cache paths are recorded in the run |
-| `calibrate` | `calibration.run_calibration` | `model`, `data`, `preprocessing`, `training`, `validation`, `checkpoint`, optional `activation_pressure` | Lifecycle launch snapshot; `events.jsonl`; optional `checkpoints/final/`; terminal manifest last |
-| `pretrain` | `calibration.run_calibration(..., mode="pretrain")` | Same as `calibrate` | Same lifecycle as `calibrate`; `predictions.jsonl` currently contains event history |
-| `run-pretrain-queue` | `pretrain_queue.run_pretrain_queue` | Repeated immutable pretraining configs | One child at a time, ignored atomic queue state/logs, clean-tree checks, fail-stop behavior, and terminal artifact verification |
-| `clip-sweep` | `clipping.run_clipping_sweep` | Saved source-run config plus `activation_clipping`; thresholds/sites are normally CLI arguments; `--measure-zero-products` enables actual-operand QKV/QK/PV/WO/W1/W2 counters | `clipping_frontier.jsonl` and the common envelope |
-| `activation-histograms` | `activation_histograms.run_activation_histograms` | `activation_histograms`, `validation`, and cache/model fields | `activation_histograms.json` and the common envelope |
-| `weight-histograms` | `weight_histograms.run_weight_histograms` | `weight_histograms` and source-run references | `weight_histograms.json` and the common envelope |
-| `activation-propagation` | `activation_propagation.run_activation_propagation` | `activation_propagation`, `validation`, and cache/model fields | `activation_propagation.json` and the common envelope |
-| `write-pressure-sweep-configs` | `sweeps.write_pressure_fixed_step_configs` | Specs defined in `sweeps.py` | Numbered YAML configs |
-| `run-pressure-sweep` | `sweeps.run_pressure_fixed_step_sweep` | Generated training configs | Standard pretraining run artifacts for each selected config |
-| `run-pressure-sweep-clipping` | `sweeps.run_pressure_fixed_step_clipping_sweeps` | Completed sweep configs plus CLI clipping arguments | Standard clipping-sweep artifacts |
-| `plots` | `plots.generate_plots` | No live config; consumes saved result artifacts and the dispatch in `plots.py` | Numbered PDFs and optional PNGs |
-| `plot-report04` | `plots.generate_report04_figures` | No live config; resolves every declared Report 04 cohort before rendering | Figures `79` through `90`, optional PNGs, and strict-run `report04-provenance.json`; explicit `--allow-partial` exploration mode omits provenance |
-| `plot-report05` | `plots.generate_report05_figures` | No live config; pins training runs and resolves diagnostics `114`--`117` plus declared clipping sweeps | Figures `91` through `102`; strict staged promotion, optional PNGs, and explicit `--allow-partial` exploration mode |
-| `plot-catalog` | Report 04/05/07 or standalone catalog row helpers | No config or result reads | Deterministic figure metadata on stdout; `--report 04` is the backward-compatible default |
-| `check` | `integrity.check_repository` | No config; reads repository indexes and artifact envelopes | Findings only; never writes repository files |
-| `plot-run` | `plots.generate_run_diagnostics` | No live config; consumes one run | Requested PDF and optional PNG |
-| `plot-clipping-frontier` | `plots.generate_clipping_frontier` | No live config; consumes one clipping run | Requested PDF and optional PNG |
+### Architecture or Gate
 
-See `configs/README.md` for field ownership and starting examples.
+Architecture edits span config validation, `modeling.py`, construction in
+`calibration.py`, activation hooks, checkpoint reconstruction, tests, and
+methods documentation. Treat the change as a scientific intervention and
+verify an exact checkpoint round trip. Do not hide it in plotting or cleanup.
 
-## Surgical Change Recipes
+### Diagnostic
 
-### Add or change a pressure method
+1. Define the estimand, integer counters, denominator, coverage, and nonclaims
+   in `diagnostics.md`.
+2. Reuse an existing focused diagnostic artifact when its schema fits; add a
+   new workflow only when the measurement is genuinely different.
+3. Pin source config/run/checkpoint identities.
+4. Write specialized artifacts before terminal completion.
+5. Add CPU-sized schema and numerical tests.
 
-1. Write the mathematical and optimization semantics in `docs/methods.md`.
-2. Add config parsing, the method identifier, and pressure calculation in
-   `activation_pressure.py`. Keep naive loss augmentation and Adam-step
-   orthogonal correction as different methods.
-3. Touch `calibration.py` only where the training step must route or log the new
-   behavior. Preserve task loss, pressure loss, and update diagnostics as
-   distinct metrics.
-4. Add focused numerical tests in `tests/test_activation_pressure.py`, then add
-   a numbered config copied from the closest method/run shape.
-5. Record the run and its interpretation boundary in the experiment log; add it
-   to the paper map only if it supports a paper artifact.
+### Plot
 
-### Add an activation site
+1. Name the exact source artifacts and output in the reviewed plan and
+   `paper_map.md`.
+2. Load only explicit paths; do not discover the latest run.
+3. Put scientific reduction in a small pure function with numerical tests.
+4. Keep figure-specific labels, axes, cohorts, and rendering together.
+5. Reuse `plot_style.py`, `plot_common.py`, and `plot_api.py` for shared
+   presentation and export mechanics.
+6. Stage, render, inspect, and atomically publish the complete figure set with
+   deterministic provenance.
 
-1. Define the tensor precisely: module path, pre/post operation, shape, and
-   downstream operator.
-2. Add the alias and one registration method in `activations.py`; ensure hooks
-   are removed by `ActivationCapture` and clipping replaces the intended tensor.
-3. Add capture and clipping tests in `tests/test_activation_pressure.py` using a
-   small Pythia-like module.
-4. If the site changes zero-product accounting, update
-   `activation_propagation.py` and `tests/test_activation_propagation.py`
-   separately.
-5. Use explicit `activation_pressure.sites` or diagnostic `sites` in the new
-   config. Do not silently broaden older configs.
+## Testing Boundaries
 
-### Add a diagnostic
+Scientific tests cover pressure mathematics, gates, activation capture,
+propagation counters, clipping, reproducibility, and checkpoint reconstruction.
+Infrastructure tests cover config validation, lifecycle ordering, runner
+locking/fail-stop/progress behavior, integrity checks, plotting mechanics, and
+smoke execution.
 
-1. First decide whether the output belongs in an existing diagnostic JSON. If
-   not, add one focused workflow module with a single `run_*` entry point.
-2. Give it a workflow-owned config section and a numbered config; add CLI
-   parsing/routing in `cli.py`.
-3. Existing diagnostic workflows still use `create_run_dir`, `build_manifest`,
-   and `write_run_artifacts`, then write specialized JSON/JSONL next to the
-   common envelope. Do not migrate one diagnostic ad hoc: the second lifecycle
-   tranche must also make source-run status checks and specialized-artifact
-   ordering consistent.
-4. Select only completed source runs and record their config/run identifiers in
-   the payload or manifest. Add a CPU-sized test for the schema or calculation.
-5. Document what is measured, its denominator/sample size, and its limits in
-   `docs/methods.md` and `docs/experiment_log.md`.
+Run the smallest focused tests while iterating. Before handoff, run:
 
-### Add a paper figure
-
-1. Add a row to `docs/paper_map.md` with purpose, exact configs, exact saved
-   results, and the numbered output filename.
-2. Keep CLI selection and the stable export wrapper in `plots.py`. Put the
-   family cohort, pure reductions, and explicit renderers together in its
-   focused module; Report 04 uses `plot_report04.py` as the reference boundary.
-   Shared colors, typography, and export defaults belong in `plot_style.py`.
-3. Add searchable metadata to `plot_catalog.py` so the figure can be found by
-   number, filename, plot type, or wrapper. Reuse `GridLayout` and the relevant
-   publication profile instead of hard-coding a method-count grid or oversized
-   canvas.
-4. Read only saved artifacts. Do not place training or measurement logic inside
-   a renderer, and do not silently substitute a different experiment.
-5. Generate into a temporary comparison location first. Check inputs, series,
-   labels, axes, sample size/uncertainty, layout, PDF, and optional PNG before
-   replacing a paper artifact.
-6. Treat Report 04 and figures `79` through `90` as the current visual baseline:
-   `report/04-2026-07-11-post-layernorm-relu-ol1-comparison/`.
-   See `docs/plotting.md` for the exact embedded figure set and parity workflow.
-
-## Architecture Changes
-
-Architecture edits are scientific interventions, not harness cleanup. Their
-current path spans model config fields, `calibration._apply_model_architecture_overrides`,
-`modeling.py`, activation hooks, checkpoint loading, tests, methods, and run
-documentation. Scope these changes separately, preserve random initialization,
-and verify that saved checkpoints reconstruct the same architecture. Never fold
-an architecture change into a plotting or navigation refactor.
+```bash
+make test
+make check
+```

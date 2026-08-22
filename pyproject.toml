@@ -10,17 +10,35 @@ readme = "README.md"
 authors = [
     { name = "Thiago Mattar", email = "thiagocmattar@gmail.com" },
 ]
-requires-python = ">=3.10"
-dependencies = [
-    "pyyaml>=6.0",
-    "matplotlib>=3.7",
-    "pytest>=7.4",
-    "numpy>=1.24",
-    "datasets>=2.19",
-    "transformers>=4.43",
-    "torch>=2.4",
-    "safetensors>=0.4",
+requires-python = ">=3.11,<3.13"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
 ]
+dependencies = [
+    "pyyaml>=6.0.3,<6.1",
+    "matplotlib>=3.11,<3.12",
+    "numpy>=2.5,<2.6",
+    "datasets>=5.0,<5.1",
+    "transformers>=5.12,<5.13",
+    "torch>=2.11,<2.12",
+    "safetensors>=0.8,<0.9",
+]
+
+[project.optional-dependencies]
+dev = [
+    "build>=1.2,<2",
+    "pytest>=7.4,<10",
+]
+
+[project.urls]
+Homepage = "https://github.com/thiagocmattar/orthogonal-ricker"
+Repository = "https://github.com/thiagocmattar/orthogonal-ricker"
+Issues = "https://github.com/thiagocmattar/orthogonal-ricker/issues"
 
 [project.scripts]
 paper-exp = "paper_exp.cli:main"
@@ -30,4 +48,4 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "--basetemp=.pytest_tmp_run"
+addopts = "-p no:cacheprovider"

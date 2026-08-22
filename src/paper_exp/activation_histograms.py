@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import time
 from pathlib import Path
 from typing import Any
@@ -7,9 +8,11 @@ from typing import Any
 import yaml
 
 from paper_exp.activations import ActivationCapture
+from paper_exp.config import validate_diagnostic_config
+from paper_exp.data import verify_token_cache
 from paper_exp.modeling import load_checkpoint_model
-from paper_exp.run import create_run_dir, write_run_artifacts
-from paper_exp.utils import build_manifest, read_json, write_json
+from paper_exp.run import CORE_RUN_ARTIFACTS, RunHandle, complete_run, run_lifecycle
+from paper_exp.utils import read_json, write_json
 
 
 def run_activation_histograms(
@@ -19,39 +22,79 @@ def run_activation_histograms(
     command: str,
     run_id: str | None = None,
 ) -> Path:
+    validate_diagnostic_config(config, "activation_histograms")
+    with run_lifecycle(
+        config,
+        config_path=config_path,
+        command=command,
+        mode="activation-histograms",
+        run_id=run_id,
+    ) as run:
+        return _run_activation_histograms(run)
+
+
+def _run_activation_histograms(run: RunHandle) -> Path:
+    config = run.config
     torch, np, auto_model = _load_dependencies()
     histogram_config = config["activation_histograms"]
     validation_config = config["validation"]
     selected_runs = histogram_config["selected_runs"]
+    if not isinstance(selected_runs, list) or not selected_runs:
+        raise ValueError(
+            "activation_histograms.selected_runs must be an explicit non-empty list."
+        )
     bins = int(histogram_config["bins"])
     range_min = float(histogram_config["range_min"])
     range_max = float(histogram_config["range_max"])
-    thresholds = tuple(float(value) for value in histogram_config.get("thresholds", [0.0, 0.01]))
+    configured_thresholds = histogram_config.get("thresholds")
+    if not isinstance(configured_thresholds, list) or not configured_thresholds:
+        raise ValueError("activation_histograms.thresholds must be an explicit non-empty list.")
+    thresholds = tuple(float(value) for value in configured_thresholds)
+    if any(not math.isfinite(value) or value < 0.0 for value in thresholds):
+        raise ValueError("activation_histograms.thresholds must be finite and nonnegative.")
+    if len(set(thresholds)) != len(thresholds):
+        raise ValueError("activation_histograms.thresholds must not contain duplicates.")
+    sites = histogram_config.get("sites")
+    if not isinstance(sites, list) or not sites:
+        raise ValueError("activation_histograms.sites must be an explicit non-empty list.")
     if bins <= 0:
         raise ValueError("activation_histograms.bins must be positive.")
     if range_min >= range_max:
         raise ValueError("activation_histograms.range_min must be less than range_max.")
 
     np.random.seed(int(config["run"]["seed"]))
-    source_runs = [_find_latest_source_run(config, item["config_id"]) for item in selected_runs]
-    reference_manifest = read_json(source_runs[0] / "manifest.json")
+    source_runs = [_find_source_run(config, item) for item in selected_runs]
+    source_manifests = [read_json(path / "manifest.json") for path in source_runs]
+    reference_manifest = source_manifests[0]
     validation_metadata = reference_manifest["tokenized_data"]["validation"]
     if validation_metadata is None:
         raise ValueError("Source run has no validation token cache in manifest.")
+    _validate_shared_validation_cache(source_manifests, validation_metadata)
+    _validate_requested_validation_cache(validation_config, validation_metadata)
 
-    validation_tokens = np.memmap(validation_metadata["tokens_path"], dtype=np.int32, mode="r")
+    validation_tokens_path = verify_token_cache(
+        validation_metadata,
+        context="Activation histogram validation cache",
+    )
+    validation_tokens = np.memmap(validation_tokens_path, dtype=np.int32, mode="r")
     block_size = int(validation_metadata["block_size"])
     batch_size = int(validation_config["batch_size"])
     eval_batches = validation_config.get("eval_batches")
     starts = _eval_starts(validation_tokens, block_size, eval_batches=eval_batches, batch_size=batch_size, np=np)
 
-    training = yaml.safe_load((source_runs[0] / "config.yaml").read_text(encoding="utf-8"))["training"]
-    device = _select_device(torch, training.get("device", "auto"))
-    dtype = _select_dtype(torch, device, training.get("precision", "auto"))
+    execution_request = _shared_execution_request(source_runs)
+    device = _select_device(torch, execution_request["device"])
+    dtype = _select_dtype(torch, device, execution_request["precision"])
+    execution = {
+        "requested_device": execution_request["device"],
+        "requested_precision": execution_request["precision"],
+        "resolved_device": str(device),
+        "resolved_precision": _resolved_precision(dtype),
+    }
     if device.type == "cuda":
         torch.cuda.reset_peak_memory_stats(device)
 
-    experiment_id, numbered_run_id, output_dir = create_run_dir(config, config_path, run_id=run_id)
+    output_dir = run.run_dir
     bin_edges = np.linspace(range_min, range_max, bins + 1).tolist()
     results: list[dict[str, Any]] = []
     start_time = time.perf_counter()
@@ -70,7 +113,7 @@ def run_activation_histograms(
             starts=starts,
             device=device,
             dtype=dtype,
-            sites=histogram_config.get("sites", ["mlp_hiddens"]),
+            sites=sites,
             bins=bins,
             range_min=range_min,
             range_max=range_max,
@@ -96,29 +139,28 @@ def run_activation_histograms(
         "activation_histograms/peak_gpu_memory_mb": _peak_gpu_memory_mb(torch, device),
         "activation_histograms/peak_gpu_reserved_mb": _peak_gpu_reserved_mb(torch, device),
     }
-    manifest = build_manifest(
-        config=config,
-        config_path=config_path,
-        run_id=numbered_run_id,
-        command=command,
-        mode="activation-histograms",
-        config_id=experiment_id,
-        result_path=output_dir,
-    )
-    manifest["source_runs"] = [str(path) for path in source_runs]
-    manifest["source_checkpoints"] = [str(Path(read_json(path / "manifest.json")["checkpoint"]["path"])) for path in source_runs]
-    manifest["tokenized_data"] = {"validation": validation_metadata}
-    manifest["activation_histograms"] = {
-        "sites": histogram_config.get("sites", ["mlp_hiddens"]),
-        "bins": bins,
-        "range_min": range_min,
-        "range_max": range_max,
-        "selected_runs": selected_runs,
-        "thresholds": list(thresholds),
-        "eval_batches": eval_batches,
-        "batch_size": batch_size,
-        "validation_sequences": total_sequences,
-        "validation_tokens": total_tokens,
+    manifest_updates = {
+        "source_runs": [_portable_path(path) for path in source_runs],
+        "source_checkpoints": [
+            _portable_path(
+                _source_checkpoint_path(path, read_json(path / "manifest.json"))
+            )
+            for path in source_runs
+        ],
+        "tokenized_data": {"validation": validation_metadata},
+        "activation_histograms": {
+            "sites": sites,
+            "bins": bins,
+            "range_min": range_min,
+            "range_max": range_max,
+            "selected_runs": selected_runs,
+            "thresholds": list(thresholds),
+            "eval_batches": eval_batches,
+            "batch_size": batch_size,
+            "validation_sequences": total_sequences,
+            "validation_tokens": total_tokens,
+            "execution": execution,
+        },
     }
 
     payload = {
@@ -128,15 +170,20 @@ def run_activation_histograms(
         "range_min": range_min,
         "range_max": range_max,
         "bins": bins,
-        "sites": histogram_config.get("sites", ["mlp_hiddens"]),
+        "sites": sites,
         "thresholds": list(thresholds),
         "validation_sequences": total_sequences,
         "validation_tokens": total_tokens,
+        "execution": execution,
         "methods": results,
     }
-    write_run_artifacts(output_dir, config=config, metrics=metrics, manifest=manifest, predictions=[])
     write_json(output_dir / "activation_histograms.json", payload)
-    return output_dir
+    return complete_run(
+        run,
+        metrics=metrics,
+        predictions=[],
+        manifest_updates=manifest_updates,
+    )
 
 
 def _measure_one_run(
@@ -159,7 +206,7 @@ def _measure_one_run(
     thresholds: tuple[float, ...],
 ) -> dict[str, Any]:
     source_manifest = read_json(source_run / "manifest.json")
-    checkpoint_path = Path(source_manifest["checkpoint"]["path"])
+    checkpoint_path = _source_checkpoint_path(source_run, source_manifest)
     model = load_checkpoint_model(auto_model, checkpoint_path, torch=torch)
     model.to(device=device, dtype=torch.float32)
     model.eval()
@@ -274,28 +321,201 @@ def _measure_one_run(
         "label": label,
         "config_id": source_manifest["config_id"],
         "run_id": source_manifest["run_id"],
-        "source_run": str(source_run),
-        "source_checkpoint": str(checkpoint_path),
+        "source_run": _portable_path(source_run),
+        "source_checkpoint": _portable_path(checkpoint_path),
         "batches": batches,
         "wall_seconds": time.perf_counter() - method_start,
         "layers": layers,
     }
 
 
-def _find_latest_source_run(config: dict[str, Any], config_id: str) -> Path:
-    experiment_dir = Path(config["output"]["dir"]) / config_id
-    if not experiment_dir.exists():
-        raise FileNotFoundError(f"Missing result directory for selected config: {experiment_dir}")
-    candidates = []
-    for run_dir in sorted(experiment_dir.iterdir()):
-        manifest_path = run_dir / "manifest.json"
-        checkpoint_path = run_dir / "checkpoints" / "final" / "model.safetensors"
-        if manifest_path.exists() and checkpoint_path.exists():
-            manifest = read_json(manifest_path)
-            candidates.append((int(manifest.get("run_sequence", 0)), run_dir))
-    if not candidates:
-        raise FileNotFoundError(f"No checkpointed runs found for selected config: {experiment_dir}")
-    return sorted(candidates, key=lambda item: item[0])[-1][1]
+def _find_source_run(config: dict[str, Any], selected: dict[str, Any]) -> Path:
+    config_id = str(selected.get("config_id") or "").strip()
+    run_id = str(selected.get("run_id") or "").strip()
+    if not config_id or not run_id:
+        raise ValueError(
+            "activation_histograms.selected_runs entries require exact config_id and run_id."
+        )
+    run_dir = Path(config["output"]["dir"]) / config_id / run_id
+    _verify_completed_checkpoint_run(run_dir, config_id=config_id, run_id=run_id)
+    return run_dir
+
+
+def _validate_shared_validation_cache(
+    source_manifests: list[dict[str, Any]],
+    reference: dict[str, Any],
+) -> None:
+    identity_fields = [
+        "tokens_path",
+        "dtype",
+        "block_size",
+        "tokens",
+        "tokens_bytes",
+        "tokens_sha256",
+    ]
+    if reference.get("partition") in {"selection", "confirmation"}:
+        identity_fields.extend(
+            [
+                "partition",
+                "partition_scheme",
+                "partition_seed",
+                "source_document_indices_sha256",
+            ]
+        )
+    missing_reference = [field for field in identity_fields if reference.get(field) is None]
+    if missing_reference:
+        raise ValueError(
+            "Reference validation cache is missing required identity fields: "
+            + ", ".join(missing_reference)
+            + "."
+        )
+    for manifest in source_manifests:
+        candidate = (manifest.get("tokenized_data") or {}).get("validation")
+        if candidate is None:
+            raise ValueError(f"Source run {manifest['config_id']} has no validation token cache.")
+        if candidate.get("partition") != reference.get("partition"):
+            raise ValueError(
+                "Selected runs do not share the same validation token cache "
+                "identity field partition."
+            )
+        for field in identity_fields:
+            if candidate.get(field) != reference[field]:
+                raise ValueError(
+                    "Selected runs do not share the same validation token cache "
+                    f"identity field {field}."
+                )
+
+
+def _validate_requested_validation_cache(
+    validation_config: dict[str, Any], metadata: dict[str, Any]
+) -> None:
+    requested_partition = validation_config.get("partition")
+    realized_partition = metadata.get("partition")
+    if requested_partition is None:
+        if realized_partition not in {None, "full"}:
+            raise ValueError(
+                "Activation histogram validation partition does not match the source cache."
+            )
+    elif realized_partition != requested_partition:
+        raise ValueError(
+            "Activation histogram validation partition does not match the source cache."
+        )
+
+    for field in ("split", "max_documents"):
+        expected = validation_config.get(field)
+        if expected is not None and metadata.get(field) != expected:
+            raise ValueError(
+                f"Activation histogram validation {field} does not match the source cache."
+            )
+
+    if requested_partition not in {"selection", "confirmation"}:
+        return
+    expected_fields = {
+        "partition_scheme": validation_config.get("partition_scheme"),
+        "partition_seed": validation_config.get("partition_seed"),
+    }
+    for field, expected in expected_fields.items():
+        if expected is not None and metadata.get(field) != expected:
+            raise ValueError(
+                f"Activation histogram validation {field} does not match the source cache."
+            )
+    requested_hash = validation_config.get("partition_hash")
+    if (
+        requested_hash is not None
+        and metadata.get("source_document_indices_sha256") != requested_hash
+    ):
+        raise ValueError(
+            "Activation histogram validation partition hash does not match the source cache."
+        )
+    if validation_config.get("eval_batches") is not None:
+        raise ValueError(
+            "Named-partition activation histograms must evaluate the complete partition; "
+            "set validation.eval_batches to null."
+        )
+
+
+def _shared_execution_request(source_runs: list[Path]) -> dict[str, str]:
+    requests: list[dict[str, str]] = []
+    for source_run in source_runs:
+        source_config = yaml.safe_load(
+            (source_run / "config.yaml").read_text(encoding="utf-8")
+        )
+        training = source_config.get("training") if isinstance(source_config, dict) else None
+        if not isinstance(training, dict):
+            raise ValueError(f"Source run has no training configuration: {source_run}")
+        request = {
+            "device": str(training.get("device", "auto")),
+            "precision": str(training.get("precision", "auto")),
+        }
+        requests.append(request)
+    reference = requests[0]
+    if any(request != reference for request in requests[1:]):
+        raise ValueError(
+            "Selected runs do not share the same diagnostic device and precision request."
+        )
+    return reference
+
+
+def _resolved_precision(dtype: Any) -> str:
+    if dtype is None:
+        return "float32"
+    return str(dtype).removeprefix("torch.")
+
+
+def _verify_completed_checkpoint_run(run_dir: Path, *, config_id: str, run_id: str) -> None:
+    missing = [name for name in CORE_RUN_ARTIFACTS if not (run_dir / name).is_file()]
+    if missing:
+        raise FileNotFoundError(
+            f"Selected source run is missing required artifacts ({', '.join(missing)}): {run_dir}"
+        )
+    manifest = read_json(run_dir / "manifest.json")
+    if not isinstance(manifest, dict):
+        raise ValueError(f"Selected source manifest is not an object: {run_dir}")
+    if manifest.get("config_id") != config_id or manifest.get("run_id") != run_id:
+        raise ValueError(f"Selected source run identity is inconsistent: {run_dir}")
+    if manifest.get("status") != "completed":
+        raise ValueError(f"Selected source run is not completed: {run_dir}")
+    checkpoint_path = _source_checkpoint_path(run_dir, manifest)
+    model_files = (
+        checkpoint_path / "model.safetensors",
+        checkpoint_path / "model.safetensors.index.json",
+    )
+    if not checkpoint_path.is_dir() or not any(path.is_file() for path in model_files):
+        raise FileNotFoundError(f"Selected source checkpoint is incomplete: {checkpoint_path}")
+
+
+def _source_checkpoint_path(source_run: Path, manifest: dict[str, Any]) -> Path:
+    checkpoint = manifest.get("checkpoint")
+    if not isinstance(checkpoint, dict) or checkpoint.get("saved") is not True:
+        raise ValueError(f"Selected source run has no saved checkpoint: {source_run}")
+    return _resolve_source_path(checkpoint.get("path"), source_run=source_run)
+
+
+def _resolve_source_path(value: Any, *, source_run: Path) -> Path:
+    path_text = str(value or "").strip()
+    if not path_text:
+        raise ValueError(f"Source run has no checkpoint path: {source_run}")
+    recorded = Path(path_text)
+    if recorded.is_absolute():
+        return recorded.resolve()
+    repository_path = (Path.cwd() / recorded).resolve()
+    run_relative_path = (source_run / recorded).resolve()
+    try:
+        repository_path.relative_to(source_run.resolve())
+        return repository_path
+    except ValueError:
+        pass
+    if run_relative_path.exists() or not repository_path.exists():
+        return run_relative_path
+    return repository_path
+
+
+def _portable_path(path: Path) -> str:
+    resolved = path.resolve()
+    try:
+        return resolved.relative_to(Path.cwd().resolve()).as_posix()
+    except ValueError:
+        return resolved.as_posix()
 
 
 def _eval_starts(tokens: Any, block_size: int, *, eval_batches: int | None, batch_size: int, np: Any) -> list[int]:

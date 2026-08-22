@@ -1,102 +1,53 @@
 # Figures
 
-Paper-ready figures generated from saved random-initialized pretraining results go here.
+Generated diagnostic and paper figures live here and are ignored by default.
+The definitive experiment plan will assign paper figure families and sequential
+output prefixes. Until that plan is supplied and reviewed, there are no paper
+figures in this branch.
 
-## Figure Inventory
+## Explicit Diagnostic Plotting
 
-[`docs/paper_map.md`](../docs/paper_map.md) is the canonical figure inventory.
-It maps each paper purpose to its exact configs, saved results, and numbered
-figure outputs. Update that map when adding, replacing, or retiring a paper
-figure; do not maintain a second exhaustive filename list here.
+Render one exact saved run artifact with:
 
-Use sequential, unique numeric prefixes:
+```bash
+make plot \
+  KIND=run \
+  RUN_DIR=results/<config-id>/<run-id> \
+  OUTPUT=figures/01-run-diagnostics.pdf \
+  PNG=1
+```
+
+Other supported kinds are `clipping`, `activation-histograms`,
+`weight-histograms`, and `activation-propagation`.
+
+These convenience plots do not select or certify a paper cohort. Paper inputs
+must be pinned in [`docs/paper_map.md`](../docs/paper_map.md). Every diagnostic
+export also writes a `.provenance.json` sidecar containing the exact source
+identity and input/output hashes.
+
+## Naming
+
+Use one unique sequential prefix per canonical paper figure:
 
 ```text
-01-pythia-14m-minipile-random-full-10min-diagnostics.pdf
-02-pythia-14m-minipile-clipping-frontier-smoke.pdf
+01-descriptive-name.pdf
+01-descriptive-name.png    # optional inspection copy of the same figure
 ```
 
-Each prefix identifies one canonical figure, even when both PDF and PNG copies
-exist. Check both this directory and the paper map before assigning the next
-number. Do not reuse a prefix for a different filename or leave competing
-canonical variants under the same prefix.
+Do not reuse a prefix for a different figure or keep competing canonical
+filenames with the same prefix.
 
-The current architecture-comparison suite is Report 05 and figures `91`
-through `102`:
+## Publication Requirements
 
-```text
-report/05-2026-07-17-post-qkv-relu-placement-comparison/
-figures/91-*.pdf through figures/102-*.pdf
-```
+- Read only pinned saved artifacts.
+- Keep loading, pure reduction, rendering, and export separate.
+- Generate PDF and optional PNG from the same Matplotlib `Figure`.
+- Use the shared colorblind-safe style and final-size publication checks.
+- Show sample size, seed count, denominator, and uncertainty when relevant.
+- Label zoomed or logarithmic axes explicitly.
+- Separate an exact-zero probability atom from conditional nonzero density.
+- Label logical compute opportunities as logical, not measured speedups.
+- Stage and inspect outputs before atomic promotion.
+- Record deterministic input and output hashes for a paper suite.
 
-Report 04 remains the typography and compute-accounting reference. Preserve
-its color language, information density, panel spacing, and compute-accounting
-clarity when extending the plotting package. A new figure may differ when its
-scientific content requires it, but should remain visually coherent with this
-family.
-
-## Regeneration Workflow
-
-Regenerate the complete Report 05 architecture-comparison suite through its
-strict preflight:
-
-```bash
-make plot-report05
-```
-
-This requires every declared Report 05 input and atomically promotes the 12
-figures only after the full suite succeeds.
-
-Regenerate the Report 04 visual baseline through its own strict preflight:
-
-```bash
-make plot-report04
-```
-
-This requires every declared Report 04 input before rendering and writes
-`report04-provenance.json` beside the figures. The sidecar is generated and
-ignored by default. Deliberately select it for a release only after reviewing
-the figure suite and its input hashes; use
-`git add -f figures/report04-provenance.json` when that release decision is made.
-
-Regenerate the broader mixed-family figure collection during exploration with:
-
-```bash
-make plots
-```
-
-The mixed command retains partial Report 04 behavior and does not write the
-strict provenance sidecar.
-
-Figures should be reproducible from files under `results/`. Do not rely on notebook-only plotting for paper figures.
-
-Generate changed figures into a temporary comparison directory first, outside
-`figures/`. Compare the candidate with the current artifact for exact input
-runs, series, labels, axes, sample size or uncertainty, layout, PDF rendering,
-and optional PNG rendering. Promote it to `figures/` only after that review;
-never overwrite a paper artifact as the first validation step.
-
-## Plotting Standards
-
-Every figure is a research artifact, not decoration. Aim for figures that can go into the paper unchanged.
-
-Use the shared Matplotlib style centralized in `src/paper_exp/plot_style.py`.
-Family-specific loaders and renderers may live in focused modules, but should
-reuse that style. Do not add notebook-only styling that cannot be reproduced by
-`make plots`.
-
-Honesty rules:
-
-- Do not truncate y-axes to exaggerate effects. If a zoomed view is necessary, label it clearly on the plot.
-- Use log scales for heavy-tailed quantities when appropriate, and label the axis as log-scaled.
-- Prefer distributions, confidence intervals, percentile bands, or per-run points over means alone when the saved results support them.
-- Annotate `n` when comparing groups or summarizing multiple runs.
-- Make uncertainty and sample size visible when they affect the interpretation.
-
-Mechanics:
-
-- Save paper figures as PDF. PNG copies are useful for quick inspection.
-- Use colorblind-safe palettes. Avoid red/green-only contrasts.
-- Label axes with units when units exist.
-- Keep titles, labels, and legends readable at paper column size.
-- If plotting time-series data, state the timezone or use UTC consistently.
+The complete contract is in [`docs/plotting.md`](../docs/plotting.md).

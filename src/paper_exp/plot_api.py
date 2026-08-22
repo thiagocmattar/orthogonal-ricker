@@ -122,7 +122,7 @@ class PublicationProfile:
                 raise ValueError(f"PublicationProfile.{name} must be finite and positive.")
 
 
-REPORT04_PUBLICATION_PROFILE = PublicationProfile(
+DOUBLE_COLUMN_PUBLICATION_PROFILE = PublicationProfile(
     width_inches=DOUBLE_COLUMN_WIDTH_INCHES,
     max_height_inches=8.8,
     min_text_points=8.0,
@@ -350,10 +350,21 @@ def _nonrendered_tick_labels(figure: Figure) -> set[Text]:
         for axis in (axes.xaxis, axes.yaxis):
             all_ticks = (*axis.get_major_ticks(), *axis.get_minor_ticks())
             axis_is_drawn = axes.get_visible() and axes.axison and axis.get_visible()
-            active_ticks = set(axis._update_ticks()) if axis_is_drawn else set()
+            view_start, view_end = (float(value) for value in axis.get_view_interval())
+            view_low, view_high = sorted((view_start, view_end))
+            view_tolerance = max(1.0, abs(view_high - view_low)) * 1e-12
             for tick in all_ticks:
-                if tick not in active_ticks:
-                    nonrendered.update((tick.label1, tick.label2))
+                location = float(tick.get_loc())
+                tick_is_drawn = (
+                    axis_is_drawn
+                    and math.isfinite(location)
+                    and view_low - view_tolerance
+                    <= location
+                    <= view_high + view_tolerance
+                )
+                for label in (tick.label1, tick.label2):
+                    if not tick_is_drawn:
+                        nonrendered.add(label)
     return nonrendered
 
 

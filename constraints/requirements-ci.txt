@@ -1,0 +1,11 @@
+# Tested release dependency snapshot. Update deliberately with the CI matrix.
+build==1.2.2.post1
+datasets==5.0.0
+matplotlib==3.11.0
+numpy==2.5.0
+pytest==9.1.1
+PyYAML==6.0.3
+safetensors==0.8.0
+setuptools==80.9.0
+torch==2.11.0
+transformers==5.12.1

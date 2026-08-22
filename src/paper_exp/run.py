@@ -13,8 +13,7 @@ from uuid import uuid4
 
 import yaml
 
-from paper_exp.config import validate_config
-from paper_exp.eval import compute_smoke_metrics
+from paper_exp.config import validate_config, validate_smoke_config
 from paper_exp.utils import build_manifest, write_json, write_jsonl
 
 RUN_SEQUENCE_RE = re.compile(r"^(\d{3})-")
@@ -184,7 +183,7 @@ def run_smoke(
     command: str,
     run_id: str | None = None,
 ) -> Path:
-    validate_config(config, allow_todos=True)
+    validate_smoke_config(config)
     with run_lifecycle(
         config,
         config_path=config_path,
@@ -203,21 +202,11 @@ def run_smoke(
             }
             for index in range(num_examples)
         ]
-        metrics = compute_smoke_metrics(predictions)
+        metrics = {
+            "smoke/num_examples": len(predictions),
+            "smoke/passed": bool(predictions),
+        }
         return complete_run(run, metrics=metrics, predictions=predictions)
-
-
-def run_baseline(
-    config: dict[str, Any],
-    *,
-    config_path: str | Path,
-    command: str,
-    run_id: str | None = None,
-) -> Path:
-    validate_config(config, allow_todos=False)
-    raise NotImplementedError(
-        "TODO: choose the random-initialized pretraining budget before enabling the baseline run."
-    )
 
 
 def create_run_dir(

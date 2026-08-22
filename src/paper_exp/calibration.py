@@ -15,8 +15,13 @@ from paper_exp.activation_pressure import clone_grads
 from paper_exp.activation_pressure import grad_metrics
 from paper_exp.activation_pressure import pressure_loss
 from paper_exp.activations import ActivationCapture
-from paper_exp.config import validate_config
-from paper_exp.data import metadata_matches_config, tokenized_cache_dir, validation_metadata_path
+from paper_exp.config import validate_training_config
+from paper_exp.data import (
+    metadata_matches_config,
+    tokenized_cache_dir,
+    validation_metadata_path,
+    verify_token_cache,
+)
 from paper_exp.modeling import (
     adaptive_threshold_parameter_items,
     adaptive_threshold_parameter_snapshot,
@@ -40,7 +45,9 @@ def run_calibration(
     run_id: str | None = None,
     mode: str = "calibrate",
 ) -> Path:
-    validate_config(config, allow_todos=False)
+    if mode not in {"calibrate", "pretrain"}:
+        raise ValueError("Training lifecycle mode must be 'calibrate' or 'pretrain'.")
+    validate_training_config(config)
     with run_lifecycle(
         config,
         config_path=config_path,
@@ -80,7 +87,8 @@ def _run_started_calibration(
         max_documents=config["data"].get("max_documents"),
     ):
         raise ValueError(f"Token cache metadata does not match config: {metadata_path}")
-    train_tokens = np.memmap(train_metadata["tokens_path"], dtype=np.int32, mode="r")
+    train_tokens_path = verify_token_cache(train_metadata, context="Training token cache")
+    train_tokens = np.memmap(train_tokens_path, dtype=np.int32, mode="r")
     block_size = int(train_metadata["block_size"])
     if len(train_tokens) <= block_size + 1:
         raise ValueError("Token cache is too small for the configured block_size.")
@@ -109,13 +117,17 @@ def _run_started_calibration(
                 "Validation partition hash does not match config: "
                 f"expected {expected_partition_hash}, got {actual_partition_hash}."
             )
-        validation_tokens = np.memmap(validation_metadata["tokens_path"], dtype=np.int32, mode="r")
+        validation_tokens_path = verify_token_cache(
+            validation_metadata,
+            context="Validation token cache",
+        )
+        validation_tokens = np.memmap(validation_tokens_path, dtype=np.int32, mode="r")
         if len(validation_tokens) <= block_size + 1:
             raise ValueError("Validation token cache is too small for the configured block_size.")
 
     training = config["training"]
-    device = _select_device(torch, training.get("device", "auto"))
-    dtype = _select_dtype(torch, device, training.get("precision", "auto"))
+    device = _select_device(torch, training["device"])
+    dtype = _select_dtype(torch, device, training["precision"])
 
     model = _build_random_model(
         torch=torch,
@@ -144,12 +156,12 @@ def _run_started_calibration(
     trainable_params = [parameter for parameter in model.parameters() if parameter.requires_grad]
     pressure_config = activation_pressure_config(config)
     max_steps = int(training["max_steps"])
-    max_wall_seconds = training.get("max_wall_seconds")
+    max_wall_seconds = training["max_wall_seconds"]
     max_wall_seconds = float(max_wall_seconds) if max_wall_seconds is not None else None
-    warmup_steps = int(training.get("warmup_steps", 0))
+    warmup_steps = int(training["warmup_steps"])
     grad_accum = int(training["gradient_accumulation_steps"])
     micro_batch_size = int(training["micro_batch_size"])
-    log_every = int(training.get("log_every", 1))
+    log_every = int(training["log_every"])
     tokens_per_step = grad_accum * micro_batch_size * block_size
     training_schedule_scheme = run_config.get("training_schedule_scheme")
     training_schedule = None
@@ -348,47 +360,57 @@ def _run_started_calibration(
 
     final_validation = validation_losses[-1] if validation_losses else None
     best_validation = min(validation_losses, key=lambda item: item[1]) if validation_losses else None
+    metric_prefix = (
+        "training" if run.launch_manifest.get("mode") == "pretrain" else "calibration"
+    )
+    run_metrics = {
+        "train_loss_final": train_losses[-1] if train_losses else None,
+        "train_loss_mean": sum(train_losses) / len(train_losses) if train_losses else None,
+        "validation_loss_final": final_validation[1] if final_validation else None,
+        "validation_loss_final_step": final_validation[0] if final_validation else None,
+        "validation_loss_best": best_validation[1] if best_validation else None,
+        "validation_loss_best_step": best_validation[0] if best_validation else None,
+        "validation_wall_seconds_total": sum(validation_wall_seconds),
+        "validation_wall_seconds_final": (
+            validation_wall_seconds[-1] if validation_wall_seconds else None
+        ),
+        "validation_batches_final": final_validation_batches,
+        "validation_tokens_final": final_validation_tokens,
+        "loss_final": train_losses[-1] if train_losses else None,
+        "optimizer_steps": completed_steps,
+        "planned_optimizer_steps": max_steps,
+        "target_wall_seconds": max_wall_seconds,
+        "tokens_seen": tokens_seen,
+        "tokens_per_step": tokens_per_step,
+        "model_initialization_seed": model_initialization_seed,
+        "data_order_seed": data_order_seed,
+        "training_schedule_hash": training_schedule_hash,
+        "initial_parameter_sha256": initial_parameter_sha256,
+        "estimated_epochs": tokens_seen / train_metadata["tokens"],
+        "wall_seconds": train_elapsed,
+        "wall_seconds_train": train_elapsed,
+        "wall_seconds_total": total_elapsed,
+        "tokens_per_second": tokens_seen / train_elapsed if train_elapsed > 0 else None,
+        "device": str(device),
+        "precision": _precision_label(dtype, device),
+        "peak_gpu_memory_mb": _peak_gpu_memory_mb(torch, device),
+        "peak_gpu_reserved_mb": _peak_gpu_reserved_mb(torch, device),
+        "learning_rate_final": final_learning_rate,
+        "grad_norm_final": final_grad_norm,
+        "weight_norm_final": final_weight_norm,
+        "mlp_weight_norm_final": final_mlp_weight_norm,
+    }
     metrics = {
-        "calibration/train_loss_final": train_losses[-1] if train_losses else None,
-        "calibration/train_loss_mean": sum(train_losses) / len(train_losses) if train_losses else None,
-        "calibration/validation_loss_final": final_validation[1] if final_validation else None,
-        "calibration/validation_loss_final_step": final_validation[0] if final_validation else None,
-        "calibration/validation_loss_best": best_validation[1] if best_validation else None,
-        "calibration/validation_loss_best_step": best_validation[0] if best_validation else None,
-        "calibration/validation_wall_seconds_total": sum(validation_wall_seconds),
-        "calibration/validation_wall_seconds_final": validation_wall_seconds[-1] if validation_wall_seconds else None,
-        "calibration/validation_batches_final": final_validation_batches,
-        "calibration/validation_tokens_final": final_validation_tokens,
-        "calibration/loss_final": train_losses[-1] if train_losses else None,
-        "calibration/optimizer_steps": completed_steps,
-        "calibration/planned_optimizer_steps": max_steps,
-        "calibration/target_wall_seconds": max_wall_seconds,
-        "calibration/tokens_seen": tokens_seen,
-        "calibration/tokens_per_step": tokens_per_step,
-        "calibration/model_initialization_seed": model_initialization_seed,
-        "calibration/data_order_seed": data_order_seed,
-        "calibration/training_schedule_hash": training_schedule_hash,
-        "calibration/initial_parameter_sha256": initial_parameter_sha256,
-        "calibration/estimated_epochs": tokens_seen / train_metadata["tokens"],
-        "calibration/wall_seconds": train_elapsed,
-        "calibration/wall_seconds_train": train_elapsed,
-        "calibration/wall_seconds_total": total_elapsed,
-        "calibration/tokens_per_second": tokens_seen / train_elapsed if train_elapsed > 0 else None,
-        "calibration/device": str(device),
-        "calibration/precision": _precision_label(dtype, device),
-        "calibration/peak_gpu_memory_mb": _peak_gpu_memory_mb(torch, device),
-        "calibration/peak_gpu_reserved_mb": _peak_gpu_reserved_mb(torch, device),
-        "calibration/learning_rate_final": final_learning_rate,
-        "calibration/grad_norm_final": final_grad_norm,
-        "calibration/weight_norm_final": final_weight_norm,
-        "calibration/mlp_weight_norm_final": final_mlp_weight_norm,
+        **{f"{metric_prefix}/{key}": value for key, value in run_metrics.items()},
         "checkpoint/final_path": checkpoint_metadata["path"],
         "checkpoint/final_size_mb": checkpoint_metadata["size_mb"],
         "checkpoint/final_saved": checkpoint_metadata["saved"],
     }
     if validation_metadata is not None:
-        metrics["calibration/validation_partition"] = validation_config.get("partition", "full")
-        metrics["calibration/validation_partition_hash"] = validation_metadata.get(
+        metrics[f"{metric_prefix}/validation_partition"] = validation_config.get(
+            "partition", "full"
+        )
+        metrics[f"{metric_prefix}/validation_partition_hash"] = validation_metadata.get(
             "source_document_indices_sha256"
         )
     metrics.update({f"final/{key}": value for key, value in final_pressure_metrics.items()})
@@ -744,9 +766,10 @@ def _build_random_model(
     if model_config["initialization"] != "random":
         raise ValueError("This pretraining harness only supports model.initialization: random.")
 
-    architecture_kwargs = {"revision": model_config.get("revision")}
-    architecture_kwargs = {key: value for key, value in architecture_kwargs.items() if value is not None}
-    architecture = auto_config.from_pretrained(model_config["architecture"], **architecture_kwargs)
+    architecture = auto_config.from_pretrained(
+        model_config["architecture"],
+        revision=model_config["revision"],
+    )
     _apply_model_architecture_overrides(architecture, model_config)
     architecture.torch_dtype = torch.float32
     model = auto_model.from_config(architecture)
@@ -872,26 +895,30 @@ def _learning_rate_for_step(step: int, base_learning_rate: float, warmup_steps: 
 
 
 def _optimizer_config(training: dict[str, Any]) -> dict[str, Any]:
-    name = str(training.get("optimizer", "adamw"))
+    name = str(training["optimizer"])
     if name != "adamw":
         raise ValueError(f"Unsupported optimizer: {name}")
-    betas = training.get("adamw_betas", [0.9, 0.999])
+    betas = training["adamw_betas"]
     if not isinstance(betas, list | tuple) or len(betas) != 2:
         raise ValueError("training.adamw_betas must contain exactly two values.")
     beta1 = float(betas[0])
     beta2 = float(betas[1])
     if not 0.0 <= beta1 < 1.0 or not 0.0 <= beta2 < 1.0:
         raise ValueError("training.adamw_betas values must be in [0, 1).")
-    eps = float(training.get("adamw_eps", 1e-8))
+    eps = float(training["adamw_eps"])
     if eps <= 0.0:
         raise ValueError("training.adamw_eps must be positive.")
-    weight_decay = float(training.get("weight_decay", 0.01))
+    weight_decay = float(training["weight_decay"])
     if weight_decay < 0.0:
         raise ValueError("training.weight_decay must be non-negative.")
-    threshold_learning_rate_multiplier = float(
-        training.get("threshold_learning_rate_multiplier", 1.0)
+    raw_threshold_multiplier = training["threshold_learning_rate_multiplier"]
+    threshold_learning_rate_multiplier = (
+        None if raw_threshold_multiplier is None else float(raw_threshold_multiplier)
     )
-    if not math.isfinite(threshold_learning_rate_multiplier) or threshold_learning_rate_multiplier <= 0.0:
+    if threshold_learning_rate_multiplier is not None and (
+        not math.isfinite(threshold_learning_rate_multiplier)
+        or threshold_learning_rate_multiplier <= 0.0
+    ):
         raise ValueError("training.threshold_learning_rate_multiplier must be finite and positive.")
     return {
         "name": name,
@@ -906,11 +933,15 @@ def _adamw_parameters(
     model: Any,
     *,
     weight_decay: float,
-    threshold_learning_rate_multiplier: float,
+    threshold_learning_rate_multiplier: float | None,
 ) -> Any:
     threshold_items = adaptive_threshold_parameter_items(model)
     if not threshold_items:
         return model.parameters()
+    if threshold_learning_rate_multiplier is None:
+        raise ValueError(
+            "Adaptive threshold parameters require training.threshold_learning_rate_multiplier."
+        )
     threshold_parameters = [parameter for _name, parameter in threshold_items]
     threshold_ids = {id(parameter) for parameter in threshold_parameters}
     model_parameters = [

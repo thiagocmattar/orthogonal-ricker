@@ -2,17 +2,22 @@ from __future__ import annotations
 
 import pytest
 
-from paper_exp.config import ConfigError, load_config, validate_config, validate_config_filename
+from paper_exp.config import (
+    ConfigError,
+    load_config,
+    validate_config,
+    validate_config_filename,
+    validate_training_config,
+)
 
 
-def test_load_baseline_config_allows_todos() -> None:
-    config = load_config("configs/01-pythia-14m-minipile-smoke.yaml", allow_todos=True)
+def test_load_smoke_config() -> None:
+    config = load_config("configs/00-smoke.yaml", allow_todos=True)
 
-    assert config["experiment_name"] == "pythia_14m_minipile_smoke"
-    assert config["model"]["provider"] == "huggingface"
-    assert config["model"]["name"] == "pythia-14m-random"
-    assert config["model"]["architecture"] == "EleutherAI/pythia-14m-deduped"
+    assert config["experiment_name"] == "harness_smoke"
     assert config["model"]["initialization"] == "random"
+    assert isinstance(config["model"]["provider"], str)
+    assert config["model"]["provider"].strip()
 
 
 def test_required_config_fields_are_checked() -> None:
@@ -25,10 +30,10 @@ def test_required_config_fields_are_checked() -> None:
         validate_config(config, allow_todos=True)
 
 
-def test_pythia_smoke_config_has_no_todos() -> None:
-    config = load_config("configs/01-pythia-14m-minipile-smoke.yaml", allow_todos=True)
+def test_smoke_config_is_valid_with_harness_placeholders_allowed() -> None:
+    config = load_config("configs/00-smoke.yaml", allow_todos=True)
 
-    validate_config(config, allow_todos=False)
+    validate_config(config, allow_todos=True)
 
 
 def test_todo_placeholders_can_be_rejected() -> None:
@@ -40,7 +45,7 @@ def test_todo_placeholders_can_be_rejected() -> None:
             "architecture": "TODO_MODEL_ARCHITECTURE",
             "initialization": "random",
         },
-        "data": {"name": "JeanKaddour/minipile", "split": "train"},
+        "data": {"name": "test/dataset", "split": "train"},
         "evaluation": {"metric": "training_loss"},
         "run": {"seed": 0, "max_examples": 1},
         "output": {"dir": "results"},
@@ -64,11 +69,11 @@ def test_pretraining_configs_must_use_random_initialization() -> None:
         "experiment_name": "bad_init",
         "model": {
             "provider": "huggingface",
-            "name": "pythia-14m",
-            "architecture": "EleutherAI/pythia-14m-deduped",
+            "name": "test-random-model",
+            "architecture": "test/architecture",
             "initialization": "pretrained",
         },
-        "data": {"name": "JeanKaddour/minipile", "split": "train"},
+        "data": {"name": "test/dataset", "split": "train"},
         "evaluation": {"metric": "training_loss"},
         "run": {"seed": 0, "max_examples": 1},
         "output": {"dir": "results"},
@@ -83,12 +88,12 @@ def test_optional_hidden_act_must_be_non_empty_string() -> None:
         "experiment_name": "bad_hidden_act",
         "model": {
             "provider": "huggingface",
-            "name": "pythia-14m-random",
-            "architecture": "EleutherAI/pythia-14m-deduped",
+            "name": "test-random-model",
+            "architecture": "test/architecture",
             "initialization": "random",
             "hidden_act": "",
         },
-        "data": {"name": "JeanKaddour/minipile", "split": "train"},
+        "data": {"name": "test/dataset", "split": "train"},
         "evaluation": {"metric": "training_loss"},
         "run": {"seed": 0, "max_examples": 1},
         "output": {"dir": "results"},
@@ -103,12 +108,12 @@ def test_optional_post_layernorm_relu_must_be_boolean() -> None:
         "experiment_name": "bad_post_layernorm_relu",
         "model": {
             "provider": "huggingface",
-            "name": "pythia-14m-random",
-            "architecture": "EleutherAI/pythia-14m-deduped",
+            "name": "test-random-model",
+            "architecture": "test/architecture",
             "initialization": "random",
             "post_layernorm_relu": "yes",
         },
-        "data": {"name": "JeanKaddour/minipile", "split": "train"},
+        "data": {"name": "test/dataset", "split": "train"},
         "evaluation": {"metric": "training_loss"},
         "run": {"seed": 0, "max_examples": 1},
         "output": {"dir": "results"},
@@ -118,7 +123,7 @@ def test_optional_post_layernorm_relu_must_be_boolean() -> None:
         validate_config(config, allow_todos=False)
 
 
-def test_campaign_seed_schedule_and_validation_partition_fields_are_validated() -> None:
+def test_seed_schedule_and_validation_partition_fields_are_validated() -> None:
     config = _post_qkv_config(None)
     config["run"].update(
         {
@@ -145,7 +150,7 @@ def test_campaign_seed_schedule_and_validation_partition_fields_are_validated() 
         validate_config(config, allow_todos=False)
 
 
-def test_campaign_schedule_requires_explicit_supported_scheme() -> None:
+def test_reproducibility_fields_require_explicit_supported_schedule() -> None:
     config = _post_qkv_config(None)
     config["run"].update(
         {
@@ -163,7 +168,7 @@ def test_campaign_schedule_requires_explicit_supported_scheme() -> None:
         validate_config(config, allow_todos=False)
 
 
-def test_campaign_model_seed_must_match_legacy_seed_alias() -> None:
+def test_model_initialization_seed_must_match_run_seed() -> None:
     config = _post_qkv_config(None)
     config["run"].update(
         {
@@ -511,13 +516,95 @@ def _post_qkv_config(post_qkv_relu: object) -> dict[str, object]:
         "experiment_name": "post_qkv_relu_test",
         "model": {
             "provider": "huggingface",
-            "name": "pythia-14m-random",
-            "architecture": "EleutherAI/pythia-14m-deduped",
+            "name": "test-random-model",
+            "architecture": "test/architecture",
             "initialization": "random",
             "post_qkv_relu": post_qkv_relu,
         },
-        "data": {"name": "JeanKaddour/minipile", "split": "train"},
+        "data": {"name": "test/dataset", "split": "train"},
         "evaluation": {"metric": "training_loss"},
         "run": {"seed": 0, "max_examples": 1},
+        "output": {"dir": "results"},
+    }
+
+
+def test_definitive_training_config_requires_explicit_pinned_inputs() -> None:
+    config = _definitive_training_config()
+
+    validate_training_config(config)
+
+    config["model"]["revision"] = "main"
+    with pytest.raises(ConfigError, match="immutable"):
+        validate_training_config(config)
+
+
+def test_definitive_training_config_rejects_missing_scientific_field() -> None:
+    config = _definitive_training_config()
+    del config["training"]["learning_rate"]
+
+    with pytest.raises(ConfigError, match="training.learning_rate"):
+        validate_training_config(config)
+
+
+def _definitive_training_config() -> dict[str, object]:
+    return {
+        "experiment_name": "definitive_validation_test",
+        "model": {
+            "provider": "huggingface",
+            "name": "random-model",
+            "architecture": "test/architecture",
+            "revision": "a" * 40,
+            "initialization": "random",
+        },
+        "data": {
+            "name": "test/data",
+            "revision": "b" * 40,
+            "split": "train",
+            "text_column": "text",
+            "max_documents": None,
+        },
+        "tokenizer": {"name": "test/tokenizer", "revision": "c" * 40},
+        "preprocessing": {
+            "output_dir": "data/tokenized",
+            "cache_id": "definitive-test",
+            "block_size": 128,
+            "append_eos": True,
+            "overwrite": False,
+        },
+        "evaluation": {"metric": "validation_loss"},
+        "run": {
+            "seed": 11,
+            "training_schedule_scheme": "random_contiguous_blocks_with_replacement_v1",
+            "model_initialization_seed": 11,
+            "data_order_seed": 29,
+            "training_schedule_hash": None,
+        },
+        "training": {
+            "device": "cuda",
+            "precision": "bfloat16",
+            "max_steps": 100,
+            "max_wall_seconds": 3600,
+            "learning_rate": 0.001,
+            "warmup_steps": 10,
+            "gradient_accumulation_steps": 2,
+            "micro_batch_size": 4,
+            "log_every": 5,
+            "optimizer": "adamw",
+            "adamw_betas": [0.9, 0.999],
+            "adamw_eps": 1.0e-8,
+            "weight_decay": 0.01,
+            "threshold_learning_rate_multiplier": None,
+        },
+        "validation": {"enabled": False},
+        "checkpoint": {"save_final": True, "save_optimizer": False},
+        "activation_pressure": {
+            "enabled": True,
+            "method": "none",
+            "sites": ["mlp_hiddens"],
+            "weight": 0.0,
+            "step_budget": None,
+            "eps": 1.0e-12,
+            "log_thresholds": [0.0, 0.001, 0.01],
+        },
         "output": {"dir": "results"},
     }

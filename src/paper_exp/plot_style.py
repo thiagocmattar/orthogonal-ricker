@@ -1,8 +1,8 @@
-"""Central visual contract for repository paper figures.
+"""Shared visual defaults for diagnostics and paper figures.
 
-Report 04 is the current reference. Figure-specific layouts and scientific
-cohorts remain with their owning family; reusable colors, markers, typography,
-and export defaults live here.
+Scientific cohorts, reductions, labels, and panel choices belong to the
+figure-family module that owns them. This module contains presentation-only
+tokens so plots use a consistent, colorblind-safe visual language.
 """
 
 from __future__ import annotations
@@ -16,26 +16,22 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 
-COLORBLIND_SAFE_COLORS = [
-    "#1f77b4",
-    "#ff7f0e",
-    "#2ca02c",
-    "#9467bd",
-    "#8c564b",
-    "#e377c2",
-    "#7f7f7f",
-    "#bcbd22",
-    "#17becf",
-]
-ADAMW_COLOR = "#000000"
-ADAMW_LINEWIDTH = 2.6
-ADAMW_MARKER_SCALE = 1.35
-DEFAULT_SERIES_LINEWIDTH = 1.2
+COLORBLIND_SAFE_COLORS = (
+    "#0072B2",  # blue
+    "#D55E00",  # vermillion
+    "#009E73",  # bluish green
+    "#CC79A7",  # reddish purple
+    "#E69F00",  # orange
+    "#56B4E9",  # sky blue
+    "#000000",  # black
+    "#F0E442",  # yellow
+)
+SERIES_MARKERS = ("o", "s", "^", "D", "P", "X", "v", "h")
 
 
 @dataclass(frozen=True)
 class SeriesStyle:
-    """Visual identity for one scientific series, independent of its label."""
+    """Presentation identity for one series, independent of its label."""
 
     color: str
     marker: str
@@ -43,62 +39,34 @@ class SeriesStyle:
     linewidth: float = 1.4
 
 
-REPORT04_METHOD_LABELS = {
-    "gelu_adamw": "GELU AdamW",
-    "mlp_relu_adamw": "MLP-ReLU AdamW",
-    "mlp_relu_ol1": "MLP-ReLU OL1",
-    "three_relu_adamw": "Three-ReLU AdamW",
-    "three_relu_rn": "Three-ReLU RN",
-    "three_relu_or": "Three-ReLU OR",
-    "three_relu_l1n": "Three-ReLU L1N",
-    "three_relu_ol1": "Three-ReLU OL1",
-}
-REPORT04_METHOD_IDS = {label: method_id for method_id, label in REPORT04_METHOD_LABELS.items()}
-REPORT04_METHOD_STYLES = {
-    "gelu_adamw": SeriesStyle("#000000", "D", "-", 1.7),
-    "mlp_relu_adamw": SeriesStyle("#0072B2", "o", "--"),
-    "mlp_relu_ol1": SeriesStyle("#E69F00", "s", "-."),
-    "three_relu_adamw": SeriesStyle("#009E73", "^", "-", 1.6),
-    "three_relu_rn": SeriesStyle("#6F4C9B", "h", ":"),
-    "three_relu_or": SeriesStyle("#D55E00", "X", "--"),
-    "three_relu_l1n": SeriesStyle("#56B4E9", "v", "-."),
-    "three_relu_ol1": SeriesStyle("#CC79A7", "P", ":"),
-}
+def series_style(index: int) -> SeriesStyle:
+    """Return a deterministic color-and-marker pair for a series index."""
 
+    if index < 0:
+        raise ValueError("Series index must be nonnegative.")
+    color_index = index % len(COLORBLIND_SAFE_COLORS)
+    marker_index = (
+        color_index + index // len(COLORBLIND_SAFE_COLORS)
+    ) % len(SERIES_MARKERS)
+    linestyles = ("-", "--", "-.", ":")
+    style_block = index // (len(COLORBLIND_SAFE_COLORS) * len(SERIES_MARKERS))
+    return SeriesStyle(
+        color=COLORBLIND_SAFE_COLORS[color_index],
+        marker=SERIES_MARKERS[marker_index],
+        linestyle=linestyles[style_block % len(linestyles)],
+    )
 
-def report04_method_style(method_id_or_label: str) -> SeriesStyle:
-    """Resolve a Report 04 style from a stable ID or its display label."""
-
-    method_id = REPORT04_METHOD_IDS.get(method_id_or_label, method_id_or_label)
-    try:
-        return REPORT04_METHOD_STYLES[method_id]
-    except KeyError as exc:
-        raise KeyError(f"Unknown Report 04 method style: {method_id_or_label!r}") from exc
-
-
-# Compatibility maps for the existing renderers and external callers.
-REPORT04_METHOD_COLORS = {
-    label: report04_method_style(method_id).color
-    for method_id, label in REPORT04_METHOD_LABELS.items()
-}
-REPORT04_METHOD_MARKERS = {
-    label: report04_method_style(method_id).marker
-    for method_id, label in REPORT04_METHOD_LABELS.items()
-}
-REPORT04_METHOD_LINESTYLES = {
-    label: report04_method_style(method_id).linestyle
-    for method_id, label in REPORT04_METHOD_LABELS.items()
-}
 
 PLOT_STYLE = {
     "figure.figsize": (6.5, 4.0),
     "figure.dpi": 150,
     "font.size": 10,
-    "axes.titlesize": 12,
+    "axes.titlesize": 11,
     "axes.labelsize": 10,
     "axes.prop_cycle": plt.cycler(color=COLORBLIND_SAFE_COLORS),
     "xtick.labelsize": 8,
-    "ytick.labelsize": 9,
+    "ytick.labelsize": 8,
+    "legend.fontsize": 8,
     "axes.grid": True,
     "grid.alpha": 0.25,
     "savefig.bbox": "tight",
@@ -107,10 +75,10 @@ PLOT_STYLE = {
     "ps.fonttype": 42,
 }
 
-# Report 04 figures are authored at their final two-column width.  Disabling
-# tight bounding boxes is deliberate: otherwise annotations outside an axes can
-# silently change the PDF MediaBox and defeat publication-size checks.
-REPORT04_PLOT_STYLE = {
+# Paper figures are authored on a white canvas at their final size. Tight
+# bounding boxes are disabled because cropping would change the validated
+# canvas dimensions and make PDF MediaBoxes depend on annotation placement.
+PAPER_STYLE = {
     **PLOT_STYLE,
     "figure.facecolor": "white",
     "figure.edgecolor": "white",
@@ -126,13 +94,5 @@ REPORT04_PLOT_STYLE = {
     "legend.edgecolor": "#B0B0B0",
     "savefig.facecolor": "white",
     "savefig.edgecolor": "white",
-    "font.size": 9.0,
-    "axes.titlesize": 9.5,
-    "axes.labelsize": 9.0,
-    "xtick.labelsize": 8.0,
-    "ytick.labelsize": 8.0,
-    "legend.fontsize": 8.0,
-    "lines.linewidth": 1.0,
-    "lines.markersize": 4.0,
     "savefig.bbox": None,
 }

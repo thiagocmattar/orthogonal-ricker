@@ -1,326 +1,194 @@
 # Plotting Contract
 
-The plotting code is a repository-specific paper-figure library. It is not a
-general chart framework: each figure family keeps its scientific cohort,
-reductions, axes, and captions explicit, while proven presentation conventions
-are shared.
+Plots are scientific artifacts. The plotting layer reads saved evidence and
+presents it; it does not train a model, rerun validation, choose a scientific
+cohort, or repair missing inputs.
 
-Report 04 is the typography and compute-accounting baseline:
+The current `paper-exp plot` command renders one explicitly named saved run
+artifact. Definitive multi-run paper figure families will be added only after
+the reviewed experiment plan names their cohorts, estimands, and outputs.
 
-```text
-report/04-2026-07-11-post-layernorm-relu-ol1-comparison/
-```
+## Four Boundaries
 
-The report embeds figures `79`, `80`, `82`, `83`, and `85` through `90`.
-Figures `81` and `84` are generated Report 04 diagnostics but are not embedded
-in the current PDF. All twelve outputs remain part of the regeneration
-contract.
-
-Report 05 is the full-run architecture-comparison suite. Report 07 is the
-current S1 screening-ablation suite; both strict contracts are documented
-below.
-
-## Module Ownership
-
-| Module | Owns |
-| --- | --- |
-| `plots.py` | Stable CLI/import facade, batch dispatch, run selection, public `generate_*` wrappers, and legacy figure families not yet extracted |
-| `plot_api.py` | Final-size `GridLayout`, count-derived panel grids, one-build PDF/PNG export, and publication-profile validation |
-| `plot_catalog.py` | Searchable Report 04/05/07 figure type, filename, wrapper, input-kind, and report-embedding metadata |
-| `plot_style.py` | Scoped rc parameters, colorblind-safe palettes, stable method IDs/styles, and export defaults |
-| `plot_common.py` | Small presentation-neutral helpers already used by multiple figure families |
-| `plot_report04.py` | Report 04 cohorts, compute-accounting constants, pure reductions, checkpoint preparation, and explicit renderers for figures `79` through `90` |
-| `plot_report05.py` | Report 05 pinned training cohort, endpoint reductions, architecture schematic, and learning-curve renderer |
-| `plot_report05_diagnostics.py` | Report 05 exact-zero propagation and activation/weight-distribution reductions and renderers |
-| `plot_report05_clipping.py` | Report 05 site-specific and direct model-product clipping reductions and renderers |
-| `plot_report07.py` | Report 07 raw-endpoint validation, S1 reductions, figures `103`--`109`, core appendix tables, and provenance |
-| `plot_topology_atlas.py` | Half-page Report 07 topology atlas `110`: shared Pythia block, exact gate occupancy, and reach ceilings |
-| `plot_b0_learning_rate_effect.py` | Enlarged B0 learning-rate response figure `112` with a separate architecture-by-validation-loss panel at \(10^{-4}\) |
-| `plot_s1_quality_compute_landscape.py` | Report 07 quality--compute landscape `113`, primary-seed/common-LR cohort, exact descriptive nondominated envelope, and synchronized frontier table |
-
-Existing callers should continue to import from `paper_exp.plots`. The facade
-re-exports Report 04 constants and the public `generate_*` wrappers used by the
-dispatcher and existing callers. New family implementation code and numerical
-tests should import private helpers from their owning module directly.
-
-## Report 04 Figure Index
-
-Search for the wrapper name in `plots.py` to change selection or export
-behavior, and for the corresponding `_plot_*` name in `plot_report04.py` to
-change the figure itself.
-
-| Figure | Public wrapper | Saved input |
-| --- | --- | --- |
-| `79` | `generate_report04_learning_diagnostics` | Training `events.jsonl` |
-| `80` | `generate_report04_activation_heatmaps` | Activation histograms |
-| `81` | `generate_report04_activation_densities` | Activation histograms |
-| `82` | `generate_report04_site_clipping_frontiers` | Per-site clipping frontiers |
-| `83` | `generate_report04_joint_compute_frontier` | Joint clipping frontiers |
-| `84` | `generate_report04_parameter_diagnostics` | Final checkpoints |
-| `85` | `generate_post_layernorm_relu_propagation_heatmaps` | Activation-propagation counts |
-| `86` | `generate_post_layernorm_relu_zero_product_heatmaps` | Activation-propagation counts |
-| `87` | `generate_report04_three_relu_architecture` | Architecture constants only |
-| `88` | `generate_report04_activation_weight_densities` | Histograms and final checkpoints |
-| `89` | `generate_report04_layernorm_parameters` | Final checkpoints |
-| `90` | `generate_report04_pythia_family_compute_ceiling` | Architecture constants only |
-
-List this catalog from the command line without reading results or writing
-figures:
-
-```bash
-python -m paper_exp.cli plot-catalog
-python -m paper_exp.cli plot-catalog --embedded-only
-python -m paper_exp.cli plot-catalog --report 05
-python -m paper_exp.cli plot-catalog --report 07
-```
-
-Each deterministic row names the plot type, output file, required saved
-artifacts, public wrapper, and whether the current report embeds the figure.
-Code can resolve the same entry by figure number, exact filename, `plot_type`,
-or public-wrapper name through `get_report04_figure`. Add a new figure type to
-this catalog when the suite gains a renderer; this prevents discoverability
-from depending on a search through the facade.
-
-Regenerate the visual-baseline suite through its dedicated boundary:
-
-```bash
-python -m paper_exp.cli plot-report04 --results results --figures figures --png
-```
-
-The default is the published pre-RN visual baseline: seven training methods
-and the four-method propagation diagnostic from config `102`. The completed RN
-comparison is an explicit opt-in that adds training run `105` and uses the
-five-method propagation diagnostic from config `106`:
-
-```bash
-python -m paper_exp.cli plot-report04 --include-rn \
-  --figures tmp/report04-rn-preview --png
-```
-
-Keep that opt-in cohort in a separate preview directory until the report text
-is deliberately revised; otherwise its shared filenames would replace figures
-whose current captions and conclusions describe the published pre-RN cohort.
-
-Both cohorts are strict by default. The command resolves every selected input
-before calling a renderer and reports all missing cohort members together. It
-then renders the full suite in a sibling staging directory and promotes it with
-rollback only after every figure succeeds, so neither a missing input nor a
-late renderer failure can leave a mixed suite. During exploration, the explicit
-partial mode keeps the historical behavior of rendering complete figure
-families and skipping incomplete ones:
-
-```bash
-python -m paper_exp.cli plot-report04 --allow-partial
-```
-
-The general `plots` command also uses this partial behavior so its existing
-mixed-family dispatch remains backward compatible.
-
-After every successful strict `plot-report04` run, the command atomically
-writes `report04-provenance.json` beside the figures. The deterministic sidecar
-contains the catalog metadata for figures `79` through `90`, exact run and
-artifact paths relative to the selected results directory, and a SHA-256 for
-every consumed artifact. Each input also records hashes for the saved
-`config.yaml` and `manifest.json`, plus the manifest's launch `git_commit` and
-`git_dirty` state. It identifies whether the `published-pre-rn` or
-`rn-comparison` cohort was selected and contains no timestamp or absolute
-path. Schema version 3 also records the filename, size, and SHA-256 of each
-generated PDF/PNG, so the sidecar can detect a stale or mixed artifact set;
-figures `87` and `90` have empty input lists. Figure `88` always records
-runs `100`/`101` and the exact seven `config_id`/`run_id` checkpoints named by
-both pre-RN histogram artifacts; strict preflight rejects disagreement between
-the two artifacts instead of substituting a newer checkpoint. Figures `84`
-and `89` record seven training checkpoints by default and all eight with
-`--include-rn`. Failed strict preflight and `--allow-partial` do not write a
-sidecar.
-Direct `generate_report04_figures` callers retain the figure-only return
-contract unless they explicitly pass `write_provenance=True` with
-`strict=True`; the dedicated strict CLI enables it automatically.
-The sidecar is generated and ignored by default. Deliberately select it for a
-release only after reviewing the figure suite and its input hashes; use
-`git add -f figures/report04-provenance.json` when that release decision is
-made.
-
-## Report 05 Figure Suite
-
-Report 05 compares One-ReLU, Three-ReLU, Six-ReLU PRE-RoPE, and Six-ReLU
-POST-RoPE architectures under AdamW, OR, and OL1. Figures `91` through `102`
-are regenerated together with:
-
-```bash
-python -m paper_exp.cli plot-report05 --results results --figures figures --png
-```
-
-The strict default pins all 13 training/checkpoint inputs through
-`REPORT05_PINNED_RUN_IDS`, requires diagnostics `114` through `117`, and
-requires each declared clipping frontier. One-ReLU uses its exact-joint sweep
-for its single active MLP-hidden site; Three-ReLU reuses the full-validation
-Report 04 per-site sweeps; both Six-ReLU families use the short, Windows-safe
-`r05s-{a,m,h,q,k,v}` suffixes. Every architecture uses
-`report05-exact-joint` for the direct logical-product frontier. Strict output
-is rendered in a sibling staging directory and atomically promoted only after
-all 12 figures succeed. Use `--allow-partial` only for exploratory generation
-while diagnostics are incomplete.
-
-| Figures | Content | Saved input |
-| --- | --- | --- |
-| `91` | Four-case Pythia-14M architecture ladder | Architecture constants only |
-| `92` | Full-validation learning curves | Pinned training `events.jsonl` |
-| `93`--`96` | Per-architecture exact-zero propagation | Diagnostic `114` |
-| `97`--`100` | Per-architecture activation and final-weight densities | Diagnostics `115`--`117` and pinned checkpoints |
-| `101` | Shared-axis site-specific clipping frontiers | Declared per-site clipping sweeps |
-| `102` | Shared-axis potentially avoidable model-product frontiers | Exact-joint clipping sweeps |
-
-The compact propagation heatmaps use a dedicated publication profile with a
-5.3-point minimum for in-cell annotations. All other Report 05 figures use
-the standard 8-point minimum. PDF and optional PNG are exported from the same
-validated Matplotlib figure object.
-
-## Report 07 S1 Ablation Suite
-
-Regenerate the complete S1 report suite with:
-
-```bash
-make plot-report07
-```
-
-The target regenerates the topology atlas, LR figure, quality--compute
-landscape/frontier table, embedded B1/B3 quality--opportunity frontiers, core
-figures, endpoint appendix, learned-threshold summary, and provenance.
-`plot_report07.py` joins the closed S1 scientific configs to their exact
-canonical run IDs in the applied registries. It fails unless the census is
-`B0=20`, `B1=36`, `B2=26`, `B3=40`, and `B4=10`, every row has valid evidence,
-and every registered propagation endpoint used by the suite agrees with its
-declared raw propagation artifact,
-311,296-token count, and frozen selection hash. Engineering and diagnostic
-configs remain provenance evidence and do not enter effect plots.
-
-| Figures | Content |
-| --- | --- |
-| `103` | Ordinary-ReLU topology and learning-rate ablations |
-| `104` | Absolute validation-loss and model-opportunity endpoints across fixed thresholds (embedded) |
-| `105` | Absolute one-sided versus symmetric gate endpoints at matched thresholds (embedded) |
-| `106` | Absolute fixed, learned-absolute, and learned-RMS-relative threshold endpoints (embedded) |
-| `107` | Absolute L1/Ricker pressure-weight and orthogonalization response (embedded) |
-| `108` | Absolute Ricker basin and shape response (embedded) |
-| `109` | Seed endpoint and matched-effect sensitivity |
-| `110` | Shared Pythia block and topology atlas (embedded) |
-| `112` | Five-anchor learning-rate response (embedded) |
-| `113` | Quality--compute landscape and descriptive envelope (embedded) |
-| `114` | Per-architecture fixed-threshold validation-loss/model-opportunity trade-offs on shared dual scales (supplemental) |
-| `116` | Fixed-threshold quality-opportunity paths with architecture colors, gate styles, and annotated thresholds (embedded) |
-| `117` | Learned-threshold quality-opportunity paths for the matched B2 triplets, using architecture colors, gate line styles, and fixed/absolute/RMS-relative marker shapes (supplemental) |
-| `118` | Combined L1N, OL1, RN, and OR pressure-weight quality-opportunity paths with architecture colors, method line styles, naive/orthogonal markers, black AdamW anchors, and sparse weight annotations (embedded) |
-
-The sidecar inside `report/07-2026-07-27-s1-ablation-study/` hashes all 36 raw
-propagation artifacts, registries, claim sources, and every report-embedded
-generated artifact. The suite reports logical exact-zero product opportunities;
-it does not claim sparse-kernel speedup.
-
-The granular targets remain available when only one auxiliary artifact is
-needed:
-
-```bash
-make plot-report07-topology
-make plot-report07-lr-effect
-make plot-report07-landscape
-make plot-report07-threshold-tradeoffs
-make plot-report07-learned-frontiers
-make plot-report07-pressure-frontiers
-```
-
-## Data Path
+Every paper figure follows four visible boundaries:
 
 ```text
-saved artifacts
-  -> completed-run selection in plots.py
-  -> family generate_* wrapper in plots.py
-  -> preparation/reduction in plot_report04.py
-  -> explicit Matplotlib renderer
-  -> numbered PDF and optional PNG
+explicit pinned artifacts
+    -> loader and schema validation
+    -> pure scientific reduction
+    -> explicit renderer
+    -> shared validated export
 ```
 
-Renderers must not train a model, recompute an experiment, silently substitute
-a cohort, or invent a missing value. Important scientific reductions should be
-pure and covered by small numerical tests before presentation code consumes
-them.
+### 1. Load and Pin
 
-## Shared Visual Contract
+The loader receives exact artifact paths or exact config/run identities. It
+validates terminal status, schema, source identities, and required fields before
+rendering begins.
 
-Use the Report 04 conventions unless a figure has a documented reason to
-differ:
+Paper figures must not:
 
-- vector PDF with embedded TrueType fonts and optional 300-DPI PNG;
-- an authored width of 7.16 inches and maximum height of 8.8 inches for the
-  Report 04 two-column profile, with visible text at least 8 points;
-- no `bbox_inches="tight"` for publication exports: the requested canvas is
-  the PDF MediaBox and is validated before saving;
-- white background and a subtle gray grid;
-- color plus marker or linestyle when comparing methods;
-- stable method identity across panels;
-- a factual subtitle stating budget, sample size, or denominator;
-- an interpretation note stating seed uncertainty and relevant limitations;
-- frameless legends outside dense data regions when practical;
-- direct counters for exact-zero claims rather than histogram-bin inference;
-- an exact-zero probability atom shown separately from the density conditional
-  on nonzero values; never turn a point mass into a bin-width-dependent spike;
-- explicit distinction between logical compute opportunities and measured
-  speedups;
-- no hidden axis truncation or unlabelled panel-specific scales.
+- select the latest completed run;
+- scan result folders and silently choose a replacement;
+- consume a failed or incomplete source without a documented provisional use;
+- combine checkpoints, histograms, or propagation artifacts whose recorded
+  source identities disagree.
 
-Figure-specific choices stay with the family renderer. Examples include the
-representative layer, activation sites, cohort membership, axis ranges,
-architecture dimensions, and compute denominators.
+Exploratory tools may accept an explicit unpinned path, but their outputs are
+not paper artifacts until inputs are frozen.
 
-## Editing Report 04 Safely
+### 2. Reduce
 
-1. Read `docs/methods.md`, the Report 04 rows in `docs/paper_map.md`, and the
-   report captions before changing a reduction or label.
-2. Change the smallest owning section in `plot_report04.py`. Shared style
-   changes belong in `plot_style.py`; do not add local palette variants.
-3. Keep artifact-supported cohorts explicit. The default published cohort
-   excludes RN and uses propagation run `102`. `--include-rn` adds run `105`
-   to the training-event and final-checkpoint figures and switches propagation
-   figures `85`/`86` to run `106`. Runs `100`/`101` contain seven pre-RN
-   histogram methods, and there are no RN clipping sweeps; figures `80`--`83`
-   and the activation half of `88` must not infer or substitute those missing
-   diagnostics in either cohort.
-4. Grid renderers derive rows from the actual panel count. The public wrappers
-   for figures `80`, `82`, `85`, and `86` accept an optional `GridLayout` when
-   a different column count or final canvas is needed. Exercise method counts
-   `1`, `2`, `4`, `5`, and `7` before changing a cardinality-sensitive layout.
-5. Run the focused contracts:
+Scientific transformations belong in small pure functions. A reduction takes
+validated saved values and returns plot-ready numbers without filesystem access
+or Matplotlib state. Important calculations require focused numerical tests,
+especially:
 
-   ```bash
-   python -m pytest -p no:cacheprovider \
-     tests/test_plot_api.py \
-     tests/test_plot_catalog.py \
-     tests/test_plot_catalog_cli.py \
-     tests/test_plot_report04_cli.py \
-     tests/test_report04_contract.py \
-     tests/test_report04_math.py \
-     tests/test_plot_selection.py
-   ```
+- pooled count fractions and denominators;
+- matched deltas and uncertainty;
+- clipping baselines and frontiers;
+- exact-zero atom removal from continuous densities;
+- logical-product accounting;
+- frontier or selection membership.
 
-6. Regenerate all affected PDF and PNG outputs into a temporary directory.
-   Compare PNG pixels at the same Matplotlib/font versions and inspect the
-   rendered figures. PDF byte hashes include creation timestamps, so compare
-   page geometry and rendered content rather than requiring identical hashes.
-7. Run the full tests and `python -m paper_exp.cli check` before replacing a
-   paper artifact.
+A renderer must not infer missing results or recompute an experiment.
 
-## Input Reproducibility
+### 3. Render
 
-Report 04 currently selects the latest coherent completed run under each
-declared experiment ID within the explicitly selected cohort. The strict suite
-additionally requires the event and checkpoint artifacts for each training
-method to resolve to the same run. Figure `88` is stricter: it resolves each
-weight distribution from the exact `config_id`/`run_id` recorded consistently
-by both histogram artifacts. This is safe against partial and failed runs, but
-a later completed rerun can still change the other data-backed figures. The
-provenance sidecar records the cohort, selected run inputs, saved run configs,
-manifests, launch Git state, and hashes; it is an audit record, not yet a replay
-selector. Before release, paper figure selection should pin the exact selected
-run IDs and expected artifacts for the remaining figure families.
-Exploratory figures may continue to use latest-completed selection when that
-behavior is stated explicitly.
+A focused family module owns the scientific cohort, panel contents, labels,
+axis scales, annotations, and figure-specific layout. Shared styling does not
+decide scientific content.
+
+Use:
+
+- `src/paper_exp/plot_style.py` for palette, typography, and presentation
+  defaults;
+- `src/paper_exp/plot_common.py` for tested presentation-neutral helpers;
+- `src/paper_exp/plot_api.py` for layouts, publication checks, and export.
+
+Do not create a generic plotting framework around hypothetical future figures.
+Add one clear family module when the plan defines a real family.
+
+### 4. Export
+
+Build a Matplotlib `Figure` once and export vector PDF plus optional PNG from
+that same object. Export is staged beside the final output and promoted only
+after validation succeeds. A multi-figure paper suite must stage every output
+and publish all-or-nothing so a late failure cannot leave a mixed suite.
+
+PDF metadata must be deterministic where supported. Publication profiles check
+the authored canvas, maximum height, minimum text size, and text containment.
+Do not use a tight bounding box for a final-size publication profile because it
+changes the validated canvas and PDF MediaBox.
+
+## Current Explicit Diagnostic Plots
+
+Render one saved artifact with:
+
+```bash
+make plot KIND=<kind> RUN_DIR=<run-dir> OUTPUT=figures/01-name.pdf [PNG=1]
+```
+
+or:
+
+```bash
+paper-exp plot \
+  --kind <kind> \
+  --run-dir results/<config-id>/<run-id> \
+  --output figures/01-name.pdf \
+  --png
+```
+
+Supported kinds are:
+
+Every kind requires the run's exact `config.yaml` and a terminal
+`status: completed` `manifest.json`. The additional required inputs are:
+
+| Kind | Additional saved input | Purpose |
+| --- | --- | --- |
+| `run` | `events.jsonl` and `metrics.json` | Loss, optimization norms, and recorded run statistics |
+| `clipping` | `clipping_frontier.jsonl` | Exact-zero clipping versus validation loss |
+| `activation-histograms` | `activation_histograms.json` | Exact-zero atom and conditional nonzero activation density |
+| `weight-histograms` | `weight_histograms.json` | Pooled saved weight distributions |
+| `activation-propagation` | `activation_propagation.json` | Activation exact-zero and logical zero-product heatmaps |
+
+These are explicit diagnostic views, not a paper cohort registry. Each export
+writes a deterministic `.provenance.json` sidecar with source identities and
+SHA-256 hashes for every required input and generated output.
+
+## Visual Integrity
+
+Use the following defaults unless a reviewed plan or venue requirement gives a
+scientific reason to differ:
+
+- vector PDF as the canonical output and optional 300-DPI PNG for inspection;
+- embedded TrueType fonts;
+- white background and subtle gray grid;
+- colorblind-safe color plus marker or line-style redundancy;
+- stable series identity within a figure family;
+- readable labels at final paper size;
+- units on axes where units exist;
+- visible sample size, seed count, or denominator;
+- uncertainty or per-run points when the saved evidence supports them;
+- an explicit note for one-seed, exploratory, or provisional evidence;
+- legends outside dense data regions when practical.
+
+Axis rules:
+
+- do not truncate an axis to exaggerate an effect;
+- if a scientifically useful zoom is used, label it directly in the figure;
+- label logarithmic scales;
+- keep shared scales genuinely shared or mark panel-specific scales explicitly;
+- include threshold-zero or control values when they define the interpretation.
+
+## Sparse-Activation Presentation
+
+- Label direct `x == 0` measurements as exact zero.
+- Label near-zero thresholds numerically.
+- Show an exact-zero probability atom separately from the density conditional
+  on nonzero values.
+- Preserve histogram underflow and overflow in denominators and disclose them.
+- Use actual-operand counters for logical-product claims.
+- Label `R_block` and `R_model` as logical opportunities, not speedups.
+- Do not imply latency, throughput, FLOP/s, or energy improvement without a
+  separately specified and measured runtime experiment.
+
+## Paper Figure Registry and Provenance
+
+When the definitive plan adds a paper figure, add one row to
+[`paper_map.md`](paper_map.md) containing:
+
+- claim or purpose;
+- exact config IDs;
+- exact pinned run IDs and specialized artifacts;
+- numbered output filename;
+- deterministic regeneration command.
+
+A strict figure suite resolves every input before calling any renderer. On
+success it writes a deterministic provenance sidecar containing:
+
+- suite/figure identifiers and output filenames;
+- relative source paths;
+- source config and run IDs;
+- source manifest status and launch Git provenance;
+- SHA-256 for every consumed config, manifest, and specialized artifact;
+- SHA-256 and size for every generated output;
+- no wall-clock timestamp or machine-specific absolute path.
+
+Missing input, source disagreement, renderer failure, or publication-profile
+failure prevents promotion and provenance publication.
+
+## Review Workflow
+
+Before replacing a paper artifact:
+
+1. Confirm every source run is terminally verified and pinned.
+2. Run focused reduction and plotting tests.
+3. Render the complete affected suite into a temporary comparison directory.
+4. Inspect inputs, series, values, axes, sample size, uncertainty, limitations,
+   text containment, PDF geometry, and PNG rendering.
+5. Run `make test` and `make check`.
+6. Promote atomically and verify the provenance sidecar.
+
+Generated figures are ignored by default. Track only the paper artifacts and
+provenance explicitly selected for release by the reviewed plan.

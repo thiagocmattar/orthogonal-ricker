@@ -12,7 +12,7 @@ from matplotlib.figure import Figure
 from paper_exp.plot_api import (
     DOUBLE_COLUMN_LAYOUT,
     DOUBLE_COLUMN_WIDTH_INCHES,
-    REPORT04_PUBLICATION_PROFILE,
+    DOUBLE_COLUMN_PUBLICATION_PROFILE,
     SINGLE_COLUMN_LAYOUT,
     SINGLE_COLUMN_WIDTH_INCHES,
     GridLayout,
@@ -24,10 +24,10 @@ from paper_exp.plot_api import (
     publication_figure_issues,
     validate_publication_figure,
 )
-from paper_exp.plot_style import REPORT04_PLOT_STYLE
+from paper_exp.plot_style import PAPER_STYLE
 
 
-def test_report04_style_is_independent_of_dark_global_style() -> None:
+def test_paper_style_is_independent_of_dark_global_style() -> None:
     dark_style = {
         "figure.facecolor": "black",
         "axes.facecolor": "black",
@@ -38,7 +38,7 @@ def test_report04_style_is_independent_of_dark_global_style() -> None:
         "ytick.color": "white",
         "savefig.facecolor": "black",
     }
-    with plt.rc_context(dark_style), plt.rc_context(REPORT04_PLOT_STYLE):
+    with plt.rc_context(dark_style), plt.rc_context(PAPER_STYLE):
         figure, axis = plt.subplots()
         try:
             assert figure.get_facecolor() == to_rgba("white")
@@ -223,7 +223,7 @@ def test_export_figure_profile_disables_tight_output_bounding_box(tmp_path: Path
         build,
         output,
         style={"savefig.bbox": "tight"},
-        profile=REPORT04_PUBLICATION_PROFILE,
+        profile=DOUBLE_COLUMN_PUBLICATION_PROFILE,
     )
 
     assert observed_save_bbox == [None]
@@ -267,14 +267,14 @@ def test_exported_pdf_is_byte_stable(tmp_path: Path) -> None:
     export_figure(
         build,
         first,
-        style=REPORT04_PLOT_STYLE,
-        profile=REPORT04_PUBLICATION_PROFILE,
+        style=PAPER_STYLE,
+        profile=DOUBLE_COLUMN_PUBLICATION_PROFILE,
     )
     export_figure(
         build,
         second,
-        style=REPORT04_PLOT_STYLE,
-        profile=REPORT04_PUBLICATION_PROFILE,
+        style=PAPER_STYLE,
+        profile=DOUBLE_COLUMN_PUBLICATION_PROFILE,
     )
 
     assert first.read_bytes() == second.read_bytes()
@@ -402,8 +402,8 @@ def test_publication_profile_accepts_final_width_text_inside_canvas() -> None:
     figure, axis = plt.subplots(figsize=(7.16, 3.0))
     try:
         axis.set_title("Readable title", fontsize=8)
-        assert publication_figure_issues(figure, REPORT04_PUBLICATION_PROFILE) == ()
-        validate_publication_figure(figure, REPORT04_PUBLICATION_PROFILE)
+        assert publication_figure_issues(figure, DOUBLE_COLUMN_PUBLICATION_PROFILE) == ()
+        validate_publication_figure(figure, DOUBLE_COLUMN_PUBLICATION_PROFILE)
     finally:
         plt.close(figure)
 
@@ -412,12 +412,12 @@ def test_publication_profile_ignores_tick_labels_outside_the_active_view() -> No
     figure, axis = plt.subplots(figsize=(7.16, 3.0))
     try:
         axis.plot([0.0, 1.0], [0.0, 1.0])
-        assert publication_figure_issues(figure, REPORT04_PUBLICATION_PROFILE) == ()
+        assert publication_figure_issues(figure, DOUBLE_COLUMN_PUBLICATION_PROFILE) == ()
 
         figure.text(-0.1, 0.5, "outside figure note", fontsize=8)
         assert any(
             "outside figure note" in issue and "outside the figure canvas" in issue
-            for issue in publication_figure_issues(figure, REPORT04_PUBLICATION_PROFILE)
+            for issue in publication_figure_issues(figure, DOUBLE_COLUMN_PUBLICATION_PROFILE)
         )
     finally:
         plt.close(figure)
@@ -427,7 +427,7 @@ def test_publication_profile_ignores_ticks_when_axes_are_disabled() -> None:
     figure, axis = plt.subplots(figsize=(7.16, 3.0))
     try:
         axis.set_axis_off()
-        assert publication_figure_issues(figure, REPORT04_PUBLICATION_PROFILE) == ()
+        assert publication_figure_issues(figure, DOUBLE_COLUMN_PUBLICATION_PROFILE) == ()
     finally:
         plt.close(figure)
 
@@ -436,13 +436,13 @@ def test_publication_profile_aggregates_size_font_and_containment_issues() -> No
     figure = plt.figure(figsize=(8.0, 9.0))
     figure.text(-0.1, 0.5, "outside tiny note", fontsize=6)
     try:
-        issues = publication_figure_issues(figure, REPORT04_PUBLICATION_PROFILE)
+        issues = publication_figure_issues(figure, DOUBLE_COLUMN_PUBLICATION_PROFILE)
         assert any("width" in issue for issue in issues)
         assert any("height" in issue for issue in issues)
         assert any("6 pt" in issue for issue in issues)
         assert any("outside the figure canvas" in issue for issue in issues)
         with pytest.raises(PlotQualityError, match="Figure failed publication checks"):
-            validate_publication_figure(figure, REPORT04_PUBLICATION_PROFILE)
+            validate_publication_figure(figure, DOUBLE_COLUMN_PUBLICATION_PROFILE)
     finally:
         plt.close(figure)
 
@@ -459,7 +459,7 @@ def test_export_figure_checks_profile_before_writing(tmp_path: Path) -> None:
         export_figure(
             lambda: plt.figure(figsize=(6.0, 3.0)),
             output,
-            profile=REPORT04_PUBLICATION_PROFILE,
+            profile=DOUBLE_COLUMN_PUBLICATION_PROFILE,
         )
 
     assert not output.exists()

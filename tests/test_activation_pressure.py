@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
+import pytest
 import torch
 
 from paper_exp.activation_pressure import activation_l1_pressure
@@ -18,7 +19,6 @@ from paper_exp.activations import resolve_site_aliases
 from paper_exp.clipping import _LogicalZeroProductAccumulator
 from paper_exp.clipping import _probability_value_zero_product_counts
 from paper_exp.clipping import _qk_zero_product_counts
-from paper_exp.clipping import pythia_projection_skip_proxies
 from paper_exp.cli import build_parser
 
 
@@ -41,6 +41,9 @@ def test_monitor_only_activation_pressure_has_no_pressure_loss() -> None:
                 "method": "none",
                 "sites": ["mlp_hiddens"],
                 "weight": 0.0,
+                "step_budget": None,
+                "eps": 1e-12,
+                "log_thresholds": [0.0, 0.001, 0.01],
             }
         }
     )
@@ -192,8 +195,9 @@ def test_activation_capture_clips_attention_output_tuple() -> None:
     assert torch.equal(output, torch.tensor([[[0.001, 6.0]]]))
 
 
-def test_all_sites_alias_preserves_mlp_only_pressure_scope() -> None:
-    assert resolve_site_aliases(["all_sites"]) == {"mlp_hiddens"}
+def test_ambiguous_all_sites_alias_is_rejected() -> None:
+    with pytest.raises(ValueError, match="Unsupported activation site"):
+        resolve_site_aliases(["all_sites"])
 
 
 def test_post_qkv_gate_aliases_resolve_without_broadening_existing_aliases() -> None:
@@ -249,20 +253,6 @@ def test_exact_zero_counts_are_grouped_by_site_alias() -> None:
     }
 
 
-def test_pythia_projection_skip_proxies_use_projection_mac_weights() -> None:
-    proxies = pythia_projection_skip_proxies(
-        {
-            "attention_inputs": 0.5,
-            "mlp_inputs": 0.25,
-            "mlp_hiddens": 0.75,
-        }
-    )
-
-    assert proxies["eligible_projection_skip_fraction"] == 5.5 / 11.0
-    assert proxies["block_linear_skip_fraction"] == 5.5 / 12.0
-    assert pythia_projection_skip_proxies({"mlp_hiddens": 0.75}) == {}
-
-
 def test_logical_zero_product_summary_includes_dense_lm_head_denominator() -> None:
     accumulator = _LogicalZeroProductAccumulator()
     zero_counts = (1, 2, 3, 4, 5, 6)
@@ -309,7 +299,14 @@ def test_attention_zero_product_counts_use_valid_causal_pairs_and_union() -> Non
 
 def test_clip_sweep_cli_can_request_actual_zero_product_measurement() -> None:
     args = build_parser().parse_args(
-        ["clip-sweep", "--run-dir", "checkpoint", "--measure-zero-products"]
+        [
+            "clip-sweep",
+            "--run-dir",
+            "checkpoint",
+            "--measure-zero-products",
+            "--seed",
+            "0",
+        ]
     )
 
     assert args.measure_zero_products is True

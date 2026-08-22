@@ -1,148 +1,98 @@
 from __future__ import annotations
 
 import argparse
-import sys
 from pathlib import Path
+import shlex
+import sys
 
-from paper_exp.activation_histograms import run_activation_histograms
-from paper_exp.activation_propagation import run_activation_propagation
-from paper_exp.calibration import run_calibration
-from paper_exp.clipping import run_clipping_sweep
 from paper_exp.config import ConfigError, load_config
-from paper_exp.data import prepare_tokenized_data
-from paper_exp.integrity import check_repository
-from paper_exp.plot_catalog import (
-    report04_catalog_rows,
-    report05_catalog_rows,
-    report07_catalog_rows,
-    standalone_catalog_rows,
+from paper_exp.runner import (
+    DEFAULT_LOGS_DIR,
+    DEFAULT_STATE_PATH,
+    RunnerError,
+    direct_launch_guard,
+    preflight_token_caches,
+    require_results_output,
+    require_token_cache_output,
+    resolve_launch_config,
+    resolve_launch_run_dir,
 )
-from paper_exp.plots import (
-    generate_clipping_frontier,
-    generate_plots,
-    generate_report04_figures,
-    generate_report05_figures,
-    generate_run_diagnostics,
-)
-from paper_exp.pretrain_queue import run_pretrain_queue
-from paper_exp.run import run_baseline, run_smoke
-from paper_exp.sweeps import run_pressure_fixed_step_clipping_sweeps
-from paper_exp.sweeps import run_pressure_fixed_step_sweep
-from paper_exp.sweeps import write_pressure_fixed_step_configs
-from paper_exp.weight_histograms import run_weight_histograms
 
-DEFAULT_CLIPPING_THRESHOLDS = "0,0.001,0.003,0.01,0.03,0.05,0.075,0.1,0.15,0.2,0.3"
-DEFAULT_RMS_CLIPPING_MULTIPLIERS = "0,0.001,0.003,0.01,0.03,0.05,0.075,0.1,0.15,0.2,0.3,0.5,0.75,1.0"
+
+PLOT_KINDS = (
+    "run",
+    "clipping",
+    "activation-histograms",
+    "weight-histograms",
+    "activation-propagation",
+)
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Lean paper experiment harness.")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    smoke = subparsers.add_parser("smoke", help="Run a tiny local sanity check.")
-    smoke.add_argument("--config", default="configs/01-pythia-14m-minipile-smoke.yaml")
+    smoke = subparsers.add_parser("smoke", help="Run a tiny local harness check.")
+    smoke.add_argument("--config", required=True)
 
-    baseline = subparsers.add_parser("baseline", help="Run the configured baseline.")
-    baseline.add_argument("--config", default="configs/02-pythia-14m-minipile-baseline.yaml")
-
-    prepare_data = subparsers.add_parser("prepare-data", help="Download and tokenize the configured dataset.")
-    prepare_data.add_argument("--config", default="configs/01-pythia-14m-minipile-smoke.yaml")
-
-    calibrate = subparsers.add_parser("calibrate", help="Run a short model throughput calibration.")
-    calibrate.add_argument("--config", default="configs/01-pythia-14m-minipile-smoke.yaml")
-
-    pretrain = subparsers.add_parser("pretrain", help="Run a random-initialized pretraining job.")
-    pretrain.add_argument("--config", default="configs/02-pythia-14m-minipile-baseline.yaml")
-
-    pretrain_queue = subparsers.add_parser(
-        "run-pretrain-queue",
-        help="Run committed pretraining configs sequentially with durable queue state.",
+    prepare_data = subparsers.add_parser(
+        "prepare-data",
+        help="Download and tokenize the dataset declared by a config.",
     )
-    pretrain_queue.add_argument(
+    prepare_data.add_argument("--config", required=True)
+
+    calibrate = subparsers.add_parser(
+        "calibrate",
+        help="Run a configured throughput calibration.",
+    )
+    calibrate.add_argument("--config", required=True)
+
+    pretrain = subparsers.add_parser(
+        "pretrain",
+        help="Run one random-initialized pretraining config.",
+    )
+    pretrain.add_argument("--config", required=True)
+    pretrain.add_argument("--runner-token", help=argparse.SUPPRESS)
+
+    run_configs = subparsers.add_parser(
+        "run-configs",
+        help="Run pretraining configs sequentially in the supplied order.",
+    )
+    run_configs.add_argument(
         "--config",
         action="append",
         required=True,
-        help="Config path to enqueue; repeat this option to preserve launch order.",
+        help="Config to run; repeat this option to define the exact launch order.",
     )
-    pretrain_queue.add_argument(
+    run_configs.add_argument(
+        "--state",
         "--state-path",
-        default="run-logs/pretrain-queue-state.json",
-        help="Atomic JSON queue-state path.",
+        dest="state",
+        default=str(DEFAULT_STATE_PATH),
+        help="New atomic runner-state JSON path; it must not already exist.",
     )
-    pretrain_queue.add_argument(
+    run_configs.add_argument(
         "--logs-dir",
-        default="run-logs",
-        help="Directory for separate child stdout and stderr logs.",
+        default=str(DEFAULT_LOGS_DIR),
+        help="Directory for child stdout and stderr logs.",
     )
-    pretrain_queue.add_argument(
-        "--recovery-of-state-path",
-        help="Exact failed predecessor queue; required for a reviewed retry.",
-    )
-    pretrain_queue.add_argument(
-        "--reviewed-retry-run-id",
-        help="Single registry-authorized invalid running-manifest attempt to bypass.",
-    )
-    pretrain_queue.add_argument(
-        "--confirm-reviewed-retry-process-exited",
-        action="store_true",
-        help="Confirm that no process can still write the exact reviewed retry attempt.",
-    )
-    pretrain_queue.add_argument(
-        "--reviewed-retry-terminated-pid",
-        type=int,
-        help="Reviewed external-termination PID, which must be absent before retry.",
+    run_configs.add_argument(
+        "--poll-seconds",
+        type=float,
+        default=1.0,
+        help="Seconds between progress and ETC refreshes.",
     )
 
-    plots = subparsers.add_parser("plots", help="Regenerate paper-style plots from saved results.")
-    plots.add_argument("--results", default="results")
-    plots.add_argument("--figures", default="figures")
-    plots.add_argument("--png", action="store_true", help="Also save PNG copies.")
-
-    plot_report04 = subparsers.add_parser(
-        "plot-report04",
-        help="Regenerate the complete Report 04 visual-baseline suite.",
+    run_status = subparsers.add_parser(
+        "run-status",
+        help="Read current sequential-run progress and ETC without modifying it.",
     )
-    plot_report04.add_argument("--results", default="results")
-    plot_report04.add_argument("--figures", default="figures")
-    plot_report04.add_argument("--png", action="store_true", help="Also save PNG copies.")
-    plot_report04.add_argument(
-        "--allow-partial",
-        action="store_true",
-        help="Generate complete figure families and skip missing Report 04 inputs.",
-    )
-    plot_report04.add_argument(
-        "--include-rn",
-        action="store_true",
-        help="Use the completed RN comparison cohort from configs 105 and 106.",
-    )
-
-    plot_report05 = subparsers.add_parser(
-        "plot-report05",
-        help="Regenerate the complete Report 05 ReLU-architecture comparison suite.",
-    )
-    plot_report05.add_argument("--results", default="results")
-    plot_report05.add_argument("--figures", default="figures")
-    plot_report05.add_argument("--png", action="store_true", help="Also save PNG copies.")
-    plot_report05.add_argument(
-        "--allow-partial",
-        action="store_true",
-        help="Generate complete figure families and skip missing Report 05 inputs.",
-    )
-
-    plot_catalog = subparsers.add_parser(
-        "plot-catalog",
-        help="List a report figure suite and its saved-input requirements.",
-    )
-    plot_catalog.add_argument(
-        "--report",
-        choices=("04", "05", "07", "standalone"),
-        default="04",
-        help="Report or standalone figure catalog to list (default: 04).",
-    )
-    plot_catalog.add_argument(
-        "--embedded-only",
-        action="store_true",
-        help="Show only figures embedded in the selected report PDF.",
+    run_status.add_argument(
+        "--state",
+        "--state-path",
+        dest="state",
+        default=str(DEFAULT_STATE_PATH),
+        help="Runner-state JSON path.",
     )
 
     check = subparsers.add_parser(
@@ -158,93 +108,64 @@ def build_parser() -> argparse.ArgumentParser:
     check.add_argument(
         "--strict",
         action="store_true",
-        help="Return a nonzero status for warnings as well as errors.",
+        help="Return nonzero for warnings as well as errors.",
     )
 
-    plot_run = subparsers.add_parser("plot-run", help="Generate diagnostics for one run directory.")
-    plot_run.add_argument("--run-dir", required=True)
-    plot_run.add_argument("--output", required=True)
-    plot_run.add_argument("--png", action="store_true", help="Also save a PNG copy.")
-
-    plot_clipping = subparsers.add_parser(
-        "plot-clipping-frontier",
-        help="Generate a clipping frontier plot from a clipping sweep run.",
+    clip_sweep = subparsers.add_parser(
+        "clip-sweep",
+        help="Run a post-hoc activation clipping frontier.",
     )
-    plot_clipping.add_argument("--run-dir", required=True)
-    plot_clipping.add_argument("--output", required=True)
-    plot_clipping.add_argument("--png", action="store_true", help="Also save a PNG copy.")
-
-    clip_sweep = subparsers.add_parser("clip-sweep", help="Run a post-hoc activation clipping frontier.")
     clip_sweep.add_argument("--run-dir", required=True)
-    clip_sweep.add_argument("--thresholds", default=DEFAULT_CLIPPING_THRESHOLDS)
+    clip_sweep.add_argument("--thresholds", default="")
     clip_sweep.add_argument("--quantiles", default="")
     clip_sweep.add_argument("--rms-multipliers", default="")
-    clip_sweep.add_argument("--sites", default="", help="Comma-separated activation sites to clip for this sweep.")
-    clip_sweep.add_argument("--experiment-suffix", default="", help="Optional suffix for the clipping sweep result folder.")
+    clip_sweep.add_argument(
+        "--sites",
+        default="",
+        help="Comma-separated activation sites to clip.",
+    )
+    clip_sweep.add_argument(
+        "--experiment-suffix",
+        default="",
+        help="Optional suffix for the clipping result folder.",
+    )
     clip_sweep.add_argument("--eval-batches", type=int, default=None)
     clip_sweep.add_argument(
         "--measure-zero-products",
         action="store_true",
         help=(
-            "Count exact logical zero products in QKV, QK, PV, attention output, W1, and W2; "
-            "includes the LM head only in the model-level denominator."
+            "Count exact logical zero products in QKV, QK, PV, attention output, "
+            "W1, and W2; include the LM head only in the model denominator."
         ),
     )
-    clip_sweep.add_argument("--seed", type=int, default=0)
-
-    write_sweep = subparsers.add_parser(
-        "write-pressure-sweep-configs",
-        help="Write the fixed-step pressure screening configs.",
-    )
-    write_sweep.add_argument("--configs-dir", default="configs")
-
-    run_sweep = subparsers.add_parser(
-        "run-pressure-sweep",
-        help="Run the fixed-step pressure screening matrix.",
-    )
-    run_sweep.add_argument("--configs-dir", default="configs")
-    run_sweep.add_argument("--start-at", default="")
-    run_sweep.add_argument("--stop-after", type=int, default=None)
-
-    run_sweep_clipping = subparsers.add_parser(
-        "run-pressure-sweep-clipping",
-        help="Run post-hoc clipping sweeps for completed fixed-step pressure screening runs.",
-    )
-    run_sweep_clipping.add_argument("--configs-dir", default="configs")
-    run_sweep_clipping.add_argument("--thresholds", default=DEFAULT_CLIPPING_THRESHOLDS)
-    run_sweep_clipping.add_argument("--quantiles", default="")
-    run_sweep_clipping.add_argument("--rms-multipliers", default="")
-    run_sweep_clipping.add_argument("--eval-batches", type=int, default=8)
-    run_sweep_clipping.add_argument("--seed", type=int, default=0)
-    run_sweep_clipping.add_argument("--start-at", default="")
-    run_sweep_clipping.add_argument("--stop-after", type=int, default=None)
+    clip_sweep.add_argument("--seed", type=int, required=True)
 
     activation_histograms = subparsers.add_parser(
         "activation-histograms",
-        help="Measure validation activation histograms for selected checkpoints.",
+        help="Measure validation activation histograms for configured checkpoints.",
     )
-    activation_histograms.add_argument(
-        "--config",
-        default="configs/49-pythia-14m-pressure-fixed-2048-selected-activation-histograms.yaml",
-    )
+    activation_histograms.add_argument("--config", required=True)
 
     activation_propagation = subparsers.add_parser(
         "activation-propagation",
-        help="Measure exact-zero propagation through selected GPT-NeoX checkpoints.",
+        help="Measure exact-zero propagation for configured checkpoints.",
     )
-    activation_propagation.add_argument(
-        "--config",
-        default="configs/102-pythia-14m-minipile-post-layernorm-relu-activation-propagation.yaml",
-    )
+    activation_propagation.add_argument("--config", required=True)
 
     weight_histograms = subparsers.add_parser(
         "weight-histograms",
-        help="Measure checkpoint weight histograms for selected runs.",
+        help="Measure weight histograms for configured checkpoints.",
     )
-    weight_histograms.add_argument(
-        "--config",
-        default="configs/61-pythia-14m-minipile-full-pass-high-pressure-weight-histograms.yaml",
+    weight_histograms.add_argument("--config", required=True)
+
+    plot = subparsers.add_parser(
+        "plot",
+        help="Render one explicit saved diagnostic artifact.",
     )
+    plot.add_argument("--kind", choices=PLOT_KINDS, required=True)
+    plot.add_argument("--run-dir", required=True)
+    plot.add_argument("--output", required=True)
+    plot.add_argument("--png", action="store_true", help="Also save a PNG copy.")
 
     return parser
 
@@ -256,105 +177,90 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         if args.command == "smoke":
+            from paper_exp.run import run_smoke
+
             config = load_config(args.config, allow_todos=True)
             run_dir = run_smoke(config, config_path=args.config, command=command)
             print(f"Smoke run written to {run_dir}")
             return 0
 
-        if args.command == "baseline":
-            config = load_config(args.config, allow_todos=False)
-            run_dir = run_baseline(config, config_path=args.config, command=command)
-            print(f"Baseline run written to {run_dir}")
-            return 0
-
         if args.command == "prepare-data":
-            config = load_config(args.config, allow_todos=False)
-            run_dir = prepare_tokenized_data(config, config_path=args.config, command=command)
+            from paper_exp.data import prepare_tokenized_data
+
+            repository, config_path = resolve_launch_config(args.config)
+            config = load_config(config_path, allow_todos=False)
+            require_results_output(config, repository=repository, source=config_path)
+            require_token_cache_output(config, repository=repository, source=config_path)
+            with direct_launch_guard(repository=repository):
+                run_dir = prepare_tokenized_data(
+                    config,
+                    config_path=config_path,
+                    command=command,
+                )
             print(f"Prepared tokenized data; run written to {run_dir}")
             return 0
 
-        if args.command == "calibrate":
-            config = load_config(args.config, allow_todos=False)
-            run_dir = run_calibration(config, config_path=args.config, command=command)
-            print(f"Calibration run written to {run_dir}")
+        if args.command in {"calibrate", "pretrain"}:
+            from paper_exp.calibration import run_calibration
+
+            repository, config_path = resolve_launch_config(args.config)
+            config = load_config(config_path, allow_todos=False)
+            require_results_output(config, repository=repository, source=config_path)
+            require_token_cache_output(config, repository=repository, source=config_path)
+            mode = "pretrain" if args.command == "pretrain" else "calibrate"
+            preflight_token_caches(
+                config,
+                repository=repository,
+                source=config_path,
+            )
+            with direct_launch_guard(
+                runner_token=(args.runner_token if args.command == "pretrain" else None),
+                repository=repository,
+            ):
+                run_dir = run_calibration(
+                    config,
+                    config_path=config_path,
+                    command=command,
+                    mode=mode,
+                )
+            label = "Pretraining" if args.command == "pretrain" else "Calibration"
+            print(f"{label} run written to {run_dir}")
             return 0
 
-        if args.command == "pretrain":
-            config = load_config(args.config, allow_todos=False)
-            run_dir = run_calibration(config, config_path=args.config, command=command, mode="pretrain")
-            print(f"Pretraining run written to {run_dir}")
-            return 0
+        if args.command == "run-configs":
+            from paper_exp.runner import format_runner_status, run_configs
 
-        if args.command == "run-pretrain-queue":
-            state = run_pretrain_queue(
+            state = run_configs(
                 args.config,
-                state_path=args.state_path,
+                state_path=args.state,
                 logs_dir=args.logs_dir,
-                recovery_of_state_path=args.recovery_of_state_path,
-                reviewed_retry_run_id=args.reviewed_retry_run_id,
-                confirm_reviewed_retry_process_exited=args.confirm_reviewed_retry_process_exited,
-                reviewed_retry_terminated_pid=args.reviewed_retry_terminated_pid,
+                poll_seconds=args.poll_seconds,
+                command=command,
             )
-            print(
-                f"Pretraining queue {state['queue_id']} completed "
-                f"{len(state['items'])} config(s); state written to {args.state_path}"
-            )
+            print(format_runner_status(state))
+            print(f"Runner state written to {Path(args.state)}")
             return 0
 
-        if args.command == "plots":
-            outputs = generate_plots(results_dir=args.results, figures_dir=args.figures, save_png=args.png)
-            for output in outputs:
-                print(f"Wrote {output}")
-            return 0
+        if args.command == "run-status":
+            from paper_exp.runner import format_runner_status, read_runner_status
 
-        if args.command == "plot-report04":
-            outputs = generate_report04_figures(
-                results_dir=args.results,
-                figures_dir=args.figures,
-                save_png=args.png,
-                strict=not args.allow_partial,
-                write_provenance=not args.allow_partial,
-                include_rn=args.include_rn,
-            )
-            for output in outputs:
-                print(f"Wrote {output}")
-            return 0
-
-        if args.command == "plot-report05":
-            outputs = generate_report05_figures(
-                results_dir=args.results,
-                figures_dir=args.figures,
-                save_png=args.png,
-                strict=not args.allow_partial,
-            )
-            for output in outputs:
-                print(f"Wrote {output}")
-            return 0
-
-        if args.command == "plot-catalog":
-            catalog_rows = {
-                "04": report04_catalog_rows,
-                "05": report05_catalog_rows,
-                "07": report07_catalog_rows,
-                "standalone": standalone_catalog_rows,
-            }[args.report]
-            for row in catalog_rows(embedded_only=args.embedded_only):
-                print(row)
+            print(format_runner_status(read_runner_status(args.state)))
             return 0
 
         if args.command == "check":
+            from paper_exp.integrity import check_repository
+
             findings = check_repository(args.root)
-            visible_findings = (
+            visible = (
                 findings
                 if args.verbose
                 else [finding for finding in findings if finding.severity != "info"]
             )
-            for finding in visible_findings:
+            for finding in visible:
                 print(
                     f"{finding.severity.upper()} [{finding.code}] "
                     f"{finding.path}: {finding.message}"
                 )
-
             counts = {
                 severity: sum(finding.severity == severity for finding in findings)
                 for severity in ("error", "warning", "info")
@@ -364,99 +270,87 @@ def main(argv: list[str] | None = None) -> int:
                 f"{counts['error']} error(s), {counts['warning']} warning(s), "
                 f"{counts['info']} informational finding(s)."
             )
-            if counts["error"] or (args.strict and counts["warning"]):
-                return 1
-            return 0
-
-        if args.command == "plot-run":
-            outputs = generate_run_diagnostics(run_dir=args.run_dir, output=args.output, save_png=args.png)
-            for output in outputs:
-                print(f"Wrote {output}")
-            return 0
-
-        if args.command == "plot-clipping-frontier":
-            outputs = generate_clipping_frontier(run_dir=args.run_dir, output=args.output, save_png=args.png)
-            for output in outputs:
-                print(f"Wrote {output}")
-            return 0
+            return int(bool(counts["error"] or (args.strict and counts["warning"])))
 
         if args.command == "clip-sweep":
-            run_dir = run_clipping_sweep(
-                checkpoint_run_dir=args.run_dir,
-                command=command,
-                thresholds=_parse_float_list(args.thresholds),
-                quantiles=_parse_float_list(args.quantiles),
-                rms_multipliers=_parse_float_list(args.rms_multipliers),
-                sites=_parse_str_list(args.sites) or None,
-                experiment_suffix=args.experiment_suffix or None,
-                eval_batches=args.eval_batches,
-                measure_zero_products=args.measure_zero_products,
-                seed=args.seed,
-            )
+            from paper_exp.clipping import run_clipping_sweep
+
+            repository, source_run = resolve_launch_run_dir(args.run_dir)
+            with direct_launch_guard(repository=repository):
+                run_dir = run_clipping_sweep(
+                    checkpoint_run_dir=source_run,
+                    command=command,
+                    thresholds=_parse_float_list(args.thresholds),
+                    quantiles=_parse_float_list(args.quantiles),
+                    rms_multipliers=_parse_float_list(args.rms_multipliers),
+                    sites=_parse_str_list(args.sites) or None,
+                    experiment_suffix=args.experiment_suffix or None,
+                    eval_batches=args.eval_batches,
+                    measure_zero_products=args.measure_zero_products,
+                    seed=args.seed,
+                )
             print(f"Clipping sweep written to {run_dir}")
             return 0
 
-        if args.command == "write-pressure-sweep-configs":
-            outputs = write_pressure_fixed_step_configs(args.configs_dir)
-            for output in outputs:
-                print(f"Wrote {output}")
-            return 0
-
-        if args.command == "run-pressure-sweep":
-            outputs = run_pressure_fixed_step_sweep(
-                configs_dir=args.configs_dir,
-                command=command,
-                start_at=args.start_at or None,
-                stop_after=args.stop_after,
-            )
-            for output in outputs:
-                print(f"Completed {output}")
-            return 0
-
-        if args.command == "run-pressure-sweep-clipping":
-            outputs = run_pressure_fixed_step_clipping_sweeps(
-                configs_dir=args.configs_dir,
-                command=command,
-                thresholds=_parse_float_list(args.thresholds),
-                quantiles=_parse_float_list(args.quantiles),
-                rms_multipliers=_parse_float_list(args.rms_multipliers),
-                eval_batches=args.eval_batches,
-                seed=args.seed,
-                start_at=args.start_at or None,
-                stop_after=args.stop_after,
-            )
-            for output in outputs:
-                print(f"Completed {output}")
-            return 0
-
         if args.command == "activation-histograms":
-            config = load_config(args.config, allow_todos=False)
-            run_dir = run_activation_histograms(config, config_path=args.config, command=command)
+            from paper_exp.activation_histograms import run_activation_histograms
+
+            repository, config_path = resolve_launch_config(args.config)
+            config = load_config(config_path, allow_todos=False)
+            require_results_output(config, repository=repository, source=config_path)
+            with direct_launch_guard(repository=repository):
+                run_dir = run_activation_histograms(
+                    config,
+                    config_path=config_path,
+                    command=command,
+                )
             print(f"Activation histograms written to {run_dir}")
             return 0
 
         if args.command == "activation-propagation":
-            config = load_config(args.config, allow_todos=False)
-            run_dir = run_activation_propagation(config, config_path=args.config, command=command)
+            from paper_exp.activation_propagation import run_activation_propagation
+
+            repository, config_path = resolve_launch_config(args.config)
+            config = load_config(config_path, allow_todos=False)
+            require_results_output(config, repository=repository, source=config_path)
+            with direct_launch_guard(repository=repository):
+                run_dir = run_activation_propagation(
+                    config,
+                    config_path=config_path,
+                    command=command,
+                )
             print(f"Activation propagation written to {run_dir}")
             return 0
 
         if args.command == "weight-histograms":
-            config = load_config(args.config, allow_todos=False)
-            run_dir = run_weight_histograms(config, config_path=args.config, command=command)
+            from paper_exp.weight_histograms import run_weight_histograms
+
+            repository, config_path = resolve_launch_config(args.config)
+            config = load_config(config_path, allow_todos=False)
+            require_results_output(config, repository=repository, source=config_path)
+            with direct_launch_guard(repository=repository):
+                run_dir = run_weight_histograms(
+                    config,
+                    config_path=config_path,
+                    command=command,
+                )
             print(f"Weight histograms written to {run_dir}")
             return 0
-    except ConfigError as exc:
-        print(f"Config error: {exc}", file=sys.stderr)
-        return 2
-    except NotImplementedError as exc:
-        print(str(exc), file=sys.stderr)
-        return 2
-    except RuntimeError as exc:
-        print(str(exc), file=sys.stderr)
-        return 2
-    except FileNotFoundError as exc:
-        print(str(exc), file=sys.stderr)
+
+        if args.command == "plot":
+            from paper_exp.plots import plot_artifact
+
+            outputs = plot_artifact(
+                kind=args.kind,
+                run_dir=args.run_dir,
+                output=args.output,
+                save_png=args.png,
+            )
+            for output in outputs:
+                print(f"Wrote {output}")
+            return 0
+    except (ConfigError, RunnerError, FileNotFoundError, RuntimeError, ValueError) as error:
+        print(str(error), file=sys.stderr)
         return 2
 
     parser.error(f"Unknown command: {args.command}")
@@ -464,9 +358,12 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def _command_string(argv: list[str] | None) -> str:
-    if argv is None:
-        return " ".join([Path(sys.executable).name, *sys.argv])
-    return " ".join([Path(sys.executable).name, "-m", "paper_exp.cli", *argv])
+    parts = (
+        [Path(sys.executable).name, *sys.argv]
+        if argv is None
+        else [Path(sys.executable).name, "-m", "paper_exp.cli", *argv]
+    )
+    return shlex.join(parts)
 
 
 def _parse_float_list(value: str) -> list[float]:

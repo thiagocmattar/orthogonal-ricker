@@ -149,7 +149,7 @@ def test_legacy_batch_sampling_keeps_global_numpy_rng_sequence() -> None:
     assert np.array_equal(actual.numpy(), expected)
 
 
-def test_campaign_finite_validation_is_deterministic_and_legacy_remains_random() -> None:
+def test_finite_validation_can_be_deterministic_without_advancing_global_rng() -> None:
     tokens = np.arange(100, dtype=np.int32)
 
     class RecordingModel:
@@ -167,10 +167,10 @@ def test_campaign_finite_validation_is_deterministic_and_legacy_remains_random()
             self.inputs.append(input_ids.detach().cpu().numpy().copy())
             return SimpleNamespace(loss=torch.tensor(1.0))
 
-    first_campaign = RecordingModel()
+    first_deterministic = RecordingModel()
     np.random.seed(31)
     calibration._evaluate_loss(
-        model=first_campaign,
+        model=first_deterministic,
         torch=torch,
         np=np,
         tokens=tokens,
@@ -181,14 +181,14 @@ def test_campaign_finite_validation_is_deterministic_and_legacy_remains_random()
         dtype=None,
         deterministic_batches=True,
     )
-    campaign_rng_next = np.random.randint(0, 10_000)
+    deterministic_rng_next = np.random.randint(0, 10_000)
 
-    repeated_campaign = RecordingModel()
+    repeated_deterministic = RecordingModel()
     np.random.seed(31)
     expected_rng_next = np.random.randint(0, 10_000)
     np.random.seed(999)
     calibration._evaluate_loss(
-        model=repeated_campaign,
+        model=repeated_deterministic,
         torch=torch,
         np=np,
         tokens=tokens,
@@ -200,17 +200,20 @@ def test_campaign_finite_validation_is_deterministic_and_legacy_remains_random()
         deterministic_batches=True,
     )
 
-    assert campaign_rng_next == expected_rng_next
+    assert deterministic_rng_next == expected_rng_next
     assert all(
         np.array_equal(first, repeated)
-        for first, repeated in zip(first_campaign.inputs, repeated_campaign.inputs)
+        for first, repeated in zip(
+            first_deterministic.inputs,
+            repeated_deterministic.inputs,
+        )
     )
     assert np.array_equal(
-        np.concatenate(first_campaign.inputs),
+        np.concatenate(first_deterministic.inputs),
         np.stack([tokens[start : start + 4] for start in (0, 4, 8, 12)]),
     )
 
-    legacy = RecordingModel()
+    stochastic = RecordingModel()
     np.random.seed(23)
     expected_starts = [
         np.random.randint(0, len(tokens) - 4 - 1, size=2)
@@ -218,7 +221,7 @@ def test_campaign_finite_validation_is_deterministic_and_legacy_remains_random()
     ]
     np.random.seed(23)
     calibration._evaluate_loss(
-        model=legacy,
+        model=stochastic,
         torch=torch,
         np=np,
         tokens=tokens,
@@ -228,8 +231,8 @@ def test_campaign_finite_validation_is_deterministic_and_legacy_remains_random()
         device=torch.device("cpu"),
         dtype=None,
     )
-    expected_legacy = np.concatenate(
+    expected_stochastic = np.concatenate(
         [np.stack([tokens[start : start + 4] for start in starts]) for starts in expected_starts]
     )
 
-    assert np.array_equal(np.concatenate(legacy.inputs), expected_legacy)
+    assert np.array_equal(np.concatenate(stochastic.inputs), expected_stochastic)

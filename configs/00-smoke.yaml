@@ -1,0 +1,16 @@
+experiment_name: harness_smoke
+model:
+  provider: "TODO: provider from the definitive experiment plan"
+  name: "TODO: model name from the definitive experiment plan"
+  architecture: "TODO: architecture source from the definitive experiment plan"
+  initialization: random
+data:
+  name: "TODO: dataset from the definitive experiment plan"
+  split: "TODO: split from the definitive experiment plan"
+evaluation:
+  metric: smoke_passed
+run:
+  seed: 0
+  max_examples: 3
+output:
+  dir: results

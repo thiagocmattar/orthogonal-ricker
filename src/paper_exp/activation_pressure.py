@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import math
 from typing import Any
 
 import torch
@@ -20,8 +21,8 @@ class ActivationPressureConfig:
     method: str
     sites: list[str]
     weight: float
-    ricker_c: float
-    ricker_sigma: float
+    ricker_c: float | None
+    ricker_sigma: float | None
     step_budget: float | None
     eps: float
     log_thresholds: tuple[float, ...]
@@ -48,30 +49,113 @@ class ActivationPressureConfig:
 
 
 def activation_pressure_config(config: dict[str, Any]) -> ActivationPressureConfig:
-    raw = config.get("activation_pressure", {})
-    enabled = bool(raw.get("enabled", False))
-    method = raw.get("method", "none")
-    if not enabled:
-        method = "none"
+    raw = config.get("activation_pressure")
+    if not isinstance(raw, dict):
+        raise ValueError("activation_pressure must be an explicit mapping.")
+    required = ("enabled", "method", "sites", "weight", "step_budget", "eps", "log_thresholds")
+    missing = [field for field in required if field not in raw]
+    if missing:
+        raise ValueError(
+            "activation_pressure requires explicit fields: " + ", ".join(missing)
+        )
+    if not isinstance(raw["enabled"], bool):
+        raise ValueError("activation_pressure.enabled must be a boolean.")
+    enabled = raw["enabled"]
+    method = str(raw["method"])
     if method not in PRESSURE_METHODS:
         raise ValueError(f"Unknown activation pressure method: {method}")
+    if not enabled and method != "none":
+        raise ValueError("Disabled activation pressure must use method: none.")
+
+    sites = raw["sites"]
+    if not isinstance(sites, list) or not sites or not all(
+        isinstance(site, str) and site.strip() for site in sites
+    ):
+        raise ValueError("activation_pressure.sites must be a non-empty list of names.")
+    if len(set(sites)) != len(sites):
+        raise ValueError("activation_pressure.sites must not contain duplicates.")
+
+    weight = _finite_float(raw["weight"], "activation_pressure.weight")
+    if weight < 0.0:
+        raise ValueError("activation_pressure.weight must be non-negative.")
+    if method == "none" and weight != 0.0:
+        raise ValueError("activation_pressure.weight must be zero for method: none.")
+
+    step_budget_value = raw["step_budget"]
+    step_budget = (
+        None
+        if step_budget_value is None
+        else _finite_float(step_budget_value, "activation_pressure.step_budget")
+    )
+    if method in {"orthogonal_ricker", "orthogonal_l1"}:
+        if step_budget is None or step_budget <= 0.0:
+            raise ValueError(
+                "Orthogonal activation pressure requires a positive step_budget."
+            )
+    elif step_budget is not None:
+        raise ValueError(
+            "activation_pressure.step_budget applies only to orthogonal methods."
+        )
+
+    eps = _finite_float(raw["eps"], "activation_pressure.eps")
+    if eps <= 0.0:
+        raise ValueError("activation_pressure.eps must be positive.")
+    raw_thresholds = raw["log_thresholds"]
+    if not isinstance(raw_thresholds, list) or not raw_thresholds:
+        raise ValueError("activation_pressure.log_thresholds must be a non-empty list.")
+    log_thresholds = tuple(
+        _finite_float(value, "activation_pressure.log_thresholds")
+        for value in raw_thresholds
+    )
+    if any(value < 0.0 for value in log_thresholds):
+        raise ValueError("activation_pressure.log_thresholds must be non-negative.")
+    if tuple(sorted(set(log_thresholds))) != log_thresholds:
+        raise ValueError(
+            "activation_pressure.log_thresholds must be strictly increasing and unique."
+        )
+
+    ricker_c: float | None = None
+    ricker_sigma: float | None = None
+    if "ricker" in method:
+        if "ricker_c" not in raw or "ricker_sigma" not in raw:
+            raise ValueError(
+                "Ricker activation pressure requires explicit ricker_c and ricker_sigma."
+            )
+        ricker_c = _finite_float(raw["ricker_c"], "activation_pressure.ricker_c")
+        ricker_sigma = _finite_float(
+            raw["ricker_sigma"],
+            "activation_pressure.ricker_sigma",
+        )
+        if ricker_c <= 0.0 or ricker_sigma <= 0.0:
+            raise ValueError("Ricker c and sigma must be positive.")
     return ActivationPressureConfig(
         enabled=enabled,
         method=method,
-        sites=list(raw.get("sites", ["mlp_hiddens"])),
-        weight=float(raw.get("weight", 0.0)),
-        ricker_c=float(raw.get("ricker_c", 0.05)),
-        ricker_sigma=float(raw.get("ricker_sigma", raw.get("ricker_c", 0.05))),
-        step_budget=(None if raw.get("step_budget") is None else float(raw.get("step_budget"))),
-        eps=float(raw.get("eps", 1e-12)),
-        log_thresholds=tuple(float(value) for value in raw.get("log_thresholds", [0.0, 1e-3, 1e-2])),
+        sites=list(sites),
+        weight=weight,
+        ricker_c=ricker_c,
+        ricker_sigma=ricker_sigma,
+        step_budget=step_budget,
+        eps=eps,
+        log_thresholds=log_thresholds,
     )
+
+
+def _finite_float(value: Any, field: str) -> float:
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        raise ValueError(f"{field} must be a finite number.")
+    result = float(value)
+    if not math.isfinite(result):
+        raise ValueError(f"{field} must be a finite number.")
+    return result
 
 
 def pressure_loss(torch: Any, activations: dict[str, Any], cfg: ActivationPressureConfig) -> Any:
     if not cfg.enabled or cfg.method == "none":
         return None
     if cfg.pressure_kind == "ricker":
+        if cfg.ricker_c is None or cfg.ricker_sigma is None:
+            raise ValueError("Ricker pressure parameters are missing.")
         return ricker_pressure(torch, activations, c=cfg.ricker_c, sigma=cfg.ricker_sigma)
     if cfg.pressure_kind == "activation_l1":
         return activation_l1_pressure(torch, activations)

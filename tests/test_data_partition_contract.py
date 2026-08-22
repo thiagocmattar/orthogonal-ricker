@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import json
+import hashlib
 from pathlib import Path
 from typing import Any, Callable
 
 import numpy as np
 import pytest
 
+import paper_exp.data as data_module
 from paper_exp.data import _load_or_write_cache
 from paper_exp.data import metadata_matches_config
 from paper_exp.reproducibility import VALIDATION_PARTITION_SCHEME
@@ -39,7 +41,7 @@ class _DatasetLoader:
 
     def __call__(self, name: str, *, split: str, revision: str) -> _Dataset:
         self.calls += 1
-        assert name == "offline/minipile"
+        assert name == "offline/dataset"
         assert split == "validation[:6]"
         assert revision == "dataset-revision"
         return _Dataset([{"text": f"document-{index}"} for index in range(SOURCE_DOCUMENTS)])
@@ -67,7 +69,7 @@ class _AutoTokenizer:
 def _config(partition_hash: str) -> dict[str, Any]:
     return {
         "data": {
-            "name": "offline/minipile",
+            "name": "offline/dataset",
             "revision": "dataset-revision",
             "text_column": "text",
         },
@@ -198,6 +200,10 @@ def _replace_indices_and_hash(metadata: dict[str, Any]) -> None:
             lambda metadata: metadata.__setitem__("partition_seed", PARTITION_SEED + 1),
             id="partition-seed",
         ),
+        pytest.param(
+            lambda metadata: metadata.__setitem__("dtype", "float32"),
+            id="token-dtype",
+        ),
     ],
 )
 def test_partition_cache_reuse_rejects_corrupt_contract_metadata(
@@ -240,3 +246,135 @@ def test_partition_cache_reuse_rejects_corrupt_contract_metadata(
     assert auto_tokenizer.calls == 2
     assert repaired["source_document_indices"] == indices.tolist()
     assert repaired["source_document_indices_sha256"] == frozen_hash
+
+
+def test_partition_cache_rebuilds_non_object_metadata(tmp_path: Path) -> None:
+    indices, frozen_hash = validation_document_indices(
+        np,
+        source_documents=SOURCE_DOCUMENTS,
+        partition="selection",
+        seed=PARTITION_SEED,
+    )
+    loader = _DatasetLoader()
+    auto_tokenizer = _AutoTokenizer()
+    config = _config(frozen_hash)
+    _load_partition_cache(
+        tmp_path,
+        config=config,
+        indices=indices,
+        expected_hash=frozen_hash,
+        loader=loader,
+        auto_tokenizer=auto_tokenizer,
+    )
+    (tmp_path / "selection" / "metadata.json").write_text("null\n", encoding="utf-8")
+
+    repaired = _load_partition_cache(
+        tmp_path,
+        config=config,
+        indices=indices,
+        expected_hash=frozen_hash,
+        loader=loader,
+        auto_tokenizer=auto_tokenizer,
+    )
+
+    assert loader.calls == 2
+    assert auto_tokenizer.calls == 2
+    assert repaired["dtype"] == "int32"
+
+
+@pytest.mark.parametrize(
+    "corrupt",
+    [
+        pytest.param(lambda payload: payload[:-4], id="truncated"),
+        pytest.param(
+            lambda payload: bytes([payload[0] ^ 1]) + payload[1:],
+            id="same-size-content-change",
+        ),
+    ],
+)
+def test_partition_cache_reuse_rejects_corrupt_token_file(
+    tmp_path: Path,
+    corrupt: Callable[[bytes], bytes],
+) -> None:
+    indices, frozen_hash = validation_document_indices(
+        np,
+        source_documents=SOURCE_DOCUMENTS,
+        partition="selection",
+        seed=PARTITION_SEED,
+    )
+    loader = _DatasetLoader()
+    auto_tokenizer = _AutoTokenizer()
+    config = _config(frozen_hash)
+    _load_partition_cache(
+        tmp_path,
+        config=config,
+        indices=indices,
+        expected_hash=frozen_hash,
+        loader=loader,
+        auto_tokenizer=auto_tokenizer,
+    )
+    tokens_path = tmp_path / "selection" / "tokens.int32.bin"
+    tokens_path.write_bytes(corrupt(tokens_path.read_bytes()))
+
+    repaired = _load_partition_cache(
+        tmp_path,
+        config=config,
+        indices=indices,
+        expected_hash=frozen_hash,
+        loader=loader,
+        auto_tokenizer=auto_tokenizer,
+    )
+
+    assert loader.calls == 2
+    assert auto_tokenizer.calls == 2
+    assert repaired["tokens_bytes"] == tokens_path.stat().st_size
+    assert repaired["tokens_sha256"] == hashlib.sha256(tokens_path.read_bytes()).hexdigest()
+
+
+def test_interrupted_cache_rebuild_preserves_published_artifacts(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    indices, frozen_hash = validation_document_indices(
+        np,
+        source_documents=SOURCE_DOCUMENTS,
+        partition="selection",
+        seed=PARTITION_SEED,
+    )
+    loader = _DatasetLoader()
+    auto_tokenizer = _AutoTokenizer()
+    config = _config(frozen_hash)
+    _load_partition_cache(
+        tmp_path,
+        config=config,
+        indices=indices,
+        expected_hash=frozen_hash,
+        loader=loader,
+        auto_tokenizer=auto_tokenizer,
+    )
+    cache_dir = tmp_path / "selection"
+    tokens_path = cache_dir / "tokens.int32.bin"
+    metadata_path = cache_dir / "metadata.json"
+    published_tokens = tokens_path.read_bytes()
+    published_metadata = metadata_path.read_bytes()
+    config["preprocessing"]["overwrite"] = True
+
+    def interrupt_write(**kwargs: Any) -> dict[str, Any]:
+        Path(kwargs["tokens_path"]).write_bytes(b"partial-token-cache")
+        raise RuntimeError("tokenization interrupted")
+
+    monkeypatch.setattr(data_module, "_write_token_cache", interrupt_write)
+
+    with pytest.raises(RuntimeError, match="tokenization interrupted"):
+        _load_partition_cache(
+            tmp_path,
+            config=config,
+            indices=indices,
+            expected_hash=frozen_hash,
+            loader=loader,
+            auto_tokenizer=auto_tokenizer,
+        )
+
+    assert tokens_path.read_bytes() == published_tokens
+    assert metadata_path.read_bytes() == published_metadata
+    assert not list(cache_dir.glob(".*.tmp"))
