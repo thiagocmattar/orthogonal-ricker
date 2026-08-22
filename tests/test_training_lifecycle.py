@@ -9,6 +9,26 @@ import yaml
 import paper_exp.training as training
 
 
+def test_checkpoint_manifest_path_is_run_relative(tmp_path: Path) -> None:
+    class Model:
+        def save_pretrained(self, path: Path, *, safe_serialization: bool) -> None:
+            assert safe_serialization is True
+            (path / "config.json").write_text("{}\n", encoding="utf-8")
+            (path / "model.safetensors").write_bytes(b"model")
+
+    config = {"checkpoint": {"save_final": True, "save_optimizer": False}}
+    metadata = training._save_final_checkpoint(
+        config,
+        tmp_path / "run",
+        Model(),
+        object(),
+        object(),
+    )
+
+    assert metadata["saved"] is True
+    assert metadata["path"] == "checkpoints/final"
+
+
 def test_training_dependency_failure_preserves_launch_record(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

@@ -26,8 +26,9 @@ def test_start_run_writes_launch_envelope_immediately(
         run_id="launch-test",
     )
 
-    assert run.config_id == "01-lifecycle"
+    assert run.config_id == "001-lifecycle"
     assert run.run_id == "001-launch-test"
+    assert run.tranche_id == "01-lifecycle-tests"
     assert run.run_dir.is_dir()
     assert yaml.safe_load((run.run_dir / "config.yaml").read_text(encoding="utf-8")) == config
     manifest = _read_manifest(run.run_dir)
@@ -37,6 +38,7 @@ def test_start_run_writes_launch_envelope_immediately(
     assert manifest["git_dirty"] is False
     assert manifest["command"] == "pytest lifecycle"
     assert manifest["mode"] == "pretrain"
+    assert manifest["tranche_id"] == "01-lifecycle-tests"
     assert not (run.run_dir / "metrics.json").exists()
     assert not (run.run_dir / "predictions.jsonl").exists()
     assert not list(run.run_dir.glob(".*.tmp"))
@@ -95,6 +97,30 @@ def test_complete_run_writes_completed_manifest_last(
     assert _read_jsonl(run.run_dir / "predictions.jsonl") == [
         {"id": 1, "prediction": "ok"}
     ]
+
+
+def test_manifest_paths_are_portable_inside_the_working_tree(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _stabilize_provenance(monkeypatch)
+    monkeypatch.chdir(tmp_path)
+    config, config_path = _write_config(tmp_path)
+
+    run = start_run(
+        config,
+        config_path=config_path,
+        command="pytest portable paths",
+        mode="pretrain",
+        run_id="portable",
+    )
+
+    manifest = _read_manifest(run.run_dir)
+    assert manifest["config_path"] == (
+        "experiments/01-lifecycle-tests/run/001-lifecycle.yaml"
+    )
+    assert manifest["result_path"] == (
+        "experiments/01-lifecycle-tests/raw/001-lifecycle/001-portable"
+    )
 
 
 def test_launch_manifest_snapshot_cannot_be_mutated_before_completion(
@@ -261,6 +287,9 @@ def _stabilize_provenance(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def _write_config(tmp_path: Path) -> tuple[dict[str, object], Path]:
+    scaffold = tmp_path / "experiments" / "01-lifecycle-tests"
+    for name in ("run", "raw", "figs"):
+        (scaffold / name).mkdir(parents=True, exist_ok=True)
     config: dict[str, object] = {
         "experiment_name": "lifecycle_test",
         "model": {
@@ -272,9 +301,9 @@ def _write_config(tmp_path: Path) -> tuple[dict[str, object], Path]:
         "data": {"name": "test/dataset", "split": "train"},
         "evaluation": {"metric": "training_loss"},
         "run": {"seed": 0, "max_examples": 1},
-        "output": {"dir": str(tmp_path / "results")},
+        "output": {"dir": str(scaffold / "raw")},
     }
-    config_path = tmp_path / "01-lifecycle.yaml"
+    config_path = scaffold / "run" / "001-lifecycle.yaml"
     config_path.write_text(yaml.safe_dump(config, sort_keys=False), encoding="utf-8")
     return config, config_path
 

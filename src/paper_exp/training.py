@@ -565,7 +565,7 @@ def _save_final_checkpoint(
 
     return {
         "saved": True,
-        "path": str(checkpoint_dir),
+        "path": "checkpoints/final",
         "size_mb": _directory_size_mb(checkpoint_dir),
         "optimizer_saved": optimizer_saved,
     }

@@ -16,6 +16,8 @@ from paper_exp.utils import read_json, write_jsonl
 
 from . import clipping_evaluation as _evaluation
 from .evaluation import eval_starts, select_device, select_dtype
+from .sources import portable_path as _portable_path
+from .sources import resolve_source_path
 
 
 def run_clipping_sweep(
@@ -358,14 +360,6 @@ def _site_suffix(sites: list[str] | None) -> str | None:
     return "sites-" + "-".join(site.replace("_", "-") for site in sites)
 
 
-def _portable_path(path: Path) -> str:
-    resolved = path.resolve()
-    try:
-        return resolved.relative_to(Path.cwd().resolve()).as_posix()
-    except ValueError:
-        return resolved.as_posix()
-
-
 def _validate_clipping_source(run_path: Path, manifest: Any) -> Path:
     missing = [name for name in CORE_RUN_ARTIFACTS if not (run_path / name).is_file()]
     if missing:
@@ -386,7 +380,7 @@ def _validate_clipping_source(run_path: Path, manifest: Any) -> Path:
     checkpoint = manifest.get("checkpoint")
     if not isinstance(checkpoint, dict) or checkpoint.get("saved") is not True:
         raise ValueError(f"Clipping source run has no saved checkpoint: {run_path}")
-    checkpoint_path = _resolve_source_path(checkpoint.get("path"), source_run=run_path)
+    checkpoint_path = resolve_source_path(checkpoint.get("path"), source_run=run_path)
     model_files = (
         checkpoint_path / "model.safetensors",
         checkpoint_path / "model.safetensors.index.json",
@@ -510,22 +504,3 @@ def _file_sha256(path: Path) -> str:
         for chunk in iter(lambda: handle.read(8 * 1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
-
-
-def _resolve_source_path(value: Any, *, source_run: Path) -> Path:
-    path_text = str(value or "").strip()
-    if not path_text:
-        raise ValueError(f"Source run has no checkpoint path: {source_run}")
-    recorded = Path(path_text)
-    if recorded.is_absolute():
-        return recorded.resolve()
-    repository_path = (Path.cwd() / recorded).resolve()
-    run_relative_path = (source_run / recorded).resolve()
-    try:
-        repository_path.relative_to(source_run.resolve())
-        return repository_path
-    except ValueError:
-        pass
-    if run_relative_path.exists() or not repository_path.exists():
-        return run_relative_path
-    return repository_path

@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from paper_exp.run import CORE_RUN_ARTIFACTS
-from paper_exp.utils import read_json
+from paper_exp.utils import portable_path, read_json
 
 
 STANDARD_CHECKPOINT_FILES = (
@@ -95,16 +95,6 @@ def resolve_source_path(value: Any, *, source_run: Path) -> Path:
     if run_relative_path.exists() or not repository_path.exists():
         return run_relative_path
     return repository_path
-
-
-def portable_path(path: Path) -> str:
-    """Represent a source path relative to the checkout when possible."""
-
-    resolved = path.resolve()
-    try:
-        return resolved.relative_to(Path.cwd().resolve()).as_posix()
-    except ValueError:
-        return resolved.as_posix()
 
 
 def validate_shared_validation_cache(

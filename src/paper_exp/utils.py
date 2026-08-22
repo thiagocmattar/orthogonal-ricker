@@ -94,6 +94,17 @@ def collect_package_versions() -> dict[str, str]:
     return versions
 
 
+def portable_path(path: str | Path, *, root: str | Path | None = None) -> str:
+    """Represent a path relative to the working tree when possible."""
+
+    resolved = Path(path).resolve()
+    base = Path(root).resolve() if root is not None else Path.cwd().resolve()
+    try:
+        return resolved.relative_to(base).as_posix()
+    except ValueError:
+        return resolved.as_posix()
+
+
 def build_manifest(
     *,
     config: dict[str, Any],
@@ -103,9 +114,11 @@ def build_manifest(
     mode: str,
     config_id: str | None = None,
     result_path: str | Path | None = None,
+    tranche_id: str | None = None,
 ) -> dict[str, Any]:
     return {
         "experiment_name": config["experiment_name"],
+        "tranche_id": tranche_id,
         "config_id": config_id or Path(config_path).stem,
         "run_id": run_id,
         "run_sequence": _run_sequence(run_id),
@@ -113,8 +126,10 @@ def build_manifest(
         "command": command,
         "git_commit": collect_git_commit(Path.cwd()),
         "git_dirty": collect_git_dirty(Path.cwd()),
-        "config_path": str(config_path),
-        "result_path": str(result_path) if result_path is not None else None,
+        "config_path": portable_path(config_path),
+        "result_path": (
+            portable_path(result_path) if result_path is not None else None
+        ),
         "mode": mode,
         "model_provider": config["model"]["provider"],
         "model_name": config["model"]["name"],

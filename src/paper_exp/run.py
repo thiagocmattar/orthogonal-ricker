@@ -14,6 +14,7 @@ from uuid import uuid4
 import yaml
 
 from paper_exp.config import validate_config, validate_smoke_config
+from paper_exp.launch import EXPERIMENTS_DIR_NAME, SCAFFOLD_NAME_RE
 from paper_exp.utils import build_manifest, write_json, write_jsonl
 
 RUN_SEQUENCE_RE = re.compile(r"^(\d{3})-")
@@ -32,6 +33,7 @@ class RunHandle:
     config_id: str
     run_id: str
     run_dir: Path
+    tranche_id: str | None
     _config_json: str = field(repr=False)
     _launch_manifest_json: str = field(repr=False)
 
@@ -63,6 +65,7 @@ def start_run(
     config_id, numbered_run_id, run_dir = create_run_dir(
         config_snapshot, config_path, run_id=run_id
     )
+    tranche_id = _tranche_id_from_run_dir(run_dir)
     _atomic_write_yaml(run_dir / "config.yaml", config_snapshot)
     manifest = build_manifest(
         config=config_snapshot,
@@ -72,6 +75,7 @@ def start_run(
         mode=mode,
         config_id=config_id,
         result_path=run_dir,
+        tranche_id=tranche_id,
     )
     manifest["status"] = "running"
     manifest["started_at"] = manifest["timestamp"]
@@ -81,6 +85,7 @@ def start_run(
         config_id=config_id,
         run_id=numbered_run_id,
         run_dir=run_dir,
+        tranche_id=tranche_id,
         _config_json=json.dumps(config_snapshot, sort_keys=True),
         _launch_manifest_json=json.dumps(manifest, sort_keys=True),
     )
@@ -252,6 +257,18 @@ def next_run_sequence(experiment_dir: Path) -> int:
         if match:
             existing.append(int(match.group(1)))
     return max(existing, default=0) + 1
+
+
+def _tranche_id_from_run_dir(run_dir: Path) -> str | None:
+    raw_dir = run_dir.parent.parent
+    scaffold_dir = raw_dir.parent
+    if (
+        raw_dir.name != "raw"
+        or scaffold_dir.parent.name != EXPERIMENTS_DIR_NAME
+        or SCAFFOLD_NAME_RE.fullmatch(scaffold_dir.name) is None
+    ):
+        return None
+    return scaffold_dir.name
 
 
 def write_run_artifacts(
