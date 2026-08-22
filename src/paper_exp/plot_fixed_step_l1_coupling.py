@@ -299,7 +299,7 @@ def build_figure(summary: CouplingSummary) -> Figure:
     axis.set_xlabel("Increase in MLP-hidden near-zero mass (pp vs AdamW)")
     axis.set_ylabel("Change in attention-output near-zero mass (pp vs AdamW)")
     axis.set_title(
-        "FFN-only L1 pressure: MLP versus attention-output sparsity",
+        "FFN-only L1 pressure: targeted versus untargeted near-zero mass",
         loc="left",
         fontweight="bold",
         pad=12,
@@ -312,7 +312,7 @@ def build_figure(summary: CouplingSummary) -> Figure:
     figure.text(
         0.13,
         0.91,
-        "Pythia-14M | 2,048 steps | seed 0 | pressure site: MLP hiddens only",
+        "Pythia-14M | 2,048 steps | seed 0 | pressure-loss site: MLP hiddens",
         fontsize=8.5,
         ha="left",
         va="center",
