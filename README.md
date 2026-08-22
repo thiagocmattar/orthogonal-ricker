@@ -69,7 +69,7 @@ cross-platform commands:
 python -m pip install -c constraints/requirements-ci.txt -e ".[dev]"
 python scripts/run_tests.py
 python -m paper_exp.cli check --strict
-python -m paper_exp.cli smoke --config configs/00-smoke.yaml
+python -m paper_exp.cli smoke --config experiments/00-infrastructure-smoke/run/00-smoke.yaml
 ```
 
 The smoke config is infrastructure-only. It writes and validates a tiny local
@@ -82,7 +82,8 @@ After the definitive plan is present and reviewed:
 
 1. Split the plan into ordered launch tranches, including separate screening
    and promotion tranches when later configs depend on earlier evidence.
-2. Give each tranche a thin numeric case runner and same-named config folder.
+2. Give each tranche one chronological scaffold containing its tracked runner
+   and configs plus its ignored raw outputs and figures.
 3. Commit the reviewed runner and configs before launch.
 4. Prepare the declared dataset cache.
 5. Run a calibration when no reliable same-hardware throughput estimate exists.
@@ -95,22 +96,22 @@ operations. The path below shows the naming pattern; it is not an allocated
 launch:
 
 ```bash
-make prepare-data CONFIG=configs/NN-phase-tranche/CCC-case.yaml
-make calibrate CONFIG=configs/NN-phase-tranche/CCC-case.yaml
+make prepare-data CONFIG=experiments/NN-phase-tranche/run/CCC-case.yaml
+make calibrate CONFIG=experiments/NN-phase-tranche/run/CCC-case.yaml
 ```
 
 Every definitive training tranche, even one containing a single config, uses
 its committed case runner:
 
 ```bash
-python runners/NN-phase-tranche.py
+python experiments/NN-phase-tranche/run/runner.py
 ```
 
 The case runner contains only the ordered config paths and delegates to
-`paper_exp.runner.run_launch`. Its numeric prefix serializes launches; its
+`paper_exp.runner.run_launch`. Its scaffold prefix serializes launches; its
 phase label maps it to the plan. The parent validates the complete tranche,
-requires the matching config folder, and stops on the first failure. See
-[`runners/README.md`](runners/README.md).
+requires every config to be a direct sibling of the runner, and stops on the
+first failure. See [`experiments/README.md`](experiments/README.md).
 
 Before launch, report the estimated time to completion (ETC) for the first run
 and the complete tranche, including the estimate basis and uncertainty. Monitor
@@ -121,10 +122,13 @@ and retry requirements.
 
 ## Artifacts
 
-Run outputs are stored under:
+Each chronological tranche is self-contained:
 
 ```text
-results/<config-id>/<run-id>/
+experiments/NN-<phase>-<tranche>/
+  run/                 # tracked runner and immutable configs
+  raw/<config-id>/<run-id>/
+  figs/                # generated figures and provenance
 ```
 
 A completed pretraining run contains at least:
@@ -141,11 +145,12 @@ checkpoints/final/    # when required by the config
 The launch config and provenance are written before work begins. A completed
 manifest is published only after required outputs are durable; an escaping
 exception leaves a failed terminal manifest. See
-[`results/README.md`](results/README.md).
+[`experiments/README.md`](experiments/README.md).
 
-Local datasets, token caches, results, logs, and generated figures are not
-source files and are ignored by Git. Paper figures must nevertheless be fully
-regenerable from pinned saved artifacts.
+Local datasets, token caches, payloads beneath each `raw/`, and generated
+figures beneath each `figs/` are ignored by Git. Scaffold directories and all
+`run/` contents remain tracked so every attempt has a reproducible recipe.
+Paper figures must be fully regenerable from pinned saved artifacts.
 
 The wheel contains the Python library and console entry point, not repository
 configs or the experiment plan. Experiment execution is checkout-scoped: pass
@@ -158,8 +163,9 @@ the distribution boundary remains explicit.
 Generate a supported diagnostic figure from one saved run with:
 
 ```bash
-make plot KIND=run RUN_DIR=results/<config-id>/<run-id> \
-  OUTPUT=figures/01-run-diagnostics.pdf PNG=1
+make plot KIND=run \
+  RUN_DIR=experiments/NN-phase-tranche/raw/<config-id>/<run-id> \
+  OUTPUT=experiments/NN-phase-tranche/figs/01-run-diagnostics.pdf PNG=1
 ```
 
 Supported plot kinds are listed by `paper-exp plot --help`. The clean plotting
@@ -170,10 +176,8 @@ boundary, deterministic provenance sidecar, and publication requirements are doc
 
 - `src/paper_exp/`: training, methods, diagnostics, lifecycle, runner, and
   plotting implementation.
-- `runners/`: thin, numerically ordered case runners; currently only the
-  convention document.
-- `configs/`: one matching folder per launch; currently only the non-paper
-  smoke config.
+- `experiments/`: chronological tranche scaffolds; tracked recipes live in
+  `run/`, ignored attempts in `raw/`, and ignored generated figures in `figs/`.
 - `exp-plan-v0.md`: non-final structural preview supplied by the repository
   owner.
 - `docs/experiment_plan.md`: authoritative definitive plan once supplied.
@@ -182,8 +186,6 @@ boundary, deterministic provenance sidecar, and publication requirements are doc
 - `docs/runbook.md`: launch, monitoring, ETC, and terminal verification.
 - `docs/plotting.md`: artifact-to-figure contract.
 - `docs/code_map.md`: code ownership and change routes.
-- `results/`: ignored run artifacts.
-- `figures/`: ignored generated figures.
 - `tests/`: focused scientific and infrastructure contracts.
 
 ## Releasing and Citing

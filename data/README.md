@@ -5,14 +5,16 @@ committed.
 
 The definitive experiment plan will name the dataset, revision, tokenizer,
 splits, preprocessing, partitions, and license requirements. Do not infer those
-choices from historical caches or `configs/00-smoke.yaml`.
+choices from historical caches or
+`experiments/00-infrastructure-smoke/run/00-smoke.yaml`.
 
 After a scientific config is authorized:
 
 ```bash
-make prepare-data CONFIG=configs/01-example.yaml
+make prepare-data CONFIG=experiments/01-example-tranche/run/001-example.yaml
 # or
-paper-exp prepare-data --config configs/01-example.yaml
+paper-exp prepare-data \
+  --config experiments/01-example-tranche/run/001-example.yaml
 ```
 
 A token cache must record enough metadata to reject incompatible reuse:

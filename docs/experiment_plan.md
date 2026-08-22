@@ -28,8 +28,9 @@ Until that review is complete:
 - do not launch calibration, pretraining, diagnostics, or paper plotting as
   scientific evidence.
 
-The infrastructure-only `configs/00-smoke.yaml` may be used to test the harness.
-Its settings are not part of the future experiment plan.
+The infrastructure-only
+`experiments/00-infrastructure-smoke/run/00-smoke.yaml` may be used to test the
+harness. Its settings are not part of the future experiment plan.
 
 ## Required Plan Content
 
@@ -75,12 +76,14 @@ must remain `TODO:` rather than being guessed.
 - calibration basis for ETC estimates;
 - storage, hardware, and completion gates.
 
-Every definitive training tranche gets one numeric case runner and matching
-config folder, including a tranche with only one config. Screening,
-review-dependent selection, and promotion are separate launches. The shared
-parent executes each tranche sequentially under one lock. Until another
-workflow has a reviewed sequential contract, launch its configs one at a time.
-The launch handoff must include current-run and full-tranche ETCs.
+Every definitive training tranche gets one chronological
+`experiments/NN-<phase>-<tranche>/` scaffold, including a tranche with only one
+config. Its tracked `run/` owns the runner and configs; ignored `raw/` and
+`figs/` own generated attempts and figures. Screening, review-dependent
+selection, and promotion are separate launches. The shared parent executes
+each tranche sequentially under one lock. Until another workflow has a
+reviewed sequential contract, launch its configs one at a time. The launch
+handoff must include current-run and full-tranche ETCs.
 
 ### Paper Outputs
 

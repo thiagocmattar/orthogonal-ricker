@@ -87,7 +87,9 @@ changes the validated canvas and PDF MediaBox.
 Render one saved artifact with:
 
 ```bash
-make plot KIND=<kind> RUN_DIR=<run-dir> OUTPUT=figures/01-name.pdf [PNG=1]
+make plot KIND=<kind> \
+  RUN_DIR=experiments/NN-phase-tranche/raw/<config>/<run> \
+  OUTPUT=experiments/NN-phase-tranche/figs/01-name.pdf [PNG=1]
 ```
 
 or:
@@ -95,8 +97,8 @@ or:
 ```bash
 paper-exp plot \
   --kind <kind> \
-  --run-dir results/<config-id>/<run-id> \
-  --output figures/01-name.pdf \
+  --run-dir experiments/NN-phase-tranche/raw/<config-id>/<run-id> \
+  --output experiments/NN-phase-tranche/figs/01-name.pdf \
   --png
 ```
 
@@ -113,8 +115,9 @@ Every kind requires the run's exact `config.yaml` and a terminal
 | `weight-histograms` | `weight_histograms.json` | Pooled saved weight distributions |
 | `activation-propagation` | `activation_propagation.json` | Activation exact-zero and logical zero-product heatmaps |
 
-These are explicit diagnostic views, not a paper cohort registry. Each export
-writes a deterministic `.provenance.json` sidecar with source identities and
+These are explicit diagnostic views, not a paper cohort registry. A single-run
+export must use the source run's scaffold `figs/` directory. Each export writes
+a deterministic `.provenance.json` sidecar with scaffold/source identities and
 SHA-256 hashes for every required input and generated output.
 
 ## Visual Integrity
@@ -162,7 +165,7 @@ When the definitive plan adds a paper figure, add one row to
 - claim or purpose;
 - exact config IDs;
 - exact pinned run IDs and specialized artifacts;
-- numbered output filename;
+- exact owning scaffold and numbered `figs/` output filename;
 - deterministic regeneration command.
 
 A strict figure suite resolves every input before calling any renderer. On
@@ -191,5 +194,6 @@ Before replacing a paper artifact:
 5. Run `make test` and `make check`.
 6. Promote atomically and verify the provenance sidecar.
 
-Generated figures are ignored by default. Track only the paper artifacts and
-provenance explicitly selected for release by the reviewed plan.
+Generated files beneath every scaffold's `figs/` are ignored by default. Track
+only paper artifacts and provenance explicitly selected for release by the
+reviewed plan.

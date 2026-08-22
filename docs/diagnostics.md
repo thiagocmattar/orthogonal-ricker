@@ -7,9 +7,13 @@ diagnostics are required for each run.
 
 ## General Measurement Rules
 
-- Evaluate only the exact config/run checkpoint named by the diagnostic input.
-- Record source config ID, run ID, manifest status, checkpoint path, validation
-  cache identity, and code provenance.
+- Evaluate only the exact scaffold/config/run checkpoint named by the
+  diagnostic input.
+- Record source `tranche_id`, config ID, run ID, manifest status, checkpoint
+  path, validation cache identity, and code provenance.
+- Resolve sources only at
+  `experiments/<tranche_id>/raw/<config_id>/<run_id>`; never scan scaffolds or
+  choose a latest attempt.
 - Use deterministic validation ordering and document-disjoint partitions when
   the plan requires selection and confirmation data.
 - Record integer numerators and denominators whenever a metric is a fraction.
@@ -234,7 +238,7 @@ never collapse PRE and POST ports into an ambiguous `z_q` or `z_k` column.
 Accompany the table with:
 
 - architecture, method, gate, and pressure settings;
-- exact config/run links and diagnostic artifact;
+- exact scaffold/config/run links and diagnostic artifact;
 - validation-token and seed counts;
 - matched deltas against the same-architecture optimizer control;
 - matched orthogonal-versus-naive deltas when defined;

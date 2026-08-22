@@ -21,8 +21,8 @@ After those decisions:
       their contents, install the wheel, and exercise the `paper-exp` entry point.
 - [ ] Run one documented smoke experiment and verify its terminal artifact
       envelope.
-- [ ] Decide which compact results and figures, if any, are release artifacts;
-      do not publish old local outputs by accident.
+- [ ] Decide which compact scaffold `raw/` and `figs/` artifacts, if any, are
+      release artifacts; do not publish old local outputs by accident.
 - [ ] Review tracked files for credentials, private data, usernames, absolute
       paths, and machine-specific launch commands.
 - [ ] Review third-party dataset, model, and dependency terms and acknowledgments.

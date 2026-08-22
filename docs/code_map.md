@@ -9,14 +9,15 @@ owning module here before editing code. Scientific definitions live in
 ## Execution Boundaries
 
 ```text
-case runner -> runner.py -> ordered configs -> training.py -> run artifacts
-CLI --------> workflow module ------------------------------> run artifacts
-pinned run artifacts -> plots/dispatch.py -> family renderer -> PDF/PNG
+scaffold run/runner.py -> runner.py -> sibling configs -> training.py -> scaffold raw/
+CLI ------------------> workflow module -------------------------------> scaffold raw/
+pinned scaffold raw/ -> plots/dispatch.py -> family renderer -> scaffold figs/
 ```
 
 - `cli.py` exposes single-workflow commands; it is not a scientific queue.
-- Every definitive training tranche enters through one numbered script in
-  `runners/`, even when the tranche contains one config.
+- Every definitive training tranche enters through
+  `experiments/NN-<phase>-<tranche>/run/runner.py`, even when the tranche
+  contains one config.
 - `runner.py` is the only parent runner. It validates the whole tranche, holds
   one lock, and launches its committed configs serially.
 - Diagnostics consume exact saved run/checkpoint identities. Plots consume
@@ -32,8 +33,8 @@ Paths below are relative to `src/paper_exp/`.
 | `cli.py` | Public commands, arguments, lightweight parsing, and dispatch | A workflow gains or changes a user-facing command |
 | `config.py` | YAML loading; common, training, and diagnostic schema validation; random-initialization plus `model.topology_id`/`model.site_gate` contracts | A reviewed config field or invariant changes |
 | `topology.py` | Canonical transformer-site aliases, exact site metadata, supported topology IDs, active-port sets, and site-gate schema | Site nomenclature, a reviewed topology, or the gate-field contract changes |
-| `launch.py` | Repository/config resolution, reviewed-plan and clean-Git gates, portable output roots, and the exclusive lock | Launch-wide preflight policy changes |
-| `runner.py` | Generic parent runner, numeric runner/config naming, whole-tranche preflight, serial fail-stop execution | Behavior shared by every case runner changes |
+| `launch.py` | Repository/scaffold/config resolution, reviewed-plan and clean-Git gates, owned `raw/` output roots, and the exclusive lock | Launch-wide preflight policy changes |
+| `runner.py` | Generic parent runner, scaffold and config naming, whole-tranche preflight, serial fail-stop execution | Behavior shared by every case runner changes |
 | `run.py` | Run IDs, immutable config snapshot, running/completed/failed manifests, and atomic artifact writes | The common run envelope or lifecycle changes |
 | `training.py` | Calibration/pretraining orchestration, evaluation, event logging, and final checkpoint publication | The end-to-end training workflow changes |
 | `optimization.py` | AdamW construction, minibatch sampling, LR warmup, naive L1 steps, OL1 post-Adam correction, and norm metrics | Optimizer-step mathematics or step metrics change |
@@ -42,7 +43,7 @@ Paths below are relative to `src/paper_exp/`.
 | `activations.py` | Capture and clipping hooks for canonical sites plus exact-zero counts | Capture/replacement behavior changes without changing site nomenclature |
 | `data.py` | Dataset/tokenizer loading, document handling, token-cache construction, metadata, and compatibility checks | Data preparation or cache identity changes |
 | `reproducibility.py` | Deterministic training schedules and document-disjoint validation partitions and hashes | Sampling or partition contracts change |
-| `integrity.py` | Read-only checks for configs, runner/config numbering, current or indexed run envelopes, indexed figures, and document references | A durable repository invariant changes |
+| `integrity.py` | Read-only checks for scaffold shape, runner/config numbering, current or indexed `raw/` envelopes, indexed `figs/`, and document references | A durable repository invariant changes |
 | `utils.py` | Small JSON/JSONL and environment/Git/GPU/package provenance helpers | A cross-workflow serialization or provenance primitive changes |
 
 The scientific entry points are tested primarily in
@@ -135,8 +136,8 @@ tests, and new immutable configs.
 | Data or partitioning | `experiment_plan.md`, `methods.md` | `data.py`, `reproducibility.py` | Cache identity, manifests, plan-authorized configs |
 | Diagnostic | `diagnostics.md` | One focused `diagnostics/` workflow | Source pinning, schema, lifecycle, plot consumer |
 | Figure | `experiment_plan.md`, `paper_map.md`, `plotting.md` | One focused `plots/` renderer | Pure reduction tests, style, provenance, both output formats |
-| Run artifact lifecycle | `results/README.md`, `runbook.md` | `run.py` | Training/diagnostic callers, integrity checks |
-| Launch sequencing | `experiment_plan.md`, `runbook.md` | Thin `runners/NN-*.py`; shared behavior in `runner.py` | Matching config folder, numeric order, ETC procedure |
+| Run artifact lifecycle | `../experiments/README.md`, `runbook.md` | `run.py` | Training/diagnostic callers, integrity checks |
+| Launch sequencing | `experiment_plan.md`, `runbook.md` | Thin `experiments/NN-*/run/runner.py`; shared behavior in `runner.py` | Sibling configs, scaffold ownership, numeric order, ETC procedure |
 
 Use the smallest focused tests while editing. Before handoff, run `make test`
 and `make check`; run `make smoke` when lifecycle or release plumbing changes.

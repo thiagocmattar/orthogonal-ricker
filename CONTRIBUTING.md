@@ -18,13 +18,15 @@ and Windows. Dependency updates must update that snapshot intentionally and
 pass the full matrix.
 
 `make test` removes its repository-local pytest scratch directory even when the
-test process fails. Generated datasets, run outputs, logs, and figures remain
-ignored unless a release plan explicitly selects them.
+test process fails. Each tranche lives under `experiments/`: Git tracks its
+`run/` recipe and ignores generated payloads beneath its `raw/` and `figs/`
+directories unless a release plan explicitly selects them.
 
 ## Change expectations
 
 - Keep code, configs, documentation, result records, and plot labels in English.
-- Give every experiment a committed config before launch.
+- Give every experiment a committed chronological scaffold, runner, and config
+  before launch.
 - Preserve random initialization for Pythia pretraining unless a continuation
   or fine-tuning experiment explicitly calls for checkpoint weights.
 - Keep `l1_naive` (L1) and `orthogonal_l1` (OL1) distinct in configs, metrics,

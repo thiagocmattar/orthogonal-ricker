@@ -12,8 +12,10 @@ Scientific work remains blocked while the definitive plan says:
 Plan status: placeholder
 ```
 
-The infrastructure-only `configs/00-smoke.yaml` is exempt. A scientific launch
-requires a reviewed plan, committed configs and runner, and a clean checkout.
+The infrastructure-only
+`experiments/00-infrastructure-smoke/run/00-smoke.yaml` is exempt. A
+scientific launch requires a reviewed plan, committed scaffold recipe, and a
+clean checkout.
 Once attempted, a config is immutable. A scientific change gets a new config;
 an infrastructure retry gets a new run attempt under the same config.
 
@@ -23,18 +25,20 @@ The plan's phases do not map one-to-one to processes. A screen, a
 review-dependent selection, and a promotion are separate launches because the
 later config list does not exist until earlier evidence is reviewed.
 
-Use one numeric launch ID and keep the phase/tranche in the name:
+Use one numeric scaffold ID and keep the phase/tranche in the name:
 
 ```text
-runners/NN-<phase>-<tranche>.py
-configs/NN-<phase>-<tranche>/
-
-configs/NN-<phase>-<tranche>/CCC-<case>.yaml
+experiments/NN-<phase>-<tranche>/
+  run/
+    runner.py
+    CCC-<case>.yaml
+  raw/
+  figs/
 ```
 
-Runner numbers define launch order. Config numbers are globally unique and
-define run order across folders. Do not reserve or create later launch files
-before their inputs and promotion rules are known.
+Scaffold numbers define launch order. Config numbers are globally unique and
+define case order across scaffolds. Do not reserve or create later scaffold
+recipes before their inputs and promotion rules are known.
 
 Each case runner contains only an ordered `CONFIGS` tuple and a call to
 `paper_exp.runner.run_launch`. Shared mechanics belong in the parent; science
@@ -68,21 +72,22 @@ Single-config data preparation and throughput calibration commands remain
 available:
 
 ```bash
-make prepare-data CONFIG=configs/<launch-id>/<config>.yaml
-make calibrate CONFIG=configs/<launch-id>/<config>.yaml
+make prepare-data CONFIG=experiments/<scaffold>/run/<config>.yaml
+make calibrate CONFIG=experiments/<scaffold>/run/<config>.yaml
 ```
 
 Run every definitive training tranche through its case runner, including a
 tranche with only one config:
 
 ```bash
-python runners/NN-phase-tranche.py
+python experiments/NN-phase-tranche/run/runner.py
 ```
 
 The parent runner:
 
 - requires the runner and configs to be tracked;
-- requires the matching config folder;
+- requires every config to be a direct sibling of the scaffold runner;
+- requires each config's `output.dir` to name that scaffold's exact `raw/`;
 - validates the full ordered config list before starting;
 - holds one repository launch lock;
 - executes one config at a time;
@@ -98,7 +103,8 @@ Inspect the active run's `manifest.json` and `events.jsonl`, plus the exact
 runner process, GPU state, and free disk space. Report:
 
 - completed, active, failed, and remaining configs in the case runner;
-- active config, run directory, step, tokens seen, and latest event time;
+- active scaffold, config, run directory, step, tokens seen, and latest event
+  time;
 - latest finite task and method-specific metrics;
 - recent throughput;
 - updated current-run and full-tranche ETCs;
@@ -112,8 +118,8 @@ PID, GPU ownership, or elapsed time.
 After each run:
 
 1. Read the terminal manifest.
-2. Verify config/run identity, launch provenance, completed budget, and finite
-   required metrics.
+2. Verify scaffold/config/run identity, launch provenance, completed budget,
+   and finite required metrics.
 3. Verify `config.yaml`, `manifest.json`, `metrics.json`, `predictions.jsonl`,
    `events.jsonl`, and required checkpoints.
 4. Run method-specific checks before using the run as diagnostic or paper input.
@@ -125,7 +131,7 @@ directory. A changed scientific input creates a new config.
 
 ## 7. Handoff
 
-A live handoff states the Git SHA, exact case runner, ordered configs,
+A live handoff states the Git SHA, exact scaffold and case runner, ordered configs,
 completed/active/remaining counts, active run and process, latest metrics,
 current-run and full-tranche ETCs, failures, and next plan-authorized action.
 The receiving agent verifies files and processes; chat text is not evidence.
