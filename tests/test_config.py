@@ -30,12 +30,6 @@ def test_required_config_fields_are_checked() -> None:
         validate_config(config, allow_todos=True)
 
 
-def test_smoke_config_is_valid_with_harness_placeholders_allowed() -> None:
-    config = load_config("configs/00-smoke.yaml", allow_todos=True)
-
-    validate_config(config, allow_todos=True)
-
-
 def test_todo_placeholders_can_be_rejected() -> None:
     config = {
         "experiment_name": "todo_config",
@@ -56,12 +50,12 @@ def test_todo_placeholders_can_be_rejected() -> None:
 
 
 def test_config_filenames_must_be_numbered() -> None:
+    validate_config_filename("100-diagnostic.yaml")
+
     with pytest.raises(ConfigError, match="at least two digits"):
         validate_config_filename("baseline.yaml")
-
-
-def test_config_filenames_allow_three_digit_prefixes() -> None:
-    validate_config_filename("100-diagnostic.yaml")
+    with pytest.raises(ConfigError, match=r"\.yaml"):
+        validate_config_filename("100-diagnostic.yml")
 
 
 def test_pretraining_configs_must_use_random_initialization() -> None:
@@ -303,130 +297,6 @@ def test_post_qkv_relu_accepts_fixed_one_sided_threshold(placement: str) -> None
 
 
 @pytest.mark.parametrize(
-    "gate_type",
-    ["learned_one_sided_threshold", "learned_symmetric_threshold"],
-)
-def test_post_qkv_relu_accepts_learned_threshold_contract(gate_type: str) -> None:
-    config = _post_qkv_config(
-        {
-            "enabled": True,
-            "query": True,
-            "key": True,
-            "value": True,
-            "qk_placement": "post_rope",
-            "gate_type": gate_type,
-            "kappa_init": 0.1,
-            "kappa_scope": "per_layer_site",
-            "threshold_scale": "rms_relative",
-            "surrogate": "hard_forward_soft_backward",
-            "temperature": 0.03,
-        }
-    )
-    config["training"] = {"threshold_learning_rate_multiplier": 1.0}
-    config["checkpoint"] = {"save_final": True, "save_optimizer": True}
-
-    validate_config(config, allow_todos=False)
-
-
-def test_learned_a6_global_gate_contract_is_accepted_only_when_shared_settings_match() -> None:
-    gate = {
-        "gate_type": "learned_one_sided_threshold",
-        "kappa_init": 0.1,
-        "kappa_scope": "global",
-        "threshold_scale": "absolute",
-        "surrogate": "hard_forward_soft_backward",
-        "temperature": 0.03,
-    }
-    config = _post_qkv_config(
-        {
-            "enabled": True,
-            "query": True,
-            "key": True,
-            "value": True,
-            "qk_placement": "post_rope",
-            **gate,
-        }
-    )
-    config["model"].update(
-        {
-            "hidden_act": "relu",
-            "post_layernorm_relu": True,
-            "post_layernorm_gate": dict(gate),
-            "mlp_hidden_gate": dict(gate),
-        }
-    )
-    config["training"] = {"threshold_learning_rate_multiplier": 1.0}
-    config["checkpoint"] = {"save_final": True, "save_optimizer": True}
-
-    validate_config(config, allow_todos=False)
-
-    config["model"]["mlp_hidden_gate"]["temperature"] = 0.1
-    with pytest.raises(ConfigError, match="identical learned gate settings"):
-        validate_config(config, allow_todos=False)
-
-
-@pytest.mark.parametrize(
-    ("mutation", "message"),
-    [
-        ({"kappa_init": 0.0}, "kappa_init"),
-        ({"temperature": 0.0}, "temperature"),
-        ({"kappa_scope": "channel"}, "kappa_scope"),
-        ({"threshold_scale": "batch"}, "threshold_scale"),
-        ({"surrogate": "identity_ste"}, "surrogate"),
-    ],
-)
-def test_learned_threshold_rejects_invalid_gate_fields(
-    mutation: dict[str, object],
-    message: str,
-) -> None:
-    gate = {
-        "enabled": True,
-        "query": True,
-        "key": True,
-        "value": True,
-        "qk_placement": "post_rope",
-        "gate_type": "learned_symmetric_threshold",
-        "kappa_init": 0.1,
-        "kappa_scope": "per_layer_site",
-        "threshold_scale": "absolute",
-        "temperature": 0.03,
-        **mutation,
-    }
-    config = _post_qkv_config(gate)
-    config["training"] = {"threshold_learning_rate_multiplier": 1.0}
-    config["checkpoint"] = {"save_final": True, "save_optimizer": True}
-
-    with pytest.raises(ConfigError, match=message):
-        validate_config(config, allow_todos=False)
-
-
-def test_learned_threshold_requires_dedicated_lr_and_optimizer_checkpoint() -> None:
-    config = _post_qkv_config(
-        {
-            "enabled": True,
-            "query": True,
-            "key": True,
-            "value": False,
-            "qk_placement": "pre_rope",
-            "gate_type": "learned_one_sided_threshold",
-            "kappa_init": 0.1,
-            "kappa_scope": "per_layer_site",
-            "threshold_scale": "absolute",
-            "temperature": 0.03,
-        }
-    )
-    config["training"] = {}
-    config["checkpoint"] = {"save_final": True, "save_optimizer": False}
-
-    with pytest.raises(ConfigError, match="threshold_learning_rate_multiplier"):
-        validate_config(config, allow_todos=False)
-
-    config["training"]["threshold_learning_rate_multiplier"] = 1.0
-    with pytest.raises(ConfigError, match="save_optimizer"):
-        validate_config(config, allow_todos=False)
-
-
-@pytest.mark.parametrize(
     ("extra", "message"),
     [
         ({"gate_type": "unknown"}, "gate_type"),
@@ -593,7 +463,6 @@ def _definitive_training_config() -> dict[str, object]:
             "adamw_betas": [0.9, 0.999],
             "adamw_eps": 1.0e-8,
             "weight_decay": 0.01,
-            "threshold_learning_rate_multiplier": None,
         },
         "validation": {"enabled": False},
         "checkpoint": {"save_final": True, "save_optimizer": False},

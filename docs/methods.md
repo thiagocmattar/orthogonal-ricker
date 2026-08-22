@@ -63,28 +63,12 @@ element-count weighting is a scientific change.
 Pressure methods use the task objective and pressure objective as distinct
 quantities. They must be logged separately.
 
-## Ricker Pressure
+The pressure-method identifiers are intentionally limited to:
 
-For activation value `a`, center scale `c > 0`, and width `sigma > 0`, define:
-
-```text
-r(a; c, sigma) = (1 - a^2 / c^2) exp(-a^2 / (2 sigma^2))
-```
-
-For captured tensors `A_1, ..., A_J`, the implemented pressure is:
-
-```text
-L_R = 1 - (1/J) sum_j mean_{a in A_j} r(a; c, sigma)
-```
-
-The method identifier `ricker_naive` optimizes:
-
-```text
-L_task + weight * L_R
-```
-
-It is a direct auxiliary-loss comparator. It does not use the Adam-step
-projection or trust budget.
+- `none`: capture and log configured activation sites without adding pressure;
+- `l1_naive`: add the L1 activation objective directly to task loss;
+- `orthogonal_l1`: apply L1 pressure after the task-only AdamW step using the
+  conflict-removal and trust-budget geometry below.
 
 ## L1 Activation Pressure
 
@@ -104,8 +88,8 @@ It is distinct from weight regularization and from hard activation thresholding.
 
 ## Adam-Step Orthogonal Pressure
 
-`orthogonal_ricker` and `orthogonal_l1` use the Ricker and L1 pressure sources
-above but do not give pressure gradients to AdamW's moment updates.
+`orthogonal_l1` uses the L1 pressure source above but does not give pressure
+gradients to AdamW's moment updates.
 
 At an optimizer boundary:
 
@@ -160,9 +144,6 @@ Important boundaries:
 - Direction norms and projection are computed before per-group learning rates
   are applied. With heterogeneous learning rates, this is not true joint
   parameter-update-space geometry.
-- In particular, learned-threshold parameters with a learning-rate multiplier
-  require a reviewed heterogeneous-rate extension before orthogonal pressure
-  can be claimed to have the same geometry for model and threshold parameters.
 - `step_budget` caps the final pressure/task direction ratio; it is not a
   sparsity target or convergence guarantee.
 
@@ -190,51 +171,6 @@ exact zeros but do not make dense kernels skip work.
 Implemented architecture hooks can place gates at the post-LayerNorm attention
 and MLP inputs, the MLP hidden activation, and selected post-QKV Q/K/V sites.
 Q/K placement must explicitly state PRE- or POST-RoPE semantics.
-
-## Learned Adaptive Threshold Gates
-
-Learned one-sided and signed-magnitude gates parameterize a positive threshold:
-
-```text
-kappa = softplus(rho)
-```
-
-`rho` is owned once by a threshold controller and remains FP32. Supported
-parameter scopes are:
-
-- `global`: one threshold for every compatible active learned gate;
-- `per_site`: one threshold for each stable site alias;
-- `per_layer_site`: one threshold for each layer/site pair.
-
-For one-sided gates, `score(x) = x`; for signed gates,
-`score(x) = |x|`. Absolute scaling compares the score directly with `kappa`.
-RMS-relative scaling computes:
-
-```text
-r = max(sqrt(mean(x^2)), rms_epsilon)
-normalized_score = score(x) / r
-```
-
-The RMS and score paths are detached. The hard forward mask is:
-
-```text
-m_h = 1[normalized_score >= kappa]
-```
-
-For temperature `tau > 0`, the threshold-only surrogate is:
-
-```text
-m_s = sigmoid((normalized_score - kappa) / tau)
-m = m_s + stop_gradient(m_h - m_s)
-output = x * m
-```
-
-The forward value is the exact hard gate. The soft path supplies gradients to
-`rho`; the input gradient remains the hard zero-or-one mask. A learned-gate
-config must specify a positive `kappa_init`, scope, scale, temperature, RMS
-epsilon where relevant, and an explicit threshold learning-rate multiplier.
-Checkpoint reconstruction must restore both the gate topology and threshold
-parameters. Training continuation also requires compatible optimizer state.
 
 ## Post-hoc Activation Clipping
 

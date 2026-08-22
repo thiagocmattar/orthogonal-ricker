@@ -11,12 +11,18 @@ import numpy as np
 import pytest
 import yaml
 
-import paper_exp.activation_histograms as activation_histograms
-import paper_exp.activation_propagation as activation_propagation
-import paper_exp.clipping as clipping
+import paper_exp.diagnostics.activation_histograms as activation_histograms
+import paper_exp.diagnostics.propagation as activation_propagation
+import paper_exp.diagnostics.clipping as clipping
+import paper_exp.diagnostics.clipping_evaluation as clipping_evaluation
 import paper_exp.data as data
 import paper_exp.run as run_module
-import paper_exp.weight_histograms as weight_histograms
+import paper_exp.diagnostics.weight_histograms as weight_histograms
+from paper_exp.diagnostics.sources import (
+    find_source_run,
+    portable_path,
+    source_checkpoint_path,
+)
 
 
 @pytest.mark.parametrize(
@@ -122,7 +128,11 @@ def test_clipping_dependency_failure_is_recorded(
         _assert_running(run_dir, mode="clip-sweep")
         raise RuntimeError("dependency load failed")
 
-    monkeypatch.setattr(clipping, "_load_clipping_dependencies", fail_dependencies)
+    monkeypatch.setattr(
+        clipping_evaluation,
+        "_load_clipping_dependencies",
+        fail_dependencies,
+    )
 
     with pytest.raises(RuntimeError, match="dependency load failed"):
         clipping.run_clipping_sweep(
@@ -167,37 +177,40 @@ def test_clipping_rejects_noncompleted_source_before_launch(tmp_path: Path) -> N
     assert not list(Path(config["output"]["dir"]).glob("14-source-clip-*"))
 
 
-@pytest.mark.parametrize(
-    ("module", "section"),
-    [
-        (activation_histograms, "activation_histograms"),
-        (weight_histograms, "weight_histograms"),
-    ],
-)
-def test_histogram_source_selection_requires_one_exact_completed_run(
+def test_source_selection_requires_one_exact_completed_checkpoint_run(
     tmp_path: Path,
-    module: Any,
-    section: str,
 ) -> None:
     config_id = "15-source"
     run_id = "001-pinned"
     run_dir = _write_completed_source(tmp_path, config_id=config_id, run_id=run_id)
     config = {"output": {"dir": str(tmp_path / "results")}}
 
-    assert module._find_source_run(
+    assert find_source_run(
         config,
         {"config_id": config_id, "run_id": run_id},
+        section="activation_histograms",
     ) == run_dir
     with pytest.raises(ValueError, match="exact config_id and run_id"):
-        module._find_source_run(config, {"config_id": config_id})
+        find_source_run(
+            config,
+            {"config_id": config_id},
+            section="activation_histograms",
+        )
 
     manifest = _read_manifest(run_dir)
+    assert source_checkpoint_path(run_dir, manifest) == (
+        run_dir / "checkpoints" / "final"
+    ).resolve()
+    with pytest.raises(ValueError, match="no saved checkpoint"):
+        source_checkpoint_path(run_dir, {"config_id": config_id})
+
     manifest["status"] = "running"
     _write_json(run_dir / "manifest.json", manifest)
     with pytest.raises(ValueError, match="not completed"):
-        module._find_source_run(
+        find_source_run(
             config,
             {"config_id": config_id, "run_id": run_id},
+            section="activation_histograms",
         )
 
 
@@ -220,15 +233,6 @@ def test_activation_histograms_require_shared_requested_validation_identity(
         "partition_seed": 7,
         "source_document_indices_sha256": "a" * 64,
     }
-    manifests = [
-        {"config_id": "source-a", "tokenized_data": {"validation": reference}},
-        {
-            "config_id": "source-b",
-            "tokenized_data": {"validation": dict(reference)},
-        },
-    ]
-
-    activation_histograms._validate_shared_validation_cache(manifests, reference)
     activation_histograms._validate_requested_validation_cache(
         {
             "split": "validation",
@@ -247,12 +251,6 @@ def test_activation_histograms_require_shared_requested_validation_identity(
         tokens_path.resolve()
     )
 
-    manifests[1]["tokenized_data"]["validation"] = {
-        **reference,
-        "tokens_sha256": "b" * 64,
-    }
-    with pytest.raises(ValueError, match="tokens_sha256"):
-        activation_histograms._validate_shared_validation_cache(manifests, reference)
     with pytest.raises(ValueError, match="partition hash"):
         activation_histograms._validate_requested_validation_cache(
             {
@@ -299,19 +297,16 @@ def test_activation_histograms_reject_corrupt_cache_and_mixed_execution_requests
         activation_histograms._shared_execution_request([source_a, source_b])
 
 
-@pytest.mark.parametrize(
-    "module",
-    [activation_histograms, activation_propagation, weight_histograms, clipping],
-)
+@pytest.mark.parametrize("path_formatter", [portable_path, clipping._portable_path])
 def test_source_paths_are_relative_inside_working_tree(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
-    module: Any,
+    path_formatter: Any,
 ) -> None:
     source = tmp_path / "results" / "15-source" / "001-pinned"
     monkeypatch.chdir(tmp_path)
 
-    assert module._portable_path(source) == "results/15-source/001-pinned"
+    assert path_formatter(source) == "results/15-source/001-pinned"
 
 
 def test_weight_histogram_artifact_precedes_completed_manifest(
@@ -350,8 +345,8 @@ def test_weight_histogram_artifact_precedes_completed_manifest(
     )
     monkeypatch.setattr(
         weight_histograms,
-        "_find_source_run",
-        lambda _config, _selected: source_run,
+        "find_source_run",
+        lambda _config, _selected, **_kwargs: source_run,
     )
     monkeypatch.setattr(
         weight_histograms,
@@ -485,15 +480,23 @@ def test_clipping_frontier_precedes_completed_manifest(
         eval=lambda: None,
     )
     monkeypatch.setattr(
-        clipping,
+        clipping_evaluation,
         "_load_clipping_dependencies",
         lambda: (fake_torch, np, object(), object()),
     )
-    monkeypatch.setattr(clipping, "_select_device", lambda *_args, **_kwargs: fake_device)
-    monkeypatch.setattr(clipping, "_select_dtype", lambda *_args, **_kwargs: None)
-    monkeypatch.setattr(clipping, "load_checkpoint_model", lambda *_args, **_kwargs: fake_model)
     monkeypatch.setattr(
         clipping,
+        "select_device",
+        lambda *_args, **_kwargs: fake_device,
+    )
+    monkeypatch.setattr(
+        clipping,
+        "select_dtype",
+        lambda *_args, **_kwargs: None,
+    )
+    monkeypatch.setattr(clipping, "load_checkpoint_model", lambda *_args, **_kwargs: fake_model)
+    monkeypatch.setattr(
+        clipping_evaluation,
         "_evaluate_clipped_loss",
         lambda **_kwargs: {
             "validation_loss": 1.0,

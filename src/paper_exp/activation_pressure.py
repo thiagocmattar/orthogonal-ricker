@@ -8,9 +8,7 @@ import torch
 
 PRESSURE_METHODS = {
     "none",
-    "ricker_naive",
     "l1_naive",
-    "orthogonal_ricker",
     "orthogonal_l1",
 }
 
@@ -21,18 +19,14 @@ class ActivationPressureConfig:
     method: str
     sites: list[str]
     weight: float
-    ricker_c: float | None
-    ricker_sigma: float | None
     step_budget: float | None
     eps: float
     log_thresholds: tuple[float, ...]
 
     @property
     def pressure_kind(self) -> str:
-        if "l1" in self.method:
+        if self.method in {"l1_naive", "orthogonal_l1"}:
             return "activation_l1"
-        if "ricker" in self.method:
-            return "ricker"
         return "none"
 
     @property
@@ -41,11 +35,7 @@ class ActivationPressureConfig:
 
     @property
     def orthogonal(self) -> bool:
-        return self.method in {"orthogonal_ricker", "orthogonal_l1"}
-
-    @property
-    def naive(self) -> bool:
-        return self.method in {"ricker_naive", "l1_naive"}
+        return self.method == "orthogonal_l1"
 
 
 def activation_pressure_config(config: dict[str, Any]) -> ActivationPressureConfig:
@@ -57,6 +47,11 @@ def activation_pressure_config(config: dict[str, Any]) -> ActivationPressureConf
     if missing:
         raise ValueError(
             "activation_pressure requires explicit fields: " + ", ".join(missing)
+        )
+    unknown = sorted(set(raw) - set(required))
+    if unknown:
+        raise ValueError(
+            "activation_pressure contains unsupported fields: " + ", ".join(unknown)
         )
     if not isinstance(raw["enabled"], bool):
         raise ValueError("activation_pressure.enabled must be a boolean.")
@@ -87,7 +82,7 @@ def activation_pressure_config(config: dict[str, Any]) -> ActivationPressureConf
         if step_budget_value is None
         else _finite_float(step_budget_value, "activation_pressure.step_budget")
     )
-    if method in {"orthogonal_ricker", "orthogonal_l1"}:
+    if method == "orthogonal_l1":
         if step_budget is None or step_budget <= 0.0:
             raise ValueError(
                 "Orthogonal activation pressure requires a positive step_budget."
@@ -114,27 +109,11 @@ def activation_pressure_config(config: dict[str, Any]) -> ActivationPressureConf
             "activation_pressure.log_thresholds must be strictly increasing and unique."
         )
 
-    ricker_c: float | None = None
-    ricker_sigma: float | None = None
-    if "ricker" in method:
-        if "ricker_c" not in raw or "ricker_sigma" not in raw:
-            raise ValueError(
-                "Ricker activation pressure requires explicit ricker_c and ricker_sigma."
-            )
-        ricker_c = _finite_float(raw["ricker_c"], "activation_pressure.ricker_c")
-        ricker_sigma = _finite_float(
-            raw["ricker_sigma"],
-            "activation_pressure.ricker_sigma",
-        )
-        if ricker_c <= 0.0 or ricker_sigma <= 0.0:
-            raise ValueError("Ricker c and sigma must be positive.")
     return ActivationPressureConfig(
         enabled=enabled,
         method=method,
         sites=list(sites),
         weight=weight,
-        ricker_c=ricker_c,
-        ricker_sigma=ricker_sigma,
         step_budget=step_budget,
         eps=eps,
         log_thresholds=log_thresholds,
@@ -153,25 +132,9 @@ def _finite_float(value: Any, field: str) -> float:
 def pressure_loss(torch: Any, activations: dict[str, Any], cfg: ActivationPressureConfig) -> Any:
     if not cfg.enabled or cfg.method == "none":
         return None
-    if cfg.pressure_kind == "ricker":
-        if cfg.ricker_c is None or cfg.ricker_sigma is None:
-            raise ValueError("Ricker pressure parameters are missing.")
-        return ricker_pressure(torch, activations, c=cfg.ricker_c, sigma=cfg.ricker_sigma)
     if cfg.pressure_kind == "activation_l1":
         return activation_l1_pressure(torch, activations)
     raise ValueError(f"Unsupported pressure kind: {cfg.pressure_kind}")
-
-
-def ricker_score(torch: Any, value: Any, *, c: float, sigma: float) -> Any:
-    z = value.float()
-    return ((1.0 - z.square() / (c * c)) * torch.exp(-z.square() / (2.0 * sigma * sigma))).mean()
-
-
-def ricker_pressure(torch: Any, activations: dict[str, Any], *, c: float, sigma: float) -> Any:
-    """Elementwise Ricker score over activation scalars, averaged to one loss."""
-    _require_activations(activations)
-    scores = [ricker_score(torch, value, c=c, sigma=sigma) for value in activations.values()]
-    return 1.0 - torch.stack(scores).mean()
 
 
 def activation_l1_pressure(torch: Any, activations: dict[str, Any]) -> Any:

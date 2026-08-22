@@ -7,11 +7,11 @@ plotting utilities.
 
 ## Status
 
-The definitive paper experiment plan has not yet been added. Scientific
-launches are blocked until the user-provided plan replaces the placeholder in
-[`docs/experiment_plan.md`](docs/experiment_plan.md) and is reviewed against
-the implemented method and diagnostic contracts. The reviewed document must
-declare `Plan status: reviewed`; the CLI enforces this launch gate.
+[`exp-plan-v0.md`](exp-plan-v0.md) provides a non-final overview of the planned
+A/B/C/D/E phases. It informs repository structure but does not authorize
+scientific launches. Launches remain blocked until a final plan replaces the
+placeholder in [`docs/experiment_plan.md`](docs/experiment_plan.md) and is
+marked `Plan status: reviewed`.
 
 The tracked release tree intentionally contains no earlier campaign configs, reports, or
 results. Those remain available through Git history on the branches and commits
@@ -76,51 +76,41 @@ authorize or stand in for a scientific run.
 
 After the definitive plan is present and reviewed:
 
-1. Create the numbered configs specified by the plan.
-2. Commit the reviewed configs before launch.
-3. Prepare the declared dataset cache.
-4. Run a calibration when no reliable same-hardware throughput estimate exists.
-5. Launch one pretraining config directly, or multiple pretraining configs
-   through one sequential runner.
-6. Verify terminal artifacts before running diagnostics or plotting.
-7. Record accepted evidence in the experiment and paper maps.
+1. Split the plan into ordered launch tranches, including separate screening
+   and promotion tranches when later configs depend on earlier evidence.
+2. Give each tranche a thin numeric case runner and same-named config folder.
+3. Commit the reviewed runner and configs before launch.
+4. Prepare the declared dataset cache.
+5. Run a calibration when no reliable same-hardware throughput estimate exists.
+6. Execute the case runner; the parent runs its configs serially under one lock.
+7. Verify terminal artifacts before running diagnostics or plotting.
+8. Record accepted evidence in the experiment and paper maps.
 
-Single-config commands:
-
-```bash
-make prepare-data CONFIG=configs/01-example.yaml
-make calibrate CONFIG=configs/01-example.yaml
-make pretrain CONFIG=configs/01-example.yaml
-```
-
-Multiple pretraining configs must be supplied to one runner and execute
-sequentially:
+Data preparation and throughput calibration remain explicit single-config
+operations. The path below shows the naming pattern; it is not an allocated
+launch:
 
 ```bash
-make run-configs CONFIGS="configs/01-example.yaml configs/02-example.yaml"
+make prepare-data CONFIG=configs/NN-phase-tranche/CCC-case.yaml
+make calibrate CONFIG=configs/NN-phase-tranche/CCC-case.yaml
 ```
 
-The equivalent package command is:
+Every definitive training tranche, even one containing a single config, uses
+its committed case runner:
 
 ```bash
-paper-exp run-configs \
-  --config configs/01-example.yaml \
-  --config configs/02-example.yaml
+python runners/NN-phase-tranche.py
 ```
 
-Every mutating scientific command requires a clean committed checkout and an
-exclusive experiment lock. A direct command cannot start while a sequential
-runner owns that lock.
+The case runner contains only the ordered config paths and delegates to
+`paper_exp.runner.run_launch`. Its numeric prefix serializes launches; its
+phase label maps it to the plan. The parent validates the complete tranche,
+requires the matching config folder, and stops on the first failure. See
+[`runners/README.md`](runners/README.md).
 
 Before launch, report the estimated time to completion (ETC) for the first run
-and the complete queue, including the estimate basis and uncertainty. Inspect a
-live queue without mutating it:
-
-```bash
-make run-status STATE=run-logs/runner-state.json
-# or
-paper-exp run-status --state run-logs/runner-state.json
-```
+and the complete tranche, including the estimate basis and uncertainty. Monitor
+the active run from its saved manifest and event stream without mutating it.
 
 See [`docs/runbook.md`](docs/runbook.md) for preflight, monitoring, ETC, failure,
 and retry requirements.
@@ -176,8 +166,12 @@ boundary, deterministic provenance sidecar, and publication requirements are doc
 
 - `src/paper_exp/`: training, methods, diagnostics, lifecycle, runner, and
   plotting implementation.
-- `configs/`: immutable experiment configs; currently only the non-paper smoke
-  config.
+- `runners/`: thin, numerically ordered case runners; currently only the
+  convention document.
+- `configs/`: one matching folder per launch; currently only the non-paper
+  smoke config.
+- `exp-plan-v0.md`: non-final structural preview supplied by the repository
+  owner.
 - `docs/experiment_plan.md`: authoritative definitive plan once supplied.
 - `docs/methods.md`: mathematical and optimization semantics.
 - `docs/diagnostics.md`: metric definitions and interpretation limits.

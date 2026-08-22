@@ -8,8 +8,8 @@ Do not add a scientific row until the reviewed experiment plan authorizes the
 config and the run has a durable manifest. Record failed and invalid attempts as
 well as successful ones.
 
-| Date | Config | Run | Terminal status | Evidence status | Purpose | Notes |
-| --- | --- | --- | --- | --- | --- | --- |
+| Date | Launch | Config | Run | Terminal status | Evidence status | Purpose | Notes |
+| --- | --- | --- | --- | --- | --- | --- | --- |
 
 Status rules:
 
@@ -17,6 +17,7 @@ Status rules:
   `completed`, or `failed`.
 - `Evidence status` is `valid`, `provisional`, or `invalid`, with the reason in
   `Notes`.
+- `Launch` names the exact numeric case runner that owned the config.
 - Link the exact config and run directory; never use a wildcard or "latest."
 - Do not copy scalar results into this log when the saved artifact is the
   authority. Summarize only the decision and interpretation boundary.

@@ -6,11 +6,11 @@ import numpy as np
 import pytest
 import torch
 
-import paper_exp.calibration as calibration
 from paper_exp.activation_pressure import ActivationPressureConfig
-from paper_exp.calibration import _model_parameter_sha256
+import paper_exp.optimization as optimization
 from paper_exp.reproducibility import build_training_schedule
 from paper_exp.reproducibility import validation_document_indices
+import paper_exp.training as training
 
 
 def test_training_schedule_is_stable_and_seed_specific() -> None:
@@ -59,8 +59,8 @@ def test_initial_parameter_hash_is_stable_and_parameter_sensitive() -> None:
     torch.manual_seed(4)
     different = torch.nn.Linear(4, 3)
 
-    assert _model_parameter_sha256(first) == _model_parameter_sha256(repeated)
-    assert _model_parameter_sha256(first) != _model_parameter_sha256(different)
+    assert training._model_parameter_sha256(first) == training._model_parameter_sha256(repeated)
+    assert training._model_parameter_sha256(first) != training._model_parameter_sha256(different)
 
 
 @pytest.mark.parametrize("method", ["l1_naive", "orthogonal_l1"])
@@ -76,7 +76,7 @@ def test_explicit_schedule_reaches_naive_and_orthogonal_batch_sampling(
         sampled_starts.append(np.asarray(starts).tolist())
         return torch.ones((2, 4), dtype=torch.long)
 
-    monkeypatch.setattr(calibration, "_sample_batch", record_sample)
+    monkeypatch.setattr(optimization, "_sample_batch", record_sample)
 
     parameter = torch.nn.Parameter(torch.tensor(0.75))
 
@@ -101,15 +101,13 @@ def test_explicit_schedule_reaches_naive_and_orthogonal_batch_sampling(
         method=method,
         sites=["mlp_hiddens"],
         weight=1.0,
-        ricker_c=0.05,
-        ricker_sigma=0.05,
         step_budget=0.5,
         eps=1e-12,
         log_thresholds=(0.0,),
     )
     optimizer = torch.optim.AdamW([parameter], lr=1e-3)
 
-    calibration._run_training_step(
+    optimization._run_training_step(
         model=Model(),
         optimizer=optimizer,
         params=[parameter],
@@ -128,25 +126,6 @@ def test_explicit_schedule_reaches_naive_and_orthogonal_batch_sampling(
     )
 
     assert sampled_starts == [[3, 7], [11, 13]]
-
-
-def test_legacy_batch_sampling_keeps_global_numpy_rng_sequence() -> None:
-    tokens = np.arange(100, dtype=np.int32)
-    np.random.seed(19)
-    expected_starts = np.random.randint(0, len(tokens) - 4 - 1, size=3)
-    expected = np.stack([tokens[start : start + 4] for start in expected_starts])
-
-    np.random.seed(19)
-    actual = calibration._sample_batch(
-        torch,
-        np,
-        tokens,
-        block_size=4,
-        batch_size=3,
-        device=torch.device("cpu"),
-    )
-
-    assert np.array_equal(actual.numpy(), expected)
 
 
 def test_finite_validation_can_be_deterministic_without_advancing_global_rng() -> None:
@@ -169,7 +148,7 @@ def test_finite_validation_can_be_deterministic_without_advancing_global_rng() -
 
     first_deterministic = RecordingModel()
     np.random.seed(31)
-    calibration._evaluate_loss(
+    training._evaluate_loss(
         model=first_deterministic,
         torch=torch,
         np=np,
@@ -187,7 +166,7 @@ def test_finite_validation_can_be_deterministic_without_advancing_global_rng() -
     np.random.seed(31)
     expected_rng_next = np.random.randint(0, 10_000)
     np.random.seed(999)
-    calibration._evaluate_loss(
+    training._evaluate_loss(
         model=repeated_deterministic,
         torch=torch,
         np=np,
@@ -220,7 +199,7 @@ def test_finite_validation_can_be_deterministic_without_advancing_global_rng() -
         for _ in range(2)
     ]
     np.random.seed(23)
-    calibration._evaluate_loss(
+    training._evaluate_loss(
         model=stochastic,
         torch=torch,
         np=np,

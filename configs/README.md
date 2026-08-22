@@ -3,9 +3,17 @@
 `00-smoke.yaml` is a minimal infrastructure check. It is not a scientific
 experiment, calibration recipe, baseline, or template for paper settings.
 
-Definitive configs begin at `01` only after the user supplies and reviews
-[`docs/experiment_plan.md`](../docs/experiment_plan.md). Until then, do not add
-or launch scientific configs.
+[`exp-plan-v0.md`](../exp-plan-v0.md) is a structural preview, not launch
+authorization. Definitive configs begin only after the final plan replaces and
+reviews [`docs/experiment_plan.md`](../docs/experiment_plan.md).
+
+Configs are grouped by launch tranche. The folder name exactly matches its
+case runner:
+
+```text
+runners/NN-<phase>-<tranche>.py
+configs/NN-<phase>-<tranche>/
+```
 
 ## Config Lifecycle
 
@@ -13,11 +21,12 @@ For every plan-authorized experiment:
 
 1. Copy the closest config of the same workflow kind after such a config exists.
 2. Change only fields required by the plan cell.
-3. Use the next unique sequential prefix and a lowercase hyphenated name.
-4. Remove unresolved `TODO:` values.
-5. Validate and review the full config.
-6. Add and commit it before launch.
-7. Treat it as immutable after the first attempt begins.
+3. Put it in the matching runner folder.
+4. Use the next globally unique config prefix and a lowercase hyphenated name.
+5. Remove unresolved `TODO:` values.
+6. Validate and review the full config.
+7. Add and commit it before launch.
+8. Treat it as immutable after the first attempt begins.
 
 A scientific change, different seed, changed budget, or changed diagnostic
 source set gets a new config. An infrastructure-only retry creates a new run
@@ -26,16 +35,19 @@ attempt under the unchanged config.
 Examples of the naming contract:
 
 ```text
-configs/01-baseline.yaml
-configs/02-method-name.yaml
-configs/03-method-name-seed-1.yaml
+configs/NN-<phase>-<tranche>/CCC-<case>.yaml
 ```
+
+`NN` is a two-digit launch prefix. `CCC` is a three-digit config prefix that is
+globally unique and sequential across launch folders. Phase IDs such as `a1`
+and `b1` preserve the plan mapping without coupling the parent runner to a
+particular plan version.
 
 The config stem becomes the result-group ID:
 
 ```text
-configs/01-baseline.yaml
-results/01-baseline/001-<timestamp>-<short-id>/
+configs/NN-<phase>-<tranche>/CCC-<case>.yaml
+results/CCC-<case>/001-<timestamp>-<short-id>/
 ```
 
 ## Required Shared Fields
@@ -75,8 +87,8 @@ Training/data preflight also requires exact immutable `data.revision` and
 block size, EOS policy, and overwrite policy; explicit validation scope; all
 optimizer/batch/precision/budget fields; checkpoint flags; independent model
 and data-order seeds; and the complete activation-pressure section. Use `null`
-only where the schema makes absence explicit, such as no wall-time cap, no
-validation partition, or no learned-threshold learning-rate multiplier.
+only where the schema makes absence explicit, such as no wall-time cap or no
+validation partition.
 Release configs use the portable relative paths `output.dir: results` and
 `preprocessing.output_dir: data/tokenized`; launch preflight rejects external
 or machine-specific artifact roots.
@@ -85,20 +97,10 @@ Use `TODO:` only while drafting an unlaunched config. The runner rejects TODOs.
 
 ## Field Ownership
 
-| Section | Primary owner | Meaning |
-| --- | --- | --- |
-| `experiment_name`, `model`, `data`, `evaluation`, `run`, `output` | `config.py` and the selected workflow | Identity and common envelope |
-| `tokenizer`, `preprocessing` | `data.py` | Tokenizer, block construction, and cache identity |
-| `training`, `validation`, `checkpoint` | `calibration.py` | Optimizer loop, evaluation, and saved state |
-| `model.post_layernorm_relu`, `model.post_layernorm_gate`, `model.mlp_hidden_gate`, `model.post_qkv_relu` | `modeling.py`, `calibration.py` | Explicit architecture interventions |
-| `activation_pressure` | `activation_pressure.py`, `activations.py`, `calibration.py` | Method, sites, weight, geometry, and monitoring thresholds |
-| `activation_histograms` | `activation_histograms.py` | Sites, bins, thresholds, and pinned sources |
-| `weight_histograms` | `weight_histograms.py` | Parameter scope, bins, and pinned sources |
-| `activation_propagation` | `activation_propagation.py` | Pinned sources and exact-zero/product measurement |
-| `activation_clipping` | `clipping.py`, `activations.py` | Clipping mode and sites; normally derived from a saved source run plus CLI arguments |
-
-The CLI command selects the workflow. `evaluation.metric` documents intent but
-does not dispatch the config.
+[`docs/code_map.md`](../docs/code_map.md) is the single module-ownership map.
+Config validation belongs to `config.py`; each workflow owns the meaning and
+execution of its specific section. The CLI command selects the workflow.
+`evaluation.metric` documents intent but does not dispatch a config.
 
 ## Reproducibility Fields
 
@@ -115,9 +117,9 @@ the cache metadata/hash; a shared path is not proof of equivalence.
 Use distinct method identifiers:
 
 - `none` for a monitor-only optimizer control;
-- `ricker_naive` and `l1_naive` for direct auxiliary-loss pressure;
-- `orthogonal_ricker` and `orthogonal_l1` for task-only AdamW followed by the
-  projected pressure correction.
+- `l1_naive` for direct L1 auxiliary-loss pressure;
+- `orthogonal_l1` for task-only AdamW followed by the projected L1 pressure
+  correction.
 
 Orthogonal methods require an explicit `step_budget`. Sites and all numerical
 pressure parameters are explicit; the harness chooses no scientific default. See
@@ -133,18 +135,16 @@ artifact schema described in [`docs/diagnostics.md`](../docs/diagnostics.md).
 Post-hoc clipping is derived from one exact checkpoint run. Its CLI arguments
 must still be captured in the derived run config/manifest and artifact.
 
-## Multiple Pretraining Configs
+## Launch Runners
 
-When more than one pretraining config is ready, pass the complete ordered list
-to one sequential runner:
+Each plan-defined tranche gets one thin case runner. It declares only the
+ordered config paths and delegates execution to `paper_exp.runner.run_launch`:
 
 ```bash
-paper-exp run-configs \
-  --config configs/01-baseline.yaml \
-  --config configs/02-method-name.yaml
+python runners/NN-phase-tranche.py
 ```
 
-Never start separate pretraining runners or parallel GPU jobs. Report first-run
-and full-queue ETCs before launch and use `paper-exp run-status` for read-only
-progress updates. Data preparation, calibration, and diagnostics remain
-single-config workflows until an explicit sequential contract is implemented.
+Screening, selection, and promotion are separate numeric launches when later
+configs depend on earlier evidence. The parent validates the whole tranche,
+holds one lock, and executes one config at a time. See
+[`runners/README.md`](../runners/README.md).

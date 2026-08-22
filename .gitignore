@@ -36,6 +36,9 @@ results/*/
 
 figures/*.pdf
 figures/*.png
-figures/*.provenance.json
+figures/*provenance.json
 !figures/README.md
 !figures/.gitkeep
+
+# Local exploratory paper material is outside the definitive experiment tree.
+/report/

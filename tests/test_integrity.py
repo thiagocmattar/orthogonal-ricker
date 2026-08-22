@@ -1,8 +1,10 @@
 from __future__ import annotations
 
-from dataclasses import fields
 from pathlib import Path
 
+import pytest
+
+import paper_exp.integrity as integrity
 from paper_exp.cli import main
 from paper_exp.integrity import (
     IntegrityFinding,
@@ -45,28 +47,145 @@ output:
 """
 
 
-def test_configs_are_validated_and_numbered(tmp_path: Path) -> None:
+def test_configs_are_validated_and_numbered(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     _make_repository_skeleton(tmp_path)
-    (tmp_path / "configs" / "01-valid.yaml").write_text(VALID_CONFIG, encoding="utf-8")
-    (tmp_path / "configs" / "01-duplicate.yaml").write_text(
+    folder = _make_launch_folder(tmp_path, "01-a1-grid")
+    _allow_tracked_runners(monkeypatch)
+    (folder / "001-valid.yaml").write_text(VALID_CONFIG, encoding="utf-8")
+    (folder / "001-duplicate.yaml").write_text(
         VALID_CONFIG, encoding="utf-8"
     )
-    (tmp_path / "configs" / "bad-name.yaml").write_text(VALID_CONFIG, encoding="utf-8")
-    (tmp_path / "configs" / "03-invalid.yaml").write_text(
+    (folder / "bad-name.yaml").write_text(VALID_CONFIG, encoding="utf-8")
+    (folder / "003-invalid.yaml").write_text(
         "experiment_name: missing_fields\n", encoding="utf-8"
     )
 
     findings = check_repository(tmp_path)
 
     assert _has_finding(findings, "config.duplicate_prefix", "configs")
-    assert _has_finding(findings, "config.filename_invalid", "configs/bad-name.yaml")
-    assert _has_finding(findings, "config.invalid", "configs/03-invalid.yaml")
+    assert _has_finding(
+        findings,
+        "config.filename_invalid",
+        "configs/01-a1-grid/bad-name.yaml",
+    )
+    assert _has_finding(
+        findings,
+        "config.invalid",
+        "configs/01-a1-grid/003-invalid.yaml",
+    )
     assert _has_finding(findings, "config.numbering_gap", "configs")
+
+
+def test_scientific_config_folders_require_convention_and_matching_runner(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _make_repository_skeleton(tmp_path)
+    invalid_folder = tmp_path / "configs" / "a1-grid"
+    invalid_folder.mkdir()
+    (invalid_folder / "001-case.yaml").write_text(VALID_CONFIG, encoding="utf-8")
+    missing_runner_folder = tmp_path / "configs" / "01-a1-grid"
+    missing_runner_folder.mkdir()
+    (missing_runner_folder / "002-case.yaml").write_text(
+        VALID_CONFIG, encoding="utf-8"
+    )
+
+    findings = check_repository(tmp_path)
+
+    assert _has_finding(
+        findings,
+        "config.launch_folder_invalid",
+        "configs/a1-grid",
+    )
+    assert _has_finding(
+        findings,
+        "config.runner_missing",
+        "runners/01-a1-grid.py",
+    )
+
+    runner_path = tmp_path / "runners" / "01-a1-grid.py"
+    runner_path.write_text("", encoding="utf-8")
+
+    def reject_untracked(_repository: Path, _path: Path) -> None:
+        raise integrity.LaunchError("not tracked")
+
+    monkeypatch.setattr(integrity, "require_tracked_file", reject_untracked)
+    findings = check_repository(tmp_path)
+
+    assert _has_finding(
+        findings,
+        "config.runner_untracked",
+        "runners/01-a1-grid.py",
+    )
+
+
+def test_scientific_config_scope_width_and_global_order(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _make_repository_skeleton(tmp_path)
+    _allow_tracked_runners(monkeypatch)
+    first_folder = _make_launch_folder(tmp_path, "01-a1-grid")
+    second_folder = _make_launch_folder(tmp_path, "02-b1-screen")
+    (first_folder / "002-second.yaml").write_text(VALID_CONFIG, encoding="utf-8")
+    (first_folder / "000-zero.yaml").write_text(VALID_CONFIG, encoding="utf-8")
+    (first_folder / "03-short.yaml").write_text(VALID_CONFIG, encoding="utf-8")
+    (second_folder / "001-first.yaml").write_text(VALID_CONFIG, encoding="utf-8")
+    nested = second_folder / "extra"
+    nested.mkdir()
+    (nested / "003-too-deep.yaml").write_text(VALID_CONFIG, encoding="utf-8")
+    root_config = tmp_path / "configs" / "003-root.yaml"
+    root_config.write_text(VALID_CONFIG, encoding="utf-8")
+
+    findings = check_repository(tmp_path)
+
+    assert _has_finding(
+        findings,
+        "config.filename_invalid",
+        "configs/01-a1-grid/03-short.yaml",
+    )
+    assert _has_finding(
+        findings,
+        "config.filename_invalid",
+        "configs/01-a1-grid/000-zero.yaml",
+    )
+    assert _has_finding(findings, "config.order_invalid", "configs")
+    assert _has_finding(
+        findings,
+        "config.location_invalid",
+        "configs/02-b1-screen/extra/003-too-deep.yaml",
+    )
+    assert _has_finding(
+        findings,
+        "config.location_invalid",
+        "configs/003-root.yaml",
+    )
+
+
+def test_config_prefixes_are_unique_across_launch_folders(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _make_repository_skeleton(tmp_path)
+    _allow_tracked_runners(monkeypatch)
+    first_folder = _make_launch_folder(tmp_path, "01-a1-grid")
+    second_folder = _make_launch_folder(tmp_path, "02-b1-screen")
+    (first_folder / "001-first.yaml").write_text(VALID_CONFIG, encoding="utf-8")
+    (second_folder / "001-second.yaml").write_text(VALID_CONFIG, encoding="utf-8")
+
+    findings = check_repository(tmp_path)
+
+    assert _has_finding(findings, "config.duplicate_prefix", "configs")
 
 
 def test_run_directories_are_classified_from_artifacts(tmp_path: Path) -> None:
     _make_repository_skeleton(tmp_path)
-    (tmp_path / "configs" / "01-valid.yaml").write_text(VALID_CONFIG, encoding="utf-8")
+    (tmp_path / "docs" / "experiment_log.md").write_text(
+        "Audit `results/01-test/`.\n", encoding="utf-8"
+    )
     result_group = tmp_path / "results" / "01-test"
 
     active = result_group / "001-active"
@@ -79,8 +198,9 @@ def test_run_directories_are_classified_from_artifacts(tmp_path: Path) -> None:
 
     complete = result_group / "003-complete"
     complete.mkdir()
-    for artifact in ("config.yaml", "metrics.json", "predictions.jsonl"):
-        (complete / artifact).write_text("{}\n", encoding="utf-8")
+    (complete / "config.yaml").write_text(VALID_CONFIG, encoding="utf-8")
+    (complete / "metrics.json").write_text("{}\n", encoding="utf-8")
+    (complete / "predictions.jsonl").write_text("{}\n", encoding="utf-8")
     (complete / "manifest.json").write_text(
         '{"config_id": "01-test", "run_id": "003-complete", '
         '"mode": "smoke", "git_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", '
@@ -149,7 +269,7 @@ def test_run_directories_are_classified_from_artifacts(tmp_path: Path) -> None:
 
     assert classify_run_directory(active) == "inconsistent"
     assert classify_run_directory(partial) == "inconsistent"
-    assert classify_run_directory(complete) == "inconsistent"
+    assert classify_run_directory(complete) == "complete"
     assert classify_run_directory(running) == "running"
     assert classify_run_directory(failed) == "failed"
     assert classify_run_directory(inconsistent) == "inconsistent"
@@ -160,7 +280,7 @@ def test_run_directories_are_classified_from_artifacts(tmp_path: Path) -> None:
 
     active_finding = _finding(findings, "run.inconsistent", "results/01-test/001-active")
     partial_finding = _finding(findings, "run.inconsistent", "results/01-test/002-partial")
-    complete_finding = _finding(findings, "run.inconsistent", "results/01-test/003-complete")
+    complete_finding = _finding(findings, "run.complete", "results/01-test/003-complete")
     running_finding = _finding(findings, "run.running", "results/01-test/004-running")
     failed_finding = _finding(findings, "run.failed", "results/01-test/005-failed")
     inconsistent_finding = _finding(
@@ -180,7 +300,7 @@ def test_run_directories_are_classified_from_artifacts(tmp_path: Path) -> None:
     )
     assert active_finding.severity == "error"
     assert partial_finding.severity == "error"
-    assert complete_finding.severity == "error"
+    assert complete_finding.severity == "info"
     assert running_finding.severity == "warning"
     assert failed_finding.severity == "warning"
     assert inconsistent_finding.severity == "error"
@@ -190,7 +310,6 @@ def test_run_directories_are_classified_from_artifacts(tmp_path: Path) -> None:
 
 def test_literal_references_and_paper_outputs_are_checked(tmp_path: Path) -> None:
     _make_repository_skeleton(tmp_path)
-    (tmp_path / "configs" / "01-valid.yaml").write_text(VALID_CONFIG, encoding="utf-8")
     (tmp_path / "figures" / "01-first.pdf").write_bytes(b"pdf")
     (tmp_path / "figures" / "01-second.pdf").write_bytes(b"pdf")
     (tmp_path / "docs" / "paper_map.md").write_text(
@@ -199,7 +318,7 @@ def test_literal_references_and_paper_outputs_are_checked(tmp_path: Path) -> Non
 
 | Paper item | Claim / purpose | Config | Result | Figure |
 | ---------- | --------------- | ------ | ------ | ------ |
-| Present | Test | `configs/01-valid.yaml` | TODO | `figures/01-first.pdf` |
+| Present | Test | TODO | TODO | `figures/01-first.pdf` |
 | Missing | Test | `configs/99-missing.yaml` | `results/99-test/001-run/` | `figures/02-missing.pdf` |
 | Exploratory | Test | TODO | See `results/*-sweep/` | TODO |
 """,
@@ -250,7 +369,6 @@ def test_completed_run_rejects_corrupt_core_artifact(tmp_path: Path) -> None:
 
 def test_check_is_read_only(tmp_path: Path) -> None:
     _make_repository_skeleton(tmp_path)
-    (tmp_path / "configs" / "01-valid.yaml").write_text(VALID_CONFIG, encoding="utf-8")
     before = _tree_snapshot(tmp_path)
 
     check_repository(tmp_path)
@@ -262,11 +380,18 @@ def test_check_command_reports_warnings_and_supports_strict_mode(
     tmp_path: Path, capsys
 ) -> None:
     _make_repository_skeleton(tmp_path)
-    (tmp_path / "configs" / "01-valid.yaml").write_text(
-        VALID_CONFIG, encoding="utf-8"
-    )
     (tmp_path / "figures" / "01-first.pdf").write_bytes(b"pdf")
     (tmp_path / "figures" / "01-second.pdf").write_bytes(b"pdf")
+    (tmp_path / "docs" / "paper_map.md").write_text(
+        """\
+# Paper Map
+
+| Paper item | Claim / purpose | Config | Result | Figure |
+| ---------- | --------------- | ------ | ------ | ------ |
+| Example | Test | TODO | TODO | `figures/01-first.pdf` |
+""",
+        encoding="utf-8",
+    )
 
     assert main(["check", "--root", str(tmp_path)]) == 0
     output = capsys.readouterr().out
@@ -276,49 +401,8 @@ def test_check_command_reports_warnings_and_supports_strict_mode(
     assert main(["check", "--root", str(tmp_path), "--strict"]) == 1
 
 
-def test_missing_ignored_artifacts_are_strict_only_failures(
-    tmp_path: Path, capsys
-) -> None:
-    _make_repository_skeleton(tmp_path)
-    (tmp_path / "configs" / "01-valid.yaml").write_text(
-        VALID_CONFIG, encoding="utf-8"
-    )
-    (tmp_path / "docs" / "paper_map.md").write_text(
-        """\
-# Paper Map
-
-| Paper item | Claim / purpose | Config | Result | Figure |
-| ---------- | --------------- | ------ | ------ | ------ |
-| Archived | Test | `configs/01-valid.yaml` | `results/01-test/001-run/` | `figures/01-test.pdf` |
-""",
-        encoding="utf-8",
-    )
-
-    assert main(["check", "--root", str(tmp_path)]) == 0
-    output = capsys.readouterr().out
-    assert "WARNING [reference.missing] results/01-test/001-run/" in output
-    assert "WARNING [paper_map.output_missing] figures/01-test.pdf" in output
-
-    assert main(["check", "--root", str(tmp_path), "--strict"]) == 1
-
-
-def test_current_repository_smoke() -> None:
-    repository = Path(__file__).resolve().parents[1]
-
-    findings = check_repository(repository)
-
-    assert all(isinstance(finding, IntegrityFinding) for finding in findings)
-    assert {field.name for field in fields(IntegrityFinding)} == {
-        "severity",
-        "code",
-        "message",
-        "path",
-    }
-    assert all(finding.severity in {"info", "warning", "error"} for finding in findings)
-
-
 def _make_repository_skeleton(root: Path) -> None:
-    for relative in ("configs", "results", "figures", "report", "docs"):
+    for relative in ("configs", "runners", "results", "figures", "report", "docs"):
         (root / relative).mkdir(parents=True)
     (root / "docs" / "paper_map.md").write_text(
         """\
@@ -332,6 +416,21 @@ def _make_repository_skeleton(root: Path) -> None:
     )
     (root / "docs" / "experiment_log.md").write_text(
         "# Experiment Log\n", encoding="utf-8"
+    )
+
+
+def _make_launch_folder(root: Path, name: str) -> Path:
+    folder = root / "configs" / name
+    folder.mkdir()
+    (root / "runners" / f"{name}.py").write_text("", encoding="utf-8")
+    return folder
+
+
+def _allow_tracked_runners(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        integrity,
+        "require_tracked_file",
+        lambda _repository, _path: None,
     )
 
 

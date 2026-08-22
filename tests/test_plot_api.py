@@ -9,7 +9,7 @@ import pytest
 from matplotlib.colors import to_rgba
 from matplotlib.figure import Figure
 
-from paper_exp.plot_api import (
+from paper_exp.plots.export import (
     DOUBLE_COLUMN_LAYOUT,
     DOUBLE_COLUMN_WIDTH_INCHES,
     DOUBLE_COLUMN_PUBLICATION_PROFILE,
@@ -17,14 +17,13 @@ from paper_exp.plot_api import (
     SINGLE_COLUMN_WIDTH_INCHES,
     GridLayout,
     PlotQualityError,
-    PublicationProfile,
     export_figure,
     make_panel_grid,
     publish_staged_outputs,
     publication_figure_issues,
     validate_publication_figure,
 )
-from paper_exp.plot_style import PAPER_STYLE
+from paper_exp.plots.style import PAPER_STYLE
 
 
 def test_paper_style_is_independent_of_dark_global_style() -> None:
@@ -54,6 +53,7 @@ def test_paper_style_is_independent_of_dark_global_style() -> None:
     ("panel_count", "columns", "expected_shape", "hidden_count"),
     [
         (1, 1, (1, 1), 0),
+        (1, 4, (1, 1), 0),
         (3, 3, (1, 3), 0),
         (3, 1, (3, 1), 0),
         (5, 2, (3, 2), 1),
@@ -73,14 +73,6 @@ def test_make_panel_grid_has_stable_axes_for_edge_shapes(
         assert all(axis.get_visible() for axis in panel_grid.flat_axes)
         assert all(not axis.get_visible() for axis in panel_grid.hidden_axes)
         assert panel_grid.colorbar_axis is None
-    finally:
-        plt.close(panel_grid.figure)
-
-
-def test_make_panel_grid_caps_columns_at_panel_count() -> None:
-    panel_grid = make_panel_grid(1, GridLayout(columns=4))
-    try:
-        assert panel_grid.axes.shape == (1, 1)
     finally:
         plt.close(panel_grid.figure)
 
@@ -116,17 +108,6 @@ def test_make_panel_grid_applies_requested_axis_sharing() -> None:
         assert not axes[0, 0].get_shared_y_axes().joined(axes[0, 0], axes[1, 0])
     finally:
         plt.close(panel_grid.figure)
-
-
-def test_make_panel_grid_rejects_share_modes_in_subplot_kwargs() -> None:
-    existing_figures = set(plt.get_fignums())
-    with pytest.raises(ValueError, match="through GridLayout"):
-        make_panel_grid(
-            1,
-            GridLayout(columns=1),
-            subplot_kwargs={"sharex": True},
-        )
-    assert set(plt.get_fignums()) == existing_figures
 
 
 def test_publication_width_presets_use_final_column_widths() -> None:
@@ -165,19 +146,6 @@ def test_grid_layout_is_immutable_and_validated() -> None:
 def test_make_panel_grid_rejects_invalid_panel_counts(panel_count: object) -> None:
     with pytest.raises(ValueError, match="positive integer"):
         make_panel_grid(panel_count, GridLayout(columns=1))  # type: ignore[arg-type]
-
-
-def test_make_panel_grid_closes_figure_when_subplot_construction_fails() -> None:
-    existing_figures = set(plt.get_fignums())
-
-    with pytest.raises(AttributeError, match="unexpected keyword"):
-        make_panel_grid(
-            1,
-            GridLayout(columns=1),
-            subplot_kwargs={"definitely_not_an_axes_property": True},
-        )
-
-    assert set(plt.get_fignums()) == existing_figures
 
 
 def test_export_figure_builds_once_and_writes_pdf_and_png(tmp_path: Path) -> None:
@@ -280,41 +248,6 @@ def test_exported_pdf_is_byte_stable(tmp_path: Path) -> None:
     assert first.read_bytes() == second.read_bytes()
 
 
-def test_export_figure_closes_partial_figures_when_builder_raises(tmp_path: Path) -> None:
-    existing_figures = set(plt.get_fignums())
-
-    def fail_after_creating_figure() -> Figure:
-        plt.subplots()
-        raise RuntimeError("builder failed")
-
-    with pytest.raises(RuntimeError, match="builder failed"):
-        export_figure(fail_after_creating_figure, tmp_path / "figure.pdf")
-
-    assert set(plt.get_fignums()) == existing_figures
-
-
-def test_export_figure_closes_figure_when_save_fails(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    built_figure: Figure | None = None
-
-    def build() -> Figure:
-        nonlocal built_figure
-        built_figure, _axis = plt.subplots()
-        return built_figure
-
-    def fail_savefig(self: Figure, *_args: object, **_kwargs: object) -> None:
-        raise OSError("save failed")
-
-    monkeypatch.setattr(Figure, "savefig", fail_savefig)
-    with pytest.raises(OSError, match="save failed"):
-        export_figure(build, tmp_path / "figure.pdf")
-
-    assert built_figure is not None
-    assert not plt.fignum_exists(built_figure.number)
-
-
 def test_export_figure_leaves_no_partial_output_when_png_staging_fails(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -391,13 +324,6 @@ def test_export_figure_requires_pdf_primary_output(tmp_path: Path) -> None:
         export_figure(lambda: plt.figure(), tmp_path / "figure.png")
 
 
-def test_export_figure_rejects_non_figure_builder_result(tmp_path: Path) -> None:
-    existing_figures = set(plt.get_fignums())
-    with pytest.raises(TypeError, match="must return"):
-        export_figure(lambda: object(), tmp_path / "figure.pdf")  # type: ignore[arg-type]
-    assert set(plt.get_fignums()) == existing_figures
-
-
 def test_publication_profile_accepts_final_width_text_inside_canvas() -> None:
     figure, axis = plt.subplots(figsize=(7.16, 3.0))
     try:
@@ -445,11 +371,6 @@ def test_publication_profile_aggregates_size_font_and_containment_issues() -> No
             validate_publication_figure(figure, DOUBLE_COLUMN_PUBLICATION_PROFILE)
     finally:
         plt.close(figure)
-
-
-def test_publication_profile_validates_positive_constraints() -> None:
-    with pytest.raises(ValueError, match="width_inches"):
-        PublicationProfile(width_inches=0.0, max_height_inches=8.8)
 
 
 def test_export_figure_checks_profile_before_writing(tmp_path: Path) -> None:

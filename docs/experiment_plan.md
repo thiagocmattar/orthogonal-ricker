@@ -4,9 +4,11 @@ Plan status: placeholder
 
 > **Launch gate:** scientific experiment launches are blocked.
 
-`TODO:` Replace this placeholder with the user-provided definitive experiment
-plan, then review it against `docs/methods.md`, `docs/diagnostics.md`, and
-`docs/runbook.md` before creating scientific configs.
+[`../exp-plan-v0.md`](../exp-plan-v0.md) is a non-final structural preview. It
+shows phased searches and review-dependent promotions, but it is not the
+definitive plan. Replace this placeholder only when the owner supplies the
+final plan, then review it against `docs/methods.md`, `docs/diagnostics.md`, and
+`docs/runbook.md` before creating scientific configs or case runners.
 
 After review, change the raw status line to exactly:
 
@@ -22,7 +24,7 @@ Until that review is complete:
 - do not reuse historical campaign configs or results;
 - do not invent models, datasets, budgets, seeds, methods, thresholds,
   comparisons, promotion rules, diagnostics, or paper claims;
-- do not allocate definitive config prefixes beginning at `01`;
+- do not allocate definitive runner or config numbers;
 - do not launch calibration, pretraining, diagnostics, or paper plotting as
   scientific evidence.
 
@@ -73,11 +75,12 @@ must remain `TODO:` rather than being guessed.
 - calibration basis for ETC estimates;
 - storage, hardware, and completion gates.
 
-Every multi-run pretraining tranche must use one `paper-exp run-configs`
-invocation and run sequentially. Until another workflow has a reviewed
-sequential-run contract, launch its configs one at a time rather than in
-parallel. The pretraining launch handoff must include current-run and full-queue
-ETCs.
+Every definitive training tranche gets one numeric case runner and matching
+config folder, including a tranche with only one config. Screening,
+review-dependent selection, and promotion are separate launches. The shared
+parent executes each tranche sequentially under one lock. Until another
+workflow has a reviewed sequential contract, launch its configs one at a time.
+The launch handoff must include current-run and full-tranche ETCs.
 
 ### Paper Outputs
 

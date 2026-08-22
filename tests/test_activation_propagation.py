@@ -1,53 +1,53 @@
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 import torch
 
-from paper_exp.activation_propagation import (
+from paper_exp.diagnostics.logical_products import (
+    linear_zero_product_counts,
+    probability_value_zero_product_counts,
+    qk_zero_product_counts,
+)
+from paper_exp.diagnostics.propagation_summary import (
     ACTIVATION_STAGE_ORDER,
     ENDPOINT_ZERO_STAGES,
     MATMUL_STAGE_ORDER,
-    _PropagationAccumulator,
     _architecture_metadata,
-    _capture_model_propagation,
     _endpoint_summary,
-    _exact_zero_counts,
-    _find_source_run,
-    _linear_zero_product_counts,
-    _patched_eager_attention,
     _post_qkv_relu_metadata,
-    _probability_value_zero_product_counts,
-    _qk_zero_product_counts,
-    _source_checkpoint,
+)
+from paper_exp.diagnostics.propagation import _validate_requested_validation_cache
+from paper_exp.diagnostics.propagation_capture import (
+    _PropagationAccumulator,
+    _capture_model_propagation,
+    _exact_zero_counts,
+    _patched_eager_attention,
     _split_fused_qkv_projection,
-    _validate_requested_validation_cache,
-    _validate_shared_validation_cache,
     _valid_causal_exact_zero_counts,
 )
 from paper_exp.modeling import (
     FixedOneSidedThreshold,
-    adaptive_threshold_parameter_items,
     apply_mlp_hidden_gate,
     apply_post_layernorm_relu,
     apply_post_qkv_relu,
 )
+from paper_exp.diagnostics.sources import validate_shared_validation_cache
 
 
 def test_linear_zero_product_counts_scale_input_zeros_by_output_width() -> None:
     value = torch.tensor([[0.0, 1.0, 0.0, -2.0]])
 
-    assert _linear_zero_product_counts(value, output_features=3, torch=torch) == (6, 12)
+    assert linear_zero_product_counts(value, output_features=3, torch=torch) == (6, 12)
 
 
 def test_qk_zero_product_counts_use_actual_valid_causal_pairs() -> None:
     query = torch.tensor([[[[0.0, 1.0], [1.0, 1.0], [0.0, 0.0]]]])
     key = torch.tensor([[[[1.0, 0.0], [0.0, 1.0], [1.0, 1.0]]]])
 
-    assert _qk_zero_product_counts(query, key, torch=torch) == (10, 12)
+    assert qk_zero_product_counts(query, key, torch=torch) == (10, 12)
 
 
 def test_probability_value_counts_exclude_future_causal_positions() -> None:
@@ -57,7 +57,12 @@ def test_probability_value_counts_exclude_future_causal_positions() -> None:
     value = torch.tensor([[[[1.0, 0.0], [0.0, 0.0], [1.0, 1.0]]]])
 
     assert _valid_causal_exact_zero_counts(probabilities, torch=torch) == (2, 6)
-    assert _probability_value_zero_product_counts(probabilities, value, torch=torch) == (8, 12)
+    assert probability_value_zero_product_counts(
+        probabilities,
+        value,
+        torch=torch,
+        query_chunk_size=1,
+    ) == (8, 12)
 
 
 def test_accumulator_pools_integer_counts_before_forming_fraction() -> None:
@@ -96,54 +101,6 @@ def test_accumulator_emits_explicit_na_for_an_absent_gate() -> None:
             "exact_zero_fraction": None,
         }
     ]
-
-
-def test_explicit_source_run_pins_the_requested_run(tmp_path: Path) -> None:
-    config_id = "118-example"
-    experiment_dir = tmp_path / "results" / config_id
-    for run_id in ("001-first", "002-latest"):
-        _write_completed_source_run(
-            experiment_dir / run_id,
-            config_id=config_id,
-            run_id=run_id,
-        )
-
-    selected = {"config_id": config_id, "run_id": "001-first"}
-
-    assert _find_source_run({"output": {"dir": str(tmp_path / "results")}}, selected) == (
-        experiment_dir / "001-first"
-    )
-
-    with pytest.raises(ValueError, match="exact config_id and run_id"):
-        _find_source_run(
-            {"output": {"dir": str(tmp_path / "results")}},
-            {"config_id": config_id},
-        )
-
-    selected_manifest = experiment_dir / "001-first" / "manifest.json"
-    manifest = json.loads(selected_manifest.read_text(encoding="utf-8"))
-    manifest["status"] = "running"
-    selected_manifest.write_text(json.dumps(manifest), encoding="utf-8")
-    with pytest.raises(ValueError, match="not completed"):
-        _find_source_run(
-            {"output": {"dir": str(tmp_path / "results")}},
-            selected,
-        )
-
-
-def test_source_checkpoint_comes_only_from_completed_manifest(tmp_path: Path) -> None:
-    source_run = tmp_path / "results" / "118-example" / "001-source"
-    checkpoint = source_run / "checkpoints" / "final"
-    checkpoint.mkdir(parents=True)
-    (checkpoint / "model.safetensors").write_bytes(b"checkpoint")
-    manifest = {
-        "config_id": "118-example",
-        "checkpoint": {"saved": True, "path": "checkpoints/final"},
-    }
-
-    assert _source_checkpoint(source_run, manifest) == checkpoint.resolve()
-    with pytest.raises(ValueError, match="no saved checkpoint"):
-        _source_checkpoint(source_run, {"config_id": "118-example"})
 
 
 def test_endpoint_summary_reduces_direct_operation_counters() -> None:
@@ -292,7 +249,7 @@ def test_shared_validation_cache_rejects_conflicting_optional_identity(
     ]
 
     with pytest.raises(ValueError, match=field):
-        _validate_shared_validation_cache(manifests, reference)
+        validate_shared_validation_cache(manifests, reference)
 
 
 def test_shared_validation_cache_rejects_missing_file_hash() -> None:
@@ -317,7 +274,7 @@ def test_shared_validation_cache_rejects_missing_file_hash() -> None:
     ]
 
     with pytest.raises(ValueError, match="tokens_sha256"):
-        _validate_shared_validation_cache(manifests, reference)
+        validate_shared_validation_cache(manifests, reference)
 
 
 def test_split_fused_qkv_projection_preserves_gpt_neox_per_head_layout() -> None:
@@ -481,7 +438,7 @@ def test_eager_instrumentation_counts_the_actual_post_gate_qk_and_pv_operands() 
     assert accumulator.activations[(0, "key_qk_input")] == [2, 4]
     assert accumulator.activations[(0, "value_pv_input")] == [2, 4]
     assert accumulator.matmuls[(0, "qk_scores")] == list(
-        _qk_zero_product_counts(query, key, torch=torch)
+        qk_zero_product_counts(query, key, torch=torch)
     )
 
 
@@ -674,124 +631,6 @@ def test_real_gpt_neox_diagnostic_preserves_fixed_gplus_metadata() -> None:
     assert endpoint["zero_sites"]["z_h"]["available"] is True
 
 
-def test_dynamic_architecture_preserves_nonuniform_all_site_gate_metadata() -> None:
-    from transformers import GPTNeoXConfig, GPTNeoXForCausalLM
-
-    gate = {
-        "gate_type": "learned_one_sided_threshold",
-        "kappa_init": 0.1,
-        "kappa_scope": "per_layer_site",
-        "threshold_scale": "absolute",
-        "surrogate": "hard_forward_soft_backward",
-        "temperature": 0.03,
-    }
-    architecture = GPTNeoXConfig(
-        vocab_size=32,
-        hidden_size=8,
-        intermediate_size=16,
-        num_hidden_layers=2,
-        num_attention_heads=2,
-        max_position_embeddings=16,
-        rotary_pct=0.5,
-        hidden_act="relu",
-        use_parallel_residual=True,
-    )
-    architecture.post_layernorm_relu = True
-    architecture.post_layernorm_gate = dict(gate)
-    architecture.mlp_hidden_gate = dict(gate)
-    architecture.post_qkv_relu = {
-        "enabled": True,
-        "query": True,
-        "key": True,
-        "value": True,
-        "qk_placement": "post_rope",
-        **gate,
-    }
-    model = GPTNeoXForCausalLM(architecture)
-    apply_post_layernorm_relu(model, torch=torch)
-    apply_mlp_hidden_gate(model, torch=torch)
-    apply_post_qkv_relu(model, torch=torch)
-    with torch.no_grad():
-        for index, (_name, parameter) in enumerate(adaptive_threshold_parameter_items(model)):
-            parameter.add_(0.05 * index)
-
-    post_qkv = _post_qkv_relu_metadata(list(model.gpt_neox.layers))
-    metadata = _architecture_metadata(
-        model,
-        layers=list(model.gpt_neox.layers),
-        post_qkv_relu=post_qkv,
-        block_size=4,
-        torch=torch,
-    )
-
-    assert post_qkv["kappa"] is None
-    assert metadata["gate_specs"]["a"]["kappa_uniform"] is False
-    assert len(metadata["gate_specs_per_layer"]) == 2
-    observed_keys = {
-        row[site]["parameter_key"]
-        for row in metadata["gate_specs_per_layer"]
-        for site in ("a", "m", "h", "q", "k", "v")
-    }
-    assert observed_keys == {
-        f"layer_{layer}__{site}"
-        for layer in range(2)
-        for site in ("a", "m", "h", "q", "k", "v")
-    }
-    observed_kappas = [
-        row[site]["kappa"]
-        for row in metadata["gate_specs_per_layer"]
-        for site in ("a", "m", "h", "q", "k", "v")
-    ]
-    assert len(set(observed_kappas)) == 12
-
-
-def test_dynamic_architecture_preserves_nonuniform_branch_gate_metadata() -> None:
-    from transformers import GPTNeoXConfig, GPTNeoXForCausalLM
-
-    gate = {
-        "gate_type": "learned_one_sided_threshold",
-        "kappa_init": 0.1,
-        "kappa_scope": "per_layer_site",
-        "threshold_scale": "rms_relative",
-        "surrogate": "hard_forward_soft_backward",
-        "temperature": 0.03,
-    }
-    architecture = GPTNeoXConfig(
-        vocab_size=32,
-        hidden_size=8,
-        intermediate_size=16,
-        num_hidden_layers=2,
-        num_attention_heads=2,
-        max_position_embeddings=16,
-        rotary_pct=0.5,
-        hidden_act="relu",
-        use_parallel_residual=True,
-    )
-    architecture.post_layernorm_relu = True
-    architecture.post_layernorm_gate = dict(gate)
-    architecture.mlp_hidden_gate = dict(gate)
-    model = GPTNeoXForCausalLM(architecture)
-    apply_post_layernorm_relu(model, torch=torch)
-    apply_mlp_hidden_gate(model, torch=torch)
-    with torch.no_grad():
-        for index, (_name, parameter) in enumerate(adaptive_threshold_parameter_items(model)):
-            parameter.add_(0.03 * index)
-
-    post_qkv = _post_qkv_relu_metadata(list(model.gpt_neox.layers))
-    metadata = _architecture_metadata(
-        model,
-        layers=list(model.gpt_neox.layers),
-        post_qkv_relu=post_qkv,
-        block_size=4,
-        torch=torch,
-    )
-
-    assert metadata["gate_specs"]["a"]["threshold_scale"] == "rms_relative"
-    assert metadata["gate_specs"]["a"]["rms_epsilon"] == pytest.approx(1e-8)
-    assert metadata["gate_specs"]["a"]["kappa"] is None
-    assert all(row["q"] is None for row in metadata["gate_specs_per_layer"])
-
-
 def test_branch_metadata_allows_distinct_fixed_thresholds_at_distinct_sites() -> None:
     from transformers import GPTNeoXConfig, GPTNeoXForCausalLM
 
@@ -859,38 +698,6 @@ def test_post_qkv_metadata_keeps_fixed_kappa_consistency_check() -> None:
     model.gpt_neox.layers[1].attention.query_relu = FixedOneSidedThreshold(0.2)
 
     with pytest.raises(ValueError, match="family and kappa"):
-        _post_qkv_relu_metadata(list(model.gpt_neox.layers))
-
-
-def test_post_qkv_metadata_rejects_corrupt_learned_parameter_key() -> None:
-    from transformers import GPTNeoXConfig, GPTNeoXForCausalLM
-
-    architecture = GPTNeoXConfig(
-        vocab_size=32,
-        hidden_size=8,
-        intermediate_size=16,
-        num_hidden_layers=2,
-        num_attention_heads=2,
-        max_position_embeddings=16,
-        rotary_pct=0.5,
-    )
-    architecture.post_qkv_relu = {
-        "enabled": True,
-        "query": True,
-        "key": True,
-        "value": False,
-        "qk_placement": "post_rope",
-        "gate_type": "learned_symmetric_threshold",
-        "kappa_init": 0.1,
-        "kappa_scope": "per_site",
-        "threshold_scale": "absolute",
-        "temperature": 0.03,
-    }
-    model = GPTNeoXForCausalLM(architecture)
-    apply_post_qkv_relu(model, torch=torch)
-    model.gpt_neox.layers[1].attention.query_relu.parameter_key = "wrong"
-
-    with pytest.raises(ValueError, match="parameter key mismatch"):
         _post_qkv_relu_metadata(list(model.gpt_neox.layers))
 
 
@@ -1004,7 +811,7 @@ def test_real_gpt_neox_diagnostic_supports_stock_and_mlp_relu_checkpoints(
         "mlp_w2": int(layer.mlp.dense_4h_to_h.out_features),
     }
     for name, output_width in output_widths.items():
-        expected_zero_count, expected_total = _linear_zero_product_counts(
+        expected_zero_count, expected_total = linear_zero_product_counts(
             observed_inputs[name],
             output_features=output_width,
             torch=torch,
@@ -1063,31 +870,6 @@ def _fake_architecture(
         "layers": [],
     }
     return FakeModel(), layers, post_qkv
-
-
-def _write_completed_source_run(
-    run_dir: Path,
-    *,
-    config_id: str,
-    run_id: str,
-) -> None:
-    checkpoint = run_dir / "checkpoints" / "final"
-    checkpoint.mkdir(parents=True)
-    (checkpoint / "model.safetensors").write_bytes(b"checkpoint")
-    (run_dir / "config.yaml").write_text("experiment_name: source\n", encoding="utf-8")
-    (run_dir / "metrics.json").write_text("{}\n", encoding="utf-8")
-    (run_dir / "predictions.jsonl").write_text("", encoding="utf-8")
-    (run_dir / "manifest.json").write_text(
-        json.dumps(
-            {
-                "config_id": config_id,
-                "run_id": run_id,
-                "status": "completed",
-                "checkpoint": {"saved": True, "path": str(checkpoint)},
-            }
-        ),
-        encoding="utf-8",
-    )
 
 
 def _fake_endpoint_activation_rows(

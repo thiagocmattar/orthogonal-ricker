@@ -6,7 +6,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import pytest
 
-from paper_exp.plot_api import (
+from paper_exp.plots.export import (
     DOUBLE_COLUMN_PUBLICATION_PROFILE,
     publication_figure_issues,
 )

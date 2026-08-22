@@ -6,12 +6,9 @@ import shlex
 import sys
 
 from paper_exp.config import ConfigError, load_config
-from paper_exp.runner import (
-    DEFAULT_LOGS_DIR,
-    DEFAULT_STATE_PATH,
-    RunnerError,
+from paper_exp.launch import (
+    LaunchError,
     direct_launch_guard,
-    preflight_token_caches,
     require_results_output,
     require_token_cache_output,
     resolve_launch_config,
@@ -46,54 +43,6 @@ def build_parser() -> argparse.ArgumentParser:
         help="Run a configured throughput calibration.",
     )
     calibrate.add_argument("--config", required=True)
-
-    pretrain = subparsers.add_parser(
-        "pretrain",
-        help="Run one random-initialized pretraining config.",
-    )
-    pretrain.add_argument("--config", required=True)
-    pretrain.add_argument("--runner-token", help=argparse.SUPPRESS)
-
-    run_configs = subparsers.add_parser(
-        "run-configs",
-        help="Run pretraining configs sequentially in the supplied order.",
-    )
-    run_configs.add_argument(
-        "--config",
-        action="append",
-        required=True,
-        help="Config to run; repeat this option to define the exact launch order.",
-    )
-    run_configs.add_argument(
-        "--state",
-        "--state-path",
-        dest="state",
-        default=str(DEFAULT_STATE_PATH),
-        help="New atomic runner-state JSON path; it must not already exist.",
-    )
-    run_configs.add_argument(
-        "--logs-dir",
-        default=str(DEFAULT_LOGS_DIR),
-        help="Directory for child stdout and stderr logs.",
-    )
-    run_configs.add_argument(
-        "--poll-seconds",
-        type=float,
-        default=1.0,
-        help="Seconds between progress and ETC refreshes.",
-    )
-
-    run_status = subparsers.add_parser(
-        "run-status",
-        help="Read current sequential-run progress and ETC without modifying it.",
-    )
-    run_status.add_argument(
-        "--state",
-        "--state-path",
-        dest="state",
-        default=str(DEFAULT_STATE_PATH),
-        help="Runner-state JSON path.",
-    )
 
     check = subparsers.add_parser(
         "check",
@@ -200,51 +149,21 @@ def main(argv: list[str] | None = None) -> int:
             print(f"Prepared tokenized data; run written to {run_dir}")
             return 0
 
-        if args.command in {"calibrate", "pretrain"}:
-            from paper_exp.calibration import run_calibration
+        if args.command == "calibrate":
+            from paper_exp.training import run_training
 
             repository, config_path = resolve_launch_config(args.config)
             config = load_config(config_path, allow_todos=False)
             require_results_output(config, repository=repository, source=config_path)
             require_token_cache_output(config, repository=repository, source=config_path)
-            mode = "pretrain" if args.command == "pretrain" else "calibrate"
-            preflight_token_caches(
-                config,
-                repository=repository,
-                source=config_path,
-            )
-            with direct_launch_guard(
-                runner_token=(args.runner_token if args.command == "pretrain" else None),
-                repository=repository,
-            ):
-                run_dir = run_calibration(
+            with direct_launch_guard(repository=repository):
+                run_dir = run_training(
                     config,
                     config_path=config_path,
                     command=command,
-                    mode=mode,
+                    mode="calibrate",
                 )
-            label = "Pretraining" if args.command == "pretrain" else "Calibration"
-            print(f"{label} run written to {run_dir}")
-            return 0
-
-        if args.command == "run-configs":
-            from paper_exp.runner import format_runner_status, run_configs
-
-            state = run_configs(
-                args.config,
-                state_path=args.state,
-                logs_dir=args.logs_dir,
-                poll_seconds=args.poll_seconds,
-                command=command,
-            )
-            print(format_runner_status(state))
-            print(f"Runner state written to {Path(args.state)}")
-            return 0
-
-        if args.command == "run-status":
-            from paper_exp.runner import format_runner_status, read_runner_status
-
-            print(format_runner_status(read_runner_status(args.state)))
+            print(f"Calibration run written to {run_dir}")
             return 0
 
         if args.command == "check":
@@ -273,7 +192,7 @@ def main(argv: list[str] | None = None) -> int:
             return int(bool(counts["error"] or (args.strict and counts["warning"])))
 
         if args.command == "clip-sweep":
-            from paper_exp.clipping import run_clipping_sweep
+            from paper_exp.diagnostics.clipping import run_clipping_sweep
 
             repository, source_run = resolve_launch_run_dir(args.run_dir)
             with direct_launch_guard(repository=repository):
@@ -293,7 +212,7 @@ def main(argv: list[str] | None = None) -> int:
             return 0
 
         if args.command == "activation-histograms":
-            from paper_exp.activation_histograms import run_activation_histograms
+            from paper_exp.diagnostics.activation_histograms import run_activation_histograms
 
             repository, config_path = resolve_launch_config(args.config)
             config = load_config(config_path, allow_todos=False)
@@ -308,7 +227,7 @@ def main(argv: list[str] | None = None) -> int:
             return 0
 
         if args.command == "activation-propagation":
-            from paper_exp.activation_propagation import run_activation_propagation
+            from paper_exp.diagnostics.propagation import run_activation_propagation
 
             repository, config_path = resolve_launch_config(args.config)
             config = load_config(config_path, allow_todos=False)
@@ -323,7 +242,7 @@ def main(argv: list[str] | None = None) -> int:
             return 0
 
         if args.command == "weight-histograms":
-            from paper_exp.weight_histograms import run_weight_histograms
+            from paper_exp.diagnostics.weight_histograms import run_weight_histograms
 
             repository, config_path = resolve_launch_config(args.config)
             config = load_config(config_path, allow_todos=False)
@@ -349,7 +268,7 @@ def main(argv: list[str] | None = None) -> int:
             for output in outputs:
                 print(f"Wrote {output}")
             return 0
-    except (ConfigError, RunnerError, FileNotFoundError, RuntimeError, ValueError) as error:
+    except (ConfigError, LaunchError, FileNotFoundError, RuntimeError, ValueError) as error:
         print(str(error), file=sys.stderr)
         return 2
 

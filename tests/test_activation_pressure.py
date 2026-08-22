@@ -10,27 +10,90 @@ from paper_exp.activation_pressure import activation_near_zero_metrics
 from paper_exp.activation_pressure import activation_pressure_config
 from paper_exp.activation_pressure import apply_adam_step_orthogonal_pressure
 from paper_exp.activation_pressure import pressure_loss
-from paper_exp.activation_pressure import ricker_pressure
 from paper_exp.activations import ActivationCapture
 from paper_exp.activations import activation_exact_zero_counts
 from paper_exp.activations import activation_exact_zero_counts_by_alias
 from paper_exp.activations import clip_activation_tensor
 from paper_exp.activations import resolve_site_aliases
-from paper_exp.clipping import _LogicalZeroProductAccumulator
-from paper_exp.clipping import _probability_value_zero_product_counts
-from paper_exp.clipping import _qk_zero_product_counts
+from paper_exp.diagnostics.clipping_evaluation import _LogicalZeroProductAccumulator
 from paper_exp.cli import build_parser
 
 
-def test_pressure_functions_are_finite() -> None:
+def test_l1_pressure_has_the_exact_mean_absolute_value() -> None:
     activations = {"mlp_hiddens.layer_0": torch.tensor([[0.0, 0.01, 0.2]])}
 
-    ricker = ricker_pressure(torch, activations, c=0.05, sigma=0.05)
     l1 = activation_l1_pressure(torch, activations)
 
-    assert torch.isfinite(ricker)
     assert torch.isfinite(l1)
-    assert float(l1) > 0.0
+    assert float(l1) == pytest.approx(0.07)
+
+
+@pytest.mark.parametrize(
+    ("method", "step_budget", "orthogonal"),
+    [
+        ("l1_naive", None, False),
+        ("orthogonal_l1", 0.1, True),
+    ],
+)
+def test_l1_pressure_methods_are_accepted(
+    method: str,
+    step_budget: float | None,
+    orthogonal: bool,
+) -> None:
+    cfg = activation_pressure_config(
+        {
+            "activation_pressure": {
+                "enabled": True,
+                "method": method,
+                "sites": ["mlp_hiddens"],
+                "weight": 1.0,
+                "step_budget": step_budget,
+                "eps": 1e-12,
+                "log_thresholds": [0.0, 0.01],
+            }
+        }
+    )
+
+    assert cfg.method == method
+    assert cfg.pressure_kind == "activation_l1"
+    assert cfg.orthogonal is orthogonal
+    assert float(
+        pressure_loss(torch, {"mlp_hiddens.layer_0": torch.tensor([1.0])}, cfg)
+    ) == pytest.approx(1.0)
+
+
+def test_unknown_pressure_method_is_rejected() -> None:
+    with pytest.raises(ValueError, match="Unknown activation pressure method"):
+        activation_pressure_config(
+            {
+                "activation_pressure": {
+                    "enabled": True,
+                    "method": "unsupported",
+                    "sites": ["mlp_hiddens"],
+                    "weight": 1.0,
+                    "step_budget": None,
+                    "eps": 1e-12,
+                    "log_thresholds": [0.0],
+                }
+            }
+        )
+
+
+def test_activation_pressure_rejects_unknown_fields() -> None:
+    field = "unexpected"
+    raw = {
+        "enabled": True,
+        "method": "l1_naive",
+        "sites": ["mlp_hiddens"],
+        "weight": 1.0,
+        "step_budget": None,
+        "eps": 1e-12,
+        "log_thresholds": [0.0],
+        field: 0.05,
+    }
+
+    with pytest.raises(ValueError, match=field):
+        activation_pressure_config({"activation_pressure": raw})
 
 
 def test_monitor_only_activation_pressure_has_no_pressure_loss() -> None:
@@ -272,29 +335,6 @@ def test_logical_zero_product_summary_includes_dense_lm_head_denominator() -> No
     assert summary["model_matmul_product_count"] == 624
     assert summary["potentially_avoidable_block_matmul_fraction"] == 21 / 600
     assert summary["potentially_avoidable_model_matmul_fraction"] == 21 / 624
-
-
-def test_attention_zero_product_counts_use_valid_causal_pairs_and_union() -> None:
-    query = torch.tensor([[[[0.0, 1.0], [1.0, 1.0]]]])
-    key = torch.tensor([[[[1.0, 0.0], [0.0, 1.0]]]])
-    qk_zero, qk_total = _qk_zero_product_counts(query, key, torch=torch)
-
-    # Valid pairs are (q0, k0), (q1, k0), and (q1, k1), each with width 2.
-    assert qk_total == 6
-    assert qk_zero == 4
-
-    probabilities = torch.tensor([[[[1.0, 0.0], [0.25, 0.75]]]])
-    value = torch.tensor([[[[0.0, 2.0], [3.0, 0.0]]]])
-    pv_zero, pv_total = _probability_value_zero_product_counts(
-        probabilities,
-        value,
-        torch=torch,
-        query_chunk_size=1,
-    )
-
-    # The invalid future P[0, 1] entry is excluded rather than credited as a zero.
-    assert pv_total == 6
-    assert pv_zero == 3
 
 
 def test_clip_sweep_cli_can_request_actual_zero_product_measurement() -> None:

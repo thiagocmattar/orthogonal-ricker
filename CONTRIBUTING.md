@@ -5,7 +5,7 @@ reproduce, compare, or explain experiments.
 
 ## Development setup
 
-Use Python 3.10 or newer in a virtual environment:
+Use Python 3.11 or 3.12 in a virtual environment:
 
 ```bash
 python -m pip install -e ".[dev]"
@@ -27,8 +27,8 @@ ignored unless a release plan explicitly selects them.
 - Give every experiment a committed config before launch.
 - Preserve random initialization for Pythia pretraining unless a continuation
   or fine-tuning experiment explicitly calls for checkpoint weights.
-- Keep naive pressure and Adam-step orthogonal pressure distinct in configs,
-  metrics, and explanations.
+- Keep `l1_naive` (L1) and `orthogonal_l1` (OL1) distinct in configs, metrics,
+  and explanations. Do not add unreviewed pressure families.
 - Do not invent results or paper claims. Use `TODO:` when required information
   is not yet available.
 - Add tests for behavior changes and keep plotting inputs explicit.

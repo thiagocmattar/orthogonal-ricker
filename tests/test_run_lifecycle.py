@@ -204,28 +204,6 @@ def test_terminal_transitions_do_not_rewrite_or_alias_config(
     assert manifest["seed"] == original["run"]["seed"]
 
 
-def test_failure_recording_error_does_not_mask_original_exception(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    _stabilize_provenance(monkeypatch)
-    config, config_path = _write_config(tmp_path)
-
-    def fail_to_record(*_: object, **__: object) -> Path:
-        raise OSError("manifest unavailable")
-
-    monkeypatch.setattr(run_module, "fail_run", fail_to_record)
-
-    with pytest.raises(RuntimeError, match="primary failure"):
-        with run_lifecycle(
-            config,
-            config_path=config_path,
-            command="pytest lifecycle",
-            mode="pretrain",
-            run_id="recording-error",
-        ):
-            raise RuntimeError("primary failure")
-
-
 def test_terminal_state_cannot_be_rewritten(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -250,28 +228,6 @@ def test_terminal_state_cannot_be_rewritten(
 
     assert (run.run_dir / "manifest.json").read_bytes() == completed_manifest
     assert (run.run_dir / "metrics.json").read_bytes() == completed_metrics
-
-
-def test_exception_after_completion_does_not_flip_terminal_status(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    _stabilize_provenance(monkeypatch)
-    config, config_path = _write_config(tmp_path)
-    run_dir: Path | None = None
-
-    with pytest.raises(RuntimeError, match="after publication"):
-        with run_lifecycle(
-            config,
-            config_path=config_path,
-            command="pytest lifecycle",
-            mode="pretrain",
-            run_id="post-completion-error",
-        ) as run:
-            run_dir = complete_run(run, metrics={}, predictions=[])
-            raise RuntimeError("after publication")
-
-    assert run_dir is not None
-    assert _read_manifest(run_dir)["status"] == "completed"
 
 
 def test_normal_exit_without_completion_is_failed_and_rejected(

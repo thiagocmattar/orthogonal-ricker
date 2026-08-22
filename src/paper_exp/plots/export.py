@@ -28,7 +28,7 @@ from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from matplotlib.text import Text
 
-from paper_exp.plot_style import PLOT_STYLE
+from .style import PLOT_STYLE
 
 
 # Practical starting widths for venue-ready figures.  Figure families may

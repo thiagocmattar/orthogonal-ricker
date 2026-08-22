@@ -9,7 +9,6 @@ from typing import Any, Literal
 from yaml import YAMLError, safe_load
 
 from paper_exp.config import (
-    CONFIG_FILE_RE,
     ConfigError,
     load_config,
     validate_data_config,
@@ -17,6 +16,7 @@ from paper_exp.config import (
     validate_smoke_config,
     validate_training_config,
 )
+from paper_exp.launch import LaunchError, require_tracked_file
 from paper_exp.run import CORE_RUN_ARTIFACTS
 from paper_exp.utils import read_json
 
@@ -41,6 +41,11 @@ class IntegrityFinding:
 
 
 _NUMBERED_PREFIX_RE = re.compile(r"^(\d+)-")
+_LAUNCH_FOLDER_RE = re.compile(r"^\d{2}-[a-z0-9]+-[a-z0-9][a-z0-9-]*$")
+_SCIENTIFIC_CONFIG_RE = re.compile(
+    r"^(\d{3})-[a-z0-9][a-z0-9-]*\.yaml$"
+)
+_YAML_SUFFIXES = frozenset({".yaml", ".yml"})
 _INLINE_CODE_RE = re.compile(r"`([^`\r\n]+)`")
 _REFERENCE_RE = re.compile(
     r"(?<![A-Za-z0-9_])"
@@ -55,18 +60,22 @@ def check_repository(root: str | Path = ".") -> list[IntegrityFinding]:
     """Inspect repository conventions and artifact references without writing files."""
 
     repository = Path(root)
+    paper_map = repository / "docs" / "paper_map.md"
+    experiment_log = repository / "docs" / "experiment_log.md"
+    artifact_references = _document_artifact_references(paper_map, experiment_log)
     findings: list[IntegrityFinding] = []
     findings.extend(_check_configs(repository))
-    findings.extend(_check_runs(repository))
-    findings.extend(_check_numbered_figures(repository))
+    findings.extend(_check_runs(repository, references=artifact_references))
 
-    paper_map = repository / "docs" / "paper_map.md"
     paper_output_references: set[str] = set()
     if paper_map.is_file():
         output_findings, paper_output_references = _check_paper_map_outputs(
             repository, paper_map
         )
         findings.extend(output_findings)
+    findings.extend(
+        _check_numbered_figures(repository, references=paper_output_references)
+    )
 
     findings.extend(
         _check_document_references(
@@ -77,7 +86,7 @@ def check_repository(root: str | Path = ".") -> list[IntegrityFinding]:
     )
     findings.extend(
         _check_document_references(
-            repository, repository / "docs" / "experiment_log.md"
+            repository, experiment_log
         )
     )
     return findings
@@ -90,6 +99,8 @@ def classify_run_directory(run_dir: str | Path) -> RunStatus:
     has_core_envelope = all((path / name).is_file() for name in CORE_RUN_ARTIFACTS)
     manifest_status, manifest_is_valid = _explicit_manifest_status(path)
     if not manifest_is_valid:
+        if has_core_envelope and _statusless_core_artifacts_are_coherent(path):
+            return "complete"
         return "inconsistent"
     if manifest_status == "running":
         return "running"
@@ -118,88 +129,103 @@ def _check_configs(repository: Path) -> list[IntegrityFinding]:
 
     findings: list[IntegrityFinding] = []
     prefixes: dict[int, list[Path]] = {}
-    config_paths = sorted(
+    ordered_prefixes: list[int] = []
+    config_paths: list[tuple[Path, bool]] = []
+
+    root_configs = sorted(
         path
         for path in config_dir.iterdir()
-        if path.is_file() and path.suffix.lower() in {".yaml", ".yml"}
+        if path.is_file() and path.suffix.lower() in _YAML_SUFFIXES
     )
-
-    for path in config_paths:
-        prefix_match = _NUMBERED_PREFIX_RE.match(path.name)
-        if prefix_match is not None:
-            prefixes.setdefault(int(prefix_match.group(1)), []).append(path)
-
-        if CONFIG_FILE_RE.fullmatch(path.name) is None:
+    for path in root_configs:
+        is_smoke = path.name == "00-smoke.yaml"
+        config_paths.append((path, is_smoke))
+        if not is_smoke:
             findings.append(
                 IntegrityFinding(
                     severity="error",
-                    code="config.filename_invalid",
+                    code="config.location_invalid",
                     message=(
-                        "Config filename must start with at least two digits and use "
-                        "lowercase letters, digits, and hyphens."
+                        "Scientific configs must live directly inside their matching "
+                        "configs/NN-<phase>-<tranche>/ folder."
                     ),
                     path=_relative_path(repository, path),
                 )
             )
+
+    for folder in sorted(path for path in config_dir.iterdir() if path.is_dir()):
+        direct_configs = sorted(
+            path
+            for path in folder.iterdir()
+            if path.is_file() and path.suffix.lower() in _YAML_SUFFIXES
+        )
+        deeper_configs = sorted(
+            path
+            for path in folder.rglob("*")
+            if (
+                path.is_file()
+                and path.suffix.lower() in _YAML_SUFFIXES
+                and path.parent != folder
+            )
+        )
+        if not direct_configs and not deeper_configs:
             continue
 
-        try:
-            config = load_config(
-                path,
-                allow_todos=(path.name == "00-smoke.yaml"),
-            )
-            if path.name == "00-smoke.yaml":
-                validate_smoke_config(config)
-            else:
-                diagnostic_kinds = [
-                    kind
-                    for kind in (
-                        "activation_histograms",
-                        "weight_histograms",
-                        "activation_propagation",
-                    )
-                    if kind in config
-                ]
-                if "training" in config and diagnostic_kinds:
-                    raise ConfigError(
-                        "A config cannot combine training with a diagnostic workflow."
-                    )
-                if len(diagnostic_kinds) > 1:
-                    raise ConfigError(
-                        "A config must select exactly one diagnostic workflow."
-                    )
-                if "training" in config:
-                    validate_training_config(config)
-                elif diagnostic_kinds:
-                    validate_diagnostic_config(config, diagnostic_kinds[0])
-                elif "tokenizer" in config or "preprocessing" in config:
-                    validate_data_config(config)
-                else:
-                    raise ConfigError(
-                        "Non-smoke configs must declare one recognized workflow section."
-                    )
-            output_dir = str(config.get("output", {}).get("dir", ""))
-            if Path(output_dir).is_absolute() or Path(output_dir).as_posix() != "results":
-                raise ConfigError("Config field output.dir must be the relative path 'results'.")
-            preprocessing = config.get("preprocessing")
-            if isinstance(preprocessing, dict):
-                cache_output = str(preprocessing.get("output_dir", ""))
-                if (
-                    Path(cache_output).is_absolute()
-                    or Path(cache_output).as_posix() != "data/tokenized"
-                ):
-                    raise ConfigError(
-                        "Config field preprocessing.output_dir must be the relative path 'data/tokenized'."
-                    )
-        except (ConfigError, OSError, UnicodeError, YAMLError) as error:
+        if (
+            _LAUNCH_FOLDER_RE.fullmatch(folder.name) is None
+            or int(folder.name[:2]) == 0
+        ):
             findings.append(
                 IntegrityFinding(
                     severity="error",
-                    code="config.invalid",
-                    message=f"Generic config validation failed: {error}",
+                    code="config.launch_folder_invalid",
+                    message=(
+                        "Scientific config folders must be named "
+                        "NN-<phase>-<tranche>."
+                    ),
+                    path=_relative_path(repository, folder),
+                )
+            )
+        else:
+            findings.extend(_check_matching_runner(repository, folder))
+
+        config_paths.extend((path, False) for path in direct_configs)
+        for path in deeper_configs:
+            findings.append(
+                IntegrityFinding(
+                    severity="error",
+                    code="config.location_invalid",
+                    message=(
+                        "Scientific configs may be nested only one folder below configs/."
+                    ),
                     path=_relative_path(repository, path),
                 )
             )
+
+    for path, is_smoke in config_paths:
+        if not is_smoke:
+            filename_match = _SCIENTIFIC_CONFIG_RE.fullmatch(path.name)
+            if filename_match is None or int(filename_match.group(1)) == 0:
+                findings.append(
+                    IntegrityFinding(
+                        severity="error",
+                        code="config.filename_invalid",
+                        message=(
+                            "Scientific config filenames must start with a three-digit "
+                            "prefix of 001 or greater and use lowercase letters, digits, "
+                            "and hyphens with the .yaml extension."
+                        ),
+                        path=_relative_path(repository, path),
+                    )
+                )
+                continue
+            prefix = int(filename_match.group(1))
+            prefixes.setdefault(prefix, []).append(path)
+            ordered_prefixes.append(prefix)
+
+        finding = _validate_config_file(repository, path, is_smoke=is_smoke)
+        if finding is not None:
+            findings.append(finding)
 
     for prefix, paths in sorted(prefixes.items()):
         if len(paths) <= 1:
@@ -209,7 +235,20 @@ def _check_configs(repository: Path) -> list[IntegrityFinding]:
             IntegrityFinding(
                 severity="error",
                 code="config.duplicate_prefix",
-                message=f"Config prefix {prefix:02d} is used by: {names}.",
+                message=f"Config prefix {prefix:03d} is used by: {names}.",
+                path="configs",
+            )
+        )
+
+    if ordered_prefixes != sorted(ordered_prefixes):
+        findings.append(
+            IntegrityFinding(
+                severity="error",
+                code="config.order_invalid",
+                message=(
+                    "Scientific config prefixes must increase globally in launch-folder "
+                    "and filename order."
+                ),
                 path="configs",
             )
         )
@@ -219,7 +258,7 @@ def _check_configs(repository: Path) -> list[IntegrityFinding]:
         if missing:
             findings.append(
                 IntegrityFinding(
-                    severity="warning",
+                    severity="error",
                     code="config.numbering_gap",
                     message=(
                         "Sequential config prefixes are missing: "
@@ -231,13 +270,125 @@ def _check_configs(repository: Path) -> list[IntegrityFinding]:
     return findings
 
 
-def _check_runs(repository: Path) -> list[IntegrityFinding]:
+def _check_matching_runner(repository: Path, folder: Path) -> list[IntegrityFinding]:
+    runner_path = repository / "runners" / f"{folder.name}.py"
+    display = _relative_path(repository, runner_path)
+    if not runner_path.is_file():
+        return [
+            IntegrityFinding(
+                severity="error",
+                code="config.runner_missing",
+                message="Scientific config folder has no same-named case runner.",
+                path=display,
+            )
+        ]
+    try:
+        require_tracked_file(repository.resolve(), runner_path.resolve())
+    except LaunchError:
+        return [
+            IntegrityFinding(
+                severity="error",
+                code="config.runner_untracked",
+                message="The same-named case runner must be tracked by Git.",
+                path=display,
+            )
+        ]
+    return []
+
+
+def _validate_config_file(
+    repository: Path,
+    path: Path,
+    *,
+    is_smoke: bool,
+) -> IntegrityFinding | None:
+    try:
+        config = load_config(path, allow_todos=is_smoke)
+        if is_smoke:
+            validate_smoke_config(config)
+        else:
+            diagnostic_kinds = [
+                kind
+                for kind in (
+                    "activation_histograms",
+                    "weight_histograms",
+                    "activation_propagation",
+                )
+                if kind in config
+            ]
+            if "training" in config and diagnostic_kinds:
+                raise ConfigError(
+                    "A config cannot combine training with a diagnostic workflow."
+                )
+            if len(diagnostic_kinds) > 1:
+                raise ConfigError(
+                    "A config must select exactly one diagnostic workflow."
+                )
+            if "training" in config:
+                validate_training_config(config)
+            elif diagnostic_kinds:
+                validate_diagnostic_config(config, diagnostic_kinds[0])
+            elif "tokenizer" in config or "preprocessing" in config:
+                validate_data_config(config)
+            else:
+                raise ConfigError(
+                    "Non-smoke configs must declare one recognized workflow section."
+                )
+        output_dir = str(config.get("output", {}).get("dir", ""))
+        if Path(output_dir).is_absolute() or Path(output_dir).as_posix() != "results":
+            raise ConfigError(
+                "Config field output.dir must be the relative path 'results'."
+            )
+        preprocessing = config.get("preprocessing")
+        if isinstance(preprocessing, dict):
+            cache_output = str(preprocessing.get("output_dir", ""))
+            if (
+                Path(cache_output).is_absolute()
+                or Path(cache_output).as_posix() != "data/tokenized"
+            ):
+                raise ConfigError(
+                    "Config field preprocessing.output_dir must be the relative path "
+                    "'data/tokenized'."
+                )
+    except (ConfigError, OSError, UnicodeError, YAMLError) as error:
+        return IntegrityFinding(
+            severity="error",
+            code="config.invalid",
+            message=f"Generic config validation failed: {error}",
+            path=_relative_path(repository, path),
+        )
+    return None
+
+
+def _check_runs(
+    repository: Path, *, references: set[str]
+) -> list[IntegrityFinding]:
     results_dir = repository / "results"
     if not results_dir.is_dir():
         return []
 
+    config_dir = repository / "configs"
+    current_config_ids = {
+        path.stem
+        for path in config_dir.rglob("*.yaml")
+        if path.is_file()
+    } if config_dir.is_dir() else set()
+    referenced_groups = {
+        parts[1]
+        for reference in references
+        if reference.startswith("results/")
+        and len(parts := reference.rstrip("/").split("/")) >= 2
+    }
+
     findings: list[IntegrityFinding] = []
     for result_group in sorted(path for path in results_dir.iterdir() if path.is_dir()):
+        belongs_to_current_config = any(
+            result_group.name == config_id
+            or result_group.name.startswith(f"{config_id}-clip-")
+            for config_id in current_config_ids
+        )
+        if not belongs_to_current_config and result_group.name not in referenced_groups:
+            continue
         for run_dir in sorted(path for path in result_group.iterdir() if path.is_dir()):
             missing = [name for name in CORE_RUN_ARTIFACTS if not (run_dir / name).is_file()]
             run_path = _relative_path(repository, run_dir)
@@ -451,6 +602,29 @@ def _completed_artifacts_are_coherent(run_dir: Path) -> bool:
     return True
 
 
+def _statusless_core_artifacts_are_coherent(run_dir: Path) -> bool:
+    """Recognize pre-lifecycle runs without applying the current config schema."""
+
+    try:
+        manifest = read_json(run_dir / "manifest.json")
+        with (run_dir / "config.yaml").open("r", encoding="utf-8-sig") as handle:
+            config = safe_load(handle) or {}
+        metrics = read_json(run_dir / "metrics.json")
+        predictions = _read_jsonl(run_dir / "predictions.jsonl")
+    except (OSError, UnicodeError, ValueError, YAMLError):
+        return False
+    return (
+        isinstance(manifest, dict)
+        and "status" not in manifest
+        and manifest.get("config_id") == run_dir.parent.name
+        and manifest.get("run_id") == run_dir.name
+        and isinstance(config, dict)
+        and bool(config)
+        and isinstance(metrics, dict)
+        and predictions is not None
+    )
+
+
 def _read_jsonl(path: Path) -> list[dict[str, Any]] | None:
     rows: list[dict[str, Any]] = []
     try:
@@ -471,15 +645,26 @@ def _is_nonempty_string(value: Any) -> bool:
     return isinstance(value, str) and bool(value.strip())
 
 
-def _check_numbered_figures(repository: Path) -> list[IntegrityFinding]:
+def _check_numbered_figures(
+    repository: Path, *, references: set[str]
+) -> list[IntegrityFinding]:
     figure_dir = repository / "figures"
     if not figure_dir.is_dir():
+        return []
+
+    referenced_prefixes = {
+        int(match.group(1))
+        for reference in references
+        if reference.startswith("figures/")
+        and (match := _NUMBERED_PREFIX_RE.match(Path(reference).name)) is not None
+    }
+    if not referenced_prefixes:
         return []
 
     prefixes: dict[int, list[Path]] = {}
     for path in sorted(figure_dir.glob("*.pdf")):
         match = _NUMBERED_PREFIX_RE.match(path.name)
-        if match is not None:
+        if match is not None and int(match.group(1)) in referenced_prefixes:
             prefixes.setdefault(int(match.group(1)), []).append(path)
 
     findings: list[IntegrityFinding] = []
@@ -592,6 +777,15 @@ def _literal_references(text: str):
             if any(character in reference for character in _GLOB_CHARS):
                 continue
             yield reference
+
+
+def _document_artifact_references(*documents: Path) -> set[str]:
+    references: set[str] = set()
+    for document in documents:
+        if not document.is_file():
+            continue
+        references.update(_literal_references(document.read_text(encoding="utf-8")))
+    return references
 
 
 def _markdown_table_cells(line: str) -> list[str]:

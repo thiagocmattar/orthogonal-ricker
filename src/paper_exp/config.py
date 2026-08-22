@@ -28,7 +28,7 @@ REQUIRED_FIELDS: tuple[tuple[str, ...], ...] = (
     ("output", "dir"),
 )
 
-CONFIG_FILE_RE = re.compile(r"^\d{2,}-[a-z0-9][a-z0-9-]*\.ya?ml$")
+CONFIG_FILE_RE = re.compile(r"^\d{2,}-[a-z0-9][a-z0-9-]*\.yaml$")
 IMMUTABLE_REVISION_RE = re.compile(r"^[0-9a-f]{40,64}$")
 
 
@@ -52,7 +52,8 @@ def validate_config_filename(path: str | Path) -> None:
     name = Path(path).name
     if CONFIG_FILE_RE.match(name) is None:
         raise ConfigError(
-            "Config filenames must start with at least two digits, like 01-baseline.yaml or 100-diagnostic.yaml."
+            "Config filenames must start with at least two digits and end in .yaml, "
+            "like 01-baseline.yaml or 100-diagnostic.yaml."
         )
 
 
@@ -106,7 +107,6 @@ def validate_config(config: Mapping[str, Any], *, allow_todos: bool = True) -> N
         raise ConfigError("Config field model.mlp_hidden_gate requires model.hidden_act: relu.")
 
     _validate_post_qkv_relu(config.get("model", {}).get("post_qkv_relu"))
-    _validate_learned_threshold_training_contract(config)
 
     if not allow_todos:
         todos = list(find_todo_values(config))
@@ -218,7 +218,6 @@ def validate_training_config(config: Mapping[str, Any]) -> None:
         "adamw_betas",
         "adamw_eps",
         "weight_decay",
-        "threshold_learning_rate_multiplier",
     )
     _require_explicit_fields(training, "training", required_training_fields)
 
@@ -254,12 +253,6 @@ def validate_training_config(config: Mapping[str, Any]) -> None:
     weight_decay = _finite_number(training["weight_decay"], "training.weight_decay")
     if weight_decay < 0.0:
         raise ConfigError("Config field training.weight_decay must be non-negative.")
-    threshold_multiplier = training["threshold_learning_rate_multiplier"]
-    if threshold_multiplier is not None:
-        _positive_number(
-            threshold_multiplier,
-            "training.threshold_learning_rate_multiplier",
-        )
 
     validation = _required_mapping(config, "validation")
     if validation["enabled"]:
@@ -594,16 +587,7 @@ def _validate_post_qkv_relu(value: Any) -> None:
 
     enabled = value["enabled"]
     placement = value.get("qk_placement")
-    threshold_fields = {
-        "gate_type",
-        "kappa",
-        "kappa_init",
-        "kappa_scope",
-        "threshold_scale",
-        "surrogate",
-        "temperature",
-        "rms_epsilon",
-    }
+    threshold_fields = {"gate_type", "kappa"}
     if not enabled:
         extra = set(value) - {"enabled", "query", "key", "value", "qk_placement"} - threshold_fields
         if extra:
@@ -637,41 +621,22 @@ def _validate_post_qkv_relu(value: Any) -> None:
         "relu",
         "one_sided_threshold",
         "symmetric_threshold",
-        "learned_one_sided_threshold",
-        "learned_symmetric_threshold",
     }:
         raise ConfigError(
             "Config field model.post_qkv_relu.gate_type must be 'relu', "
-            "'one_sided_threshold', 'symmetric_threshold', "
-            "'learned_one_sided_threshold', or 'learned_symmetric_threshold'."
+            "'one_sided_threshold', or 'symmetric_threshold'."
         )
     base_fields = {"enabled", "query", "key", "value", "qk_placement", "gate_type"}
     if gate_type == "relu" and threshold_fields.intersection(value) - {"gate_type"}:
         raise ConfigError(
             "Config field model.post_qkv_relu threshold settings must be omitted for ordinary ReLU gates."
         )
-    if gate_type == "relu":
-        allowed_fields = base_fields
-    elif gate_type in {"one_sided_threshold", "symmetric_threshold"}:
-        allowed_fields = base_fields | {"kappa"}
-    else:
-        allowed_fields = base_fields | {
-            "kappa_init",
-            "kappa_scope",
-            "threshold_scale",
-            "surrogate",
-            "temperature",
-            "rms_epsilon",
-        }
+    allowed_fields = base_fields if gate_type == "relu" else base_fields | {"kappa"}
     extra = set(value) - allowed_fields
     if extra:
         fields = ", ".join(sorted(str(field) for field in extra))
         raise ConfigError(f"Config field model.post_qkv_relu contains unsupported fields: {fields}.")
     if gate_type == "relu":
-        return
-
-    if gate_type.startswith("learned_"):
-        _validate_learned_gate(value, field_path="model.post_qkv_relu")
         return
 
     if "kappa" not in value:
@@ -696,27 +661,13 @@ def _validate_one_sided_gate(value: Any, *, field_path: str) -> None:
     if not isinstance(value, Mapping):
         raise ConfigError(f"Config field {field_path} must be a mapping when provided.")
     gate_type = value.get("gate_type")
-    learned_fields = {
-        "gate_type",
-        "kappa_init",
-        "kappa_scope",
-        "threshold_scale",
-        "surrogate",
-        "temperature",
-        "rms_epsilon",
-    }
-    allowed = learned_fields if gate_type == "learned_one_sided_threshold" else {"gate_type", "kappa"}
-    extra = set(value) - allowed
+    extra = set(value) - {"gate_type", "kappa"}
     if extra:
         fields = ", ".join(sorted(str(field) for field in extra))
         raise ConfigError(f"Config field {field_path} contains unsupported fields: {fields}.")
-    if gate_type == "learned_one_sided_threshold":
-        _validate_learned_gate(value, field_path=field_path)
-        return
     if gate_type != "one_sided_threshold":
         raise ConfigError(
-            f"Config field {field_path}.gate_type must be 'one_sided_threshold' "
-            "or 'learned_one_sided_threshold'."
+            f"Config field {field_path}.gate_type must be 'one_sided_threshold'."
         )
     if "kappa" not in value:
         raise ConfigError(f"Missing required config field: {field_path}.kappa")
@@ -728,106 +679,6 @@ def _validate_one_sided_gate(value: Any, *, field_path: str) -> None:
         or float(kappa) < 0.0
     ):
         raise ConfigError(f"Config field {field_path}.kappa must be a finite non-negative number.")
-
-
-def _validate_learned_gate(value: Mapping[str, Any], *, field_path: str) -> None:
-    for field in ("kappa_init", "kappa_scope", "threshold_scale", "temperature"):
-        if field not in value:
-            raise ConfigError(f"Missing required config field: {field_path}.{field}")
-    for field in ("kappa_init", "temperature"):
-        number = value[field]
-        if (
-            isinstance(number, bool)
-            or not isinstance(number, (int, float))
-            or not math.isfinite(float(number))
-            or float(number) <= 0.0
-        ):
-            raise ConfigError(f"Config field {field_path}.{field} must be a finite positive number.")
-    if value["kappa_scope"] not in {"global", "per_site", "per_layer_site"}:
-        raise ConfigError(
-            f"Config field {field_path}.kappa_scope must be 'global', 'per_site', or 'per_layer_site'."
-        )
-    if value["threshold_scale"] not in {"absolute", "rms_relative"}:
-        raise ConfigError(
-            f"Config field {field_path}.threshold_scale must be 'absolute' or 'rms_relative'."
-        )
-    if value.get("surrogate", "hard_forward_soft_backward") != "hard_forward_soft_backward":
-        raise ConfigError(
-            f"Config field {field_path}.surrogate must be 'hard_forward_soft_backward'."
-        )
-    rms_epsilon = value.get("rms_epsilon", 1e-8)
-    if (
-        isinstance(rms_epsilon, bool)
-        or not isinstance(rms_epsilon, (int, float))
-        or not math.isfinite(float(rms_epsilon))
-        or float(rms_epsilon) <= 0.0
-    ):
-        raise ConfigError(f"Config field {field_path}.rms_epsilon must be a finite positive number.")
-    if "kappa" in value:
-        raise ConfigError(f"Config field {field_path}.kappa must be omitted for learned gates.")
-
-
-def _validate_learned_threshold_training_contract(config: Mapping[str, Any]) -> None:
-    model = config.get("model", {})
-    candidates = [
-        model.get("post_layernorm_gate"),
-        model.get("mlp_hidden_gate"),
-        model.get("post_qkv_relu"),
-    ]
-    learned = [
-        value
-        for value in candidates
-        if isinstance(value, Mapping) and str(value.get("gate_type", "")).startswith("learned_")
-    ]
-    if not learned:
-        training = config.get("training", {})
-        if (
-            isinstance(training, Mapping)
-            and training.get("threshold_learning_rate_multiplier") is not None
-        ):
-            raise ConfigError(
-                "Config field training.threshold_learning_rate_multiplier requires a learned threshold gate."
-            )
-        return
-
-    training = config.get("training")
-    if not isinstance(training, Mapping):
-        raise ConfigError("Learned threshold gates require a training mapping.")
-    if "threshold_learning_rate_multiplier" not in training:
-        raise ConfigError(
-            "Learned threshold gates require training.threshold_learning_rate_multiplier."
-        )
-    multiplier = training["threshold_learning_rate_multiplier"]
-    if (
-        isinstance(multiplier, bool)
-        or not isinstance(multiplier, (int, float))
-        or not math.isfinite(float(multiplier))
-        or float(multiplier) <= 0.0
-    ):
-        raise ConfigError(
-            "Config field training.threshold_learning_rate_multiplier must be a finite positive number."
-        )
-    if config.get("checkpoint", {}).get("save_final") is not True:
-        raise ConfigError("Learned threshold gates require checkpoint.save_final: true.")
-    if config.get("checkpoint", {}).get("save_optimizer") is not True:
-        raise ConfigError("Learned threshold gates require checkpoint.save_optimizer: true.")
-
-    global_specs = [value for value in learned if value.get("kappa_scope") == "global"]
-    if global_specs:
-        signatures = {
-            (
-                value["gate_type"],
-                float(value["kappa_init"]),
-                value["threshold_scale"],
-                float(value["temperature"]),
-                float(value.get("rms_epsilon", 1e-8)),
-            )
-            for value in learned
-        }
-        if len(signatures) != 1 or len(global_specs) != len(learned):
-            raise ConfigError(
-                "Global learned thresholds require identical learned gate settings across all active gate groups."
-            )
 
 
 def _get_required(config: Mapping[str, Any], field_path: tuple[str, ...]) -> Any:

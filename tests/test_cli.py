@@ -11,9 +11,6 @@ EXPECTED_COMMANDS = {
     "smoke",
     "prepare-data",
     "calibrate",
-    "pretrain",
-    "run-configs",
-    "run-status",
     "check",
     "clip-sweep",
     "activation-histograms",
@@ -50,7 +47,6 @@ def test_smoke_requires_the_explicit_clean_config() -> None:
     [
         "prepare-data",
         "calibrate",
-        "pretrain",
         "activation-histograms",
         "activation-propagation",
         "weight-histograms",
@@ -59,23 +55,6 @@ def test_smoke_requires_the_explicit_clean_config() -> None:
 def test_config_driven_commands_require_an_explicit_config(command: str) -> None:
     with pytest.raises(SystemExit):
         build_parser().parse_args([command])
-
-
-def test_run_configs_preserves_repeated_config_order_and_state_alias() -> None:
-    args = build_parser().parse_args(
-        [
-            "run-configs",
-            "--config",
-            "configs/01-a.yaml",
-            "--config",
-            "configs/02-b.yaml",
-            "--state-path",
-            "runtime/state.json",
-        ]
-    )
-
-    assert args.config == ["configs/01-a.yaml", "configs/02-b.yaml"]
-    assert args.state == "runtime/state.json"
 
 
 def test_plot_requires_one_explicit_supported_artifact_kind() -> None:
@@ -112,21 +91,3 @@ def test_clipping_has_no_implicit_cutoff_and_requires_an_explicit_seed() -> None
     assert args.quantiles == ""
     assert args.rms_multipliers == ""
     assert args.seed == 7
-
-
-def test_clipping_sweep_requires_an_explicit_evaluation_seed() -> None:
-    with pytest.raises(SystemExit):
-        build_parser().parse_args(
-            ["clip-sweep", "--run-dir", "results/example/001-run"]
-        )
-
-    args = build_parser().parse_args(
-        [
-            "clip-sweep",
-            "--run-dir",
-            "results/example/001-run",
-            "--seed",
-            "17",
-        ]
-    )
-    assert args.seed == 17

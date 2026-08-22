@@ -61,10 +61,11 @@ decide scientific content.
 
 Use:
 
-- `src/paper_exp/plot_style.py` for palette, typography, and presentation
+- `src/paper_exp/plots/style.py` for palette, typography, and presentation
   defaults;
-- `src/paper_exp/plot_common.py` for tested presentation-neutral helpers;
-- `src/paper_exp/plot_api.py` for layouts, publication checks, and export.
+- `src/paper_exp/plots/histograms.py` for tested pooled-histogram reductions;
+- `src/paper_exp/plots/export.py` for layouts, publication checks, and export;
+- one focused module under `src/paper_exp/plots/` for each artifact family.
 
 Do not create a generic plotting framework around hypothetical future figures.
 Add one clear family module when the plan defines a real family.

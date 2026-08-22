@@ -13,6 +13,10 @@ attempt prefix plus UTC timestamp and short unique suffix:
 001-YYYYMMDD-HHMMSS-xxxxxxxx
 ```
 
+Config IDs remain globally unique even though configs are grouped into
+same-named launch folders. The manifest command records the numeric case runner
+that launched a tranche.
+
 Results are local artifacts and are ignored by Git. Do not commit checkpoints,
 large event streams, or derived diagnostic outputs accidentally.
 
@@ -92,7 +96,9 @@ later.
   coherent.
 - Activation and weight diagnostics must pin every source with both
   `config_id` and `run_id`; they never select the latest run.
-- Statusless historical attempts are not definitive inputs on this branch.
+- A statusless historical run remains a valid record when its core envelope is
+  coherent. It is not definitive paper input on this branch unless the reviewed
+  plan explicitly accepts and pins it.
 - A failed or incomplete attempt is never silently selected as completed.
 - Provisional use requires an explicit limitation and exact durable source.
 - Never overwrite an attempt. A retry creates the next run ID.
@@ -104,17 +110,7 @@ make check
 paper-exp check --strict
 ```
 
-## Sequential Runner State
-
-`paper-exp run-configs` stores ignored atomic state and logs under `run-logs/`
-by default. These are orchestration aids; child manifests and artifacts remain
-the authority.
-
-Inspect state without mutation:
-
-```bash
-paper-exp run-status --state run-logs/runner-state.json
-```
-
-Do not reuse a failed state file for a new queue. Preserve it for diagnosis and
-choose a new state path for a reviewed retry.
+The scan checks run groups owned by configs in the current checkout plus
+artifact groups explicitly indexed in the experiment log or paper map. Local
+archives from earlier branches are outside the current workflow and are not
+silently treated as release evidence.

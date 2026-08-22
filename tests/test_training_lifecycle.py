@@ -6,10 +6,10 @@ from pathlib import Path
 import pytest
 import yaml
 
-import paper_exp.calibration as calibration
+import paper_exp.training as training
 
 
-def test_calibration_dependency_failure_preserves_launch_record(
+def test_training_dependency_failure_preserves_launch_record(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -60,7 +60,6 @@ def test_calibration_dependency_failure_preserves_launch_record(
             "adamw_betas": [0.9, 0.999],
             "adamw_eps": 1.0e-8,
             "weight_decay": 0.01,
-            "threshold_learning_rate_multiplier": None,
         },
         "validation": {"enabled": False},
         "checkpoint": {"save_final": False, "save_optimizer": False},
@@ -85,13 +84,13 @@ def test_calibration_dependency_failure_preserves_launch_record(
         raise RuntimeError("dependency load failed")
 
     monkeypatch.setattr(
-        calibration,
+        training,
         "_load_training_dependencies",
         fail_dependencies,
     )
 
     with pytest.raises(RuntimeError, match="dependency load failed"):
-        calibration.run_calibration(
+        training.run_training(
             config,
             config_path=config_path,
             command="pytest calibration lifecycle",
