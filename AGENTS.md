@@ -15,11 +15,11 @@ help run, reproduce, compare, or explain an experiment.
 Then read the document that owns the task:
 
 - experiment design or configs: `docs/experiment_plan.md` and
-  `configs/README.md`;
+  `experiments/README.md`;
 - measurements: `docs/diagnostics.md`;
 - launches, ETC, monitoring, or recovery: `docs/runbook.md`;
 - figures: `docs/plotting.md`;
-- artifact status and completeness: `results/README.md`.
+- artifact status and completeness: `experiments/README.md`.
 
 `exp-plan-v0.md` is a structural preview only. The reviewed
 `docs/experiment_plan.md` is the authority for datasets, models, budgets,
@@ -51,12 +51,17 @@ until the user supplies and reviews the definitive plan.
 ## Launch Structure
 
 - Every experiment has an immutable numbered config.
-- Each plan-defined tranche has one thin case runner named
-  `runners/NN-<phase>-<tranche>.py` and one matching config folder.
+- Each plan-defined tranche has one scaffold named
+  `experiments/NN-<phase>-<tranche>/` with exactly `run/`, `raw/`, and `figs/`
+  as its owned directories.
+- The tracked `run/` directory contains one thin `runner.py` and every
+  immutable config for the tranche. Never scatter tranche runners or configs
+  into repository-level directories.
 - A case runner contains only the ordered config paths and calls the single
   parent, `paper_exp.runner.run_launch`.
 - Definitive configs are named `CCC-<case>.yaml`; prefixes are globally unique
-  and sequential. Results use `CCC-<case>/001-<timestamp>-<id>/`.
+  and sequential. Raw attempts use
+  `raw/CCC-<case>/001-<timestamp>-<id>/` inside the owning scaffold.
 - Run every definitive tranche through its case runner, including a tranche
   with one config. Never launch case runners in parallel.
 - The parent validates the complete tranche, holds one lock, executes configs
@@ -68,6 +73,10 @@ until the user supplies and reviews the definitive plan.
 
 ## Artifacts and Figures
 
+- Treat one `experiments/NN-<phase>-<tranche>/` scaffold as the ownership
+  boundary for its tracked launch recipe, ignored raw attempts, and ignored
+  generated figures. Keep `run/`, configs, runners, and directory keepers in
+  Git; keep generated `raw/` and `figs/` payloads out of Git.
 - Mutating scientific commands require a reviewed plan, a clean committed
   checkout, and the experiment lock.
 - At launch, save `config.yaml` and a `status: running` manifest with Git

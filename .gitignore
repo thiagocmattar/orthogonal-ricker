@@ -14,8 +14,6 @@ build/
 dist/
 .archive/
 tmp/
-run-logs/
-output/
 *.egg-info/
 .coverage
 .coverage.*
@@ -30,15 +28,12 @@ Thumbs.db
 data/tokenized/
 data/raw/
 
-results/*/
-!results/README.md
-!results/.gitkeep
-
-figures/*.pdf
-figures/*.png
-figures/*provenance.json
-!figures/README.md
-!figures/.gitkeep
+# Tranche recipes under run/ are intentionally tracked. Raw attempts and
+# generated figures stay local; .gitkeep preserves their owning directories.
+experiments/*/raw/*
+!experiments/*/raw/.gitkeep
+experiments/*/figs/*
+!experiments/*/figs/.gitkeep
 
 # Local exploratory paper material is outside the definitive experiment tree.
 /report/
