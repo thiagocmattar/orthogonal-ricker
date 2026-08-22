@@ -86,6 +86,9 @@ until the user supplies and reviews the definitive plan.
 
 ## Working Practice
 
+- Treat each coherent edit or migration step as its own checkpoint: run the
+  verification proportional to that step and commit it before starting the
+  next step. Keep commits small and do not combine unrelated changes.
 - Use `docs/code_map.md` to edit the smallest owning module. Avoid compatibility
   shims for code removed from this definitive workflow.
 - Prefer one clear implementation over speculative frameworks or guardrails.
