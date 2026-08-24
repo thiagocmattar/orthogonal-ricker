@@ -1,1132 +1,537 @@
-# Experimental Plan v0.1 — Review Draft
+# Experimental Plan v0.2 — Lean Review Draft
 
-> Status: non-authoritative structural preview.
->
-> The reviewed authority is docs/experiment_plan.md. Its status is still
-> placeholder. This draft proposes decisions for review; it does not approve
-> them. Do not allocate immutable config numbers, create scientific configs,
-> calibrate, or launch from this file. Those actions remain blocked until the
-> definitive plan incorporates reviewed choices and changes its status.
+> **Status:** proposal for scientific review. This file is not launch
+> authority. Only a reviewed [definitive plan](docs/experiment_plan.md) may
+> authorize implementation-dependent scientific configs, calibration, or
+> launch.
 
-## 1. Decision notation
+This plan is organized around the working paper *Sparsity Spillover in
+Transformers: Local Pressure, Model-Wide Consequences*. All numerical entries
+below are proposed design choices, not findings.
 
-This draft uses three labels:
+## 1. Paper goal
 
-- **Proposed**: a concrete choice recommended for the definitive plan.
-- **Dependency-selected**: a value fixed by an earlier reviewed tranche and
-  then reused without retuning.
-- **TODO**: a decision or identity that is genuinely unresolved. A TODO is a
-  launch blocker for every dependent tranche.
+The study asks whether pressure at one feed-forward activation is accompanied
+by a nonlocal activation response, whether that response changes the
+model-wide logical opportunity created by exact zeros, and whether selected
+multi-site thresholding plus conflict-aware pressure improves the
+validation-loss/logical-opportunity frontier.
 
-All numerical results in this document are budgets, design choices, or
-identities. They are not experimental findings.
+The experimental program has five questions:
 
-## 2. Research questions, hypotheses, and nonclaims
+1. **Sparsity spillover:** as L1 pressure at the FFN hidden site `h` increases,
+   how do `h` and untargeted FFN/attention activation distributions change?
+2. **OL1 robustness:** at the same pressure weights, does OL1 reduce
+   validation-loss sensitivity while preserving the activation response?
+3. **Threshold design:** how do canonical site variant, attention-threshold
+   form, and threshold value change the validation-loss versus `R_model`
+   frontier?
+4. **Combined intervention:** does adding OL1 to the selected threshold
+   frontier improve it relative to pressure-only and threshold-only controls?
+5. **Scale replication:** do the spillover response and selected frontier
+   transport from Pythia-14M to Pythia-70M and Pythia-410M without retuning the
+   intervention?
 
-The study asks three ordered questions:
+Null, adverse, heterogeneous, and non-monotone results remain valid. The plan
+does not assume that spillover, symmetric-threshold superiority, OL1 benefit,
+or cross-size persistence will be observed.
 
-1. When pressure is applied only at the MLP hidden site h, how do exact-zero
-   and near-zero distributions change at h and at untargeted canonical sites?
-2. How much logical zero-product opportunity is visible block-wide and
-   model-wide, rather than only at the targeted MLP site?
-3. Can explicit site gates, alone or with activation pressure, improve the
-   validation-loss versus logical-opportunity frontier?
+### Interpretation boundaries
 
-The motivating hypotheses are:
+- L1 can increase near-zero mass without creating exact zeros.
+- An opposing change at an untargeted site is an associated nonlocal response;
+  it is not evidence of functional compensation.
+- `R_model` and `R_model^max` are logical zero-product opportunities. They are
+  not measured FLOP reduction, latency, energy savings, or speedup.
+- The experimental and paper label is always
+  **validation-loss/logical-opportunity frontier** unless a later experiment
+  directly measures sparse-kernel compute or runtime.
 
-- higher configured activation_pressure.weight within one method increases
-  near-zero mass at h;
-- changes can spill over to untargeted attention ports;
-- topology and gate form affect the location and amount of exact zeros;
-- orthogonal_l1 may preserve task quality better than l1_naive at comparable
-  achieved n_h(0.01) or R_model. Equal configured weights are not assumed to
-  produce equal applied corrections across methods.
+## 2. Canonical vocabulary and interventions
 
-These are hypotheses, not required outcomes. Finite null, adverse,
-non-monotone, and method-divergent results remain valid evidence and must be
-reported. Nonfinite scientific failures are preserved and reported but are
-ineligible for selection. The plan does not assume that every layer behaves
-alike.
+An activation tensor that feeds a matrix multiplication and is eligible for
+sparsification is a **sparsification site**. This plan uses only the canonical
+repository aliases:
 
-This study does not infer any of the following without a dedicated
-measurement:
+| Site | Exact operand location | Group |
+| --- | --- | --- |
+| `a` | Attention-branch LayerNorm output before the fused QKV projection | Attention |
+| `m` | FFN-branch LayerNorm output before the `W1` up-projection | FFN |
+| `h` | FFN activation-function output between `W1` and `W2` | FFN |
+| `q_post` | Query after RoPE, immediately before `QK^T` | Attention |
+| `k_post` | Key after RoPE, immediately before `QK^T` | Attention |
+| `v` | Value before the attention-probability-by-value product | Attention |
 
-- exact zeros from differentiable L1 pressure;
-- functional compensation from an activation correlation;
-- sparse-kernel acceleration from an exact-zero count;
-- wall-clock, energy, or FLOP/s gains from R_block or R_model;
-- behavior at an unmeasured residual or attention-output site.
+Each alias denotes the operand actually passed into the downstream matrix
+multiplication: the unmodified value when no intervention is active, or the
+ReLU/threshold output at that location. At `h`, ReLU or a hard threshold
+**replaces GELU as `mlp.act`**; it is not applied after GELU.
 
-## 3. Estimands and matched comparisons
+Activation pressure targets **only `h` in every transformer block**. Stage A2
+and Stage A3 use topology `A1-H` with the explicit `relu` operator, matching
+the paper’s GELU-to-ReLU FFN intervention. The stock-Pythia control is topology
+`A0` with GELU and no pressure.
 
-The primary quality estimand is final held-out causal-language-modeling loss on
-a named validation partition at a fixed input-token budget.
+Always qualify stage names and topology IDs: write **Stage A2** for the
+experiment stage and **topology `A2`** for the `{m, h}` placement.
 
-The activation estimands at site s are:
+### Pressure methods
 
-    z_s = count(x == 0) / count(x)
+| Human name | Config method | Definition |
+| --- | --- | --- |
+| No pressure | `none` | Task loss only |
+| L1 | `l1_naive` | Add `lambda * mean(abs(h))` directly to task loss |
+| OL1 | `orthogonal_l1` | Take the task-only AdamW step, remove a conflicting component from the preconditioned L1 direction when needed, cap the correction with `step_budget`, then apply it |
 
-and, for each declared threshold epsilon,
+OL1 is conflict-aware rather than unconditionally orthogonal. L1 and OL1 use
+the same `h` target and pressure-weight grid.
 
-    n_s(epsilon) = count(|x| <= epsilon) / count(x)
+### B1 site variants
 
-The primary near-zero threshold is epsilon = 0.01. Epsilon = 0.1 is a
-predeclared secondary diagnostic. The comparison is inclusive at equality.
-Every named checkpoint-diagnostic artifact stores the integer numerator and
-denominator; displayed fractions are derived from those counts. Count-first
-pooling across all evaluated tokens and layers is primary. Layerwise values
-are descriptive. Last-microbatch training monitoring is the explicitly
-labeled exception and stores fractions rather than pooled integer evidence.
+Only POST-RoPE query/key variants are studied. They are the actual operands
+immediately preceding `QK^T`, so the PRE/POST placement comparison is removed.
 
-R_block and R_model use the integer logical-product accounting in
-docs/diagnostics.md. They are potential logical zero-product opportunities,
-not realized kernel skips or measured speedups.
+| Topology ID | Active sites |
+| --- | --- |
+| `A1-H` | `h` |
+| `A2` | `m, h` |
+| `A3` | `a, m, h` |
+| `A4-Q` | `a, m, h, q_post` |
+| `A4-K` | `a, m, h, k_post` |
+| `A4-V` | `a, m, h, v` |
+| `A5-QK-POST` | `a, m, h, q_post, k_post` |
+| `A6-POST` | `a, m, h, q_post, k_post, v` |
 
-Each treatment is compared with a same-seed control that matches:
+For every B1/B2 condition:
 
-- model and tokenizer identity and revision;
-- random initialization and initial-parameter hash;
-- train token cache and realized data-order schedule hash;
-- validation partition and token-cache hashes;
-- context, microbatch, accumulation, optimizer, schedule, precision, and token
-  budget;
-- validation implementation and diagnostic checkpoint rule.
+- one global `kappa` applies to every active site;
+- active FFN sites (`m` and `h`) always use the one-sided rule
+  `x -> x if x >= kappa, else 0`;
+- active attention sites (`a`, `q_post`, `k_post`, and `v`) use either the
+  one-sided rule or the symmetric rule
+  `x -> x if abs(x) >= kappa, else 0`;
+- equality survives both threshold rules.
 
-A shared nominal seed is not enough to establish matching. Same-budget
-comparisons require the complete realized schedule hash. The E1 unequal-budget
-robustness comparison instead requires the explicitly verified 1.7B schedule
-prefix defined in Section 12.
+This mixed-form design is a **proposed extension**, not a currently supported
+repository realization. The present methods contract applies one
+`model.site_gate` operator to every active port. The definitive plan must first
+approve per-group threshold forms and amend both the schema/code and
+`docs/methods.md`; the topology IDs themselves continue to mean only the active
+site sets in the table above.
 
-## 4. Shared protocol
+At `kappa = 0`, a one-sided threshold is ReLU-like but remains the explicit
+threshold operator; its equality-gradient convention differs from the
+repository’s explicit `relu` operator. A symmetric attention threshold at
+`kappa = 0` is the identity, while a one-sided attention threshold at
+`kappa = 0` removes negative values.
 
-### 4.1 Model, data, and cache identity
+## 3. Shared training protocol
 
-All main experiments pretrain Pythia-family causal language models from random
-initialization. Released checkpoint weights are not loaded in Phases A–E1.
+All models are constructed from Pythia configurations with random weights.
+Released checkpoint weights are not loaded.
 
-The following local cache is a **proposed** Phase A input because it already
-has verifiable metadata. It still requires explicit ownership and license
-review before promotion into the definitive plan.
+### Proposed reproducibility identities
+
+The locally verified 14M inputs remain the proposed base identities; they are
+not authoritative until ownership and licenses are reviewed.
 
 | Item | Proposed identity |
 | --- | --- |
-| Dataset | JeanKaddour/minipile |
-| Dataset revision | 18ad1b0c701eaa0de03d3cecfdd769cbc70ffbd0 |
+| Dataset | `JeanKaddour/minipile` at revision `18ad1b0c701eaa0de03d3cecfdd769cbc70ffbd0` |
 | Training scope | 1,000,000 source documents; 1,491,711,416 cached tokens |
-| Model architecture | EleutherAI/pythia-14m-deduped |
-| Model revision | 7386d9a4ae45aef494a6e704910394def3037fc5 |
-| Tokenizer | EleutherAI/pythia-14m-deduped |
-| Tokenizer revision | 7386d9a4ae45aef494a6e704910394def3037fc5 |
-| Tokenization | Append EOS; store int32 token IDs |
-| Cache ID | 03-pythia-14m-minipile-random-full-10min |
-| Training-token SHA-256 | da82a2ea2e0080c7fd681c7a93b07d3d9ff3d5357a8640895a82d536a1eaf97c |
-| Validation source scope | First 500 validation source documents |
-| Partition scheme | shuffled_source_documents_half_v1 |
-| Partition seed | 20260718 |
-
-Proposed selection partition:
-
-- 250 source documents;
-- 311,739 cached tokens;
-- 152 complete 2,048-token evaluation sequences = 311,296 input tokens;
-- 443 excluded tail tokens;
-- ordered-index SHA-256
-  ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47;
-- token-cache SHA-256
-  22bb7c27864f0e5941548c572d6c75b1b5ba6a4c13e4cd26f40f4de546c5cc19.
-
-Proposed confirmation partition:
-
-- 250 source documents;
-- 381,929 cached tokens;
-- 186 complete 2,048-token evaluation sequences = 380,928 input tokens;
-- 1,001 excluded tail tokens;
-- ordered-index SHA-256
-  8953a93f85c80a48d25fcacb7a0fbf44f6d9fd5b54037f92e01c5250f045ad99;
-- token-cache SHA-256
-  ee777ebdb8672b676ecfc05b2e7024c2f9446f8a9e46ac22b78e8a6c36f0890b.
-
-TODO: record the dataset license, model license, tokenizer license, source split
-names, text column, and the independent review accepting these identities.
-Large-model identities, revisions, caches, and hashes remain TODO in Phase D.
-
-### 4.2 Proposed Pythia-14M training recipe
-
-| Config field or derived quantity | Proposed value |
-| --- | --- |
-| preprocessing.block_size | 2,048 input tokens |
-| training.device | cuda |
-| training.precision | bfloat16: CUDA BF16 autocast; FP32 parameters and AdamW state |
-| training.micro_batch_size | 4 sequences |
-| training.gradient_accumulation_steps | 8 microbatches |
-| Effective batch | 32 sequences = 65,536 input tokens per optimizer update |
-| run.training_schedule_scheme | random_contiguous_blocks_with_replacement_v1 |
-| training.optimizer | adamw over all trainable parameters |
-| training.adamw_betas | 0.9, 0.95 |
-| training.adamw_eps | 1e-8 |
-| training.weight_decay | 0.1 |
-| Gradient clipping | none |
-| training.warmup_steps and schedule | 260-update linear warmup, then constant learning rate |
-| Warmup boundary | update 1 uses 1/260 of configured LR; update 260 reaches full LR |
-| training.log_every | 50; also log update 1 and final update |
-| training.max_wall_seconds | null for every definitive run |
-| checkpoint.save_final | true |
-| checkpoint.save_optimizer | false |
-| Intermediate checkpoints | none |
-
-The 260-update warmup covers 17,039,360 input tokens, approximately 1.002% of
-a 1.7B-token run. It applies to the 400M, 1.7B, 3.4B, and 300M recipes.
-
-The batch is expressed both in sequences and input tokens. Budget matching uses
-input tokens, not predicted positions. Any model-size-specific reduction in
-microbatch must preserve the reviewed effective token batch through
-accumulation or be declared as a scientific mismatch.
-
-### 4.3 Exact token budgets
-
-Runs stop only at the listed optimizer update. The small overage is the
-deterministic consequence of the fixed effective batch.
-
-| Purpose | Nominal budget | Updates | Exact input tokens |
-| --- | ---: | ---: | ---: |
-| Screening | 400M | 6,104 | 400,031,744 |
-| Main comparison | 1.7B | 25,940 | 1,700,003,840 |
-| Long-training robustness | 3.4B | 51,880 | 3,400,007,680 |
-| Pretrained adaptation | 300M | 4,578 | 300,023,808 |
-
-A 400M result is screening evidence only. It cannot become a headline result
-without its predeclared 1.7B promotion.
-
-The infrastructure-only scaffold 00 smoke remains separate, keeps its own
-settings, and may test the harness before plan review. It is not a 10M
-scientific recipe, does not calibrate ETC, and cannot select or support a paper
-condition.
-
-### 4.4 Seeds and data order
-
-The proposed scientific seed set is {0, 1, 2}. Within a seed:
-
-    run.seed = model_initialization_seed = data_order_seed
-
-The screen seed is 0. Promotions add seeds 1 and 2 while reusing the eligible
-seed-0 result; they do not rerun or replace seed 0. Comparisons require the
-same realized schedule hash and initial-parameter hash within seed.
-
-No missing, failed, or unfavorable seed may be silently replaced. If a
-predeclared three-seed comparison does not have three valid runs per condition,
-the comparison remains incomplete and cannot use unequal sample sizes.
-
-### 4.5 Validation policy
-
-Selection and confirmation partitions are document-disjoint.
-
-Selection validation is:
-
-- deterministic and evaluated in fixed cached order;
-- batch size 4;
-- eval_batches null, meaning every complete 2,048-token block is evaluated
-  once;
-- validation.eval_every_steps = 763 for every Phase A–C 400M or 1.7B
-  training config, with additional evaluations at update 1 and the final
-  update and no duplicate when final is a cadence update;
-- 763 updates = 50,003,968 input tokens;
-- 9 evaluations at 400M: update 1 and the 8 cadence updates through final
-  update 6,104;
-- 35 evaluations at 1.7B: update 1, 33 cadence evaluations, and the final
-  update;
-- summarized with evaluated sequence count, evaluated token count, and
-  excluded tail tokens.
-
-Implementation dependency: extend the validation result schema to save the
-cached partition-token total and excluded_tail_tokens, derived as cached
-partition tokens minus evaluated input tokens, and test the full-cache and
-partial-final-batch cases. Do not repair this provenance manually after a run.
-
-Final selection-validation loss is the only Phase A1 ranking metric.
-Intermediate validation, best-so-far validation, training loss, activation
-monitoring, and checkpoint diagnostics cannot change the A1 ranking.
-
-Confirmation cache metadata, counts, and hashes may be prepared and inspected
-before tuning. Confirmation loss and every other model-derived confirmation
-metric remain unevaluated and uninspected during tuning. The one confirmation
-partition is sealed study-wide; it is not opened phase-by-phase. Its single
-release occurs only after all planned A–D headline cohorts, eligibility
-decisions, analysis code, exclusions, labels, and scientific statements are
-frozen. If reviewed compute limits omit a planned headline cohort, freeze and
-record the reduced final scope before opening confirmation.
-
-At release, evaluate every frozen headline checkpoint once over the complete
-confirmation partition using a new generic saved-checkpoint validation command
-that reuses the training loss evaluator and writes checkpoint_validation.json.
-Do not substitute a clipping-sweep zero row, because clipping evaluation may
-change execution mechanics. Then run the predeclared confirmation activation
-diagnostics required by each figure.
-
-Implementation dependency: add and test that generic confirmation-validation
-workflow, exact source-run selection, partition identity checks, complete-block
-coverage, excluded-tail serialization, and output provenance before any
-scientific launch. A disagreement with selection evidence is reported and can
-downgrade or invalidate the frozen claim; it cannot rerank conditions, change
-the cohort, or trigger another tuning round.
-
-### 4.6 Throughput calibration and ETC
-
-Calibration is operational plumbing, not a scientific run and not paper
-evidence. The proposed representative case is the Phase A1 seed-0, LR = 1e-4
-configuration with the production model, batch, accumulation, precision,
-optimizer, schedule, logging, and h monitoring.
-
-Calibration procedure:
-
-1. Define setup time from command entry after the launch guard through the
-   instant immediately before the first production-shaped optimizer update.
-2. Use a calibration-only 600-second training window beginning at that first
-   update. Do not write 600 seconds into the definitive scientific wall-time
-   field.
-3. End the cold window at the completion of the first optimizer update whose
-   completion timestamp is at or beyond 120 training seconds. Record its
-   actual duration T_cold and completed-update count N_cold; retain only later
-   updates for steady-state estimation.
-4. Require at least 10 completed optimizer updates after the cold window.
-5. Estimate steady-state throughput from retained training-only time divided
-   by retained updates. Scheduled validation and checkpoint work are excluded
-   from this interval.
-6. Time one complete selection-validation pass separately.
-7. Time final-model serialization separately and record serialized bytes.
-8. Record hardware, driver, CUDA and framework versions, GPU memory, setup
-   time, every retained device-complete step time, retained step count, mean
-   and sample standard deviation of step time, validation time, serialization
-   time, and checkpoint size.
-
-For a 1.7B A1 run:
-
-    ETC = setup time
-        + T_cold
-        + (25,940 - N_cold) × retained mean seconds per update
-        + 35 × full-selection validation time
-        + final-model serialization time
-
-Before launch, report first-run ETC, full-tranche ETC, projected local
-completion time, evidence, workload and hardware assumptions, at least ±15%
-engineering uncertainty per run, and at least ±20% for the full tranche.
-Estimate the later four-run A1 promotion tranche separately after screening.
-
-Calibration is unstable if retained step-time sample SD divided by its mean is
-greater than 0.15, or if the absolute difference between first-half and
-second-half retained means divided by the full retained mean is greater than
-0.10. For an odd retained count, omit the central observation from the
-half-to-half comparison. Calibration is unusable if it has fewer than 10
-retained updates, meets either instability condition, changes production
-overhead outside the separately timed validation/checkpoint operations, or
-has incomplete validation/checkpoint timings. Recalibrate and do not request
-launch approval.
-
-Implementation dependency: the current calibration path needs a
-calibration-only duration override; timing regions that exclude scheduled
-validation and checkpoint work; low-overhead CUDA-event or equivalent timing
-with device synchronization before reading results; every-step timing rather
-than log-cadence samples; cold-window accounting; and separate setup,
-validation, checkpoint-time, and checkpoint-size fields. The current
-wall_seconds_train includes validation, and current logged step times are not a
-sufficient calibration sample. A non-null scientific wall cap can also publish
-a truncated pretraining run. Implement and verify the calibration-only path
-before any calibration. Definitive configs retain a null wall cap and must
-pass exact postflight step/token checks.
-
-Use one BF16-capable CUDA GPU for both calibration and A1. Do not silently fall
-back to another precision or combine unlike GPU models. Before launch, project
-raw attempts, final checkpoints, diagnostics, and figures from measured
-calibration bytes and require enough free storage for the complete tranche
-plus 20% headroom.
-
-The dense A1 calibration is valid only for the A1 dense workload. Before every
-later tranche, obtain a same-hardware estimate for each materially new workload
-shape: l1_naive, orthogonal_l1, gated training, each larger model/batch shape,
-and each required diagnostic kind. Reuse prior timing only when model shape,
-method overhead, batch, precision, logging, validation, and checkpoint policy
-match. Otherwise run a plan-approved representative single-config calibration
-or one timed diagnostic operation. Full-tranche ETC sums the appropriate
-method-specific training ETCs and all required diagnostic times; calibration
-never selects a scientific setting.
-
-### 4.7 Completion, failure, invalid evidence, and retry
-
-A training attempt is complete only when all of the following are durable:
-
-- terminal manifest status is completed;
-- exact required update and input-token budgets were reached;
-- final task and required validation metrics are finite;
-- config, Git, cache, partition, architecture, schedule, and seed provenance
-  agree;
-- config.yaml, manifest.json, metrics.json, predictions.jsonl, events.jsonl,
-  and the required final model checkpoint pass integrity checks.
-
-An escaping exception, caught OOM, nonfinite loss, detected incomplete budget,
-or artifact-publication failure leaves the attempt failed. The serial tranche
-stops at the first escaping failure and waits for review.
-
-An abrupt process kill, host loss, or power loss may leave a stale running
-manifest because no exception handler executes. After read-only inspection,
-give that artifact evidence status invalid for the intended comparison, with
-reason stale/incomplete, without rewriting its saved provenance or pretending
-it completed. It is ineligible for selection.
-
-A completed manifest that later fails provenance or integrity verification is
-invalid evidence. Preserve its terminal record and document the integrity
-finding; do not relabel it into a successful result.
-
-A finite but poor, adverse, or non-monotone outcome is valid evidence. Preserve
-all attempts. Do not exclude a result because it weakens a hypothesis or
-frontier.
-
-Retry an unchanged config only after an evidenced infrastructure failure. A
-successful infrastructure retry may become the valid attempt for that same
-immutable config and seed, while every failed attempt remains preserved. Never
-retry away a scientific failure, change a config under the same number, or
-substitute another seed. Recovery begins with read-only inspection. Any
-changed scientific setting receives a new reviewed config.
-
-The current parent runner restarts the complete ordered config list and can
-therefore create new attempts for earlier cases when recovering a later case.
-Before scientific launch, implement and test reviewed resume-at-case behavior:
-validate the unchanged full runner/config list, preserve all prior attempts,
-require an explicit reviewed start config, skip only earlier cases with a
-recorded terminal classification, and begin at the first authorized
-unattempted case under the normal lock. This is required to finish a screen
-after a reviewed scientific failure without retrying it or losing later cases.
-
-## 5. Measurement and artifact plan
-
-### 5.1 Online training telemetry
-
-At each training-log event, record:
-
-- optimizer update and exact input tokens seen;
-- task loss, learning rate, and update wall time;
-- task-gradient norm and the two weight norms defined below;
-- h monitoring values for Phase A1.
-
-Global weight norm is the FP32 L2 norm over every model parameter, including
-bias and normalization parameters. MLP weight norm is the FP32 L2 norm over
-named parameters containing .mlp. and ending in .weight; it excludes biases
-and parameters outside MLP modules. Both aggregate by summing squared
-per-parameter L2 norms and taking one square root.
-
-Record cumulative elapsed time, aggregate throughput, and peak allocated and
-reserved GPU memory in the terminal summary. The current implementation does
-not provide per-event cumulative elapsed time, throughput, or memory.
-
-For both l1_naive and orthogonal_l1, also record pressure_loss,
-pressure_weight, weighted_pressure_loss, raw pressure-gradient norm,
-pressure/task gradient-norm ratio, task-pressure dot product and cosine, and
-the conflict flag. Record augmented_loss for l1_naive; if it is emitted for
-orthogonal_l1, label it monitoring-only because AdamW moments remain task-only.
-
-For orthogonal_l1 only, additionally record the Adam-step diagnostics in
-docs/diagnostics.md: task-direction norm, raw preconditioned
-pressure-direction norm, pre-projection dot and cosine, projection flag,
-post-projection dot and cosine, weighted raw direction ratio, trust scale,
-final direction ratio, and both eligible and skipped parameter counts.
-
-### 5.2 Phase A1 monitoring configuration
-
-Use activation pressure only as a monitoring hook:
-
-    enabled: true
-    method: none
-    sites: [h]
-    weight: 0.0
-    step_budget: null
-    eps: 1e-12
-    log_thresholds: [0.01, 0.1]
-
-This applies no pressure. Logged h fractions describe only the last microbatch
-at the training-log update. They are operational monitoring, not pooled
-validation diagnostics and not primary sparsity evidence.
-
-### 5.3 Named checkpoint diagnostics
-
-Primary activation evidence comes from a named final checkpoint, exact run
-identity, and the full frozen selection or confirmation coverage required by
-the phase.
-
-Use only the canonical sites:
-
-    a, m, h, q_pre, k_pre, q_post, k_post, v
-
-Do not introduce residual-stream or attention-output aliases. For every
-requested site and layer, save exact-zero counts, near-zero threshold hits,
-element counts, and coverage. Streamed histograms save bin edges, counts,
-underflow, overflow, total elements, threshold-hit counters, layer/site and
-source identity, and validation coverage. Separate the exact-zero atom from
-the density bin containing zero and normalize the remaining density by the
-nonzero total.
-
-For every phase that reports R_block or R_model, including A2 and all topology
-studies, produce activation_propagation.json with actual operand counts and
-declared denominators. PRE-RoPE gate outputs are not substitutes for the
-POST-RoPE operands consumed by QK.
-
-Weight histograms are optional mechanism diagnostics only. Before using one,
-freeze exact parameter names or patterns, bias and normalization-parameter
-inclusion rules, bin edges, saved bin counts, out-of-range accounting, total
-element count, source run, and checkpoint. They cannot alone establish why an
-activation changed. Online global and MLP weight norms remain the explicitly
-named training summaries.
-
-### 5.4 Artifact identity
-
-Every result and diagnostic must resolve to an exact immutable config, attempt,
-Git commit, cache, run seed, checkpoint, validation partition, and diagnostic
-command. Generated tables and figures load only pinned completed evidence.
-
-The minimum result table reports condition, seed, final validation loss,
-z_s, n_s(0.01), n_s(0.1), R_block, R_model, counts/coverage, and evidence
-status where applicable. Use N/A for an absent or unevaluated site. Report 0%
-only when a compatible counter evaluated the site and observed a zero
-numerator.
-
-## 6. Selection, uncertainty, and analysis freeze
-
-Selection rules are applied only to eligible runs and only to the named
-selection partition. Eligibility is assigned in two stages.
-
-A run is training-eligible as a diagnostic source only if:
-
-- its training evidence record is valid for diagnostic-source use;
-- its manifest is completed at the exact step and input-token budget;
-- its required training and selection-validation metrics are finite;
-- config, source, cache, partition, schedule, seed, Git, and checkpoint
-  provenance pass integrity checks.
-
-A run becomes promotion-eligible only after it is training-eligible and every
-promotion-required named diagnostic is durable and valid for the intended
-comparison. A1 has no promotion diagnostic, so its training-eligible cases are
-also its promotion-eligible cases.
-
-Every planned case still appears in the report denominator with its completed,
-failed, invalid, or unattempted classification. Ineligibility prevents ranking;
-it does not erase the case or its artifacts.
-
-Do not rank any screen until every planned case has a reviewed terminal
-classification and no case remains unattempted. Resume-at-case recovery may
-finish later cases after review, but scientific failures remain ineligible.
-Each phase's predeclared collapse rule determines whether the remaining
-promotion-eligible cohort is sufficient; never improvise a smaller favorable
-subset after observing results.
-
-For three-seed conditions, report all seed values, arithmetic mean, sample
-standard deviation, and n = 3. Primary treatment comparisons use paired
-same-seed deltas. Do not report standard error as if it were seed-to-seed
-variation.
-
-Pareto comparisons minimize validation loss and maximize R_model. A point is
-dominated when another eligible point is no worse on both axes and strictly
-better on at least one. Plot all eligible points, including dominated and
-adverse ones; promotion status is an annotation, not an exclusion.
-
-Before first confirmation evaluation, freeze:
-
-- the complete condition and seed cohort;
-- all eligibility and exclusion decisions;
-- checkpoint and partition identities;
-- reduction code, metrics, plot labels, and uncertainty summaries;
-- the scientific statement the confirmation set is intended to assess.
-
-## 7. Ordered execution graph and preflight
-
-docs/runbook.md is the normative launch and recovery contract. Every training
-row below is a separate serial tranche with its own chronological scaffold. A
-promotion tranche is not configured until its upstream result and required
-diagnostics are reviewed and each dependency-selected value is written into
-the definitive plan.
-
-| Order | Serial training tranche | Depends on |
-| ---: | --- | --- |
-| 1 | A1 learning-rate screen | reviewed plan, committed recipe, verified cache, calibrated ETC, explicit launch approval |
-| 2 | A1 learning-rate promotion | reviewed complete five-case A1 screen |
-| 3 | A2 pressure screen | frozen 14M LR and reviewed OL1 step budget |
-| 4 | A2 pressure promotion | reviewed A2 screen diagnostics and frozen weights |
-| 5 | B1 symmetric-gate topology screen | frozen Phase A protocol |
-| 6 | B1 topology promotion | reviewed B1 screen propagation diagnostic |
-| 7 | B2 gate-form screen | reviewed B1 promotion |
-| 8 | B2 gate-form promotion | reviewed B2 screen diagnostics |
-| 9 | C final-method screen | frozen Phase A and B settings |
-| 10 | C final-method promotion | reviewed C screen diagnostics |
-| 11 | D1 per-size LR screens, ordered by size then LR | all Phase D identities and frozen 14M LR |
-| 12 | D2 cross-scale spillover cohort | reviewed per-size LR selections and frozen pressure cohort |
-| 13 | D3 cross-scale intervention cohort | frozen Phase C intervention and per-size LRs |
-| 14 | E1 fresh 3.4B robustness cohort | frozen E1 models, conditions, seeds, and schedule-prefix rule |
-| 15 | E2 pretrained-adaptation cohort | complete reviewed exception protocol and implementation |
-
-A3 is an analysis of A2 artifacts, not a training tranche. Data preparation
-and throughput calibration are also single-config operations, not case-runner
-tranches.
-
-Promotion diagnostics are explicit dependency stages:
-
-| After training stage | Required selection-partition operation before review |
-| --- | --- |
-| A2 screen | activation_histograms.json and activation_propagation.json for every training-eligible condition and matched dense control |
-| A2 promotion | the same artifacts for the promoted multi-seed cohort; then A3 analysis |
-| B1 screen | activation_propagation.json for every training-eligible topology/kappa condition and A0 control |
-| B1 promotion | activation_propagation.json and predeclared activation histograms for the promoted cohort |
-| B2 screen/promotion | propagation diagnostics for every condition entering a gate-form comparison |
-| C screen/promotion | propagation diagnostics and pinned clipping_frontier.jsonl artifacts required by the frozen frontier |
-| D2/D3/E1 | the phase-declared histogram and propagation artifacts for every headline condition |
-| Study-wide confirmation release | checkpoint_validation.json plus each figure's predeclared confirmation diagnostics |
-
-Each diagnostic config names exact tranche/config/run/checkpoint identities and
-uses the complete selection or confirmation cache declared for that stage. Run
-diagnostic configs one at a time under the direct launch guard; do not route
-them through the training parent. Before allocating diagnostic config numbers,
-freeze a reviewed ownership/scaffold contract consistent with the runbook, or
-implement and test a sequential diagnostic runner. This is an implementation
-and launch blocker, not permission to scatter configs.
-
-For A1, the operational sequence is exactly:
-
-1. Set the authority marker to Plan status: reviewed after owner review.
-2. Create the A1 scaffold, runner, and five immutable configs; verify and
-   commit the recipe on a clean checkout.
-3. Prepare or verify the named token cache with one explicit config operation.
-4. Run the one-config 600-second calibration and compute first-run and
-   five-run ETCs.
-5. Report ETCs, projected local completion, evidence, assumptions,
-   uncertainty, hardware, memory, and storage headroom here.
-6. Obtain explicit user approval to launch.
-7. Run the A1 case runner serially.
-
-Every preflight verifies reviewed dependencies; no unresolved tranche TODOs;
-tracked sibling configs and exact output ownership; model, data, tokenizer,
-optimizer, schedule, budget, validation, and random initialization; clean Git
-status and recorded SHA; no active lock or launch; cache integrity; BF16 GPU,
-memory, and disk capacity; focused tests plus make test, make check, and make
-smoke; and first-run/full-tranche ETC with projected local completion. The
-smoke is mandatory after the planned calibration, confirmation-validation, or
-resume-at-case lifecycle changes. Never run case runners in parallel. Every
-training tranche uses one parent runner, one lock, immutable numbered configs,
-complete-list validation, stop-on-first-failure, and the reviewed
-resume-at-case recovery path.
-
-## 8. Phase A — Pythia-14M discovery
-
-### A1. Learning-rate selection
-
-Purpose: select the optimizer learning rate used by subsequent Pythia-14M
-experiments. A1 does not test sparsity, spillover, or efficiency hypotheses.
-
-Fixed condition:
-
-- Pythia-14M random initialization;
-- topology A0 and site_gate null;
-- method none, h monitoring only;
-- exact 1,700,003,840-token budget and the shared recipe above.
-
-Seed-0 screen grid:
-
-    1e-5, 3e-5, 1e-4, 3e-4, 1e-3
-
-Run all five learning rates in one serial tranche. Rank eligible runs by final
-selection-validation loss only after all five planned cases have a reviewed
-terminal classification and no case remains unattempted. A failed or invalid
-case remains reported and ineligible; it does not authorize ranking an
-incomplete grid. Promote the two lowest-loss eligible learning rates. Break an
-exact numerical tie in favor of the lower learning rate.
-
-The promotion tranche adds seeds 1 and 2 for both promoted learning rates and
-reuses seed 0, producing exactly three seeds per candidate. Freeze the
-candidate with the lower arithmetic mean final selection-validation loss.
-Break an exact mean tie in favor of the lower learning rate.
-
-If fewer than two screen runs are eligible, any screen case is unattempted, or
-either promoted candidate lacks three valid finite runs, do not rank unequal
-or incomplete cohorts; stop for plan review.
-
-A1 selection requires training metrics and the final model checkpoint, but no
-post-hoc activation diagnostic. After the LR is frozen and before the selected
-dense cohort is reused by A2, run the A2-declared histogram and propagation
-diagnostics against those exact final checkpoints.
-
-A1 output:
-
-- appendix log-scale LR plot and table;
-- every screen and promotion run with evidence status;
-- individual seed losses, mean, sample SD, and n;
-- the predeclared frozen LR;
-- no sparsity or spillover claim.
-
-### A2. h-pressure and spillover
-
-Purpose: estimate how pressure applied only at h changes targeted and
-untargeted activation distributions.
-
-Dependency-selected condition: frozen A1 learning rate.
-
-Dense controls reuse the eligible A1 selected-LR runs for seeds {0, 1, 2}
-after verifying that all non-LR protocol fields match.
-
-Proposed seed-0 pressure grid:
-
-| Method | h-pressure weights |
-| --- | --- |
-| l1_naive | 0.1, 0.5, 1, 2, 5 |
-| orthogonal_l1 | 0.1, 0.5, 1, 2, 5 |
-
-All conditions use topology A0, site_gate null, sites [h], and the exact
-1.7B-token budget. Pressure loss and task loss remain separate.
-
-Before A2 promotion, run one pinned activation-histograms diagnostic and one
-pinned activation-propagation diagnostic over the full selection partition for
-every training-eligible seed-0 condition and its matched dense control. The histogram
-config uses sites [a, m, h, q_post, k_post, v] and thresholds
-[0.0, 0.01, 0.1]; its
-selected_runs entries name exact source attempts. Promotion reads pooled
-n_h(0.01) threshold hits from activation_histograms.json and never uses a
-last-microbatch monitoring value. R_block and R_model come only from the
-matching activation_propagation.json.
-
-TODO: freeze activation-histogram bin count and finite display range before A2
-diagnostic configuration. Underflow and overflow remain counted, so this
-choice cannot alter threshold-hit or exact-zero estimands.
-
-TODO: freeze orthogonal_l1 step_budget before the A2 screen. This is a
-scientific parameter and cannot be inferred from method name or smoke tests.
-
-Proposed promotion rule:
-
-1. Require a complete reviewed ten-case screen: five positive weights for each
-   of the two methods.
-2. Form the common set of weights whose seed-0 conditions are
-   promotion-eligible under both methods.
-3. Within each method, form the Pareto set that minimizes final selection loss
-   and maximizes final pooled n_h(0.01), restricted to that common set.
-4. Take the union of weights represented on either restricted method frontier.
-5. If that union has more than three weights, promote the numerically smallest,
-   median, and largest union weights. For an even-sized union, use the lower
-   median. If it has three or fewer, promote all.
-6. Add seeds 1 and 2 for both methods at each promoted weight. Retain and plot
-   every seed-0 screen point.
-
-If the common promotion-eligible set or the restricted frontier union is
-empty, A2 promotion is blocked and the screen is reported as inconclusive. Do
-not create an asymmetric method cohort or substitute a failed seed-0 peer.
-
-Primary matched spillover summaries compare each treatment with its same-seed
-dense control at h and at a, m, q_post, k_post, and v. q_pre and k_pre may be
-added only as separately named ports; PRE and POST results are never collapsed.
-
-The primary effect vector contains paired changes in:
-
-- n_h(0.01) and z_h at the targeted site;
-- n_s(0.01) and z_s at each untargeted named site;
-- final selection loss;
-- R_block and R_model when a compatible propagation diagnostic and denominator
-  are defined. A completed diagnostic with a zero numerator reports 0.
-
-Near-zero change is not exact sparsity. L1 pressure may move a distribution
-without producing exact zeros.
-
-### A3. Orthogonal-pressure mechanism analysis
-
-A3 adds no duplicate training grid. It reuses the completed A2 matched cohort
-to compare l1_naive and orthogonal_l1 at common weights and seeds.
-
-Report:
-
-- task loss versus configured activation_pressure.weight within method;
-- validation loss versus n_h(0.01);
-- validation loss versus R_model when a compatible propagation diagnostic and
-  denominator are defined;
-- raw-gradient conflict frequency and cosine;
-- projection frequency and pre/post-projection cosine;
-- trust-scale and final pressure/task direction ratio;
-- paired method deltas at common seed and weight.
-
-Conflict frequency is conflict-true boundary count divided by the count of
-accumulated optimizer boundaries with both raw task and pressure gradients.
-Projection frequency is projection-fired boundary count divided by the count
-of orthogonal_l1 boundaries eligible for the Adam-step diagnostic. Save the
-integer numerators, denominators, and first/last covered updates over all
-optimizer boundaries, not only log-cadence events. Implement and test these
-aggregate counters before A2 if the current event stream does not preserve
-all-boundary coverage.
-
-Any quality advantage, lack of advantage, or instability is reported. The
-orthogonal method is not described as unconditionally orthogonal; it removes
-only a conflicting component under the implemented trust budget.
-
-Proposed Figure 1 combines:
-
-- layer-by-weight heatmaps for targeted h and separately named untargeted sites;
-- paired Delta n_h(0.01) versus Delta n_s(0.01) for each named
-  s in {a, q_post, k_post, v}, with m shown separately as the MLP-branch input;
-- validation loss versus configured activation_pressure.weight, faceted by
-  method, plus cross-method views against achieved n_h(0.01) or R_model;
-- one representative h histogram panel comparing the seed-0 dense control,
-  l1_naive, and orthogonal_l1 at the median promoted configured weight and the
-  deepest transformer layer. For an even number of promoted weights, use the
-  lower median. Include the panel only if all three seed-0 source artifacts are
-  valid; otherwise report its predeclared absence instead of substituting a
-  different condition.
-
-## 9. Phase B — Pythia-14M architecture study
-
-### B1. Symmetric-gate topology screen
-
-Purpose: determine how explicit gate placement changes exact zeros and logical
-opportunity at fixed training protocol.
-
-Use the complete normative topology registry:
-
-    A0
-    A1-H
-    A2
-    A3
-    A4-Q
-    A4-K
-    A4-V
-    A5-QK-PRE
-    A5-QK-POST
-    A6-PRE
-    A6-POST
-
-A0 is one dense control with site_gate null. Each of the other ten topologies
-uses symmetric_threshold with proposed kappa values:
-
-    0.03, 0.10, 0.30
-
-The screen therefore has 31 seed-0, 400M-token configurations: one A0 control
-and 30 gated conditions. A topology ID specifies active ports only; the
-operator and kappa remain explicit factors.
-
-Rank using final selection-validation loss and R_model, with exact
-activation-propagation counts from actual operands. Keep PRE- and POST-RoPE
-topologies distinct. There is no inferred A2 reach ceiling.
-
-Proposed promotion and collapse rule, frozen before the B1 screen:
-
-1. After all 31 cases are classified and required diagnostics are valid, form
-   the global promotion-eligible Pareto set over A0 and all gated points.
-2. A gated topology family is a candidate when at least one of its points is
-   on that global Pareto set. Rank candidate families by descending count of
-   Pareto points, breaking ties by their order in the normative topology
-   registry in docs/methods.md. Keep at most the first three families.
-3. Within each kept family, promote the Pareto point with lowest validation
-   loss and the Pareto point with highest R_model. If these are the same point,
-   promote it once. Break a lowest-loss tie by higher R_model then lower kappa;
-   break a highest-R_model tie by lower loss then lower kappa.
-4. If no gated family contributes a promotion-eligible Pareto point, report the
-   null screen and stop B1 promotion, B2, and the gated branch of C. Do not
-   substitute a dominated family.
-
-Promoted configurations run for 1.7B tokens with seeds {0, 1, 2}. Seed-0 400M
-screen results appear only in the appendix and cannot headline Figure 2.
-Figure 2 uses promoted 1.7B results and shows all promotion-eligible points,
-uncertainty, topology labels, validation loss, and R_model.
-
-When its fields match, the 1.7B A0 control is the completed A1 selected-LR
-cohort plus pinned topology diagnostics; do not retrain an equivalent dense
-control merely because it appears in a later phase.
-
-### B2. Gate-form comparison
-
-For dependency-selected topology families, compare:
-
-    one_sided_threshold: x survives when x >= kappa
-    symmetric_threshold: x survives when |x| >= kappa
-
-Equality survives for both operators. Use the same proposed kappa grid
-{0.03, 0.10, 0.30} at 400M with seed 0, reusing promotion-eligible B1 symmetric results
-rather than duplicating them.
-
-The B2 topology cohort is exactly the families promoted by B1. The following
-rule is frozen before the B2 screen:
-
-1. For each family, retain only kappa values whose one-sided and symmetric
-   seed-0 conditions are both promotion-eligible.
-2. Over both gate forms at those paired kappa values, form the within-family
-   Pareto set. Select the kappa of its lowest-loss point and the kappa of its
-   highest-R_model point; deduplicate if equal. Use the same loss/R/kappa tie
-   rules as B1.
-3. Promote both gate forms at every selected kappa, so the 1.7B comparison is
-   paired by topology, kappa, and seed. Run seeds {0, 1, 2}.
-4. Drop a family if it has no paired promotion-eligible kappa. If all families
-   drop, report B2 as inconclusive and block a gate-form claim; C may proceed
-   only after a reviewed amendment explicitly freezes the B1 symmetric gate.
-
-No directional expectation is treated as a required result.
-
-## 10. Phase C — frozen Pythia-14M frontier
-
-Purpose: compare the final training families after Phase A and B settings are
-frozen.
-
-Across the dependency-selected architectures, the training families are
-exactly:
-
-1. A0 + none;
-2. A0 + l1_naive at h;
-3. A0 + orthogonal_l1 at h;
-4. selected gate + none;
-5. selected gate + l1_naive at h;
-6. selected gate + orthogonal_l1 at h.
-
-The three A0 rows are shared controls and are run or reused once per matched
-seed, not duplicated once for every selected gated architecture.
-
-Post-hoc clipping is a separate saved-checkpoint diagnostic, not a seventh
-training family. Its sweep includes its own zero-threshold reference and
-reports delta validation loss relative to that reference.
-
-Proposed execution:
-
-- 400M seed-0 screen of the frozen combinations;
-- after every planned case is classified and required diagnostics are valid,
-  form the global promotion-eligible validation-loss/R_model Pareto set;
-- promote every noncontrol condition on that set to 1.7B seeds {0, 1, 2}, plus
-  its required matched controls; exact metric ties retain every tied condition;
-- if no noncontrol condition is promotion-eligible on the Pareto set, report a
-  null C screen and do not manufacture a final intervention frontier;
-- mark the frozen C cohort and analysis ready for the later single study-wide
-  confirmation release; do not open confirmation at Phase C.
-
-The architecture/gate cohort and pressure weights are the dependency-selected
-values frozen by B2 and A2 before the C screen. TODO: freeze the exact post-hoc
-activation-clipping modes and threshold grids before launching C; the zero-row
-reference and confirmation decision rule are already fixed by Sections 4 and
-13.
-
-Figure 3 plots final validation loss against R_model, with redundant method
-encodings, individual seeds, uncertainty, and separate notation for
-post-hoc activation clipping. It must call R_model a logical opportunity, not
-compute, acceleration, or measured speedup.
-
-## 11. Phase D — scaling
-
-Candidate random-initialized model sizes are Pythia 31M, 70M, 160M, and 410M.
-Do not repeat the full Pythia-14M search.
-
-Global blockers for Phase D:
-
-- TODO: immutable architecture and tokenizer identities and revisions per size;
-- TODO: immutable train/validation caches and hashes per size;
-- TODO: per-size microbatch and accumulation preserving or declaring effective
-  token-batch differences;
-- TODO: per-size warmup rule and exact validation cadence;
-- TODO: compute feasibility and calibrated ETCs.
-
-### D1. Per-size LR screen
-
-For each size, screen at 400M tokens with seed 0:
-
-    frozen_14M_LR / 3, frozen_14M_LR, 3 × frozen_14M_LR
-
-Select the finite eligible point with lowest final selection-validation loss;
-break an exact tie in favor of the lower LR. Freeze that LR for every
-same-size method comparison. Rank only after all three cases for that size have
-a reviewed terminal classification. If none is promotion-eligible, remove that
-size from D2/D3 and report the failed calibration; do not borrow another size's
-LR. One or more eligible cases are sufficient to freeze the best among them.
-A 400M LR screen is tuning evidence only.
-
-### D2. Spillover replication
-
-At each size, use the dense control plus up to three dependency-selected
-low-, middle-, and high-weight h-pressure settings from Phase A. These labels
-refer to the ordered weights, not an assumed effect size. The headline budget
-is 1.7B tokens.
-
-TODO: freeze whether D2 includes l1_naive, orthogonal_l1, or both, and freeze
-the exact multi-seed cohort. At minimum, the dense control and every condition
-used in a cross-scale claim require the same reviewed seed set.
-
-Figure 4 reports paired changes by exact canonical site, rather than an
-ambiguous aggregate attention sparsity. A cross-scale hypothesis is supported,
-not required, if its predeclared direction persists; every exception remains
-visible.
-
-### D3. Frozen intervention across scale
-
-Carry the dependency-selected Phase C topology, gate, kappa, pressure method,
-pressure weight, and OL1 step budget to each size without topology retuning.
-
-The proposed comparison contains:
-
-- dense control;
-- h pressure only;
-- gate only;
-- combined quality-oriented setting;
-- combined aggressive setting.
-
-TODO: identify each exact frozen configuration and seed cohort after Phase C.
-All headline runs use 1.7B tokens.
-
-The scale table has one row per model × noncontrol condition, so every delta
-has one unambiguous owner:
-
-| Model | Condition | Dense control loss | Condition loss | Paired Delta loss | Paired activation delta vector | Absolute R_model | Paired Delta R_model |
-| --- | --- | ---: | ---: | ---: | --- | ---: | ---: |
-| size | pressure-only, gate-only, or named combined setting |  |  |  |  |  |  |
-
-The activation delta vector is explicitly ordered as Delta n_s(0.01) for
-s = [h, a, m, q_pre, k_pre, q_post, k_post, v]; absent sites are N/A and PRE
-and POST ports are never collapsed. Absolute R_model is the condition's
-logical opportunity; paired Delta R_model subtracts its same-seed dense
-control. Report individual seed rows and the reviewed mean/sample-SD summary.
-
-Do not label a near-zero metric as sparsity and do not convert R_model into an
-actual throughput claim.
-
-## 12. Phase E — robustness and scope
-
-### E1. Longer training
-
-Preferred design: train fresh, uninterrupted 3.4B-token runs with the final
-frozen protocol, rather than attempting to resume final-model-only 1.7B
-checkpoints.
-
-TODO: freeze model sizes, exact conditions, and seed cohort. The proposed
-minimum scientific contrast is dense, high-weight h pressure, and the selected
-combined method for Pythia-14M and one larger size.
-
-Match each fresh 3.4B run to its 1.7B counterpart by seed and
-initial-parameter hash. Their full realized schedule hashes must differ because
-their lengths differ. Instead, save and verify a schedule-prefix hash proving
-that schedule[:25_940, :, :] from the 3.4B run exactly equals the complete
-1.7B schedule for the same seed and batch shape. With accumulation 8 and
-microbatch 4, that prefix contains 830,080 sampled block starts. Prefix-hash
-metadata must describe the sliced shape and must not include the unequal full
-max_steps values. Implement and test prefix-hash serialization before E1 if
-the current schedule artifact does not expose this comparison.
-
-A true 1.7B-to-3.4B continuation would require durable optimizer state,
-scheduler state, data-order cursor, RNG states, and equivalence tests. The
-shared final-model-only checkpoint policy does not provide those states, so
-such continuation is not currently authorized.
-
-### E2. Pretrained-model adaptation
-
-E2 is an explicit exception to random initialization and remains supportive,
-not primary. It may proceed only after a separate reviewed protocol freezes:
-
-- released checkpoint identity, revision, and license;
-- model size and checkpoint step;
-- tokenizer and dataset relationship;
-- control, l1_naive, and combined conditions;
-- pressure weights, topology, gate, kappa, and OL1 step budget;
-- optimizer-state policy and whether optimization restarts;
-- data partition, 300M-token schedule, seeds, validation, diagnostics, and
-  contamination considerations.
-
-Until every item is resolved, E2 remains blocked and produces no scientific
-config. It also requires implementation: the current definitive training
-schema enforces random initialization and the model path constructs from
-configuration rather than loading released weights. Add a reviewed
-nonrandom-initialization exception, exact released-checkpoint reconstruction,
-source-checkpoint provenance, optimizer restart/state handling, integrity
-checks, and focused round-trip/lifecycle tests before E2 configuration.
-
-## 13. Paper outputs and evidence gates
-
-The Results section follows the scientific argument, not launch chronology.
-Selection-partition renderings are provisional review artifacts. Released main
-figures and tables use the one-time confirmation measurements for every frozen
-headline metric; selection results remain available in the appendix and are
-reported beside confirmation when the two materially differ.
-
-| Output | Selection-stage source artifacts | Release source artifacts | Minimum evidence |
+| 14M architecture | `EleutherAI/pythia-14m-deduped` at revision `7386d9a4ae45aef494a6e704910394def3037fc5` |
+| 14M tokenizer | `EleutherAI/pythia-14m-deduped` at the same revision |
+| Tokenization | Append EOS; store `int32` token IDs |
+| Training cache | `03-pythia-14m-minipile-random-full-10min`; SHA-256 `da82a2ea2e0080c7fd681c7a93b07d3d9ff3d5357a8640895a82d536a1eaf97c` |
+| Validation split | First 500 validation documents; `shuffled_source_documents_half_v1`; partition seed `20260718` |
+| Selection partition | 152 complete sequences; ordered-index SHA-256 `ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47`; token SHA-256 `22bb7c27864f0e5941548c572d6c75b1b5ba6a4c13e4cd26f40f4de546c5cc19` |
+| Confirmation partition | 186 complete sequences; ordered-index SHA-256 `8953a93f85c80a48d25fcacb7a0fbf44f6d9fd5b54037f92e01c5250f045ad99`; token SHA-256 `ee777ebdb8672b676ecfc05b2e7024c2f9446f8a9e46ac22b78e8a6c36f0890b` |
+
+`TODO:` pin the dataset split/text-column names and accepted dataset, model,
+and tokenizer licenses. Also pin exact architecture/tokenizer revisions and
+cache compatibility for 70M and 410M. All three sizes must use the same
+tokenizer and train/validation token identities unless a reviewed amendment
+declares and justifies a mismatch.
+
+### Model, batch, and peak-LR grids
+
+| Model | Global batch size | Peak learning-rate sweep |
+| --- | ---: | ---: |
+| Pythia-14M | **262,144 input tokens/update** | `{5e-4, 1e-3, 2e-3}` |
+| Pythia-70M | **262,144 input tokens/update** | `{5e-4, 1e-3, 2e-3}` |
+| Pythia-410M | **262,144 input tokens/update** | `{1.5e-4, 3e-4, 6e-4}` |
+
+At sequence length 2,048, the global batch is 128 sequences per optimizer
+update. Physical microbatch size may differ by model and hardware, but
+
+    micro_batch_size * gradient_accumulation_steps = 128
+
+must hold. The physical decomposition is frozen per model after memory
+calibration and cannot change the global batch or token budget.
+
+### Fixed optimization recipe
+
+| Hyperparameter | Plan value |
+| --- | ---: |
+| Optimizer implementation | PyTorch AdamW; one parameter group over all trainable parameters |
+| `beta_1` | 0.9 |
+| `beta_2` | 0.95 |
+| `epsilon` | 1e-8 |
+| Weight decay | 0.1 |
+| Global gradient-norm clipping | 1.0 |
+| Hidden dropout | 0 |
+| Attention dropout | 0 |
+| Sequence length | 2,048 |
+| Precision | BF16 CUDA autocast; FP32 parameters and AdamW state |
+
+The released Pythia GPT-NeoX configs specify Adam with weight decay 0.1. This
+PyTorch harness uses AdamW with weight decay 0.1 and records that implementation
+choice explicitly. BF16 is fixed across all three model sizes instead of
+Pythia’s original FP16 dynamic-loss-scaling recipe. **Peak learning rate is the
+only optimizer hyperparameter tuned.**
+
+Global norm clipping applies to the gradient consumed by AdamW: the task
+gradient for no-pressure and OL1 runs, and the combined task-plus-pressure
+gradient for L1 runs. OL1’s separately computed pressure direction is governed
+by `step_budget` rather than this Pythia task-gradient clip.
+
+### Learning-rate schedule
+
+Every run linearly warms from zero to the configured peak learning rate
+`eta_max` over the first 1% of optimizer updates, then cosine-decays over the
+remaining 99% to `0.1 * eta_max`. The warmup fraction, decay shape, and
+minimum-to-peak ratio are fixed across all models and stages.
+
+The integer warmup is
+
+    warmup_steps = ceil(0.01 * max_steps)
+
+so the 400M-token schedule uses 16 warmup updates and the proposed
+complete-block-pass-plus-wrap schedule uses 57. The final scheduled update
+reaches `0.1 * eta_max`.
+
+This follows the released Pythia recipe: 1% linear warmup followed by cosine
+decay to 10% of the peak.
+
+### Training budgets and data order
+
+The proposed MiniPile cache contains 1,491,711,416 tokens. With 2,048-token
+sequences, it contains 728,374 complete blocks plus a 1,464-token tail.
+
+| Purpose | Updates | Processed input tokens | Exact rule |
+| --- | ---: | ---: | --- |
+| C1 LR screen | 1,526 | 400,031,744 | First 1,526 updates of the same-seed complete-block permutation |
+| Complete-block pass + wrap | 5,691 | 1,491,861,504 | Visit every complete block once, then repeat the first 74 blocks of the seeded permutation to fill the final global batch; exclude the 1,464-token tail |
+
+This is one complete-block pass plus a 0.010% deterministic wrap, chosen
+instead of dropping 54 complete blocks or changing the final global batch. For each seed,
+all model sizes and treatments share the same complete-block permutation and
+wrap. The definitive plan must pin the new schedule scheme and its hash.
+
+## 4. Evidence policy
+
+### Seeds and matching
+
+- Every complete LR, lambda, and B1 threshold grid first runs with seed 0.
+- Independently of B1/B2, add seeds 1 and 2 for the predeclared central
+  spillover contrast: ReLU-only (`lambda = 0`) versus L1 at `lambda = 1`, at
+  14M, 70M, and 410M. `lambda = 1` is the fixed median of the five nonzero
+  grid values, chosen before outcomes; the full lambda curves remain seed-0
+  screens.
+- After B2 selects one quality-oriented winning recipe, add seeds 1 and 2 for
+  the six-condition component cohort at 14M: `A0`, ReLU-only, L1-only at
+  `lambda_B2`, OL1-only at `lambda_B2`, threshold-only, and threshold+OL1.
+  Repeat the same cohort at 70M and 410M in C2/C3, reusing identical runs.
+- Full seed-0 curves are exploratory and labeled `n = 1`. Only the predeclared
+  spillover contrast and selected six-condition cohort can support three-seed
+  claims; show their individual seeds, mean, sample SD, and `n = 3`.
+- No failed or unfavorable seed may be silently replaced.
+
+Within a seed, treatment and control share model initialization, data order,
+global batch, optimizer, schedule, token budget, validation partition, and
+diagnostic checkpoint.
+
+### Validation and checkpoints
+
+- The existing document-disjoint selection partition is used for LR selection
+  and every dependency choice. Evaluation batch size is 4 sequences; every
+  complete cached block is evaluated once in fixed order.
+- During training, evaluate the complete selection partition deterministically
+  at update 1, every 191 updates, and the final update. This is approximately
+  every 50.07M training tokens: 9 evaluations for a 1,526-update C1 run and 31
+  for a 5,691-update complete-block-pass-plus-wrap run. Intermediate values are
+  monitoring only; decisions use the final selection measurement under the
+  stage-specific rule.
+- The existing confirmation partition is opened once after A–C recipes and
+  analyses are frozen. Released headline figures use confirmation measurements;
+  selection/confirmation disagreement is reported without reselection.
+- Confirmation uses a generic saved-checkpoint validation command over every
+  complete confirmation block; training-time validation or a post-hoc
+  threshold-sweep reference cannot substitute for it.
+- Save the final model checkpoint only. Intermediate and optimizer-state
+  checkpoints are not required because every scientific run is fresh.
+
+### Spillover measurements
+
+For `s in {h, a, m, q_post, k_post, v}`, save pooled, count-first:
+
+- exact-zero fraction `z_s = count(x == 0) / count(x)`;
+- primary near-zero mass `n_s(0.01) = count(abs(x) <= 0.01) / count(x)`;
+- secondary `n_s(0.1)`;
+- layerwise activation histograms with the exact-zero atom separate;
+- pooled RMS as the predeclared scalar distribution-width measure.
+
+The primary spillover vector is the same-seed change from the ReLU-only
+`A1-H` control in `n_s(0.01)` and RMS at every named site. A paper statement
+that an attention distribution “broadens” requires an RMS increase plus the
+corresponding distribution plot; a near-zero change alone is insufficient.
+
+### Logical-opportunity measurements
+
+For `A0` and every ReLU or threshold condition used in a frontier or results
+table, compute `R_model(z)` from integer counts of logical scalar products with
+an exact-zero activation operand, using the actual post-RoPE Q/K operands. This
+includes ReLU-only, L1-only, and OL1-only controls, not just hard-threshold
+conditions. Also compute `R_model^max` for each declared
+model/topology/sequence length by setting every active site to fully sparse in
+the same validated denominator. Headline comparisons use `T = 2,048`.
+
+### Failure policy
+
+Rank or select only after every planned cell in the relevant grid has a
+reviewed terminal classification. Nonfinite loss, invalid artifacts,
+schedule/hash mismatch, or missing required diagnostics makes a run
+ineligible. A reproducible scientific collapse is retained as a terminal
+adverse cell and contributes no frontier point; an unresolved infrastructure
+failure blocks the stage decision. Finite adverse results remain valid and are
+reported.
+
+For A1/C1, select the lowest-loss eligible LR only after all three cells are
+classified; if none is eligible, stop every dependent stage for that model.
+For A3, a `lambda_B2` candidate requires valid matched Stage A2 L1 and Stage A3
+OL1 results at the same nonzero lambda. For B1, every conceptual four-kappa
+family must be resolved before family selection. For B2, all four combined
+kappa cells must be resolved; valid cells define the frontier, while terminal
+scientific collapses are shown and cannot be transported. C3 can test frontier
+persistence only when the complete frozen cohort and its controls are valid at
+all three sizes.
+
+Infrastructure retries preserve the failed attempt and rerun the same
+immutable config only after the cause is documented. Never retry away a
+scientific failure; any scientific change requires a new config and reviewed
+plan amendment.
+
+## 5. Experiment matrix
+
+The dependency graph is:
+
+    Stage A1 -> Stage A2 -> Stage A3
+                    |
+                    +----> Stage B1
+
+    Stage A3 + Stage B1 -> Stage B2
+    Stage C1 + Stage A2 -> Stage C2
+    Stage C2 + Stage B2 -> Stage C3
+
+### Phase A — 14M pressure study
+
+All Phase A scientific runs use one complete-block MiniPile pass plus the
+74-block fixed-batch wrap.
+
+| Stage | Question | Grid and controls | Decision/output |
 | --- | --- | --- | --- |
-| Figure 1 | metrics.json, events.jsonl, activation_histograms.json, activation_propagation.json | checkpoint_validation.json and confirmation activation_histograms.json/activation_propagation.json | A2/A3 1.7B matched multi-seed cohort |
-| Figure 2 | metrics.json and activation_propagation.json | checkpoint_validation.json and confirmation activation_propagation.json | B1 promoted 1.7B multi-seed cohort |
-| Figure 3 | metrics.json, activation_propagation.json, clipping_frontier.jsonl | checkpoint_validation.json plus confirmation propagation and clipping-frontier artifacts | C promoted 1.7B multi-seed cohort |
-| Figure 4 | metrics.json, activation_histograms.json, activation_propagation.json | checkpoint_validation.json plus confirmation histogram and propagation artifacts | D2 reviewed cross-scale multi-seed cohort |
-| Figure 5 and scale table | metrics.json, activation_histograms.json, activation_propagation.json | checkpoint_validation.json plus confirmation histogram and propagation artifacts | D3 reviewed 1.7B multi-seed cohort |
-| Appendix | config.yaml, manifest.json, metrics.json, events.jsonl, named diagnostic artifacts, failure records | Same pinned artifacts with selection/confirmation role labeled | Every planned case and attempt |
+| **Stage A1 — LR selection** | Which peak LR should Pythia-14M use? | `A0`, no pressure, seed 0, peak LR `{5e-4, 1e-3, 2e-3}` | Freeze the eligible LR with lowest final selection loss; exact ties favor the lower LR. Report the complete tuning table; make no sparsity claim. |
+| **Stage A2 — L1 spillover** | How does h-only L1 pressure change targeted and untargeted activations? | Topology `A1-H` + explicit ReLU; `l1_naive` at `h`; seed-0 `lambda in {0, 0.1, 0.5, 1, 2, 5}`; reuse selected-LR `A0`; add seeds 1/2 at `lambda in {0, 1}` | Produce the exploratory 14M lambda-response and the independent three-seed ReLU-versus-L1 spillover contrast. |
+| **Stage A3 — OL1 robustness** | At the same lambda, does OL1 reduce quality sensitivity and which optimizer diagnostics accompany it? | Same topology and seed-0 lambda grid as Stage A2; `orthogonal_l1`; reuse `lambda = 0` control | Report matched L1/OL1 loss versus lambda and achieved `n_h(0.01)`, plus conflict/projection/trust diagnostics. Among nonzero lambdas with valid matched L1 and OL1 results, freeze `lambda_B2` from the OL1 loss/`n_h(0.01)` Pareto set: lowest loss, then higher `n_h(0.01)`, then lower lambda. |
 
-Every figure is generated from pinned saved artifacts. Use colorblind-safe
-redundant encodings, untruncated axes unless a justified view is paired with
-the full range, individual seeds, sample size, and uncertainty.
+`TODO:` freeze one OL1 `step_budget` before Stage A3. It is a scientific
+parameter and cannot be selected by smoke testing.
 
-Paper release requires all frozen headline source artifacts to be valid, the
-study-wide confirmation release to be complete, selection/confirmation
-disagreements to be disclosed without retuning, exact source pins and analysis
-code to be frozen, and every final table/figure to regenerate from those pins.
-If confirmation invalidates a planned statement, revise or remove the claim;
-do not search the confirmation partition for a replacement condition.
+Stage B1 proceeds even if Stage A2 finds no spillover, because the placement
+grid is predeclared. It is therefore **spillover-motivated**, not
+spillover-guided. A null Stage A2 result changes its interpretation to a
+general multi-site threshold-placement study.
 
-Each intended scientific artifact use has an evidence record whose status is
-exactly one of:
+### Phase B — 14M threshold and combined frontier
 
-- valid: terminal artifacts and required diagnostics satisfy the reviewed
-  plan and integrity checks;
-- provisional: a precisely stated limitation permits only the named use;
-- invalid: the artifact cannot support the intended comparison.
+All Phase B training uses the frozen 14M LR, one complete-block pass plus the
+74-block fixed-batch wrap, and seed 0 for the complete grid.
 
-The same durable artifact may have different statuses for different named
-uses, each with its reason preserved. Separately, each valid or provisional
-use has an analysis-role field such as tuning, screening, promoted main, or
-robustness. Operational calibration is not scientific evidence and receives
-neither a scientific evidence status nor an analysis role.
+| Stage | Question | Grid and controls | Decision/output |
+| --- | --- | --- | --- |
+| **Stage B1 — threshold ablation** | How do placement, attention-threshold form, and threshold value change the logical-opportunity frontier? | No pressure; eight site variants; `kappa in {0, 0.03, 0.10, 0.30}`; FFN sites always one-sided; attention sites one-sided or symmetric; shared `A0` control | Produce the full validation-loss/`R_model` frontier and select one topology + attention-form family for B2. |
+| **Stage B2 — threshold + OL1** | Does OL1 improve the selected Stage B1 family? | Apply `orthogonal_l1` at the single frozen `lambda_B2` to every kappa of the selected Stage B1 family; target `h`; reuse threshold-only Stage B1, L1-only Stage A2, OL1-only Stage A3, ReLU-only, and `A0` controls | Freeze the nondominated combined kappa points for Stage C3 and one quality-oriented winning recipe for the three-seed, six-condition component comparison. |
 
-## 14. Compute priority
+B1 has 56 conceptual threshold cells before the shared `A0` control:
 
-If compute is constrained, preserve evidential completeness before breadth:
+- `A1-H` and topology `A2` have no attention-form factor:
+  `2 topologies * 4 kappa = 8`;
+- topology `A3` through `A6-POST` comprise six variants with two attention
+  forms: `6 * 2 * 4 = 48`.
 
-1. A1 LR screen and promotion;
-2. A2 h-pressure screen and promotion;
-3. A3 mechanism diagnostics from A2;
-4. B1 topology screen and promotion;
-5. B2 gate-form screen and promotion;
-6. C frozen 14M frontier;
-7. D1 LR selection at the smallest feasible set of reviewed scales;
-8. D2 replication at those scales;
-9. D3 frozen intervention at the largest feasible reviewed scale;
-10. E1 long training;
-11. E2 pretrained adaptation.
+The six symmetric-attention cells at `kappa = 0` are functionally identical to
+topology `A2` with a one-sided threshold at `kappa = 0`: their attention
+operators are identities and `m/h` have the same threshold. Train that anchor
+once and reuse it for those six cells. Thus B1 requires **50 unique threshold
+runs**, not 56, and approximately **74.59B processed input tokens** at seed 0.
+The reused result appears once in the global evidence set and never gains
+weight from being represented in multiple conceptual families.
 
-Do not trade required seeds, matching, validation separation, or artifact
-integrity for more conditions.
+The Stage B1 family-selection rule is:
 
-## 15. Remaining review ledger
+1. After all 50 unique runs have terminal classifications and every finite run
+   has valid required diagnostics, form the global Pareto set over `A0` and
+   unique valid B1 points, minimizing final selection loss and maximizing
+   `R_model`. A terminal scientific collapse is a resolved, dominated cell.
+2. A family is one topology plus one attention form; the form is `N/A` for
+   `A1-H` and topology `A2`.
+3. Each symmetric-attention family uses the single reused `A2`, `kappa = 0`
+   result only as a plotted common baseline. To keep family scores comparable,
+   family selection excludes `kappa = 0` for **every** family and uses only the
+   three positive-kappa points.
+4. Select the family with the most positive-kappa global-frontier points. Break
+   ties by larger `R_model` span and then lower mean loss over those frontier
+   points, followed by the topology-table order above, with symmetric before
+   one-sided as the final tie-break.
+5. If no positive-kappa threshold point is on the global frontier, report a
+   null B1 result and stop B2/C3.
 
-The definitive plan may open Phase A1 only after these A1-scoped blockers are
-resolved and incorporated:
+Stage B2 evaluates all four kappa values in the selected family. Its combined
+Pareto points are frozen for Stage C3. The single quality-oriented winner is the
+valid combined point on that Pareto set with lowest validation loss and
+`R_model > 0`; ties favor higher `R_model` and then lower kappa. If A3 has no
+valid matched nonzero OL1 Pareto point, Stage B2/C3 stop. If B2 has no valid
+combined point with `R_model > 0`, report a null combined result and stop C3.
 
-- owner/license acceptance plus exact split and text-column identities for the
-  proposed Phase A dataset, model, tokenizer, and caches;
-- the validation excluded-tail schema fields and generic
-  checkpoint_validation.json confirmation workflow;
-- the calibration-only implementation and its verification;
-- the reviewed resume-at-case implementation and tests;
-- owner review of the shared protocol, A1 grid, selection, failure, and ETC
-  rules in this draft.
+The plan does not include a threshold+L1 condition. Therefore Stage B2
+supports the combined threshold+OL1 comparison against its components, but it
+does not isolate OL1-versus-L1 behavior inside the selected threshold
+architecture.
+If the selected recipe has no nonidentity attention threshold (`A1-H`,
+topology `A2`, or a symmetric-attention `kappa = 0` point), B2/C3 support only
+an FFN threshold+OL1 result. Otherwise it may be described as a selected
+multi-site threshold+OL1 recipe **containing** an attention threshold. Because
+the plan has no matched FFN-threshold+OL1 version of that recipe, it cannot
+attribute the combined improvement specifically to the attention component.
 
-The following decisions are intentionally downstream-scoped. They do not block
-A1, but each must be resolved by a reviewed definitive-plan amendment before
-its dependent screen or operation is configured:
+### Phase C — 70M and 410M replication
 
-- before A2: orthogonal_l1 step_budget, activation-histogram bins/range,
-  all-boundary conflict/projection counters, and diagnostic-config ownership or
-  a reviewed sequential diagnostic runner;
-- before C: exact dependency-selected architecture/gate and pressure cohort,
-  plus the post-hoc activation-clipping sweep;
-- before D1–D3: all model/cache/batch/schedule identities, seed cohorts, and
-  exact tranche composition;
-- before E1: models, conditions, seeds, exact tranche composition, validation
-  cadence, and schedule-prefix artifact;
-- before E2: the complete exception protocol, exact tranche composition, and
-  nonrandom-loading implementation.
+Only Pythia-70M and Pythia-410M are scaled. The intervention grids are not
+retuned.
 
-Dependency-selected values cannot exist before their upstream evidence is
-reviewed. Keep their deterministic decision rules in the reviewed plan, then
-write each realized value through a reviewed amendment before allocating the
-dependent configs. A downstream TODO blocks only its named dependent tranche;
-it does not close an already reviewed upstream tranche.
+| Stage | Question | Grid and controls | Decision/output |
+| --- | --- | --- | --- |
+| **Stage C1 — per-size LR selection** | Which peak LR should each larger model use? | `A0`, no pressure, seed 0, 400,031,744 tokens; 70M grid `{5e-4, 1e-3, 2e-3}`; 410M grid `{1.5e-4, 3e-4, 6e-4}` | Freeze the lowest final selection-loss LR independently for each model; exact ties favor the lower LR. |
+| **Stage C2 — spillover replication** | Does the Stage A2 L1 spillover response recur with scale? | At each frozen LR and one complete-block pass plus wrap: `A0` plus topology `A1-H` + ReLU with the unchanged Stage A2 lambda grid and h-only L1 pressure; add seeds 1/2 at `lambda in {0, 1}` | Report the exploratory seed-0 response at 14M/70M/410M and the predeclared three-seed central contrast. No lambda retuning by size. |
+| **Stage C3 — frontier replication** | Does the selected Stage B2 frontier persist without intervention retuning? | At each frozen LR and one complete-block pass plus wrap: transport the Stage B2 topology, attention form, kappa cohort, `lambda_B2`, and OL1 `step_budget` literally. Run OL1-only, threshold-only, and threshold+OL1 matched components; reuse identical Stage C2 `A0`, ReLU-only, and L1-only runs and add any missing component seeds. | Report the cross-size validation-loss/`R_model` frontier. The Stage B2 winner and matched six-condition cohort receive seeds 1 and 2; the complete transported frontier remains seed 0 and exploratory. |
 
-Once the A1-scoped blockers are resolved in docs/experiment_plan.md and its raw
-marker is exactly Plan status: reviewed, A1 immutable config allocation and
-launch preparation may begin. Calibration follows the committed recipe, and
-the case runner still waits for the explicit approval in Section 7. Until that
-marker changes, all scientific configuration, calibration, and launch gates
-remain closed.
+An absolute kappa or lambda may not have the same achieved effect at every
+scale. That is the replication question; do not retune it away.
+
+## 6. Paper outputs
+
+The minimum main-paper package is three figures and one compact results table.
+
+| Output | Evidence and required content |
+| --- | --- |
+| **Figure 1 — sparsity spillover** | Stage A2/C2 seed-0 lambda response for `h, a, m, q_post, k_post, v`; the three-seed `lambda = 0` versus `lambda = 1` contrast; paired changes in `n_s(0.01)` and RMS; layer structure; 14M/70M/410M comparison. The distribution panel is fixed in advance: Pythia-14M, deepest transformer layer, all six named sites as small multiples, `lambda = 0` versus `lambda = 1`, showing the three per-seed distributions and the exact-zero atom separately. |
+| **Figure 2 — model-wide logical opportunity** | Validated `R_model` accounting by operation for ReLU and threshold conditions; `R_model^max` by model and Stage B1 topology at `T = 2,048`; observed Stage B1/B2/C3 operation-level contributions |
+| **Figure 3 — intervention and mechanism** | Validation-loss/`R_model` views for `A0`, ReLU-only, L1-only at `lambda_B2`, OL1-only at `lambda_B2`, threshold-only, and threshold+OL1; Stage B1 and C3 frontiers; matched loss versus achieved `n_h(0.01)`; OL1 conflict and projection frequencies. Include a paired threshold-form panel comparing one-sided versus symmetric attention at every applicable topology and kappa for the same seed, with arrows for paired changes in loss and `R_model`. Label every curve/contrast as seed-0 exploratory or three-seed confirmed. There is no threshold+L1 condition, so this figure cannot claim OL1 beats L1 within the selected threshold architecture. |
+| **Main results table** | One row per model and final matched condition: complete recipe, validation loss and paired change, `n_h(0.01)`, named spillover vector, absolute and paired `R_model`, seeds, mean/sample SD, and evidence status |
+
+Appendix outputs:
+
+- complete Stage A1/C1 LR tables and frozen rates;
+- all Stage A2/A3 lambda and Stage B1/B2 kappa points, including dominated, adverse,
+  failed, and invalid cases;
+- full OL1 cosine, trust-scale, correction-ratio, and layerwise mechanism
+  diagnostics beyond the main conflict/projection summaries;
+- full per-site/layer distributions and `n_s(0.1)` sensitivity;
+- formulas, integer counts, denominators, and coverage for `R_model` and
+  `R_model^max`;
+- selection-versus-confirmation comparison.
+
+## 7. Implementation and review blockers
+
+The simplified design intentionally requires several reviewed implementation
+changes. Do not create configs until they are complete and tested.
+
+1. **Complete-block sampler:** add the seeded without-replacement complete-block
+   schedule with the 74-block deterministic wrap and schedule hash.
+2. **Cosine schedule:** replace the current warmup-then-constant path with the
+   exact 1% warmup/cosine-to-0.1 schedule and test endpoints.
+3. **Gradient clipping:** add global norm clipping at 1.0 and record pre/post
+   clip norms; test the L1/OL1 ordering specified above.
+4. **Mixed threshold forms:** B1 requires one-sided FFN thresholds and an
+   independently selected attention threshold form under one global kappa.
+   The current single-operator `model.site_gate` schema cannot express this;
+   amend the scientific contract in `docs/methods.md` as well as schema/code.
+5. **Logical ceiling:** amend `docs/diagnostics.md` to define the serialized
+   numerator, denominator, coverage, and model/topology/workload identity for
+   `R_model^max`; implement and validate it for each actual case rather than
+   reusing historical atlas values.
+6. **Spillover width and histograms:** extend the named activation diagnostic
+   with exact pooled second-moment/RMS accumulation and coverage.
+   Freeze histogram bins/range before Stage A2.
+7. **Reproducibility identities:** verify the proposed 14M pins and freeze the
+   missing split/text-column and licenses; pin exact 70M/410M architecture and
+   tokenizer revisions, cache compatibility, model-specific microbatch and
+   accumulation, and all licenses.
+8. **OL1:** freeze `step_budget` before Stage A3 and aggregate conflict,
+   projection, and eligible-boundary numerators/denominators over every
+   optimizer boundary, not only logging events.
+9. **Validation:** implement/test the exact 191-update cadence and a generic
+   saved-checkpoint confirmation command with exact source, partition,
+   complete-block coverage, excluded-tail, and provenance checks.
+
+After those items are incorporated into a reviewed
+`docs/experiment_plan.md`, calibrate each model and each materially different
+workload on the launch hardware. Use a 600-second production-shaped training
+window plus separately timed setup, full validation, diagnostics, and final
+checkpoint publication. Report first-run and tranche ETCs, projected
+completion time, assumptions, and uncertainty before seeking launch approval.
+Execution, monitoring, failure recovery, and immutable tranche ownership follow
+[the runbook](docs/runbook.md) and [experiment scaffold contract](experiments/README.md).
+
+## 8. Manuscript alignment and retained rationale
+
+This program validates `R_model^max` only for Pythia-14M, 70M, and 410M at
+`T = 2,048`. The current introduction's numerical examples for a 12B model and
+`T = 50,000` are outside this plan and must be removed/reframed unless a
+separately reviewed analytical scope validates them. The manuscript must also:
+
+- describe B1 as spillover-motivated, because its sites are predeclared rather
+  than selected from the Stage A2 outcome;
+- if the winner contains a nonidentity attention threshold, describe the
+  selected multi-site threshold+OL1 recipe as containing that intervention;
+  do not attribute its improvement specifically to attention without adding a
+  matched FFN-threshold+OL1 control;
+- label full lambda/kappa/frontier curves as exploratory seed-0 evidence and
+  reserve robustness language for the predeclared three-seed contrasts;
+- treat directional statements that OL1 reduces sensitivity to lambda or that
+  symmetric attention thresholds preserve more quality while one-sided
+  thresholds expose more logical opportunity as exploratory unless those
+  complete curves receive additional seeds;
+- call `R_model` a logical opportunity, never removed/avoided compute or
+  measured speedup.
+
+Retain the following justification for later manuscript drafting, not as an
+experimental result:
+
+> We fix the global batch size across model scales and tune only the peak
+> learning rate independently for each model. At a fixed training-token budget,
+> changing batch size changes the number of optimizer updates and would
+> therefore confound model scale with optimization trajectory; fixing the batch
+> ensures that all models process the same number of tokens with the same
+> number of updates. This follows the controlled-scaling philosophy of
+> [Pythia](https://proceedings.mlr.press/v202/biderman23a.html) while using a
+> smaller batch appropriate for the substantially smaller
+> [MiniPile](https://arxiv.org/abs/2304.08442) corpus. We retune learning rate
+> because optimal optimization hyperparameters are scale-dependent, with
+> empirical scaling studies showing that the preferred learning rate decreases
+> as training compute increases
+> ([DeepSeek-AI, 2024](https://arxiv.org/abs/2401.02954)).
+
+> We use 1% linear warmup followed by cosine decay to 10% of the peak learning
+> rate, matching the established Pythia pretraining schedule. The schedule
+> shape is fixed across model scales; only the peak learning rate is tuned.

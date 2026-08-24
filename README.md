@@ -7,11 +7,13 @@ plotting utilities.
 
 ## Status
 
-[`exp-plan-v0.md`](exp-plan-v0.md) provides a non-final overview of the planned
-A/B/C/D/E phases. It informs repository structure but does not authorize
-scientific launches. Launches remain blocked until a final plan replaces the
-placeholder in [`docs/experiment_plan.md`](docs/experiment_plan.md) and is
-marked `Plan status: reviewed`.
+[`exp-plan-v0.md`](exp-plan-v0.md) provides a non-final overview of the lean
+14M discovery and 70M/410M replication program;
+[`exp-plan-v0-executive.md`](exp-plan-v0-executive.md) is its advisor-facing
+summary. Neither document authorizes scientific launches. Launches remain
+blocked until a final plan replaces the placeholder in
+[`docs/experiment_plan.md`](docs/experiment_plan.md) and is marked
+`Plan status: reviewed`.
 
 The tracked release tree intentionally contains no earlier campaign configs, reports, or
 results. Those remain available through Git history on the branches and commits

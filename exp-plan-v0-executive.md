@@ -1,244 +1,194 @@
-# Experimental Plan — Executive Brief for Advisor Review
+# Experimental Plan — Executive Brief
 
-> **Status:** proposed, not approved. This brief and the
-> [detailed proposal](exp-plan-v0.md) are review drafts. Only a reviewed
-> [authoritative plan](docs/experiment_plan.md) can authorize scientific
-> configurations, calibration, or launch.
+> **Status:** lean proposal for advisor review. It is not launch authority.
+> Scientific configuration and calibration remain blocked until
+> [the definitive plan](docs/experiment_plan.md) is reviewed.
 
-## 1. Study in one paragraph
+## Goal
 
-The study characterizes the trade-off between validation loss and activation
-zero structure under activation pressure and explicit hard thresholds.
-Discovery uses a randomly initialized 14M-parameter Pythia model; selected
-settings are then frozen and tested at larger sizes. The opportunity metric
-counts logical multiplications with an exactly zero activation operand; it is
-**not** a measured speedup.
+The plan tests three hypotheses motivating the working paper:
 
-## 2. What is being changed and measured?
+1. L1 pressure at the FFN hidden activation `h` may be accompanied by
+   **sparsity spillover** at untargeted FFN and attention sites.
+2. Threshold placement may change the model-wide share of logical products
+   with an exactly-zero activation operand—a potential logical skip.
+3. Selected multi-site thresholding plus OL1 may improve the
+   validation-loss/logical-opportunity frontier, and the result may persist
+   from Pythia-14M to 70M and 410M.
 
-In each transformer block, the feed-forward network (FFN, also called the MLP)
-expands the residual width, applies an activation function, then contracts it.
-**The symbol h means only the expanded FFN activation-function output
-immediately before the down-projection, in every block. It does not mean all FFN
-activations.** At h, that function is stock GELU on the standard path and the
-configured threshold on a thresholded path. Activation pressure always targets
-only h. Every location below names the operand after any intervention at that
-location.
+These are questions, not assumed findings. `R_model` is a logical
+zero-product opportunity, not measured runtime speedup.
 
-### Activation locations
+## Fixed training recipe
 
-| Symbol | Exact location | Multiplication that consumes it |
-| --- | --- | --- |
-| a | Output of the attention-branch LayerNorm | Fused query/key/value projection |
-| m | Output of the FFN-branch LayerNorm, before the FFN up-projection | FFN up-projection |
-| h | Activation-function output between the FFN up- and down-projections: stock GELU or threshold output | FFN down-projection |
-| q_pre, k_pre | Query and key immediately before rotary position encoding (RoPE) | Become operands of the query-key product after RoPE |
-| q_post, k_post | Query and key immediately after RoPE | Actual operands of the query-key product |
-| v | Value tensor from the query/key/value projection | Attention-probability-by-value product |
+All runs pretrain randomly initialized Pythia models on MiniPile. Released
+checkpoint weights are not loaded.
 
-Pre- and post-RoPE locations are never merged: RoPE can turn coordinate-wise
-zeros before rotation into nonzeros after rotation.
+| Model | Global batch | Peak-LR sweep |
+| --- | ---: | ---: |
+| Pythia-14M | **262,144 input tokens/update** | `{5e-4, 1e-3, 2e-3}` |
+| Pythia-70M | **262,144 input tokens/update** | `{5e-4, 1e-3, 2e-3}` |
+| Pythia-410M | **262,144 input tokens/update** | `{1.5e-4, 3e-4, 6e-4}` |
 
-### Interventions
+At context length 2,048, each update contains 128 sequences. Microbatch and
+accumulation may change with hardware, but their product must remain 128.
 
-| Intervention | Definition |
+| Setting | Fixed value |
 | --- | --- |
-| Standard path | No activation pressure or hard threshold; h uses stock GELU |
-| L1 pressure | Optimize task loss plus λ times the mean absolute value of h; this encourages small values but does not guarantee exact zeros |
-| OL1 pressure | Take the task-only AdamW step, remove a conflicting pressure component when conflict occurs, cap the correction with a step budget, then apply it; OL1 is conflict-aware, not unconditionally orthogonal |
-| Symmetric hard threshold | During training and evaluation, retain x when abs(x) ≥ κ; otherwise output zero |
-| One-sided hard threshold | During training and evaluation, retain x when x ≥ κ; otherwise output zero |
-| Post-training zeroing sweep | Apply cutoffs only while evaluating a saved checkpoint; this is a diagnostic, not another training method |
+| Optimizer | AdamW |
+| Adam parameters | `beta = (0.9, 0.95)`, `epsilon = 1e-8` |
+| Weight decay | 0.1 |
+| Gradient clipping | Global norm 1.0 |
+| Dropout | Hidden 0; attention 0 |
+| Precision | BF16 computation; FP32 parameters and optimizer state |
+| LR schedule | 1% linear warmup, then cosine decay to 10% of peak |
+| Tuned optimizer field | Peak learning rate only |
 
-Equality survives both hard-threshold rules. Hard thresholds create exact-zero
-activations, but the current dense kernels still execute their multiplications.
+The 14M discovery runs and the C2/C3 replications use one complete-block
+MiniPile pass plus a fixed-batch wrap. The exact realization is 5,691 updates:
+every complete 2,048-token block once, followed by the first 74 blocks of the
+same seeded permutation to fill the last fixed-size update. C1 LR sweeps use
+1,526 updates = 400,031,744 tokens.
 
-### Primary outcomes
+## Canonical sites and threshold policy
 
-| Outcome | Definition and role |
+Pressure always targets only `h`, the FFN activation between `W1` and `W2`.
+Stage A2 and Stage A3 use topology `A1-H` with explicit ReLU, matching the
+paper. `A0` is stock Pythia with GELU and no pressure.
+
+| Alias | Exact operand |
 | --- | --- |
-| Validation loss | Held-out causal-language-modeling loss at a fixed input-token budget; lower is better |
-| Exact-zero fraction z_s | Fraction of values exactly equal to zero at activation location s |
-| Near-zero fraction n_s(0.01) | Fraction with abs(x) ≤ 0.01; primary pressure-response measure |
-| Secondary near-zero fraction n_s(0.1) | Predeclared descriptive sensitivity measure |
-| R_block | Fraction of declared multiplications inside measured transformer-block operations with an exactly zero activation operand |
-| R_model | Same logical-opportunity fraction using the full declared model denominator, including dense operations outside the measured block where applicable |
+| `a` | Attention-branch LayerNorm output entering the QKV projection |
+| `m` | FFN-branch LayerNorm output entering `W1` |
+| `h` | FFN activation-function output entering `W2` |
+| `q_post`, `k_post` | Post-RoPE query/key operands entering `QK^T` |
+| `v` | Value operand entering the attention-probability-by-value product |
 
-Exact zeros, near-zero mass, logical multiplication opportunities, and measured
-runtime are four different quantities. This study claims only what it directly
-measures.
+Each alias means the post-intervention operand passed downstream. At `h`,
+ReLU or a hard threshold replaces GELU as `mlp.act`; it is not applied after
+GELU. Stage labels name experiments, whereas topology IDs name active site
+sets; always qualify the latter as, for example, topology `A3`.
 
-A condition is Pareto-optimal for two stated outcomes when no other eligible
-condition has both no higher validation loss and no lower activation outcome,
-with at least one strict improvement. The activation outcome is n_h(0.01) in A2
-and R_model in B1, B2, and C.
+B1 studies these repository site variants:
 
-## 3. Questions the study will answer
-
-1. How does h-only pressure change validation loss and near-zero mass at h?
-2. Does h-only pressure coincide with changes at untargeted FFN and attention
-   locations, and how consistent are those changes across layers?
-3. At a common pressure weight or comparable achieved h response, does OL1
-   preserve validation quality better than L1, and which optimizer diagnostics
-   accompany any difference?
-4. Where should hard thresholds be inserted to improve the validation-loss
-   versus logical-opportunity frontier?
-5. At the same locations and cutoff, how do symmetric and one-sided hard
-   thresholds differ?
-6. Under frozen settings, does combining h pressure with hard thresholds improve
-   the trade-off beyond either intervention alone?
-7. Do frozen 14M findings replicate at larger sizes and a longer token budget?
-
-Null, adverse, non-monotone, or method-divergent findings remain valid results.
-A1 below is tuning only and cannot support an activation or efficiency claim.
-
-## 4. Shared experimental protocol
-
-| Component | Proposed choice |
+| Topology | Active sites |
 | --- | --- |
-| Model and initialization | Pythia-14M architecture, trained from random initialization; no released weights in the main study |
-| Data | Pinned JeanKaddour/minipile cache: 1.492B cached tokens, sampled with replacement |
-| Context and batch | 2,048 tokens; microbatch 4; 8-step accumulation; effective batch 32 sequences = 65,536 input tokens per update |
-| Precision | BF16 CUDA computation with FP32 parameters and AdamW state |
-| Optimizer | AdamW; β = (0.9, 0.95), ε = 1e-8, weight decay 0.1, no gradient clipping |
-| Schedule | 260-update linear warmup, then constant learning rate |
-| Budgets | 400M input tokens for screens; 1.7B for main comparisons; 3.4B for long-training robustness |
-| Seeds | Seed 0 for screens; seeds 0, 1, and 2 for promoted comparisons |
-| Checkpoints | Final model only; no intermediate or optimizer-state checkpoints |
-| Diagnostics | Final-checkpoint pooled exact-zero, near-zero, and logical-opportunity measurements over the full declared partition; online values are monitoring only |
-| Validation | Tune on 250 selection documents (311,296 input tokens); open the disjoint 250-document confirmation set (380,928 input tokens) once, after Phase A–D choices and analysis are frozen |
-| Matching | Same-seed treatment and control must share initialization, data order, model, optimizer, batch, schedule, budget, and validation identities |
-| Failure rule | Nonfinite or structurally invalid runs are reported but cannot be selected; unfavorable finite runs remain evidence; incomplete three-seed comparisons are not ranked |
+| `A1-H` | `h` |
+| `A2` | `m, h` |
+| `A3` | `a, m, h` |
+| `A4-Q / A4-K / A4-V` | `a, m, h` plus `q_post / k_post / v` |
+| `A5-QK-POST` | `a, m, h, q_post, k_post` |
+| `A6-POST` | `a, m, h, q_post, k_post, v` |
 
-Proposed Phase A model, tokenizer, data, cache, partition, and code identities
-are pinned in the detailed proposal; license and ownership review remains an A1
-prerequisite. Phase D and E identities remain unresolved.
+Only POST-RoPE Q/K sites are used because they are the operands immediately
+preceding `QK^T`.
 
-## 5. Stage-by-stage design
+One global `kappa in {0, 0.03, 0.10, 0.30}` applies to all active sites.
+FFN sites `m, h` are always one-sided. Attention sites
+`a, q_post, k_post, v` are either one-sided or symmetric. One-sided keeps
+`x >= kappa`; symmetric keeps `abs(x) >= kappa`; all other values become zero.
+This proposed mixed-form extension requires review of the repository's current
+single-threshold-form contract. The matrix has 56 conceptual cells, but six
+symmetric `kappa = 0` cells are functional duplicates of topology `A2` at
+`kappa = 0`; reusing that
+anchor leaves 50 unique training runs plus the shared `A0` control. Family
+selection counts only positive-kappa Pareto points, so the shared anchor cannot
+favor multiple symmetric families.
 
-### Phase A — Pressure at the FFN hidden activation h
+## Lean experiment matrix
 
-| Stage | Question | Experiment and selection | Primary output |
-| --- | --- | --- | --- |
-| **A1: learning rate** | Which learning rate should every 14M experiment use? | Standard path, 1.7B tokens. Screen seed 0 at 1e-5, 3e-5, 1e-4, 3e-4, and 1e-3. Add seeds 1 and 2 for the two lowest-loss rates; freeze the lower three-seed mean. Exact ties favor the lower rate. | Appendix rate curve/table; no activation claim |
-| **A2: pressure and spillover** | What changes when L1 or OL1 pressure acts only on h? | At the frozen rate and 1.7B tokens, test each method at λ = 0.1, 0.5, 1, 2, 5 with seed 0; reuse A1 controls. Over weights valid for both methods, form a loss/n_h(0.01) Pareto set within each method, take the union of represented weights, and promote at most its smallest, lower-middle, and largest weights. Add seeds 1 and 2. Diagnose h plus a, m, q_post, k_post, and v. | Figure 1 activation and quality effects |
-| **A3: OL1 mechanism** | Which optimizer diagnostics accompany L1/OL1 differences? | No new training. Compare matched A2 runs at common weights and seeds, and against achieved n_h(0.01) or R_model; equal weights need not create equal corrections. | Mechanism table/appendix: conflict and projection frequencies, direction cosines, trust scaling, correction ratios, and paired method deltas |
-
-**A2 estimates activation and quality effects; A3 characterizes optimizer
-behavior using the same runs.**
-
-### Phase B — Hard-threshold architecture
-
-| Stage | Question | Experiment and selection | Primary output |
-| --- | --- | --- | --- |
-| **B1: placement** | Where should a hard threshold be applied? | Fix the symmetric rule. Screen the baseline plus 10 patterns below at κ = 0.03, 0.10, 0.30: 31 seed-0 runs at 400M. Retain families on the global loss/R_model Pareto frontier, ranked by number of frontier points then table order; keep at most three. Per family, promote its lowest-loss and highest-R_model cutoffs, deduplicated, to 1.7B with three seeds. If none qualifies, stop B2 and the threshold branch of C. | Figure 2 placement frontier; full screen in appendix |
-| **B2: threshold rule** | For selected placement/cutoff pairs, how do symmetric and one-sided rules differ? | In B1-selected families, screen the one-sided rule on the same κ grid and reuse symmetric results. Keep cutoffs valid under both rules; within each family form a two-rule loss/R_model Pareto set and select the cutoffs of its lowest-loss and highest-R_model points. Promote both rules at each selected cutoff to 1.7B with three matched seeds. If no pair remains, B2 is inconclusive. | Proposed Figure 2 rule panel and paired result table |
-
-**B1 changes placement with the rule fixed; B2 restricts attention to the
-B1-selected families and compares rules at paired cutoffs.**
-
-B1 evaluates these exact placement patterns; every listed location receives
-the same symmetric rule and κ within a condition:
-
-| Pattern | Thresholded activation locations |
-| ---: | --- |
-| 1 | h |
-| 2 | m, h |
-| 3 | a, m, h |
-| 4 | a, m, h, q_post |
-| 5 | a, m, h, k_post |
-| 6 | a, m, h, v |
-| 7 | a, m, h, q_pre, k_pre |
-| 8 | a, m, h, q_post, k_post |
-| 9 | a, m, h, q_pre, k_pre, v |
-| 10 | a, m, h, q_post, k_post, v |
-
-### Phase C — Final 14M intervention frontier
-
-| Question | Experiment and selection | Primary output |
+| Stage | Experiment | Question answered |
 | --- | --- | --- |
-| Are h pressure and the selected hard-threshold settings complementary? | Cross the dependency-selected threshold cohort with three pressure choices: none, L1, and OL1. The resulting six **family types** are no threshold/threshold × none/L1/OL1; there may be multiple conditions per type, and unthresholded controls are shared. Screen frozen combinations at 400M with seed 0; promote every eligible noncontrol on the global loss/R_model Pareto frontier to 1.7B with three seeds. | Figure 3 final 14M frontier and frontier-member table |
+| **Stage A1 — 14M LR** | `A0`; three peak LRs; one complete-block pass plus wrap; seed 0 | Which peak LR should every 14M comparison use? |
+| **Stage A2 — L1 spillover** | Topology `A1-H` + ReLU; h-only L1; seed-0 `lambda = {0, 0.1, 0.5, 1, 2, 5}`; three seeds at `lambda = {0, 1}` | How do targeted `h` and untargeted `a, m, q_post, k_post, v` distributions change with pressure? |
+| **Stage A3 — OL1 robustness** | Same seed-0 lambda grid and sites as Stage A2, replacing L1 with OL1 | Does conflict-aware pressure reduce quality sensitivity, and which optimizer diagnostics accompany the difference? |
+| **Stage B1 — threshold ablation** | Eight site variants × four kappa values × applicable attention forms; no pressure | How do placement, form, and threshold value change the validation-loss/`R_model` frontier, and which family is selected? |
+| **Stage B2 — combined winner** | Apply OL1 at one Stage A3-selected lambda to all kappa values of the selected Stage B1 family | Does threshold + OL1 improve the frontier over `A0`, pressure-only, and threshold-only controls? |
+| **Stage C1 — scale LR** | 70M and 410M LR sweeps at 400M tokens | Which peak LR should each larger model use? |
+| **Stage C2 — spillover replication** | Repeat the Stage A2 L1 grid at 70M and 410M, using each selected LR and one complete-block pass plus wrap | Does the spillover response persist with model scale? |
+| **Stage C3 — frontier replication** | Transport the frozen Stage B2 topology, form, kappa cohort, OL1 lambda, and step budget to 70M and 410M | Does the selected frontier persist without retuning the intervention? |
 
-The saved-checkpoint post-training zeroing sweep is displayed with distinct
-notation in Figure 3. It is a diagnostic, not a seventh training family.
-Because the current rule promotes every eligible frontier condition, a numeric
-promotion cap or total Phase C compute ceiling requires advisor approval before
-configuration.
+All complete grids use seed 0 and are exploratory. Independently of B1/B2, the
+central spillover contrast—ReLU-only (`lambda = 0`) versus L1 at `lambda = 1`—
+uses seeds 0, 1, and 2 at every model size. After B2 selects a winner, its
+six-condition component cohort (`A0`, ReLU-only, L1-only, OL1-only,
+threshold-only, threshold+OL1) also uses three seeds at every size. Full curves
+are labeled `n = 1`; only these selected contrasts are `n = 3`.
 
-### Phase D — Frozen cross-size replication
+No selection is made from an unresolved grid. If a model has no eligible LR,
+its dependent stages stop; a null B1 or no valid matched nonzero A2/A3 lambda
+stops B2/C3. Scientific collapses and adverse results remain reported.
 
-Candidate sizes are Pythia 31M, 70M, 160M, and 410M. The discovery grid is not
-repeated at each size.
+## Measurements and outputs
 
-| Stage | Question | Experiment and selection | Primary output |
-| --- | --- | --- | --- |
-| **D1: per-size learning rate** | Which rate makes each selected size a fair target? | At 400M tokens and seed 0, test one-third, one times, and three times the frozen 14M rate. Freeze the eligible rate with lowest final loss; ties favor the lower rate. A size with no eligible rate leaves D2/D3. | Appendix rate-by-size table |
-| **D2: spillover across size** | Does the A2 activation pattern recur as width and depth change? | At 1.7B, compare the standard path with up to three frozen low-, middle-, and high-weight h-pressure settings. Labels refer to ordered weights, not effects. Method and seed cohorts remain to be frozen and must match within every claim. | Figure 4 exact-zero and near-zero changes by named location and size |
-| **D3: intervention across size** | Does the frozen quality/opportunity frontier persist? | At 1.7B, compare the standard path, h pressure only, threshold only, quality-oriented combination, and aggressive combination. Carry placement, rule, κ, method, weight, and OL1 step budget from Phase C without retuning; use same-seed controls. | Figure 5 and scale table: loss, paired loss change, activation vector, absolute and paired R_model |
+Spillover is measured by paired changes at every named site in:
 
-Phase D tests literal parameter transport, not a scaling law; scale-dependent
-exceptions remain visible rather than being retuned away.
+- exact-zero fraction `z_s`;
+- near-zero mass `n_s(0.01)`, with `n_s(0.1)` as sensitivity;
+- pooled RMS and layerwise activation distributions;
+- validation loss.
 
-### Phase E — Robustness and scope
+`A0` and every ReLU or threshold condition used in a frontier/table report
+observed `R_model`; each topology also reports its validated ceiling
+`R_model^max`. PRE/POST sites are never collapsed. Both quantities are logical
+opportunities, not measured compute savings.
 
-| Stage | Question | Proposed experiment | Status and report |
-| --- | --- | --- | --- |
-| **E1: longer training** | Do conclusions survive twice the main token budget? | Fresh 3.4B-token runs for the standard path, high h pressure, and selected combination at 14M and one larger size; match the 1.7B counterpart by seed, initialization, and data-order prefix. | Models, conditions, and seeds remain open. Proposed robustness table/appendix; a sixth main figure only if E1 becomes headline evidence. |
-| **E2: pretrained adaptation** | Does the intervention transfer to a released checkpoint? | Supportive 300M-token adaptation comparison. | Blocked pending a separate checkpoint, optimizer, data, seed, contamination, implementation, and license protocol. Supplement only if approved. |
+The minimum paper package is:
 
-## 6. Planned paper and presentation outputs
+1. **Figure 1 — sparsity spillover:** Stage A2/C2 lambda responses across 14M,
+   70M, and 410M. The fixed distribution panel uses 14M, the deepest layer,
+   all six named sites, `lambda = 0` versus `lambda = 1`, and all three seeds.
+2. **Figure 2 — logical opportunity:** `R_model` accounting and
+   `R_model^max` by topology and model.
+3. **Figure 3 — intervention and mechanism:** `A0`, ReLU-only, L1-only and
+   OL1-only at `lambda_B2`, threshold-only, and threshold+OL1; Stage B1/C3
+   frontiers; paired one-sided-versus-symmetric attention points at matched
+   topology/kappa; loss versus achieved `n_h(0.01)`; and OL1
+   conflict/projection frequencies. Because threshold+L1 is not run, the
+   figure cannot claim OL1 beats L1 inside the selected threshold topology.
+4. **Main results table:** complete final recipes, validation loss, spillover
+   vector, `R_model`, paired changes, seeds, and uncertainty.
 
-This proposed output specification must be mirrored in the authoritative plan
-before release.
+LR sweeps, complete lambda/kappa grids, extended OL1 mechanism diagnostics,
+adverse or failed conditions, and selection/confirmation comparisons go to the
+appendix.
 
-| Output | Scientific message | Required evidence |
-| --- | --- | --- |
-| **A1 appendix figure and table** | The chosen 14M learning rate is the best predeclared candidate under the fixed recipe. | Complete five-rate screen, both promoted rates with three seeds, failures retained |
-| **Figure 1 — pressure at h** | How L1 and OL1 change h, whether changes appear elsewhere, and how quality varies with achieved response. | Promoted A2 1.7B three-seed cohort; layer-by-weight maps; loss versus n_h(0.01) or R_model; representative h distribution with exact-zero atom separated |
-| **A3 mechanism table/appendix** | Which conflict, projection, cosine, and trust-scale diagnostics accompany method differences. | Matched A2 events with complete optimizer-boundary counters |
-| **Figure 2 — hard-threshold design** | Which placement/cutoff combinations lie on the best validation-loss/logical-opportunity trade-offs, and how the two rules differ. | Promoted B1/B2 1.7B paired cohorts; individual seeds, mean and sample SD; placement, rule, and κ labeled |
-| **Figure 3 — final 14M frontier** | Whether pressure, hard thresholds, and their combination improve the quality/opportunity frontier. | Promoted Phase C cohort; six family types across selected threshold settings; post-training zeroing shown separately |
-| **Figure 4 — activation changes across size** | Whether targeted and untargeted activation responses replicate by exact location. | Reviewed D2 multi-size matched cohort; paired location-level exact-zero and near-zero changes |
-| **Figure 5 and main scale table** | Whether frozen interventions transport across sizes without retuning. | Reviewed D3 cohort; model-by-condition loss, paired loss change, activation vector, absolute and paired R_model |
-| **Robustness output** | Stability at 3.4B tokens and, if authorized, transfer to a released checkpoint. | E1 robustness table/appendix; E2 supplementary table only |
-| **Complete appendix** | Auditability, including negative and dominated evidence. | All screens and grids, individual seeds, learning curves, required activation distributions and diagnostics, exclusions, invalid runs, and selection/confirmation comparison |
+The complete selection partition is evaluated at update 1, every 191 updates,
+and the final update. One final checkpoint is saved. After all choices and
+analyses are frozen, the confirmation partition is evaluated once from each
+named saved checkpoint; it cannot trigger reselection.
 
-Figures 1–5 are first rendered provisionally from promoted 1.7B multi-seed
-selection evidence; their released versions use the one-time confirmation
-evaluation of the frozen cohorts. Every multi-seed aggregate comparison shows
-individual seeds, mean, sample SD, and sample size; the predeclared seed-0
-representative distribution is labeled as such. Effects are same-seed paired.
-Confirmation disagreement is disclosed and cannot trigger reselection.
+## Decisions and implementation required before launch
 
-## 7. Compute envelope and decisions requested
+1. Freeze the OL1 `step_budget`.
+2. Approve the complete-block-pass wrap and headline seed policy.
+3. Add and test the cosine scheduler and global gradient clipping.
+4. Add per-group threshold forms: one-sided FFN plus independently
+   one-sided/symmetric attention under one kappa, including the methods-contract
+   amendment.
+5. Implement and validate the `R_model^max` artifact contract for each
+   model/topology/workload.
+6. Verify/pin all model, tokenizer, dataset, cache, partition, batch, and
+   license identities, including the proposed 14M inputs.
+7. Add the exact validation cadence, generic saved-checkpoint confirmation,
+   pooled RMS/histograms, and all-boundary OL1 counters.
 
-The following are gross input-token exposures under the current upper
-promotion bounds:
+Stage B1 is the dominant screen: 56 conceptual cells represented by 50 unique
+training runs, approximately 74.59B processed tokens at seed 0. Before any
+launch, each model/workload receives a 600-second production-shaped calibration
+and separate setup, validation,
+diagnostic, and checkpoint timing. The calibrated ETC and uncertainty return
+for explicit approval.
 
-| Stage | Gross exposure | Basis |
-| --- | ---: | --- |
-| A1 | 15.3B tokens | Five 1.7B screen runs plus four promoted-seed runs |
-| A2 | Up to 37.4B tokens | Ten 1.7B seed-0 treatments plus up to 12 promoted-seed runs; controls reused |
-| B1 | Up to 43.0B tokens | 31 × 400M screen plus up to six conditions × three seeds × 1.7B |
-| B2 | Up to 64.8B tokens | Conservative bound before reuse: up to nine added 400M one-sided runs and 12 paired conditions × three seeds × 1.7B |
-| C, D, E | To be bounded | Depend on upstream selections and unresolved model/seed scope |
+Claim scope is deliberately narrow: full lambda/kappa curves are single-seed
+exploration. A winner with a nonidentity attention threshold may be described
+as a selected multi-site recipe containing attention thresholding, but the
+improvement cannot be attributed specifically to attention without an
+FFN-threshold+OL1 control. The introduction's 12B/`T = 50,000` ceiling examples
+require separate validation or removal. B1 is spillover-motivated, not selected
+from the spillover results. Directional statements about lambda sensitivity or
+one-sided-versus-symmetric behavior remain exploratory unless their complete
+curves receive additional seeds.
 
-A1 plus A2 is at most 52.7B tokens. The conservative gross total through B2 is
-160.5B and overstates reusable work. Wall-clock ETCs require a 600-second
-production-shaped training window plus separate setup, full-validation, and
-checkpoint timings under the reviewed, committed A1 recipe. ETC and uncertainty
-will be presented for approval before launch.
-
-Advisor decisions requested:
-
-1. Approve or revise the research questions, outcome definitions, and
-   selection/confirmation policy.
-2. Approve the full 1.7B-token A1 and A2 designs, or require a smaller tuning
-   budget.
-3. Freeze the OL1 step budget before A2.
-4. Approve the B1 placement registry, both B2 threshold rules, and promotion
-   bounds; set a Phase C promotion cap or compute ceiling.
-5. Select the Phase D model sizes, method cohort, and seeds.
-6. Decide whether E1 and E2 are core, supplementary, or deferred.
-7. Complete license and identity review for the proposed model, tokenizer,
-   dataset, and caches.
+The [detailed review draft](exp-plan-v0.md) contains the selection rules,
+controls, evidence policy, and implementation blockers.
