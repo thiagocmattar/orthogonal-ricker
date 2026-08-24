@@ -50,8 +50,8 @@ _NON_PRETRAIN_MODES = frozenset(
     }
 )
 _WORKER_SLOT_ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
-_CUDA_DEVICE_RE = re.compile(r"^[A-Za-z0-9_.:/-]+$")
-_PARALLEL_READY_ITEMS = ("CLOUD-01", "OPS-05", "OPS-06")
+_CUDA_DEVICE_RE = re.compile(r"^(0|[1-9][0-9]*)$")
+_PARALLEL_READY_ITEMS = ("CLOUD-01", "OPS-04", "OPS-05", "OPS-06")
 
 
 class WorkerProcessError(RuntimeError):
@@ -65,6 +65,7 @@ def run_launch(
     repository: str | Path | None = None,
     retry_failed: bool | None = None,
     worker_slots: Sequence[WorkerSlot[str]] | None = None,
+    allow_shared_device: bool | None = None,
 ) -> list[Path]:
     """Run one plan-defined config list under a single launch lock.
 
@@ -77,10 +78,11 @@ def run_launch(
 
     root = repository_path(repository)
     runner = _resolve_runner(runner_path, root)
-    retry_failed, resolved_slots = _resolve_launch_options(
+    retry_failed, resolved_slots, shared_device = _resolve_launch_options(
         runner,
         requested_retry=retry_failed,
         requested_slots=worker_slots,
+        requested_shared_device=allow_shared_device,
     )
     if resolved_slots:
         _require_parallel_launch_ready(root)
@@ -142,6 +144,8 @@ def run_launch(
     ]
     if retry_failed:
         command_parts.append("--retry-failed")
+    if shared_device:
+        command_parts.append("--allow-shared-device")
     for slot in resolved_slots:
         command_parts.extend(("--worker-slot", f"{slot.slot_id}={slot.payload}"))
     command = shlex.join(command_parts)
@@ -313,26 +317,33 @@ def _resolve_launch_options(
     *,
     requested_retry: bool | None,
     requested_slots: Sequence[WorkerSlot[str]] | None,
-) -> tuple[bool, tuple[WorkerSlot[str], ...]]:
+    requested_shared_device: bool | None,
+) -> tuple[bool, tuple[WorkerSlot[str], ...], bool]:
     try:
         invoked_runner = Path(sys.argv[0]).resolve() == runner
     except (OSError, RuntimeError):
         invoked_runner = False
-    parsed_retry, parsed_slots = (
+    parsed_retry, parsed_slots, parsed_shared_device = (
         _parse_runner_arguments(sys.argv[1:])
         if invoked_runner
-        else (False, ())
+        else (False, (), False)
     )
     retry = parsed_retry if requested_retry is None else requested_retry
     slots = parsed_slots if requested_slots is None else tuple(requested_slots)
-    _validate_worker_slots(slots)
-    return retry, slots
+    shared_device = (
+        parsed_shared_device
+        if requested_shared_device is None
+        else requested_shared_device
+    )
+    _validate_worker_slots(slots, allow_shared_device=shared_device)
+    return retry, slots, shared_device
 
 
 def _parse_runner_arguments(
     arguments: Sequence[str],
-) -> tuple[bool, tuple[WorkerSlot[str], ...]]:
+) -> tuple[bool, tuple[WorkerSlot[str], ...], bool]:
     retry_failed = False
+    allow_shared_device = False
     slots: list[WorkerSlot[str]] = []
     index = 0
     while index < len(arguments):
@@ -344,6 +355,15 @@ def _parse_runner_arguments(
                     "only once."
                 )
             retry_failed = True
+            index += 1
+            continue
+        if argument == "--allow-shared-device":
+            if allow_shared_device:
+                raise RunnerError(
+                    "Unsupported case-runner arguments: --allow-shared-device "
+                    "may appear only once."
+                )
+            allow_shared_device = True
             index += 1
             continue
         if argument == "--worker-slot":
@@ -359,11 +379,12 @@ def _parse_runner_arguments(
         rendered = " ".join(arguments)
         raise RunnerError(
             f"Unsupported case-runner arguments: {rendered}. Supported arguments "
-            "are --retry-failed and repeated --worker-slot SLOT=CUDA_DEVICE."
+            "are --retry-failed, --allow-shared-device, and repeated "
+            "--worker-slot SLOT=CUDA_DEVICE."
         )
     result = tuple(slots)
-    _validate_worker_slots(result)
-    return retry_failed, result
+    _validate_worker_slots(result, allow_shared_device=allow_shared_device)
+    return retry_failed, result, allow_shared_device
 
 
 def _parse_worker_slot(value: str) -> WorkerSlot[str]:
@@ -383,7 +404,11 @@ def _parse_worker_slot(value: str) -> WorkerSlot[str]:
     return WorkerSlot(slot_id=slot_id, payload=cuda_device)
 
 
-def _validate_worker_slots(slots: Sequence[WorkerSlot[str]]) -> None:
+def _validate_worker_slots(
+    slots: Sequence[WorkerSlot[str]],
+    *,
+    allow_shared_device: bool = False,
+) -> None:
     slot_ids = [slot.slot_id for slot in slots]
     if len(set(slot_ids)) != len(slot_ids):
         raise RunnerError("Case runner worker slot IDs must be unique.")
@@ -391,6 +416,21 @@ def _validate_worker_slots(slots: Sequence[WorkerSlot[str]]) -> None:
         if slot.payload is None:
             raise RunnerError("Every case runner worker slot requires a CUDA device.")
         _parse_worker_slot(f"{slot.slot_id}={slot.payload}")
+    devices = [str(slot.payload) for slot in slots]
+    duplicate_devices = sorted(
+        {device for device in devices if devices.count(device) > 1}
+    )
+    if allow_shared_device and not duplicate_devices:
+        raise RunnerError(
+            "--allow-shared-device requires at least two worker slots mapped to "
+            "the same CUDA device."
+        )
+    if duplicate_devices and not allow_shared_device:
+        raise RunnerError(
+            "Multiple worker slots map to the same CUDA device; pass "
+            "--allow-shared-device only after the reviewed hardware-density "
+            f"profile supports this packing: {', '.join(duplicate_devices)}."
+        )
 
 
 def _require_worker_mappable_device(
@@ -399,11 +439,16 @@ def _require_worker_mappable_device(
     config_path: Path,
 ) -> None:
     requested = config["training"]["device"]
-    if requested not in {"auto", "cuda", "cuda:0"}:
+    if requested not in {"cuda", "cuda:0"}:
         raise RunnerError(
-            f"Parallel config {config_path.name} must select auto, cuda, or cuda:0; "
+            f"Parallel config {config_path.name} must select cuda or cuda:0; "
             "the coordinator maps its assigned physical GPU through "
             "CUDA_VISIBLE_DEVICES."
+        )
+    if config["training"]["precision"] != "bfloat16":
+        raise RunnerError(
+            f"Parallel config {config_path.name} must select bfloat16 precision; "
+            "the isolated worker verifies native BF16 support before training."
         )
 
 
@@ -464,19 +509,25 @@ def _run_one_isolated(
     )
     try:
         process.start()
-    finally:
+    except BaseException:
         sender.close()
-    process.join()
+        receiver.close()
+        raise
+    sender.close()
     try:
-        message = receiver.recv() if receiver.poll() else None
+        message = receiver.recv()
     except EOFError:
         message = None
-    receiver.close()
+    finally:
+        receiver.close()
+    process.join()
+    exit_code = process.exitcode
+    process.close()
 
     if (
         isinstance(message, dict)
         and message.get("status") == "completed"
-        and process.exitcode == 0
+        and exit_code == 0
     ):
         return Path(str(message["run_dir"]))
 
@@ -486,7 +537,7 @@ def _run_one_isolated(
         detail = "worker exited without a terminal result"
     raise WorkerProcessError(
         f"Isolated worker for {config_path.name} on {slot.slot_id} failed "
-        f"(exit code {process.exitcode}): {detail}."
+        f"(exit code {exit_code}): {detail}."
     )
 
 
@@ -514,6 +565,15 @@ def _worker_process_entry(
     os.environ["PAPER_EXP_WORKER_LAUNCH_SIZE"] = str(launch_size)
     os.environ["PAPER_EXP_COORDINATOR_PID"] = str(coordinator_pid)
     try:
+        gpu = _require_isolated_cuda_runtime(config)
+        os.environ["PAPER_EXP_WORKER_GPU_UUID"] = gpu["uuid"]
+        os.environ["PAPER_EXP_WORKER_GPU_NAME"] = gpu["name"]
+        os.environ["PAPER_EXP_WORKER_GPU_TOTAL_MEMORY_BYTES"] = str(
+            gpu["total_memory_bytes"]
+        )
+        os.environ["PAPER_EXP_WORKER_GPU_COMPUTE_CAPABILITY"] = gpu[
+            "compute_capability"
+        ]
         run_dir = _run_one(
             config,
             config_path=Path(config_path),
@@ -524,13 +584,69 @@ def _worker_process_entry(
             {
                 "status": "failed",
                 "error_type": type(error).__qualname__,
-                "error_message": str(error),
+                "error_message": _bounded_error_message(error),
             }
         )
+        raise
     else:
         sender.send({"status": "completed", "run_dir": str(run_dir)})
     finally:
         sender.close()
+
+
+def _bounded_error_message(error: BaseException, *, limit: int = 4096) -> str:
+    message = str(error)
+    if len(message) <= limit:
+        return message
+    return message[: limit - 3] + "..."
+
+
+def _require_isolated_cuda_runtime(config: dict[str, Any]) -> dict[str, Any]:
+    """Fail closed unless the child sees one BF16-capable CUDA device."""
+
+    try:
+        import torch
+    except ImportError as error:
+        raise WorkerProcessError(
+            "Isolated GPU worker cannot import torch after device isolation."
+        ) from error
+    if config["training"]["device"] not in {"cuda", "cuda:0"}:
+        raise WorkerProcessError(
+            "Isolated GPU worker requires training.device cuda or cuda:0."
+        )
+    if config["training"]["precision"] != "bfloat16":
+        raise WorkerProcessError(
+            "Isolated GPU worker requires training.precision bfloat16."
+        )
+    if not torch.cuda.is_available():
+        raise WorkerProcessError(
+            "Assigned CUDA device is unavailable after applying CUDA_VISIBLE_DEVICES."
+        )
+    visible_devices = int(torch.cuda.device_count())
+    if visible_devices != 1:
+        raise WorkerProcessError(
+            "Isolated GPU worker must see exactly one CUDA device; "
+            f"observed {visible_devices}."
+        )
+    if not torch.cuda.is_bf16_supported():
+        raise WorkerProcessError("Assigned CUDA device does not support BF16.")
+    properties = torch.cuda.get_device_properties(0)
+    gpu_uuid = str(getattr(properties, "uuid", "")).strip()
+    gpu_name = str(getattr(properties, "name", "")).strip()
+    total_memory = int(getattr(properties, "total_memory", 0))
+    major = int(getattr(properties, "major", -1))
+    minor = int(getattr(properties, "minor", -1))
+    if not gpu_uuid or not gpu_name or total_memory <= 0 or major < 0 or minor < 0:
+        raise WorkerProcessError(
+            "Assigned CUDA device did not expose complete UUID, name, memory, and "
+            "compute-capability identity."
+        )
+    return {
+        "uuid": gpu_uuid,
+        "name": gpu_name,
+        "total_memory_bytes": total_memory,
+        "compute_capability": f"{major}.{minor}",
+    }
 
 
 def _read_manifest(path: Path) -> dict[str, Any] | None:

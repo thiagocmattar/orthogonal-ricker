@@ -3,7 +3,9 @@ from __future__ import annotations
 from contextlib import contextmanager
 import json
 from pathlib import Path
+import sys
 from threading import Barrier, Lock
+from types import SimpleNamespace
 from typing import Iterator
 
 import pytest
@@ -71,7 +73,7 @@ def test_parent_runner_dispatches_configs_once_to_explicit_worker_slots(
         "load_config",
         lambda path, **_kwargs: {
             "name": Path(path).stem,
-            "training": {"device": "cuda"},
+            "training": {"device": "cuda", "precision": "bfloat16"},
         },
     )
     initial_workers = Barrier(2)
@@ -137,7 +139,7 @@ def test_parent_runner_parallel_failure_stops_later_admission(
         "load_config",
         lambda path, **_kwargs: {
             "name": Path(path).stem,
-            "training": {"device": "cuda"},
+            "training": {"device": "cuda", "precision": "bfloat16"},
         },
     )
     calls: list[str] = []
@@ -179,6 +181,16 @@ def test_parallel_worker_maps_slot_environment_and_reports_completion(
     environment: dict[str, str] = {}
     monkeypatch.setattr(runner.os, "environ", environment)
     monkeypatch.setattr(runner.os, "chdir", lambda path: None)
+    monkeypatch.setattr(
+        runner,
+        "_require_isolated_cuda_runtime",
+        lambda _config: {
+            "uuid": "GPU-test",
+            "name": "Test GPU",
+            "total_memory_bytes": 48 * 1024**3,
+            "compute_capability": "8.9",
+        },
+    )
 
     def run_one(
         _config: dict[str, object],
@@ -190,11 +202,15 @@ def test_parallel_worker_maps_slot_environment_and_reports_completion(
         assert command == "case runner command"
         assert environment["CUDA_VISIBLE_DEVICES"] == "3"
         assert environment["PAPER_EXP_WORKER_SLOT_ID"] == "gpu-3"
+        assert environment["PAPER_EXP_WORKER_GPU_UUID"] == "GPU-test"
         return tmp_path / "completed"
 
     monkeypatch.setattr(runner, "_run_one", run_one)
     runner._worker_process_entry(
-        {"name": "001-case"},
+        {
+            "name": "001-case",
+            "training": {"device": "cuda", "precision": "bfloat16"},
+        },
         str(tmp_path / "001-case.yaml"),
         "case runner command",
         str(tmp_path),
@@ -358,7 +374,7 @@ def test_parent_runner_rejects_unsupported_script_arguments(
 
 
 def test_case_runner_parses_retry_and_explicit_worker_slots() -> None:
-    retry, slots = runner._parse_runner_arguments(
+    retry, slots, shared_device = runner._parse_runner_arguments(
         [
             "--worker-slot",
             "gpu-0=0",
@@ -368,10 +384,33 @@ def test_case_runner_parses_retry_and_explicit_worker_slots() -> None:
     )
 
     assert retry is True
+    assert shared_device is False
     assert slots == (
         runner.WorkerSlot("gpu-0", "0"),
         runner.WorkerSlot("gpu-1", "1"),
     )
+
+
+def test_case_runner_requires_explicit_shared_device_opt_in() -> None:
+    arguments = ["--worker-slot", "worker-a=0", "--worker-slot", "worker-b=0"]
+    with pytest.raises(runner.RunnerError, match="allow-shared-device"):
+        runner._parse_runner_arguments(arguments)
+
+    retry, slots, shared_device = runner._parse_runner_arguments(
+        [*arguments, "--allow-shared-device"]
+    )
+
+    assert retry is False
+    assert shared_device is True
+    assert slots == (
+        runner.WorkerSlot("worker-a", "0"),
+        runner.WorkerSlot("worker-b", "0"),
+    )
+
+    with pytest.raises(runner.RunnerError, match="requires at least two"):
+        runner._parse_runner_arguments(
+            ["--worker-slot", "worker-a=0", "--allow-shared-device"]
+        )
 
 
 @pytest.mark.parametrize(
@@ -379,6 +418,7 @@ def test_case_runner_parses_retry_and_explicit_worker_slots() -> None:
     (
         (["--worker-slot"], "requires SLOT=CUDA_DEVICE"),
         (["--worker-slot", "GPU_0=0"], "Worker slot must be"),
+        (["--worker-slot", "gpu-0=-1"], "exactly one CUDA device"),
         (["--worker-slot", "gpu-0=0,1"], "exactly one CUDA device"),
         (
             ["--worker-slot", "gpu-0=0", "--worker-slot", "gpu-0=1"],
@@ -405,7 +445,7 @@ def test_parallel_preflight_rejects_an_unmappable_config_device(
         "load_config",
         lambda path, **_kwargs: {
             "name": Path(path).stem,
-            "training": {"device": "cuda:1"},
+            "training": {"device": "cuda:1", "precision": "bfloat16"},
         },
     )
     monkeypatch.setattr(
@@ -434,6 +474,7 @@ def test_concurrent_scientific_launch_requires_resolved_readiness_items(
                 "| ID | State | Blocks |",
                 "| --- | --- | --- |",
                 "| `CLOUD-01` | resolved | launch |",
+                "| `OPS-04` | resolved | launch |",
                 "| `OPS-05` | open | launch |",
                 "| `OPS-06` | resolved | launch |",
             )
@@ -451,6 +492,84 @@ def test_concurrent_scientific_launch_requires_resolved_readiness_items(
         encoding="utf-8",
     )
     runner._require_parallel_launch_ready(tmp_path)
+
+
+@pytest.mark.parametrize(
+    ("device", "precision", "message"),
+    (
+        ("auto", "bfloat16", "must select cuda"),
+        ("cuda", "auto", "must select bfloat16"),
+    ),
+)
+def test_parallel_preflight_requires_explicit_cuda_bfloat16(
+    device: str,
+    precision: str,
+    message: str,
+) -> None:
+    with pytest.raises(runner.RunnerError, match=message):
+        runner._require_worker_mappable_device(
+            {"training": {"device": device, "precision": precision}},
+            config_path=Path("001-case.yaml"),
+        )
+
+
+@pytest.mark.parametrize(
+    ("available", "count", "bf16", "message"),
+    (
+        (False, 0, False, "unavailable"),
+        (True, 2, True, "exactly one"),
+        (True, 1, False, "does not support BF16"),
+    ),
+)
+def test_isolated_worker_rejects_invalid_cuda_runtime(
+    monkeypatch: pytest.MonkeyPatch,
+    available: bool,
+    count: int,
+    bf16: bool,
+    message: str,
+) -> None:
+    fake_torch = SimpleNamespace(
+        cuda=SimpleNamespace(
+            is_available=lambda: available,
+            device_count=lambda: count,
+            is_bf16_supported=lambda: bf16,
+        )
+    )
+    monkeypatch.setitem(sys.modules, "torch", fake_torch)
+
+    with pytest.raises(runner.WorkerProcessError, match=message):
+        runner._require_isolated_cuda_runtime(
+            {"training": {"device": "cuda", "precision": "bfloat16"}}
+        )
+
+
+def test_isolated_worker_accepts_one_bfloat16_cuda_device(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake_torch = SimpleNamespace(
+        cuda=SimpleNamespace(
+            is_available=lambda: True,
+            device_count=lambda: 1,
+            is_bf16_supported=lambda: True,
+            get_device_properties=lambda _index: SimpleNamespace(
+                uuid="GPU-test",
+                name="Test GPU",
+                total_memory=48 * 1024**3,
+                major=8,
+                minor=9,
+            ),
+        )
+    )
+    monkeypatch.setitem(sys.modules, "torch", fake_torch)
+
+    assert runner._require_isolated_cuda_runtime(
+        {"training": {"device": "cuda", "precision": "bfloat16"}}
+    ) == {
+        "uuid": "GPU-test",
+        "name": "Test GPU",
+        "total_memory_bytes": 48 * 1024**3,
+        "compute_capability": "8.9",
+    }
 
 
 @pytest.mark.parametrize(

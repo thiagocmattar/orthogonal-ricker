@@ -175,6 +175,10 @@ def collect_worker_assignment() -> dict[str, Any] | None:
         "launch_position": "PAPER_EXP_WORKER_LAUNCH_POSITION",
         "launch_size": "PAPER_EXP_WORKER_LAUNCH_SIZE",
         "coordinator_pid": "PAPER_EXP_COORDINATOR_PID",
+        "gpu_uuid": "PAPER_EXP_WORKER_GPU_UUID",
+        "gpu_name": "PAPER_EXP_WORKER_GPU_NAME",
+        "gpu_total_memory_bytes": "PAPER_EXP_WORKER_GPU_TOTAL_MEMORY_BYTES",
+        "gpu_compute_capability": "PAPER_EXP_WORKER_GPU_COMPUTE_CAPABILITY",
     }
     values = {field: os.environ.get(name) for field, name in names.items()}
     if not any(value is not None for value in values.values()):
@@ -194,6 +198,10 @@ def collect_worker_assignment() -> dict[str, Any] | None:
         "worker_pid": os.getpid(),
         "hostname": socket.gethostname(),
         "cuda_visible_devices": os.environ.get("CUDA_VISIBLE_DEVICES"),
+        "gpu_uuid": values["gpu_uuid"],
+        "gpu_name": values["gpu_name"],
+        "gpu_total_memory_bytes": int(str(values["gpu_total_memory_bytes"])),
+        "gpu_compute_capability": values["gpu_compute_capability"],
         "runpod_pod_id": os.environ.get("RUNPOD_POD_ID"),
     }
 

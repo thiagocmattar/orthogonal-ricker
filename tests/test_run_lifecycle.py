@@ -56,6 +56,10 @@ def test_start_run_records_explicit_parallel_worker_assignment(
         "PAPER_EXP_WORKER_LAUNCH_POSITION": "2",
         "PAPER_EXP_WORKER_LAUNCH_SIZE": "5",
         "PAPER_EXP_COORDINATOR_PID": "321",
+        "PAPER_EXP_WORKER_GPU_UUID": "GPU-test-uuid",
+        "PAPER_EXP_WORKER_GPU_NAME": "Test GPU",
+        "PAPER_EXP_WORKER_GPU_TOTAL_MEMORY_BYTES": "51539607552",
+        "PAPER_EXP_WORKER_GPU_COMPUTE_CAPABILITY": "8.9",
         "CUDA_VISIBLE_DEVICES": "1",
         "RUNPOD_POD_ID": "pod-test",
     }
@@ -82,6 +86,10 @@ def test_start_run_records_explicit_parallel_worker_assignment(
         "worker_pid": 654,
         "hostname": "worker-host",
         "cuda_visible_devices": "1",
+        "gpu_uuid": "GPU-test-uuid",
+        "gpu_name": "Test GPU",
+        "gpu_total_memory_bytes": 51539607552,
+        "gpu_compute_capability": "8.9",
         "runpod_pod_id": "pod-test",
     }
 
