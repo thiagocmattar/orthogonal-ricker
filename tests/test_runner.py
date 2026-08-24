@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 from contextlib import contextmanager
+import json
 from pathlib import Path
 from typing import Iterator
 
 import pytest
 
+import paper_exp.integrity as integrity
 import paper_exp.launch as launch
 import paper_exp.runner as runner
 
@@ -124,6 +126,107 @@ def test_parent_runner_stops_after_first_failed_config(
     assert calls == ["001-case.yaml", "002-case.yaml"]
 
 
+def test_parent_runner_skips_one_completion_and_retries_only_failed_configs(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runner_path, configs = _layout(tmp_path, (1, 2, 3))
+    _write_attempt(configs[0], sequence=1, status="failed")
+    existing = _write_attempt(configs[0], sequence=2, status="complete")
+    _write_attempt(configs[1], sequence=1, status="failed")
+    _write_attempt(configs[1], sequence=2, status="failed")
+    calls: list[str] = []
+
+    def run_one(
+        _config: dict[str, object],
+        *,
+        config_path: Path,
+        command: str,
+    ) -> Path:
+        del command
+        calls.append(config_path.name)
+        return config_path.parent.parent / "raw" / config_path.stem / "new-attempt"
+
+    _stub_preflight(monkeypatch)
+    monkeypatch.setattr(runner, "_run_one", run_one)
+
+    completed = runner.run_launch(runner_path, configs, repository=tmp_path)
+
+    assert calls == ["002-case.yaml", "003-case.yaml"]
+    assert completed == [
+        existing,
+        configs[1].parent.parent / "raw" / configs[1].stem / "new-attempt",
+        configs[2].parent.parent / "raw" / configs[2].stem / "new-attempt",
+    ]
+
+
+@pytest.mark.parametrize("unsafe_status", ("running", "inconsistent"))
+def test_parent_runner_rejects_unsafe_attempt_state_before_launch_mutation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    unsafe_status: str,
+) -> None:
+    runner_path, configs = _layout(tmp_path, (1, 2))
+    first = _write_attempt(configs[0], sequence=1, status="failed")
+    _write_attempt(configs[1], sequence=1, status=unsafe_status)
+    guard_entered = False
+
+    @contextmanager
+    def guard(**_kwargs: object) -> Iterator[None]:
+        nonlocal guard_entered
+        guard_entered = True
+        yield
+
+    _stub_preflight(monkeypatch)
+    monkeypatch.setattr(runner, "direct_launch_guard", guard)
+    monkeypatch.setattr(
+        runner,
+        "_run_one",
+        lambda *_args, **_kwargs: pytest.fail("unsafe state must abort the tranche"),
+    )
+
+    with pytest.raises(runner.RunnerError, match="running or inconsistent"):
+        runner.run_launch(runner_path, configs, repository=tmp_path)
+
+    assert guard_entered is False
+    assert sorted(path.name for path in first.parent.iterdir()) == [first.name]
+
+
+def test_parent_runner_rejects_multiple_coherent_completions(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runner_path, configs = _layout(tmp_path, (1,))
+    _write_attempt(configs[0], sequence=1, status="complete")
+    _write_attempt(configs[0], sequence=2, status="complete")
+    _stub_preflight(monkeypatch)
+    monkeypatch.setattr(
+        runner,
+        "direct_launch_guard",
+        lambda **_kwargs: pytest.fail("ambiguous state must fail before locking"),
+    )
+
+    with pytest.raises(runner.RunnerError, match="multiple coherent completed"):
+        runner.run_launch(runner_path, configs, repository=tmp_path)
+
+
+def test_parent_runner_rejects_attempt_from_mutated_config(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runner_path, configs = _layout(tmp_path, (1,))
+    _write_attempt(
+        configs[0],
+        sequence=1,
+        status="failed",
+        config={"name": "changed-after-attempt"},
+    )
+    _stub_preflight(monkeypatch)
+
+    with pytest.raises(runner.RunnerError, match="inconsistent"):
+        runner.run_launch(runner_path, configs, repository=tmp_path)
+
+
 @pytest.mark.parametrize("invalid_name", ("launch.py", "01-first-set.py"))
 def test_case_runner_requires_exact_scaffold_location_and_name(
     tmp_path: Path,
@@ -231,6 +334,7 @@ def _stub_preflight(monkeypatch: pytest.MonkeyPatch) -> None:
         lambda path, **_kwargs: {"name": Path(path).stem},
     )
     monkeypatch.setattr(runner, "validate_training_config", lambda _config: None)
+    monkeypatch.setattr(integrity, "validate_training_config", lambda _config: None)
     monkeypatch.setattr(runner, "require_raw_output", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(
         runner,
@@ -247,6 +351,62 @@ def _stub_preflight(monkeypatch: pytest.MonkeyPatch) -> None:
 @contextmanager
 def _null_guard() -> Iterator[None]:
     yield
+
+
+def _write_attempt(
+    config_path: Path,
+    *,
+    sequence: int,
+    status: str,
+    config: dict[str, object] | None = None,
+) -> Path:
+    run_dir = (
+        config_path.parent.parent
+        / "raw"
+        / config_path.stem
+        / f"{sequence:03d}-{status}"
+    )
+    run_dir.mkdir(parents=True)
+    snapshot = config or {"name": config_path.stem}
+    (run_dir / "config.yaml").write_text(
+        json.dumps(snapshot) + "\n", encoding="utf-8"
+    )
+    manifest: dict[str, object] = {
+        "config_id": config_path.stem,
+        "run_id": run_dir.name,
+        "tranche_id": config_path.parent.parent.name,
+        "mode": "pretrain",
+        "git_commit": "a" * 40,
+        "git_dirty": False,
+    }
+    if status == "complete":
+        (run_dir / "metrics.json").write_text("{}\n", encoding="utf-8")
+        (run_dir / "predictions.jsonl").write_text("{}\n", encoding="utf-8")
+        (run_dir / "events.jsonl").write_text(
+            '{"event": "train"}\n', encoding="utf-8"
+        )
+    if status in {"complete", "running", "failed"}:
+        lifecycle_status = "completed" if status == "complete" else status
+        manifest.update(
+            {
+                "status": lifecycle_status,
+                "started_at": "2026-01-01T00:00:00Z",
+            }
+        )
+        if status in {"complete", "failed"}:
+            manifest["finished_at"] = "2026-01-01T00:01:00Z"
+        if lifecycle_status == "failed":
+            manifest.update(
+                {
+                    "failure": {"type": "RuntimeError", "message": "test"},
+                }
+            )
+    elif status != "inconsistent":
+        raise ValueError(f"Unsupported test attempt status: {status}")
+    (run_dir / "manifest.json").write_text(
+        json.dumps(manifest) + "\n", encoding="utf-8"
+    )
+    return run_dir
 
 
 def _scaffold(tmp_path: Path, scaffold_id: str) -> Path:

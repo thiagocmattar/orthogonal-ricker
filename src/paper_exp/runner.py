@@ -7,7 +7,10 @@ import shlex
 import sys
 from typing import Any, Sequence
 
+from yaml import YAMLError, safe_load
+
 from paper_exp.config import load_config, validate_training_config
+from paper_exp.integrity import classify_run_directory
 from paper_exp.launch import (
     LaunchError,
     direct_launch_guard,
@@ -87,15 +90,101 @@ def run_launch(
     command = shlex.join(
         [Path(sys.executable).name, runner.relative_to(root).as_posix()]
     )
+    prior_completed = [
+        _completed_attempt_for_config(path, config)
+        for path, config in loaded
+    ]
     completed: list[Path] = []
     with direct_launch_guard(repository=root):
-        for index, (path, config) in enumerate(loaded, start=1):
+        # Close the preflight-to-lock race before creating any new attempt.
+        prior_completed = [
+            _completed_attempt_for_config(path, config)
+            for path, config in loaded
+        ]
+        for index, ((path, config), existing) in enumerate(
+            zip(loaded, prior_completed, strict=True), start=1
+        ):
             display = path.relative_to(root).as_posix()
+            if existing is not None:
+                run_display = existing.relative_to(root).as_posix()
+                print(
+                    f"[{index}/{len(loaded)}] skip completed {display} -> {run_display}",
+                    flush=True,
+                )
+                completed.append(existing)
+                continue
             print(f"[{index}/{len(loaded)}] pretrain {display}", flush=True)
             completed.append(
                 _run_one(config, config_path=path, command=command)
             )
     return completed
+
+
+def _completed_attempt_for_config(
+    config_path: Path,
+    config: dict[str, Any],
+) -> Path | None:
+    """Return one reusable completion, or require a safe retry state."""
+
+    result_group = config_path.parent.parent / "raw" / config_path.stem
+    if result_group.is_symlink():
+        raise RunnerError(
+            f"Cannot resume {config_path.name}: result group is not a regular "
+            f"directory: {result_group}"
+        )
+    if not result_group.exists():
+        return None
+    if not result_group.is_dir():
+        raise RunnerError(
+            f"Cannot resume {config_path.name}: result group is not a regular "
+            f"directory: {result_group}"
+        )
+
+    attempts: list[tuple[Path, str]] = []
+    for attempt in sorted(result_group.iterdir(), key=lambda path: path.name):
+        if attempt.is_symlink() or not attempt.is_dir():
+            attempts.append((attempt, "inconsistent"))
+            continue
+        status = classify_run_directory(attempt)
+        if status != "inconsistent" and not _config_snapshot_matches(
+            attempt / "config.yaml", config
+        ):
+            status = "inconsistent"
+        attempts.append((attempt, status))
+
+    unsafe = [
+        (attempt, status)
+        for attempt, status in attempts
+        if status in {"running", "inconsistent"}
+    ]
+    if unsafe:
+        details = ", ".join(
+            f"{attempt.name}={status}" for attempt, status in unsafe
+        )
+        raise RunnerError(
+            f"Cannot resume {config_path.name} safely; running or inconsistent "
+            f"attempt state: {details}."
+        )
+
+    coherent_completed = [
+        attempt for attempt, status in attempts if status == "complete"
+    ]
+    if len(coherent_completed) > 1:
+        names = ", ".join(path.name for path in coherent_completed)
+        raise RunnerError(
+            f"Cannot resume {config_path.name}: multiple coherent completed "
+            f"attempts are ambiguous: {names}."
+        )
+    return coherent_completed[0] if coherent_completed else None
+
+
+def _config_snapshot_matches(path: Path, expected: dict[str, Any]) -> bool:
+    try:
+        with path.open("r", encoding="utf-8-sig") as handle:
+            snapshot = safe_load(handle)
+    except (OSError, UnicodeError, YAMLError):
+        return False
+    return isinstance(snapshot, dict) and snapshot == expected
 
 
 def _resolve_runner(path: str | Path, repository: Path) -> Path:
