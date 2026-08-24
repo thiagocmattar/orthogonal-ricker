@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import json
+import os
 import platform
+import socket
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -116,7 +118,7 @@ def build_manifest(
     result_path: str | Path | None = None,
     tranche_id: str | None = None,
 ) -> dict[str, Any]:
-    return {
+    manifest = {
         "experiment_name": config["experiment_name"],
         "tranche_id": tranche_id,
         "config_id": config_id or Path(config_path).stem,
@@ -152,6 +154,47 @@ def build_manifest(
         "platform": platform.platform(),
         "gpu_info": collect_gpu_info(),
         "package_versions": collect_package_versions(),
+    }
+    worker_assignment = collect_worker_assignment()
+    if worker_assignment is not None:
+        if worker_assignment["config_id"] != manifest["config_id"]:
+            raise RuntimeError(
+                "Parallel-worker config identity does not match the run manifest."
+            )
+        manifest["worker_assignment"] = worker_assignment
+    return manifest
+
+
+def collect_worker_assignment() -> dict[str, Any] | None:
+    """Return explicit coordinator/slot provenance for an isolated worker."""
+
+    names = {
+        "launch_id": "PAPER_EXP_PARALLEL_LAUNCH_ID",
+        "slot_id": "PAPER_EXP_WORKER_SLOT_ID",
+        "config_id": "PAPER_EXP_WORKER_CONFIG_ID",
+        "launch_position": "PAPER_EXP_WORKER_LAUNCH_POSITION",
+        "launch_size": "PAPER_EXP_WORKER_LAUNCH_SIZE",
+        "coordinator_pid": "PAPER_EXP_COORDINATOR_PID",
+    }
+    values = {field: os.environ.get(name) for field, name in names.items()}
+    if not any(value is not None for value in values.values()):
+        return None
+    missing = sorted(field for field, value in values.items() if value is None)
+    if missing:
+        raise RuntimeError(
+            "Incomplete parallel-worker environment: " + ", ".join(missing)
+        )
+    return {
+        "launch_id": values["launch_id"],
+        "slot_id": values["slot_id"],
+        "config_id": values["config_id"],
+        "launch_position": int(str(values["launch_position"])),
+        "launch_size": int(str(values["launch_size"])),
+        "coordinator_pid": int(str(values["coordinator_pid"])),
+        "worker_pid": os.getpid(),
+        "hostname": socket.gethostname(),
+        "cuda_visible_devices": os.environ.get("CUDA_VISIBLE_DEVICES"),
+        "runpod_pod_id": os.environ.get("RUNPOD_POD_ID"),
     }
 
 

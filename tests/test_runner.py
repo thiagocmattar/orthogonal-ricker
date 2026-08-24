@@ -3,6 +3,7 @@ from __future__ import annotations
 from contextlib import contextmanager
 import json
 from pathlib import Path
+from threading import Barrier, Lock
 from typing import Iterator
 
 import pytest
@@ -57,6 +58,159 @@ def test_parent_runner_executes_one_config_at_a_time_in_numeric_order(
     assert calls == ["001-case.yaml", "002-case.yaml", "003-case.yaml"]
     assert len(completed) == 3
     assert active is False
+
+
+def test_parent_runner_dispatches_configs_once_to_explicit_worker_slots(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runner_path, configs = _layout(tmp_path, (1, 2, 3))
+    _stub_preflight(monkeypatch)
+    monkeypatch.setattr(
+        runner,
+        "load_config",
+        lambda path, **_kwargs: {
+            "name": Path(path).stem,
+            "training": {"device": "cuda"},
+        },
+    )
+    initial_workers = Barrier(2)
+    state_lock = Lock()
+    active = 0
+    maximum_active = 0
+    calls: list[tuple[str, str, str]] = []
+
+    def run_isolated(
+        _config: dict[str, object],
+        *,
+        config_path: Path,
+        slot: runner.WorkerSlot[str],
+        **_kwargs: object,
+    ) -> Path:
+        nonlocal active, maximum_active
+        with state_lock:
+            active += 1
+            maximum_active = max(maximum_active, active)
+            calls.append((config_path.name, slot.slot_id, str(slot.payload)))
+        try:
+            if config_path in configs[:2]:
+                initial_workers.wait(timeout=5)
+            return config_path.parent.parent / "raw" / config_path.stem / "001-test"
+        finally:
+            with state_lock:
+                active -= 1
+
+    monkeypatch.setattr(runner, "_run_one_isolated", run_isolated)
+    completed = runner.run_launch(
+        runner_path,
+        configs,
+        repository=tmp_path,
+        worker_slots=(
+            runner.WorkerSlot("gpu-0", "0"),
+            runner.WorkerSlot("gpu-1", "1"),
+        ),
+    )
+
+    assert sorted(name for name, _slot, _device in calls) == [
+        "001-case.yaml",
+        "002-case.yaml",
+        "003-case.yaml",
+    ]
+    assert maximum_active == 2
+    assert len(completed) == 3
+    assert [path.parent.name for path in completed] == [
+        "001-case",
+        "002-case",
+        "003-case",
+    ]
+    assert {slot for _name, slot, _device in calls} == {"gpu-0", "gpu-1"}
+
+
+def test_parent_runner_parallel_failure_stops_later_admission(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runner_path, configs = _layout(tmp_path, (1, 2, 3))
+    _stub_preflight(monkeypatch)
+    monkeypatch.setattr(
+        runner,
+        "load_config",
+        lambda path, **_kwargs: {
+            "name": Path(path).stem,
+            "training": {"device": "cuda"},
+        },
+    )
+    calls: list[str] = []
+
+    def fail_first(
+        _config: dict[str, object],
+        *,
+        config_path: Path,
+        **_kwargs: object,
+    ) -> Path:
+        calls.append(config_path.name)
+        raise RuntimeError("injected isolated failure")
+
+    monkeypatch.setattr(runner, "_run_one_isolated", fail_first)
+    with pytest.raises(runner.RunnerError, match="001-case"):
+        runner.run_launch(
+            runner_path,
+            configs,
+            repository=tmp_path,
+            worker_slots=(runner.WorkerSlot("gpu-0", "0"),),
+        )
+
+    assert calls == ["001-case.yaml"]
+
+
+def test_parallel_worker_maps_slot_environment_and_reports_completion(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    messages: list[dict[str, object]] = []
+
+    class Sender:
+        def send(self, message: dict[str, object]) -> None:
+            messages.append(message)
+
+        def close(self) -> None:
+            pass
+
+    environment: dict[str, str] = {}
+    monkeypatch.setattr(runner.os, "environ", environment)
+    monkeypatch.setattr(runner.os, "chdir", lambda path: None)
+
+    def run_one(
+        _config: dict[str, object],
+        *,
+        config_path: Path,
+        command: str,
+    ) -> Path:
+        assert config_path.name == "001-case.yaml"
+        assert command == "case runner command"
+        assert environment["CUDA_VISIBLE_DEVICES"] == "3"
+        assert environment["PAPER_EXP_WORKER_SLOT_ID"] == "gpu-3"
+        return tmp_path / "completed"
+
+    monkeypatch.setattr(runner, "_run_one", run_one)
+    runner._worker_process_entry(
+        {"name": "001-case"},
+        str(tmp_path / "001-case.yaml"),
+        "case runner command",
+        str(tmp_path),
+        "launch-id",
+        1,
+        3,
+        "gpu-3",
+        "3",
+        123,
+        Sender(),
+    )
+
+    assert messages == [
+        {"status": "completed", "run_dir": str(tmp_path / "completed")}
+    ]
+    assert environment["PAPER_EXP_COORDINATOR_PID"] == "123"
 
 
 @pytest.mark.parametrize("prefixes", [(2, 1), (1, 1)])
@@ -201,6 +355,102 @@ def test_parent_runner_rejects_unsupported_script_arguments(
 
     with pytest.raises(runner.RunnerError, match="Unsupported case-runner"):
         runner.run_launch(runner_path, configs, repository=tmp_path)
+
+
+def test_case_runner_parses_retry_and_explicit_worker_slots() -> None:
+    retry, slots = runner._parse_runner_arguments(
+        [
+            "--worker-slot",
+            "gpu-0=0",
+            "--retry-failed",
+            "--worker-slot=gpu-1=1",
+        ]
+    )
+
+    assert retry is True
+    assert slots == (
+        runner.WorkerSlot("gpu-0", "0"),
+        runner.WorkerSlot("gpu-1", "1"),
+    )
+
+
+@pytest.mark.parametrize(
+    ("arguments", "message"),
+    (
+        (["--worker-slot"], "requires SLOT=CUDA_DEVICE"),
+        (["--worker-slot", "GPU_0=0"], "Worker slot must be"),
+        (["--worker-slot", "gpu-0=0,1"], "exactly one CUDA device"),
+        (
+            ["--worker-slot", "gpu-0=0", "--worker-slot", "gpu-0=1"],
+            "slot IDs must be unique",
+        ),
+    ),
+)
+def test_case_runner_rejects_invalid_worker_slots(
+    arguments: list[str],
+    message: str,
+) -> None:
+    with pytest.raises(runner.RunnerError, match=message):
+        runner._parse_runner_arguments(arguments)
+
+
+def test_parallel_preflight_rejects_an_unmappable_config_device(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runner_path, configs = _layout(tmp_path, (1,))
+    _stub_preflight(monkeypatch)
+    monkeypatch.setattr(
+        runner,
+        "load_config",
+        lambda path, **_kwargs: {
+            "name": Path(path).stem,
+            "training": {"device": "cuda:1"},
+        },
+    )
+    monkeypatch.setattr(
+        runner,
+        "direct_launch_guard",
+        lambda **_kwargs: pytest.fail("device mapping must fail before locking"),
+    )
+
+    with pytest.raises(runner.RunnerError, match="CUDA_VISIBLE_DEVICES"):
+        runner.run_launch(
+            runner_path,
+            configs,
+            repository=tmp_path,
+            worker_slots=(runner.WorkerSlot("gpu-0", "0"),),
+        )
+
+
+def test_concurrent_scientific_launch_requires_resolved_readiness_items(
+    tmp_path: Path,
+) -> None:
+    workboard = tmp_path / "docs" / "experimental-design" / "workboard.md"
+    workboard.parent.mkdir(parents=True)
+    workboard.write_text(
+        "\n".join(
+            (
+                "| ID | State | Blocks |",
+                "| --- | --- | --- |",
+                "| `CLOUD-01` | resolved | launch |",
+                "| `OPS-05` | open | launch |",
+                "| `OPS-06` | resolved | launch |",
+            )
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(runner.RunnerError, match="OPS-05"):
+        runner._require_parallel_launch_ready(tmp_path)
+
+    workboard.write_text(
+        workboard.read_text(encoding="utf-8").replace(
+            "| `OPS-05` | open |", "| `OPS-05` | resolved |"
+        ),
+        encoding="utf-8",
+    )
+    runner._require_parallel_launch_ready(tmp_path)
 
 
 @pytest.mark.parametrize(
@@ -455,6 +705,7 @@ def _stub_preflight(monkeypatch: pytest.MonkeyPatch) -> None:
         "direct_launch_guard",
         lambda **_kwargs: _null_guard(),
     )
+    monkeypatch.setattr(runner, "_require_parallel_launch_ready", lambda _root: None)
 
 
 @contextmanager

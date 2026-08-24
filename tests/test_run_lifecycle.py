@@ -44,6 +44,48 @@ def test_start_run_writes_launch_envelope_immediately(
     assert not list(run.run_dir.glob(".*.tmp"))
 
 
+def test_start_run_records_explicit_parallel_worker_assignment(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _stabilize_provenance(monkeypatch)
+    config, config_path = _write_config(tmp_path)
+    environment = {
+        "PAPER_EXP_PARALLEL_LAUNCH_ID": "launch-123",
+        "PAPER_EXP_WORKER_SLOT_ID": "gpu-1",
+        "PAPER_EXP_WORKER_CONFIG_ID": "001-lifecycle",
+        "PAPER_EXP_WORKER_LAUNCH_POSITION": "2",
+        "PAPER_EXP_WORKER_LAUNCH_SIZE": "5",
+        "PAPER_EXP_COORDINATOR_PID": "321",
+        "CUDA_VISIBLE_DEVICES": "1",
+        "RUNPOD_POD_ID": "pod-test",
+    }
+    for name, value in environment.items():
+        monkeypatch.setenv(name, value)
+    monkeypatch.setattr(utils_module.os, "getpid", lambda: 654)
+    monkeypatch.setattr(utils_module.socket, "gethostname", lambda: "worker-host")
+
+    run = start_run(
+        config,
+        config_path=config_path,
+        command="pytest parallel provenance",
+        mode="pretrain",
+        run_id="parallel",
+    )
+
+    assert _read_manifest(run.run_dir)["worker_assignment"] == {
+        "launch_id": "launch-123",
+        "slot_id": "gpu-1",
+        "config_id": "001-lifecycle",
+        "launch_position": 2,
+        "launch_size": 5,
+        "coordinator_pid": 321,
+        "worker_pid": 654,
+        "hostname": "worker-host",
+        "cuda_visible_devices": "1",
+        "runpod_pod_id": "pod-test",
+    }
+
+
 def test_complete_run_writes_completed_manifest_last(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
