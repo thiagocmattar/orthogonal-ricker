@@ -54,6 +54,28 @@ def test_training_phase_timing_metrics_are_recorded_separately() -> None:
     }
 
 
+@pytest.mark.parametrize(
+    ("method", "scope"),
+    [
+        ("none", "task_only"),
+        ("l1_naive", "task_plus_weighted_pressure"),
+        ("orthogonal_l1", "task_only"),
+    ],
+)
+def test_gradient_clipping_manifest_records_fixed_method_scope(
+    method: str,
+    scope: str,
+) -> None:
+    assert training._gradient_clipping_manifest(method) == {
+        "type": "global_l2_norm",
+        "max_norm": 1.0,
+        "gradient_scope": scope,
+        "applied_immediately_before": "adamw_step",
+        "error_if_nonfinite": True,
+        "orthogonal_pressure_direction_included": False,
+    }
+
+
 def test_checkpoint_manifest_path_is_run_relative(tmp_path: Path) -> None:
     class Model:
         def save_pretrained(self, path: Path, *, safe_serialization: bool) -> None:

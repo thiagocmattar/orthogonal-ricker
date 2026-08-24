@@ -18,6 +18,7 @@ from paper_exp.data import (
 from paper_exp.modeling import _build_random_model
 from paper_exp.modeling import model_topology_metadata
 from paper_exp.optimization import (
+    GLOBAL_GRADIENT_CLIP_MAX_NORM,
     _autocast_context,
     _build_adamw_optimizer,
     _global_weight_norm,
@@ -254,7 +255,9 @@ def _run_started_training(
                 final_pressure_metrics = {
                     key: value
                     for key, value in step_result.items()
-                    if key.startswith(("pressure/", "activation/", "atg/")) or key in {
+                    if key.startswith(
+                        ("pressure/", "activation/", "atg/", "optimization/")
+                    ) or key in {
                         "pressure_loss",
                         "pressure_weight",
                         "weighted_pressure_loss",
@@ -462,7 +465,7 @@ def _run_started_training(
             "adamw_betas": list(optimizer_config["betas"]),
             "adamw_eps": optimizer_config["eps"],
             "weight_decay": optimizer_config["weight_decay"],
-            "gradient_clipping": None,
+            "gradient_clipping": _gradient_clipping_manifest(pressure_config.method),
         },
         "activation_pressure": {
             "enabled": pressure_config.enabled,
@@ -503,6 +506,21 @@ def _run_started_training(
         predictions=events,
         manifest_updates=manifest_updates,
     )
+
+
+def _gradient_clipping_manifest(pressure_method: str) -> dict[str, Any]:
+    return {
+        "type": "global_l2_norm",
+        "max_norm": GLOBAL_GRADIENT_CLIP_MAX_NORM,
+        "gradient_scope": (
+            "task_plus_weighted_pressure"
+            if pressure_method == "l1_naive"
+            else "task_only"
+        ),
+        "applied_immediately_before": "adamw_step",
+        "error_if_nonfinite": True,
+        "orthogonal_pressure_direction_included": False,
+    }
 
 
 def _write_live_events(run_dir: Path, events: list[dict[str, Any]]) -> None:

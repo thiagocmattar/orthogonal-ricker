@@ -11,6 +11,9 @@ from paper_exp.activation_pressure import grad_metrics
 from paper_exp.activation_pressure import pressure_loss
 
 
+GLOBAL_GRADIENT_CLIP_MAX_NORM = 1.0
+
+
 def _build_adamw_optimizer(
     *,
     torch: Any,
@@ -136,6 +139,7 @@ def _run_training_step(
     task_grads = task_grads_for_metrics if pressure_active else clone_grads(params)
     pressure_grads = pressure_grads_for_metrics if pressure_active else [None for _ in params]
     step_metrics = grad_metrics(torch, task_grads, pressure_grads)
+    clip_metrics = _clip_adamw_gradients(torch=torch, params=params)
     optimizer.step()
 
     task_loss_mean = task_loss_total / grad_accum
@@ -143,6 +147,7 @@ def _run_training_step(
     result = {
         "task_loss": task_loss_mean,
         "pressure/task_gradient_norm": step_metrics["pressure/task_gradient_norm"],
+        **clip_metrics,
     }
     if pressure_active:
         result.update(step_metrics)
@@ -219,6 +224,9 @@ def _run_orthogonal_pressure_step(
             pressure_config.log_thresholds,
         )
 
+    # AdamW and OL1 must use the same clipped task gradient.  The separate
+    # pressure gradient is deliberately left untouched by global clipping.
+    clip_metrics = _clip_adamw_gradients(torch=torch, params=params)
     task_grads = clone_grads(params)
     result = {
         "task_loss": task_loss_total / grad_accum,
@@ -229,6 +237,7 @@ def _run_orthogonal_pressure_step(
             task_loss_total / grad_accum
             + pressure_config.weight * pressure_loss_total / grad_accum
         ),
+        **clip_metrics,
     }
     result.update(grad_metrics(torch, task_grads, pressure_grads))
 
@@ -314,14 +323,39 @@ def _set_optimizer_lr(optimizer: Any, learning_rate: float) -> None:
         group["lr"] = learning_rate
 
 
-def _global_grad_norm(model: Any) -> float:
+def _clip_adamw_gradients(*, torch: Any, params: list[Any]) -> dict[str, float | bool]:
+    """Clip the exact gradient AdamW will consume and report both norms."""
+
+    pre_clip = torch.nn.utils.clip_grad_norm_(
+        params,
+        max_norm=GLOBAL_GRADIENT_CLIP_MAX_NORM,
+        norm_type=2.0,
+        error_if_nonfinite=True,
+    )
+    pre_clip_norm = float(pre_clip.detach().float().cpu().item())
+    post_clip_norm = _parameter_gradient_global_norm(params)
+    return {
+        "optimization/adamw_gradient_global_norm_pre_clip": pre_clip_norm,
+        "optimization/adamw_gradient_global_norm_post_clip": post_clip_norm,
+        "optimization/adamw_gradient_clip_max_norm": GLOBAL_GRADIENT_CLIP_MAX_NORM,
+        "optimization/adamw_gradient_was_clipped": (
+            pre_clip_norm > GLOBAL_GRADIENT_CLIP_MAX_NORM
+        ),
+    }
+
+
+def _parameter_gradient_global_norm(params: list[Any]) -> float:
     total = 0.0
-    for parameter in model.parameters():
+    for parameter in params:
         if parameter.grad is None:
             continue
         param_norm = parameter.grad.detach().float().norm(2).item()
         total += param_norm * param_norm
     return total**0.5
+
+
+def _global_grad_norm(model: Any) -> float:
+    return _parameter_gradient_global_norm(list(model.parameters()))
 
 
 def _global_weight_norm(model: Any) -> float:
