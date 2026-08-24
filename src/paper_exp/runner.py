@@ -508,28 +508,55 @@ def _run_one_isolated(
 
 
 def _receive_and_reap_worker(process: Any, receiver: Any) -> tuple[Any, int | None]:
-    """Receive one bounded result and always drain a successfully started child."""
+    """Receive one bounded result, drain the child, and close a dead process."""
 
-    receive_error: BaseException | None = None
+    lifecycle_error: BaseException | None = None
     message: Any = None
+    exit_code: int | None = None
     try:
         try:
             message = receiver.recv()
         except EOFError:
             message = None
         except BaseException as error:
-            receive_error = error
+            lifecycle_error = error
     finally:
         try:
             receiver.close()
-        finally:
+        except BaseException as error:
+            if lifecycle_error is None:
+                lifecycle_error = error
+        try:
             process.join()
-    exit_code = process.exitcode
-    process.close()
-    if receive_error is not None:
+        except BaseException as error:
+            if lifecycle_error is None:
+                lifecycle_error = error
+        try:
+            process_alive = bool(process.is_alive())
+        except BaseException as error:
+            process_alive = True
+            if lifecycle_error is None:
+                lifecycle_error = error
+        if process_alive and lifecycle_error is None:
+            lifecycle_error = WorkerProcessError(
+                "Isolated worker remained live after a blocking join."
+            )
+        if not process_alive:
+            try:
+                exit_code = process.exitcode
+            except BaseException as error:
+                if lifecycle_error is None:
+                    lifecycle_error = error
+            try:
+                process.close()
+            except BaseException as error:
+                if lifecycle_error is None:
+                    lifecycle_error = error
+    if lifecycle_error is not None:
         raise WorkerProcessError(
-            "Failed while receiving an isolated worker result after draining the child."
-        ) from receive_error
+            "Failed while receiving or reaping an isolated worker; its process "
+            "handle was closed only after confirming that the child had exited."
+        ) from lifecycle_error
     return message, exit_code
 
 

@@ -128,6 +128,113 @@ def test_parent_runner_dispatches_configs_once_to_explicit_worker_slots(
     assert {slot for _name, slot, _device in calls} == {"gpu-0", "gpu-1"}
 
 
+def test_parent_runner_skips_completed_parallel_configs_without_gpu_probe(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runner_path, configs = _layout(tmp_path, (1, 2))
+    _stub_preflight(monkeypatch)
+
+    def load(path: str | Path, **_kwargs: object) -> dict[str, object]:
+        return {
+            "name": Path(path).stem,
+            "training": {"device": "cuda", "precision": "bfloat16"},
+        }
+
+    monkeypatch.setattr(runner, "load_config", load)
+    existing = [
+        _write_attempt(path, sequence=1, status="complete", config=load(path))
+        for path in configs
+    ]
+    monkeypatch.setattr(
+        runner,
+        "_probe_worker_slots",
+        lambda _slots: pytest.fail("completed configs must not require live GPUs"),
+    )
+    monkeypatch.setattr(
+        runner,
+        "_run_one_isolated",
+        lambda *_args, **_kwargs: pytest.fail("completed configs must not run"),
+    )
+
+    assert runner.run_launch(
+        runner_path,
+        configs,
+        repository=tmp_path,
+        worker_slots=(runner.WorkerSlot("gpu-0", "0"),),
+    ) == existing
+
+
+def test_parent_runner_probes_once_and_dispatches_only_pending_parallel_configs(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runner_path, configs = _layout(tmp_path, (1, 2, 3))
+    _stub_preflight(monkeypatch)
+
+    def load(path: str | Path, **_kwargs: object) -> dict[str, object]:
+        return {
+            "name": Path(path).stem,
+            "training": {"device": "cuda", "precision": "bfloat16"},
+        }
+
+    monkeypatch.setattr(runner, "load_config", load)
+    first = _write_attempt(
+        configs[0], sequence=1, status="complete", config=load(configs[0])
+    )
+    third = _write_attempt(
+        configs[2], sequence=1, status="complete", config=load(configs[2])
+    )
+    probe_calls: list[tuple[runner.WorkerSlot[str], ...]] = []
+
+    def probe(
+        slots: tuple[runner.WorkerSlot[str], ...],
+    ) -> dict[str, dict[str, object]]:
+        probe_calls.append(slots)
+        return {
+            slot.slot_id: {
+                "uuid": f"GPU-{slot.payload}",
+                "name": "Test GPU",
+                "total_memory_bytes": 48 * 1024**3,
+                "compute_capability": "8.9",
+            }
+            for slot in slots
+        }
+
+    isolated_calls: list[str] = []
+
+    def run_isolated(
+        _config: dict[str, object],
+        *,
+        config_path: Path,
+        **_kwargs: object,
+    ) -> Path:
+        isolated_calls.append(config_path.name)
+        return config_path.parent.parent / "raw" / config_path.stem / "new-attempt"
+
+    slots = (
+        runner.WorkerSlot("gpu-0", "0"),
+        runner.WorkerSlot("gpu-1", "1"),
+    )
+    monkeypatch.setattr(runner, "_probe_worker_slots", probe)
+    monkeypatch.setattr(runner, "_run_one_isolated", run_isolated)
+
+    completed = runner.run_launch(
+        runner_path,
+        configs,
+        repository=tmp_path,
+        worker_slots=slots,
+    )
+
+    assert probe_calls == [slots]
+    assert isolated_calls == [configs[1].name]
+    assert completed == [
+        first,
+        configs[1].parent.parent / "raw" / configs[1].stem / "new-attempt",
+        third,
+    ]
+
+
 def test_parent_runner_parallel_failure_stops_later_admission(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -247,14 +354,124 @@ def test_isolated_worker_ipc_error_still_drains_and_closes_child() -> None:
         def join(self) -> None:
             events.append("join")
 
+        def is_alive(self) -> bool:
+            events.append("is-alive")
+            return False
+
         def close(self) -> None:
             events.append("process-close")
 
-    with pytest.raises(runner.WorkerProcessError, match="after draining") as caught:
+    with pytest.raises(
+        runner.WorkerProcessError, match="receiving or reaping"
+    ) as caught:
         runner._receive_and_reap_worker(Process(), Receiver())
 
     assert isinstance(caught.value.__cause__, OSError)
-    assert events == ["recv", "receiver-close", "join", "process-close"]
+    assert events == [
+        "recv",
+        "receiver-close",
+        "join",
+        "is-alive",
+        "process-close",
+    ]
+
+
+def test_isolated_worker_does_not_close_a_live_child_after_join_failure() -> None:
+    events: list[str] = []
+
+    class Receiver:
+        def recv(self) -> object:
+            events.append("recv")
+            return {"status": "completed"}
+
+        def close(self) -> None:
+            events.append("receiver-close")
+
+    class Process:
+        exitcode = None
+
+        def join(self) -> None:
+            events.append("join")
+            raise OSError("injected join failure")
+
+        def is_alive(self) -> bool:
+            events.append("is-alive")
+            return True
+
+        def close(self) -> None:
+            pytest.fail("a live process handle must not be closed")
+
+    with pytest.raises(
+        runner.WorkerProcessError, match="receiving or reaping"
+    ) as caught:
+        runner._receive_and_reap_worker(Process(), Receiver())
+
+    assert isinstance(caught.value.__cause__, OSError)
+    assert events == ["recv", "receiver-close", "join", "is-alive"]
+
+
+def test_gpu_uuid_mismatch_prevents_training_attempt_creation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    messages: list[dict[str, object]] = []
+
+    class Sender:
+        def send(self, message: dict[str, object]) -> None:
+            messages.append(message)
+
+        def close(self) -> None:
+            pass
+
+    monkeypatch.setattr(runner.os, "environ", {})
+    monkeypatch.setattr(runner.os, "chdir", lambda _path: None)
+    monkeypatch.setattr(
+        runner,
+        "_require_isolated_cuda_runtime",
+        lambda _config: {
+            "uuid": "GPU-observed",
+            "name": "Test GPU",
+            "total_memory_bytes": 48 * 1024**3,
+            "compute_capability": "8.9",
+        },
+    )
+    monkeypatch.setattr(
+        runner,
+        "_run_one",
+        lambda *_args, **_kwargs: pytest.fail(
+            "UUID mismatch must fail before creating a training attempt"
+        ),
+    )
+
+    with pytest.raises(runner.WorkerProcessError, match="identity changed"):
+        runner._worker_process_entry(
+            {
+                "name": "001-case",
+                "training": {"device": "cuda", "precision": "bfloat16"},
+            },
+            str(tmp_path / "001-case.yaml"),
+            "case runner command",
+            str(tmp_path),
+            "launch-id",
+            1,
+            1,
+            "gpu-0",
+            "0",
+            "GPU-expected",
+            123,
+            Sender(),
+        )
+
+    assert messages == [
+        {
+            "status": "failed",
+            "error_type": "WorkerProcessError",
+            "error_message": (
+                "Assigned CUDA device identity changed after coordinator preflight: "
+                "expected GPU-expected, observed GPU-observed."
+            ),
+        }
+    ]
 
 
 @pytest.mark.parametrize("prefixes", [(2, 1), (1, 1)])
