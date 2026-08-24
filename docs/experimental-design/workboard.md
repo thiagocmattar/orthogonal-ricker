@@ -12,8 +12,8 @@ copied into this table.
 
 | ID | State | Blocks | Requirement | Acceptance evidence |
 | --- | --- | --- | --- | --- |
-| `ID-01` | open | A1+ | Verify proposed 14M dataset/model/tokenizer pins, split/text column, licenses, and physical batch decomposition | Reviewed identities and memory-fit evidence in `protocol.md`; cache integrity check |
-| `ID-02` | open | C1+ | Pin 70M/410M architecture/tokenizer revisions, licenses, cache compatibility, and physical batches | Reviewed protocol values and memory evidence |
+| `ID-01` | open | A1+ | Verify proposed 14M dataset/model/tokenizer pins, split/text column, and licenses | Reviewed identities in `protocol.md`; cache integrity check |
+| `ID-02` | open | C1+ | Pin 70M/410M architecture/tokenizer revisions, licenses, and cache compatibility | Reviewed protocol values and cache evidence |
 | `TRAIN-01` | open | A1+ | Implement seeded complete-block permutation plus 74-block wrap and schedule hash | Focused reproducibility tests and serialized hash |
 | `TRAIN-02` | open | A1+ | Implement 1% warmup and cosine decay to 0.1 of peak | Endpoint/off-by-one tests for both budgets |
 | `TRAIN-03` | open | A1+ | Implement global gradient clipping at 1.0 with specified L1/OL1 ordering | Numerical tests and pre/post norm telemetry |
@@ -26,6 +26,10 @@ copied into this table.
 | `OPS-01` | open | config allocation | Validate catalog expansion/count expressions; full reviewed-design SHA and unchanged normative blobs; reviewed group membership; functional aliases; config/manifest identity fields; and duplicate fingerprints | Catalog/fingerprint tests integrated with strict check and launch preflight |
 | `OPS-02` | resolved | recovery | Scope resume to pretraining, skip completed configs, require explicit failed-retry authorization, and stop on unsafe state | Commits `8de8324`, `5263dba`, `be0c9a4`; 301 tests, strict check, and infrastructure smoke passed |
 | `OPS-03` | open | calibration/launch | Add a 600-second calibration-only limit that cannot truncate definitive pretraining; record setup, train, validation, diagnostic, and checkpoint timing separately | CLI/config separation tests and a production-shaped same-hardware timing artifact |
+| `OPS-04` | open | A1+/C1+ | Define the throughput-optimal physical microbatch and gradient-accumulation decomposition for each model on its pinned RunPod GPU class while preserving 128 sequences per optimizer update | Reviewed values in `protocol.md`; non-evidence memory-fit and throughput sweep covering the worst-memory OL1 path; peak allocated/reserved VRAM, tokens/s, and setup/validation/checkpoint timing; identical matched data grouping; selection uses no loss, sparsity, or other scientific metric |
+| `CLOUD-01` | in_progress | cloud smoke/launch | Set up RunPod for agent operation from the official `agent-setup.md`: install the skill bundle and Codex marketplace plugin, complete user OAuth, and define secure storage, environment, provenance, and teardown practice | Installed bundle and marketplace; authenticated RunPod MCP; read-only Pod listing; pinned image/dependency and Git identities; documented cache/output layout and teardown; no secret committed or printed |
+| `OPS-05` | open | concurrent launch | Implement bounded concurrent execution of distinct immutable configs under one authoritative case-runner coordinator; never start multiple case runners | Full-tranche preflight followed by exact-once atomic claims, deterministic admission, isolated subprocesses/attempt roots, explicit Pod/GPU slots, read-only shared caches, completion reuse, assignment provenance, and stop-admitting/drain-on-failure tests; multi-Pod mode uses an external coordinator rather than a local-file lock |
+| `OPS-06` | open | concurrent launch | Validate the complete concurrent RunPod workflow with infrastructure-only smoke tests before any scientific run | Local fault-injection integration tests plus a RunPod GPU smoke showing at least two concurrent workers, device and artifact isolation, identical Git/environment identity, durable result collection, completed-skip/restart behavior, failure drain semantics, and clean resource teardown |
 | `PLOT-01` | open | paper release | Implement the three declared figure families from pinned artifacts | Deterministic plot tests, PDF/PNG, provenance sidecars |
 | `MAN-01` | open | manuscript release | Remove or separately validate out-of-scope 12B/long-context claims and enforce claim wording | Reviewed introduction consistent with `outputs.md` |
 
@@ -37,12 +41,12 @@ Readiness is derived from this table, the reviewed case-group scope, and
 
 | Stage | State | Required closure/decision |
 | --- | --- | --- |
-| A1 | blocked | Reviewed group `A1-lr-screen`; `ID-01`, `TRAIN-01..03`, `VAL-01`, `OPS-01` |
+| A1 | blocked | Reviewed group `A1-lr-screen`; `ID-01`, `TRAIN-01..03`, `VAL-01`, `OPS-01`, `OPS-04` |
 | A2 | blocked | Reviewed A2 groups; A1 decision `lr_14m`; `DIAG-02` |
 | A3 | blocked | Reviewed group `A3-ol1-screen`; A2 complete; `METHOD-02`, `DIAG-03` |
 | B1 | blocked | Reviewed group `B1-threshold-screen`; A2 terminal interpretation; `METHOD-01`, `DIAG-01` |
 | B2 | blocked | Reviewed B2 groups; decisions `lambda_B2`, `b1_family`; valid prerequisites |
-| C1 | blocked | Reviewed group `C1-lr-screens`; `ID-02` plus shared training/validation blockers |
+| C1 | blocked | Reviewed group `C1-lr-screens`; `ID-02`, `OPS-04`, plus shared training/validation blockers |
 | C2 | blocked | Reviewed C2 groups; C1 per-model LRs and A2 design |
 | C3 | blocked | Reviewed C3 groups; C2 plus decisions `b2_frontier` and `b2_winner` |
 
@@ -58,3 +62,7 @@ still needs the runbook preflight, the `OPS-03` calibration facility, a
 production-shaped same-hardware timing sample, first-run/full-tranche ETCs,
 and explicit launch approval. These are launch checks, not plan-review
 blockers.
+
+A concurrent RunPod launch additionally requires `CLOUD-01`, `OPS-05`, and
+`OPS-06` to be resolved. Until then, the serial case-runner contract remains
+the only permitted definitive launch path.

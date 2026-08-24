@@ -121,6 +121,22 @@ Never start two case runners in parallel. Data preparation and diagnostics run
 one config at a time unless the final plan explicitly adds a serial runner for
 that workflow.
 
+Concurrent execution is planned but remains blocked by workboard items
+`CLOUD-01`, `OPS-05`, and `OPS-06`. The reviewed concurrent design must retain
+one authoritative case-runner coordinator and one complete-tranche preflight,
+then dispatch distinct immutable configs to bounded isolated subprocess/Pod/GPU
+slots with exact-once claims and disjoint attempt roots. Multiple independent
+case runners remain forbidden. On a worker failure, the coordinator stops
+admitting new configs, lets already-running siblings publish terminal state,
+and exits nonzero; it never kills workers in a way that strands `running`
+manifests. A multi-Pod coordinator cannot rely on this repository's local lock.
+
+Before enabling that mode, `OPS-06` must demonstrate actual concurrent GPU
+workers, device/output isolation, durable artifact collection, completion
+reuse, failure draining, and resource teardown using infrastructure-only smoke
+inputs. Same-GPU process packing is allowed only if the `OPS-04` measurements
+show a useful aggregate-throughput gain for the frozen physical batch.
+
 ## 5. Monitor Without Mutation
 
 Inspect the active run's `manifest.json` and `events.jsonl`, plus the exact

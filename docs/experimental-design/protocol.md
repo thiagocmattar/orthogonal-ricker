@@ -68,15 +68,17 @@ micro_batch_size * gradient_accumulation_steps = 128
 
 | Model | Microbatch | Accumulation |
 | --- | ---: | ---: |
-| Pythia-14M | `TODO: ID-01` | `TODO: ID-01` |
-| Pythia-70M | `TODO: ID-02` | `TODO: ID-02` |
-| Pythia-410M | `TODO: ID-02` | `TODO: ID-02` |
+| Pythia-14M | `TODO: OPS-04` | `TODO: OPS-04` |
+| Pythia-70M | `TODO: OPS-04` | `TODO: OPS-04` |
+| Pythia-410M | `TODO: OPS-04` | `TODO: OPS-04` |
 
-Freeze these values before reviewing the corresponding case groups, using
-documented prior memory-fit evidence. The post-review ETC calibration verifies
-the frozen decomposition and measures throughput; it never tunes it. If no
-adequate evidence exists, keep the group unreviewed until a separate
-non-evidence memory-fit procedure is proposed and reviewed.
+Freeze these values before reviewing the corresponding case groups under
+workboard item `OPS-04`. Use a non-evidence memory-fit and throughput procedure
+on each model's pinned RunPod GPU class, including the worst-memory OL1 path.
+The choice uses operational measurements only and must preserve the same 128
+sequences per optimizer update and matched data grouping. The post-review ETC
+calibration verifies the frozen decomposition and measures throughput; it never
+tunes it. If no adequate evidence exists, keep the group unreviewed.
 
 ## Fixed Optimization Recipe
 
