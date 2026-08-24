@@ -14,18 +14,22 @@ help run, reproduce, compare, or explain an experiment.
 
 Then read the document that owns the task:
 
-- experiment design or configs: `docs/experiment_plan.md` and
-  `experiments/README.md`;
+- experiment design or configs: `docs/experiment_plan.md`,
+  `docs/experimental-design/README.md`, and `experiments/README.md`;
 - measurements: `docs/diagnostics.md`;
 - launches, ETC, monitoring, or recovery: `docs/runbook.md`;
 - figures: `docs/plotting.md`;
 - artifact status and completeness: `experiments/README.md`.
 
-`exp-plan-v0.md` is a structural preview only. The reviewed
-`docs/experiment_plan.md` is the authority for datasets, models, budgets,
-seeds, comparisons, promotion rules, diagnostics, and paper outputs. Its
-current status is a placeholder, so do not create or launch scientific configs
-until the user supplies and reviews the definitive plan.
+The reviewed `docs/experiment_plan.md` and the exact normative components it
+lists are the authority for datasets, models, budgets, seeds, comparisons,
+promotion rules, diagnostics, and paper outputs. Its current status is a
+placeholder, so do not create or launch scientific configs until the user
+reviews the definitive plan. Only case groups named in its reviewed scope may
+be materialized. Use
+`docs/experimental-design/cases.yaml` and
+`docs/experimental-design/run-reuse.md` to ensure one physical config per
+scientific condition and seed.
 
 ## Scientific Boundaries
 
@@ -69,7 +73,8 @@ until the user supplies and reviews the definitive plan.
   phase-specific behavior out of the parent.
 - Before a launch, report first-run and full-tranche ETCs, projected completion
   time, evidence, assumptions, and uncertainty. Follow `docs/runbook.md` for
-  status and recovery; monitoring is read-only.
+  status and recovery; wait for explicit launch approval, and keep monitoring
+  read-only.
 
 ## Artifacts and Figures
 

@@ -7,13 +7,12 @@ plotting utilities.
 
 ## Status
 
-[`exp-plan-v0.md`](exp-plan-v0.md) provides a non-final overview of the lean
-14M discovery and 70M/410M replication program;
-[`exp-plan-v0-executive.md`](exp-plan-v0-executive.md) is its advisor-facing
-summary. Neither document authorizes scientific launches. Launches remain
-blocked until a final plan replaces the placeholder in
-[`docs/experiment_plan.md`](docs/experiment_plan.md) and is marked
-`Plan status: reviewed`.
+[`docs/experimental-design/`](docs/experimental-design/README.md) contains the
+modular proposal for the lean 14M discovery and 70M/410M replication program;
+its [executive brief](docs/experimental-design/executive.md) is advisor-facing.
+Neither authorizes scientific launches. The sole launch gate remains
+[`docs/experiment_plan.md`](docs/experiment_plan.md), currently marked
+`Plan status: placeholder`.
 
 The tracked release tree intentionally contains no earlier campaign configs, reports, or
 results. Those remain available through Git history on the branches and commits
@@ -80,18 +79,23 @@ authorize or stand in for a scientific run.
 
 ## Experiment Workflow
 
-After the definitive plan is present and reviewed:
+After the relevant case groups enter the definitive plan's reviewed scope:
 
 1. Split the plan into ordered launch tranches, including separate screening
    and promotion tranches when later configs depend on earlier evidence.
-2. Give each tranche one chronological scaffold containing its tracked runner
+2. Resolve the case group and reuse aliases in
+   `docs/experimental-design/cases.yaml`; never allocate a second config for an
+   existing condition fingerprint and seed.
+3. Give each tranche one chronological scaffold containing its tracked runner
    and configs plus its ignored raw outputs and figures.
-3. Commit the reviewed runner and configs before launch.
-4. Prepare the declared dataset cache.
-5. Run a calibration when no reliable same-hardware throughput estimate exists.
-6. Execute the case runner; the parent runs its configs serially under one lock.
-7. Verify terminal artifacts before running diagnostics or plotting.
-8. Record accepted evidence in the experiment and paper maps.
+4. Commit the reviewed runner and configs before launch.
+5. Prepare the declared dataset cache.
+6. Run a calibration when no reliable same-hardware throughput estimate exists.
+7. Execute the case runner; it reuses coherent completed configs and runs new
+   cases serially under one lock. A reviewed infrastructure retry requires the
+   explicit `--retry-failed` flag.
+8. Verify terminal artifacts before running diagnostics or plotting.
+9. Record accepted evidence in the experiment and paper maps.
 
 Data preparation and throughput calibration remain explicit single-config
 operations. The path below shows the naming pattern; it is not an allocated
@@ -180,9 +184,10 @@ boundary, deterministic provenance sidecar, and publication requirements are doc
   plotting implementation.
 - `experiments/`: chronological tranche scaffolds; tracked recipes live in
   `run/`, ignored attempts in `raw/`, and ignored generated figures in `figs/`.
-- `exp-plan-v0.md`: non-final structural preview supplied by the repository
-  owner.
-- `docs/experiment_plan.md`: authoritative definitive plan once supplied.
+- `docs/experiment_plan.md`: launch-status manifest and definitive authority
+  when reviewed.
+- `docs/experimental-design/`: focused protocol, stages, case catalog, outputs,
+  decisions, reuse contract, and workboard.
 - `docs/methods.md`: mathematical and optimization semantics.
 - `docs/diagnostics.md`: metric definitions and interpretation limits.
 - `docs/runbook.md`: launch, monitoring, ETC, and terminal verification.

@@ -1,0 +1,432 @@
+schema_version: 1
+
+# This catalog owns exact grids, seed allocations, and reuse aliases. It is not
+# a training config. No physical config may be allocated while the definitive
+# plan is a placeholder or while the relevant case group is blocked.
+
+condition_fingerprint:
+  purpose: one physical training case per scientific condition and seed
+  payload: complete validated training config after resolving decisions
+  exclude_paths:
+    - experiment_name
+    - identity.group_id
+    - identity.condition_fingerprint
+    - output.dir
+    - preprocessing.output_dir
+    - preprocessing.overwrite
+  canonicalization:
+    format: JSON
+    object_keys: lexicographically sorted
+    numbers: schema-normalized before serialization
+    paths: repository-relative POSIX where applicable
+    encoding: UTF-8
+    hash: SHA-256 lowercase hexadecimal
+  note: every future config field is included unless a reviewed schema revision excludes it
+  invariant: one primary case and immutable config per fingerprint
+
+functional_equivalence_rules:
+  - rule_id: symmetric-attention-kappa-zero
+    scope: B1-threshold-screen only
+    claim: symmetric attention thresholding at kappa=0 is an identity operation
+    target: matching topology A2 one-sided kappa=0 condition
+    required_work_items: [METHOD-01, OPS-01]
+    review_requirement: numerical equivalence and diagnostic sufficiency
+    acceptance_tests:
+      - tests/test_modeling.py::test_symmetric_attention_kappa_zero_alias_contract
+      - tests/test_activation_propagation.py::test_kappa_zero_alias_diagnostic_coverage
+    acceptance_contract:
+      - exact forward and task-gradient equality on finite inputs under matched state
+      - reused checkpoint supports every required named-site observation
+      - topology-specific R_model_max is computed separately for each conceptual topology
+
+seed_sets:
+  screen: [0]
+  added_confirmation: [1, 2]
+  confirmed: [0, 1, 2]
+
+case_groups:
+  - group_id: A1-lr-screen
+    stage: A1
+    owner: phases/a-pressure.md#a1-learning-rate
+    model: pythia-14m
+    budget: full-pass-wrap
+    seeds: screen
+    factors:
+      topology: A0
+      threshold: none
+      pressure: none
+      peak_lr_ref: protocol.md#batch-and-learning-rate-grids
+    conceptual_cells: 3
+    unique_cases: 3
+    produces_decision: lr_14m
+
+  - group_id: A2-relu-control
+    stage: A2
+    owner: phases/a-pressure.md#a2-l1-spillover
+    model: pythia-14m
+    budget: full-pass-wrap
+    seeds: screen
+    requires_decisions: [lr_14m]
+    factors:
+      peak_lr: decision:lr_14m
+      topology: A1-H
+      h_operator: relu
+      pressure: none
+    conceptual_cells: 1
+    unique_cases: 1
+    notes:
+      - shared zero-pressure anchor for the A2 and A3 response curves
+
+  - group_id: A2-l1-screen
+    stage: A2
+    owner: phases/a-pressure.md#a2-l1-spillover
+    model: pythia-14m
+    budget: full-pass-wrap
+    seeds: screen
+    requires_decisions: [lr_14m]
+    factors:
+      peak_lr: decision:lr_14m
+      topology: A1-H
+      h_operator: relu
+      pressure: l1_naive
+      pressure_sites: [h]
+      lambda: [0.1, 0.5, 1, 2, 5]
+    conceptual_cells: 5
+    unique_cases: 5
+    notes:
+      - the lambda=0 curve point reuses A2-relu-control
+
+  - group_id: A2-relu-confirmation
+    stage: A2
+    owner: phases/a-pressure.md#a2-l1-spillover
+    model: pythia-14m
+    budget: full-pass-wrap
+    seeds: added_confirmation
+    requires_decisions: [lr_14m]
+    factors:
+      peak_lr: decision:lr_14m
+      topology: A1-H
+      h_operator: relu
+      pressure: none
+    conceptual_cells: 2
+    unique_cases: 2
+    notes:
+      - seed-0 peer is A2-relu-control and is never rerun
+
+  - group_id: A2-spillover-confirmation
+    stage: A2
+    owner: phases/a-pressure.md#a2-l1-spillover
+    model: pythia-14m
+    budget: full-pass-wrap
+    seeds: added_confirmation
+    requires_decisions: [lr_14m]
+    factors:
+      peak_lr: decision:lr_14m
+      topology: A1-H
+      h_operator: relu
+      pressure: l1_naive
+      pressure_sites: [h]
+      lambda: [1]
+    conceptual_cells: 2
+    unique_cases: 2
+    notes:
+      - seed-0 peers come from A2-l1-screen and are never rerun
+
+  - group_id: A3-ol1-screen
+    stage: A3
+    owner: phases/a-pressure.md#a3-ol1-robustness
+    model: pythia-14m
+    budget: full-pass-wrap
+    seeds: screen
+    requires_decisions: [lr_14m, ol1_step_budget]
+    factors:
+      peak_lr: decision:lr_14m
+      topology: A1-H
+      h_operator: relu
+      pressure: orthogonal_l1
+      pressure_sites: [h]
+      lambda: [0.1, 0.5, 1, 2, 5]
+      step_budget: decision:ol1_step_budget
+    conceptual_cells: 5
+    unique_cases: 5
+    controls:
+      - reuse_group: A2-relu-control
+        reuse_cell: seed=0
+        role: shared zero-pressure curve anchor
+    produces_decision: lambda_B2
+
+  - group_id: B1-threshold-screen
+    stage: B1
+    owner: phases/b-threshold.md#b1-threshold-ablation
+    model: pythia-14m
+    budget: full-pass-wrap
+    seeds: screen
+    requires_decisions: [lr_14m]
+    factors:
+      peak_lr: decision:lr_14m
+      pressure: none
+      kappa: [0, 0.03, 0.10, 0.30]
+      no_attention_topologies: [A1-H, A2]
+      attention_topologies: [A3, A4-Q, A4-K, A4-V, A5-QK-POST, A6-POST]
+      ffn_threshold: one_sided
+      attention_threshold: [one_sided, symmetric]
+    conceptual_cells: 56
+    unique_cases: 50
+    functional_equivalence_aliases:
+      - selector:
+          topology: [A3, A4-Q, A4-K, A4-V, A5-QK-POST, A6-POST]
+          attention_threshold: symmetric
+          kappa: 0
+          seed: 0
+        count: 6
+        reuse:
+          topology: A2
+          ffn_threshold: one_sided
+          attention_threshold: not_applicable
+          kappa: 0
+          seed: 0
+        equivalence_rule: symmetric-attention-kappa-zero
+        reason: symmetric attention at kappa 0 is identity; m/h match topology A2
+    controls:
+      - reuse_group: A1-lr-screen
+        reuse_cell: peak_lr=decision:lr_14m,seed=0
+        role: A0
+    produces_decision: b1_family
+
+  - group_id: B2-combined-screen
+    stage: B2
+    owner: phases/b-threshold.md#b2-selected-threshold-plus-ol1
+    model: pythia-14m
+    budget: full-pass-wrap
+    seeds: screen
+    requires_decisions: [lr_14m, ol1_step_budget, lambda_B2, b1_family]
+    factors:
+      topology_and_attention_form: decision:b1_family
+      kappa: [0, 0.03, 0.10, 0.30]
+      pressure: orthogonal_l1
+      pressure_sites: [h]
+      lambda: decision:lambda_B2
+      step_budget: decision:ol1_step_budget
+    conceptual_cells: 4
+    unique_cases: 4
+    analysis_inputs:
+      A0: selected accepted source from decision:lr_14m
+      relu_only: A2-relu-control at seed 0
+      l1_only: A2-l1-screen at decision:lambda_B2, seed 0
+      ol1_only: A3-ol1-screen at decision:lambda_B2, seed 0
+      threshold_only: B1-threshold-screen at decision:b1_family and matching kappa
+      threshold_plus_ol1: this group at matching kappa
+    produces_decisions: [b2_frontier, b2_winner]
+
+  - group_id: B2-winner-confirmation
+    stage: B2
+    owner: phases/b-threshold.md#b2-selected-threshold-plus-ol1
+    model: pythia-14m
+    budget: full-pass-wrap
+    seeds: added_confirmation
+    requires_decisions: [lr_14m, lambda_B2, ol1_step_budget, b1_family, b2_winner]
+    components:
+      - A0
+      - relu_only
+      - l1_only_at_lambda_B2
+      - ol1_only_at_lambda_B2
+      - threshold_only_at_b2_winner
+      - threshold_plus_ol1_at_b2_winner
+    conceptual_cells: 12
+    unique_cases:
+      if_lambda_B2_is_1: 8
+      otherwise: 10
+    reuse_rules:
+      - reuse A2-relu-confirmation seeds 1/2 as relu_only
+      - reuse A2-spillover-confirmation seeds 1/2 if lambda_B2 is 1
+      - reuse every existing seed-0 component; never promote by rerunning seed 0
+      - materialize exact source config/attempt links before allocating new cases
+
+  - group_id: C1-lr-screens
+    stage: C1
+    owner: phases/c-scale.md#c1-learning-rate-by-size
+    models: [pythia-70m, pythia-410m]
+    budget: lr-400m
+    seeds: screen
+    factors:
+      topology: A0
+      threshold: none
+      pressure: none
+      peak_lr_ref: protocol.md#batch-and-learning-rate-grids
+    conceptual_cells: 6
+    unique_cases: 6
+    produces_decisions: [lr_70m, lr_410m]
+
+  - group_id: C2-dense-controls
+    stage: C2
+    owner: phases/c-scale.md#c2-spillover-replication
+    models: [pythia-70m, pythia-410m]
+    budget: full-pass-wrap
+    seeds: screen
+    requires_decisions: [lr_70m, lr_410m]
+    factors:
+      peak_lr_by_model:
+        pythia-70m: decision:lr_70m
+        pythia-410m: decision:lr_410m
+      topology: A0
+      threshold: none
+      pressure: none
+    conceptual_cells: 2
+    unique_cases: 2
+    notes:
+      - C1 controls cannot be reused because their budget is lr-400m
+
+  - group_id: C2-relu-controls
+    stage: C2
+    owner: phases/c-scale.md#c2-spillover-replication
+    models: [pythia-70m, pythia-410m]
+    budget: full-pass-wrap
+    seeds: screen
+    requires_decisions: [lr_70m, lr_410m]
+    factors:
+      peak_lr_by_model:
+        pythia-70m: decision:lr_70m
+        pythia-410m: decision:lr_410m
+      topology: A1-H
+      h_operator: relu
+      pressure: none
+    conceptual_cells: 2
+    unique_cases: 2
+    notes:
+      - shared zero-pressure anchors for the C2 response curves
+
+  - group_id: C2-l1-screens
+    stage: C2
+    owner: phases/c-scale.md#c2-spillover-replication
+    models: [pythia-70m, pythia-410m]
+    budget: full-pass-wrap
+    seeds: screen
+    requires_decisions: [lr_70m, lr_410m]
+    factors:
+      peak_lr_by_model:
+        pythia-70m: decision:lr_70m
+        pythia-410m: decision:lr_410m
+      topology: A1-H
+      h_operator: relu
+      pressure: l1_naive
+      pressure_sites: [h]
+      lambda: [0.1, 0.5, 1, 2, 5]
+    conceptual_cells: 10
+    unique_cases: 10
+    notes:
+      - each model's lambda=0 curve point reuses C2-relu-controls
+
+  - group_id: C2-relu-confirmation
+    stage: C2
+    owner: phases/c-scale.md#c2-spillover-replication
+    models: [pythia-70m, pythia-410m]
+    budget: full-pass-wrap
+    seeds: added_confirmation
+    requires_decisions: [lr_70m, lr_410m]
+    factors:
+      peak_lr_by_model:
+        pythia-70m: decision:lr_70m
+        pythia-410m: decision:lr_410m
+      topology: A1-H
+      h_operator: relu
+      pressure: none
+    conceptual_cells: 4
+    unique_cases: 4
+    notes:
+      - seed-0 peers are C2-relu-controls and are never rerun
+
+  - group_id: C2-spillover-confirmation
+    stage: C2
+    owner: phases/c-scale.md#c2-spillover-replication
+    models: [pythia-70m, pythia-410m]
+    budget: full-pass-wrap
+    seeds: added_confirmation
+    requires_decisions: [lr_70m, lr_410m]
+    factors:
+      peak_lr_by_model:
+        pythia-70m: decision:lr_70m
+        pythia-410m: decision:lr_410m
+      topology: A1-H
+      h_operator: relu
+      pressure: l1_naive
+      pressure_sites: [h]
+      lambda: [1]
+    conceptual_cells: 4
+    unique_cases: 4
+    notes:
+      - seed-0 peers come from C2-l1-screens and are never rerun
+
+  - group_id: C3-ol1-controls
+    stage: C3
+    owner: phases/c-scale.md#c3-frontier-replication
+    models: [pythia-70m, pythia-410m]
+    budget: full-pass-wrap
+    seeds: screen
+    requires_decisions: [lr_70m, lr_410m, lambda_B2, ol1_step_budget]
+    factors:
+      peak_lr_by_model:
+        pythia-70m: decision:lr_70m
+        pythia-410m: decision:lr_410m
+      topology: A1-H
+      h_operator: relu
+      pressure: orthogonal_l1
+      pressure_sites: [h]
+      lambda: decision:lambda_B2
+      step_budget: decision:ol1_step_budget
+    conceptual_cells: 2
+    unique_cases: 2
+
+  - group_id: C3-frontier-replication
+    stage: C3
+    owner: phases/c-scale.md#c3-frontier-replication
+    models: [pythia-70m, pythia-410m]
+    budget: full-pass-wrap
+    seeds: screen
+    requires_decisions: [lr_70m, lr_410m, lambda_B2, ol1_step_budget, b1_family, b2_frontier]
+    factors:
+      topology_and_attention_form: decision:b1_family
+      kappa: decision:b2_frontier.kappa_values
+      recipes:
+        threshold_only:
+          pressure: none
+        threshold_plus_ol1:
+          pressure: orthogonal_l1
+          pressure_sites: [h]
+          lambda: decision:lambda_B2
+          step_budget: decision:ol1_step_budget
+    conceptual_cells:
+      multiplier: 4
+      cardinality_of: decision:b2_frontier.kappa_values
+    unique_cases:
+      same_as: conceptual_cells
+    reuse_rules:
+      - OL1-only is one C3-ol1-controls case per model, not one case per kappa
+      - reuse matching C2 A0, ReLU-only, and L1-only cases
+      - materialize exact C2/C3 source config/attempt links before allocation
+
+  - group_id: C3-winner-confirmation
+    stage: C3
+    owner: phases/c-scale.md#c3-frontier-replication
+    models: [pythia-70m, pythia-410m]
+    budget: full-pass-wrap
+    seeds: added_confirmation
+    requires_decisions: [lr_70m, lr_410m, lambda_B2, ol1_step_budget, b1_family, b2_winner]
+    components:
+      - A0
+      - relu_only
+      - l1_only_at_lambda_B2
+      - ol1_only_at_lambda_B2
+      - threshold_only_at_b2_winner
+      - threshold_plus_ol1_at_b2_winner
+    conceptual_cells: 24
+    unique_cases:
+      if_lambda_B2_is_1: 16
+      otherwise: 20
+    reuse_rules:
+      - reuse C2 seed 1/2 components whenever the fingerprint matches
+      - never rerun any seed-0 component
+      - materialize exact source config/attempt links before allocation
+
+# Physical-case identity is stored in the immutable config and attempt
+# manifest, then indexed by scanning tracked configs. This normative catalog
+# is not mutated to mirror operational state.

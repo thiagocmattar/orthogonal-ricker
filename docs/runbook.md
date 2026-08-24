@@ -2,7 +2,8 @@
 
 This is the operational contract for definitive experiments. The reviewed
 [`experiment_plan.md`](experiment_plan.md) is the scientific authority.
-[`../exp-plan-v0.md`](../exp-plan-v0.md) currently informs structure only.
+The modular proposal and physical-case reuse rules are indexed in
+[`experimental-design/README.md`](experimental-design/README.md).
 
 ## 1. Launch Gate
 
@@ -14,8 +15,9 @@ Plan status: placeholder
 
 The infrastructure-only
 `experiments/00-infrastructure-smoke/run/00-smoke.yaml` is exempt. A
-scientific launch requires a reviewed plan, committed scaffold recipe, and a
-clean checkout.
+scientific config requires its case group in the reviewed scope. A launch also
+requires a committed scaffold recipe, clean checkout, calibrated ETC, and
+explicit launch approval.
 Once attempted, a config is immutable. A scientific change gets a new config;
 an infrastructure retry gets a new run attempt under the same config.
 
@@ -24,6 +26,13 @@ an infrastructure retry gets a new run attempt under the same config.
 The plan's phases do not map one-to-one to processes. A screen, a
 review-dependent selection, and a promotion are separate launches because the
 later config list does not exist until earlier evidence is reviewed.
+
+Before allocating a config, resolve its case group and condition fingerprint
+under [`experimental-design/cases.yaml`](experimental-design/cases.yaml) and
+[`experimental-design/run-reuse.md`](experimental-design/run-reuse.md). Reuse
+an existing matching config/seed; a later stage is a consumer, not a duplicate
+owner. The group must appear on `experiment_plan.md`'s raw
+`Reviewed case groups:` line.
 
 Use one numeric scaffold ID and keep the phase/tranche in the name:
 
@@ -49,6 +58,8 @@ belongs in configs and the reviewed plan.
 Before a launch, verify:
 
 - exact tranche and dependencies in the reviewed plan;
+- catalog membership, one config per condition fingerprint/seed, and every
+  declared exact or functional-equivalence alias;
 - ordered config list, with no duplicates or unresolved `TODO:` values;
 - matched seeds and data ordering where the plan requires them;
 - model, data, tokenizer, optimizer, schedule, budget, and validation fields;
@@ -59,12 +70,16 @@ Before a launch, verify:
 
 Before starting, report the estimated duration and local completion time for
 the first run and the complete tranche. State the throughput evidence,
-assumptions, and uncertainty. If no defensible same-hardware estimate exists,
-run the plan-approved calibration first.
+assumptions, and uncertainty, then wait for explicit launch approval. If no
+defensible same-hardware estimate exists, run the plan-approved calibration
+first.
 
-`calibrate` means a short throughput estimate. A scientific learning-rate
-screen, including a future plan phase named "LR calibration," is a normal
-training tranche and must use a case runner.
+`calibrate` means a 600-second production-shaped timing sample on the launch
+hardware, with setup, training, validation, diagnostics, and checkpoint costs
+reported separately. Its operational duration cap must not change the
+immutable scientific config or truncate definitive pretraining; this remains
+blocked until workboard item `OPS-03` is implemented. A scientific
+learning-rate screen is a normal training tranche and must use a case runner.
 
 ## 4. Launch
 
@@ -90,6 +105,15 @@ The parent runner:
 - requires each config's `output.dir` to name that scaffold's exact `raw/`;
 - validates the full ordered config list before starting;
 - holds one repository launch lock;
+- rechecks all existing attempt states under that lock;
+- scopes resume decisions to `mode: pretrain`; preparation, calibration, and
+  diagnostic attempts cannot satisfy or block a training case;
+- reuses exactly one coherent completed pretraining attempt for an unchanged
+  config;
+- retries coherent failed pretraining attempts only with the explicit
+  `--retry-failed` recovery flag;
+- aborts before mutation on running, statusless, inconsistent, or ambiguous
+  pretraining state;
 - executes one config at a time;
 - stops immediately on the first escaping failure.
 
@@ -123,11 +147,30 @@ After each run:
 3. Verify `config.yaml`, `manifest.json`, `metrics.json`, `predictions.jsonl`,
    `events.jsonl`, and required checkpoints.
 4. Run method-specific checks before using the run as diagnostic or paper input.
-5. Record the evidence and its limitations in `docs/experiment_log.md`.
+5. Record terminal status, reviewed case class, evidence status, and
+   limitations in `docs/experiment_log.md`.
 
 Preserve failed attempts and valid negative results. Never overwrite an
 attempt or rewrite it to manufacture completion. A retry creates a new run
 directory. A changed scientific input creates a new config.
+
+After recording a reviewed infrastructure failure and its recovery action,
+restart the same unchanged case runner explicitly:
+
+```bash
+python experiments/NN-phase-tranche/run/runner.py --retry-failed
+```
+
+Without that flag, a coherent failed attempt stops before the lock or any new
+attempt. With it, the parent skips coherent completed configs and resumes in
+config order. The flag is the operator's attestation that the exact failed
+attempt was reviewed and recorded as infrastructure; the runner does not infer
+that classification from the experiment log. Never use it for a terminal
+scientific failure, edit the runner list to remove earlier cases, rerun a
+completed config manually, or create a replacement config/seed. Multiple
+completed attempts, a running or statusless attempt, changed config snapshot,
+symlink/non-directory state, or inconsistent artifacts stop recovery for
+read-only review.
 
 ## 7. Handoff
 

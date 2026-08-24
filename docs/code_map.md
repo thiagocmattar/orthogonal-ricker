@@ -34,7 +34,7 @@ Paths below are relative to `src/paper_exp/`.
 | `config.py` | YAML loading; common, training, and diagnostic schema validation; random-initialization plus `model.topology_id`/`model.site_gate` contracts | A reviewed config field or invariant changes |
 | `topology.py` | Canonical transformer-site aliases, exact site metadata, supported topology IDs, active-port sets, and site-gate schema | Site nomenclature, a reviewed topology, or the gate-field contract changes |
 | `launch.py` | Repository/scaffold/config resolution, reviewed-plan and clean-Git gates, owned `raw/` output roots, and the exclusive lock | Launch-wide preflight policy changes |
-| `runner.py` | Generic parent runner, scaffold and config naming, whole-tranche preflight, serial fail-stop execution | Behavior shared by every case runner changes |
+| `runner.py` | Generic parent runner, scaffold/config validation, attempt-state resume preflight, completed-config reuse, and serial fail-stop execution | Behavior shared by every case runner changes |
 | `run.py` | Run IDs, immutable config snapshot, running/completed/failed manifests, and atomic artifact writes | The common run envelope or lifecycle changes |
 | `training.py` | Calibration/pretraining orchestration, evaluation, event logging, and final checkpoint publication | The end-to-end training workflow changes |
 | `optimization.py` | AdamW construction, minibatch sampling, LR warmup, naive L1 steps, OL1 post-Adam correction, and norm metrics | Optimizer-step mathematics or step metrics change |

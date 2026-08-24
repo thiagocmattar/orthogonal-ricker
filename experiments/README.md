@@ -51,7 +51,8 @@ runner. Never run case runners in parallel.
 `00-infrastructure-smoke/run/00-smoke.yaml` is the only runner-free exception.
 It is an infrastructure check, not a paper experiment or a scientific config
 template. Do not add scientific scaffolds while
-`docs/experiment_plan.md` says `Plan status: placeholder`.
+`docs/experiment_plan.md` says `Plan status: placeholder`, or for a case group
+outside its reviewed scope.
 
 ## Config and Attempt Identity
 
@@ -60,6 +61,12 @@ and sequential across all scientific scaffolds. A config is immutable after its
 first attempt starts. A scientific change, seed, budget, or diagnostic source
 set therefore gets a new config; an infrastructure-only retry gets the next
 attempt under the unchanged config.
+
+Before allocating that number, resolve the condition in
+`docs/experimental-design/cases.yaml` and apply its fingerprint/reuse contract.
+There is exactly one physical config per scientific condition and seed across
+all stages. A later stage records itself as a consumer of an existing config;
+it does not copy the config into its scaffold or rerun seed 0 for promotion.
 
 Every config's `output.dir` must be the portable repository-relative path to
 its own scaffold's `raw/` directory:
@@ -100,6 +107,9 @@ are never silently selected. A retry never overwrites an earlier attempt.
 A source is consumable only when its config, scaffold, run, terminal status,
 and required artifacts agree. Statusless historical records remain historical
 evidence only under the explicit acceptance rules in the reviewed plan.
+
+Runner restart and retry semantics are owned by
+[`docs/runbook.md`](../docs/runbook.md#6-completion-failure-and-retry).
 
 ## Figures and Provenance
 

@@ -1,93 +1,73 @@
-# Definitive Experiment Plan
+# Definitive Experiment Plan Manifest
 
 Plan status: placeholder
+Reviewed design commit: none
+Reviewed case groups: []
 
-> **Launch gate:** scientific experiment launches are blocked.
+> **Launch gate:** scientific configuration allocation, calibration, and
+> launches are blocked.
 
-[`../exp-plan-v0.md`](../exp-plan-v0.md) is a non-final structural preview. It
-shows phased searches and review-dependent promotions, but it is not the
-definitive plan. Replace this placeholder only when the owner supplies the
-final plan, then review it against `docs/methods.md`, `docs/diagnostics.md`, and
-`docs/runbook.md` before creating scientific configs or case runners.
+This file remains the sole launch-status authority. The proposed scientific
+design is split into focused components under
+[`experimental-design/`](experimental-design/README.md) so agents read and edit
+one owning document at a time.
 
-After review, change the raw status line to exactly:
+## Normative Components When Reviewed
+
+- [`experimental-design/protocol.md`](experimental-design/protocol.md): shared
+  data/model, optimization, budget, validation, and checkpoint settings.
+- [`experimental-design/cases.yaml`](experimental-design/cases.yaml): exact
+  grids, seed allocations, physical case groups, and reuse aliases.
+- [`experimental-design/run-reuse.md`](experimental-design/run-reuse.md):
+  fingerprint, allocation, and cross-stage reuse contract.
+- [`experimental-design/phases/a-pressure.md`](experimental-design/phases/a-pressure.md),
+  [`b-threshold.md`](experimental-design/phases/b-threshold.md), and
+  [`c-scale.md`](experimental-design/phases/c-scale.md): stage dependencies,
+  selection rules, and stop rules.
+- [`experimental-design/outputs.md`](experimental-design/outputs.md): required
+  evidence, paper outputs, and claim limits.
+- [`experimental-design/decisions.md`](experimental-design/decisions.md):
+  reviewed upstream selections used to materialize dependent cases.
+
+The method and measurement contracts in [`methods.md`](methods.md) and
+[`diagnostics.md`](diagnostics.md), launch procedure in
+[`runbook.md`](runbook.md), and scaffold/config contract in
+[`../experiments/README.md`](../experiments/README.md) remain independently
+authoritative.
+
+Non-normative navigation, executive, workboard, and manuscript notes are
+listed in the [`experimental-design` index](experimental-design/README.md).
+
+## Review and Change Rule
+
+Review is incremental: only case groups listed on the raw
+`Reviewed case groups:` line are in scope. To review a group:
+
+1. Resolve its design/implementation workboard blockers. Same-hardware
+   calibration and ETC are later per-launch checks, not review blockers.
+2. Ensure its case groups have no unresolved decision reference or unapproved
+   `TODO:` value.
+3. Review the applicable normative components at one committed Git SHA.
+4. Record the full 40-character lowercase design SHA and the exact group IDs
+   as a one-line YAML list on the raw lines above, for example
+   `Reviewed case groups: [A1-lr-screen]`.
+5. Change the status line to exactly:
 
 ```text
 Plan status: reviewed
 ```
 
-That opens the executable launch gate.
+After review, materialize only the listed groups: validate fingerprints, reuse
+matching tracked configs, and allocate immutable config numbers only for new
+physical cases. Then perform calibration/ETC and return for explicit launch
+approval.
 
-Until that review is complete:
+Any scientific edit affecting a reviewed group resets this file to
+`Plan status: placeholder`, `Reviewed design commit: none`, and
+`Reviewed case groups: []` until the new scope is reviewed. Recording a
+predeclared upstream selection is a normative edit and follows the same rule.
 
-- do not infer or reconstruct the plan from Git history;
-- do not reuse historical campaign configs or results;
-- do not invent models, datasets, budgets, seeds, methods, thresholds,
-  comparisons, promotion rules, diagnostics, or paper claims;
-- do not allocate definitive runner or config numbers;
-- do not launch calibration, pretraining, diagnostics, or paper plotting as
-  scientific evidence.
-
-The infrastructure-only
-`experiments/00-infrastructure-smoke/run/00-smoke.yaml` may be used to test the
-harness. Its settings are not part of the future experiment plan.
-
-## Required Plan Content
-
-The supplied plan should make the following items explicit. Missing information
-must remain `TODO:` rather than being guessed.
-
-### Research Questions and Estimands
-
-- primary and secondary questions;
-- planned comparisons and matched controls;
-- quantities to estimate and interpretation boundaries;
-- claim language that the evidence may and may not support.
-
-### Models and Data
-
-- architecture source, revision, and random-initialization requirement;
-- tokenizer and dataset identities, revisions, splits, and licenses;
-- preprocessing, sequence length, cache identity, and validation partitions;
-- model sizes and scaling stages, if any.
-
-### Training Design
-
-- optimizer and schedule;
-- token or step budgets;
-- batch shape and gradient accumulation;
-- precision and checkpoint policy;
-- model-initialization and data-order seeds;
-- method, architecture, gate, and pressure factors;
-- stopping, failure, retry, and exclusion rules.
-
-### Diagnostics and Promotion
-
-- diagnostic required for every run;
-- diagnostics restricted to selected representatives;
-- selection and confirmation partitions;
-- promotion and collapse rules defined before observing promoted evidence;
-- uncertainty and seed requirements.
-
-### Execution
-
-- ordered config tranches;
-- dependencies between controls and interventions;
-- calibration basis for ETC estimates;
-- storage, hardware, and completion gates.
-
-Every definitive training tranche gets one chronological
-`experiments/NN-<phase>-<tranche>/` scaffold, including a tranche with only one
-config. Its tracked `run/` owns the runner and configs; ignored `raw/` and
-`figs/` own generated attempts and figures. Screening, review-dependent
-selection, and promotion are separate launches. The shared parent executes
-each tranche sequentially under one lock. Until another workflow has a
-reviewed sequential contract, launch its configs one at a time. The launch
-handoff must include current-run and full-tranche ETCs.
-
-### Paper Outputs
-
-- planned tables and figures;
-- exact source artifact kinds;
-- uncertainty presentation;
-- final confirmation and release gates.
+While status is `placeholder`, do not create scientific scaffolds/configs,
+prepare scientific caches, calibrate, pretrain, run scientific diagnostics, or
+produce paper evidence. The infrastructure-only smoke remains exempt and is
+not a scientific template or result.
