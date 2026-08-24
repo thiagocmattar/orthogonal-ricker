@@ -33,13 +33,16 @@ from paper_exp.run import RunHandle, complete_run, run_lifecycle
 from paper_exp.utils import read_json, write_jsonl
 
 
+CALIBRATION_TRAINING_WALL_SECONDS = 600.0
+
+
 def run_training(
     config: dict[str, Any],
     *,
     config_path: str | Path,
     command: str,
     run_id: str | None = None,
-    mode: str = "calibrate",
+    mode: str,
 ) -> Path:
     if mode not in {"calibrate", "pretrain"}:
         raise ValueError("Training lifecycle mode must be 'calibrate' or 'pretrain'.")
@@ -61,6 +64,9 @@ def _run_started_training(
 ) -> Path:
     """Execute validated training inside an already-persisted run lifecycle."""
 
+    total_start = time.perf_counter()
+    lifecycle_mode = run.launch_manifest.get("mode")
+    training_wall_limit_seconds = _training_wall_limit_seconds(lifecycle_mode)
     torch, np, auto_config, auto_model = _load_training_dependencies()
     run_config = config["run"]
     model_initialization_seed = int(
@@ -144,8 +150,6 @@ def _run_started_training(
     trainable_params = [parameter for parameter in model.parameters() if parameter.requires_grad]
     pressure_config = activation_pressure_config(config)
     max_steps = int(training["max_steps"])
-    max_wall_seconds = training["max_wall_seconds"]
-    max_wall_seconds = float(max_wall_seconds) if max_wall_seconds is not None else None
     warmup_steps = int(training["warmup_steps"])
     grad_accum = int(training["gradient_accumulation_steps"])
     micro_batch_size = int(training["micro_batch_size"])
@@ -175,8 +179,10 @@ def _run_started_training(
         torch.cuda.reset_peak_memory_stats(device)
         torch.cuda.synchronize(device)
 
-    total_start = time.perf_counter()
+    setup_elapsed = time.perf_counter() - total_start
     train_start = time.perf_counter()
+    training_elapsed = 0.0
+    diagnostic_elapsed = 0.0
     events: list[dict[str, Any]] = []
     train_losses: list[float] = []
     validation_losses: list[tuple[int, float]] = []
@@ -189,6 +195,7 @@ def _run_started_training(
     final_learning_rate = None
     final_pressure_metrics: dict[str, Any] = {}
     completed_steps = 0
+    stopped_by_wall_limit = False
 
     capture_sites = pressure_config.sites if pressure_config.enabled else []
     capture_context = (
@@ -199,7 +206,7 @@ def _run_started_training(
 
     with capture_context as activation_capture:
         for step in range(1, max_steps + 1):
-            step_start = time.perf_counter()
+            step_training_start = time.perf_counter()
             learning_rate = _learning_rate_for_step(step, base_learning_rate, warmup_steps)
             _set_optimizer_lr(optimizer, learning_rate)
 
@@ -226,7 +233,10 @@ def _run_started_training(
                 step=step,
                 schedule_step=(None if training_schedule is None else training_schedule[step - 1]),
             )
+            step_training_elapsed = time.perf_counter() - step_training_start
+            training_elapsed += step_training_elapsed
 
+            diagnostic_start = time.perf_counter()
             grad_norm = step_result["pressure/task_gradient_norm"] if should_log or should_eval else None
             weight_norm = _global_weight_norm(model) if should_log or should_eval else None
             mlp_weight_norm = _mlp_weight_norm(model) if should_log or should_eval else None
@@ -262,11 +272,12 @@ def _run_started_training(
                     "grad_norm": grad_norm,
                     "weight_norm": weight_norm,
                     "mlp_weight_norm": mlp_weight_norm,
-                    "step_wall_seconds": time.perf_counter() - step_start,
+                    "step_wall_seconds": step_training_elapsed,
                 }
                 event.update(final_pressure_metrics)
                 events.append(event)
                 _write_live_events(run_dir, events)
+            diagnostic_elapsed += time.perf_counter() - diagnostic_start
 
             if should_eval and validation_tokens is not None:
                 validation_start = time.perf_counter()
@@ -287,6 +298,7 @@ def _run_started_training(
                 validation_wall_seconds.append(validation_elapsed)
                 final_validation_batches = validation_result["batches"]
                 final_validation_tokens = validation_result["tokens"]
+                diagnostic_start = time.perf_counter()
                 events.append(
                     {
                         "event": "validation",
@@ -300,13 +312,22 @@ def _run_started_training(
                     }
                 )
                 _write_live_events(run_dir, events)
+                diagnostic_elapsed += time.perf_counter() - diagnostic_start
             completed_steps = step
-            if max_wall_seconds is not None and time.perf_counter() - train_start >= max_wall_seconds:
+            if _reached_training_wall_limit(
+                training_wall_limit_seconds,
+                training_elapsed=training_elapsed,
+                completed_steps=completed_steps,
+                max_steps=max_steps,
+            ):
+                stopped_by_wall_limit = True
                 break
 
     if device.type == "cuda":
+        synchronization_start = time.perf_counter()
         torch.cuda.synchronize(device)
-    train_elapsed = time.perf_counter() - train_start
+        training_elapsed += time.perf_counter() - synchronization_start
+    training_sample_elapsed = time.perf_counter() - train_start
 
     tokens_seen = completed_steps * tokens_per_step
     if validation_tokens is not None and (not validation_losses or validation_losses[-1][0] != completed_steps):
@@ -328,6 +349,7 @@ def _run_started_training(
         validation_wall_seconds.append(validation_elapsed)
         final_validation_batches = validation_result["batches"]
         final_validation_tokens = validation_result["tokens"]
+        diagnostic_start = time.perf_counter()
         events.append(
             {
                 "event": "validation",
@@ -341,12 +363,24 @@ def _run_started_training(
             }
         )
         _write_live_events(run_dir, events)
+        diagnostic_elapsed += time.perf_counter() - diagnostic_start
 
+    checkpoint_start = time.perf_counter()
     checkpoint_metadata = _save_final_checkpoint(config, run_dir, model, optimizer, torch)
+    checkpoint_elapsed = time.perf_counter() - checkpoint_start
     total_elapsed = time.perf_counter() - total_start
 
     final_validation = validation_losses[-1] if validation_losses else None
     best_validation = min(validation_losses, key=lambda item: item[1]) if validation_losses else None
+    phase_timing_metrics = _phase_timing_metrics(
+        setup=setup_elapsed,
+        training=training_elapsed,
+        validation=sum(validation_wall_seconds),
+        diagnostic=diagnostic_elapsed,
+        checkpoint=checkpoint_elapsed,
+        training_sample=training_sample_elapsed,
+        total=total_elapsed,
+    )
     metric_prefix = (
         "training" if run.launch_manifest.get("mode") == "pretrain" else "calibration"
     )
@@ -366,7 +400,8 @@ def _run_started_training(
         "loss_final": train_losses[-1] if train_losses else None,
         "optimizer_steps": completed_steps,
         "planned_optimizer_steps": max_steps,
-        "target_wall_seconds": max_wall_seconds,
+        "target_wall_seconds": training_wall_limit_seconds,
+        "wall_time_limit_reached": stopped_by_wall_limit,
         "tokens_seen": tokens_seen,
         "tokens_per_step": tokens_per_step,
         "model_initialization_seed": model_initialization_seed,
@@ -374,10 +409,9 @@ def _run_started_training(
         "training_schedule_hash": training_schedule_hash,
         "initial_parameter_sha256": initial_parameter_sha256,
         "estimated_epochs": tokens_seen / train_metadata["tokens"],
-        "wall_seconds": train_elapsed,
-        "wall_seconds_train": train_elapsed,
-        "wall_seconds_total": total_elapsed,
-        "tokens_per_second": tokens_seen / train_elapsed if train_elapsed > 0 else None,
+        "wall_seconds": training_elapsed,
+        **phase_timing_metrics,
+        "tokens_per_second": tokens_seen / training_elapsed if training_elapsed > 0 else None,
         "device": str(device),
         "precision": _precision_label(dtype, device),
         "peak_gpu_memory_mb": _peak_gpu_memory_mb(torch, device),
@@ -409,7 +443,11 @@ def _run_started_training(
             "gradient_accumulation_steps": grad_accum,
             "max_steps": max_steps,
             "completed_steps": completed_steps,
-            "max_wall_seconds": max_wall_seconds,
+            "operational_wall_time_limit_seconds": training_wall_limit_seconds,
+            "operational_wall_time_limit_scope": (
+                "training" if training_wall_limit_seconds is not None else None
+            ),
+            "stopped_by_operational_wall_time_limit": stopped_by_wall_limit,
             "tokens_per_step": tokens_per_step,
             "loss_logged_as": "mean_micro_batch_loss_over_gradient_accumulation",
             "sampling": "random_contiguous_blocks_with_replacement",
@@ -469,6 +507,49 @@ def _run_started_training(
 
 def _write_live_events(run_dir: Path, events: list[dict[str, Any]]) -> None:
     write_jsonl(run_dir / "events.jsonl", events)
+
+
+def _phase_timing_metrics(
+    *,
+    setup: float,
+    training: float,
+    validation: float,
+    diagnostic: float,
+    checkpoint: float,
+    training_sample: float,
+    total: float,
+) -> dict[str, float]:
+    return {
+        "wall_seconds_setup": setup,
+        "wall_seconds_train": training,
+        "wall_seconds_validation": validation,
+        "wall_seconds_diagnostic": diagnostic,
+        "wall_seconds_checkpoint": checkpoint,
+        "wall_seconds_training_sample": training_sample,
+        "wall_seconds_total": total,
+    }
+
+
+def _training_wall_limit_seconds(mode: Any) -> float | None:
+    if mode == "calibrate":
+        return CALIBRATION_TRAINING_WALL_SECONDS
+    if mode == "pretrain":
+        return None
+    raise ValueError(f"Training lifecycle has unsupported mode: {mode!r}.")
+
+
+def _reached_training_wall_limit(
+    limit_seconds: float | None,
+    *,
+    training_elapsed: float,
+    completed_steps: int,
+    max_steps: int,
+) -> bool:
+    return (
+        limit_seconds is not None
+        and completed_steps < max_steps
+        and training_elapsed >= limit_seconds
+    )
 
 
 def _evaluate_loss(

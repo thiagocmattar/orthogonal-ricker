@@ -46,6 +46,29 @@ def test_smoke_requires_the_explicit_clean_config() -> None:
     assert args.config == "experiments/00-infrastructure-smoke/run/00-smoke.yaml"
 
 
+def test_calibration_duration_has_no_cli_override() -> None:
+    parser = build_parser()
+    args = parser.parse_args(
+        [
+            "calibrate",
+            "--config",
+            "experiments/01-a1-grid/run/001-example.yaml",
+        ]
+    )
+    assert args.config == "experiments/01-a1-grid/run/001-example.yaml"
+
+    with pytest.raises(SystemExit):
+        parser.parse_args(
+            [
+                "calibrate",
+                "--config",
+                "experiments/01-a1-grid/run/001-example.yaml",
+                "--max-wall-seconds",
+                "1",
+            ]
+        )
+
+
 @pytest.mark.parametrize(
     "command",
     [

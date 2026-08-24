@@ -9,6 +9,51 @@ import yaml
 import paper_exp.training as training
 
 
+def test_training_wall_limit_is_fixed_and_calibration_only() -> None:
+    assert training.CALIBRATION_TRAINING_WALL_SECONDS == 600.0
+    assert training._training_wall_limit_seconds("calibrate") == 600.0
+    assert training._training_wall_limit_seconds("pretrain") is None
+
+    assert training._reached_training_wall_limit(
+        600.0,
+        training_elapsed=600.0,
+        completed_steps=1,
+        max_steps=2,
+    )
+    assert not training._reached_training_wall_limit(
+        None,
+        training_elapsed=10_000.0,
+        completed_steps=1,
+        max_steps=2,
+    )
+    assert not training._reached_training_wall_limit(
+        600.0,
+        training_elapsed=600.0,
+        completed_steps=2,
+        max_steps=2,
+    )
+
+
+def test_training_phase_timing_metrics_are_recorded_separately() -> None:
+    assert training._phase_timing_metrics(
+        setup=1.0,
+        training=2.0,
+        validation=3.0,
+        diagnostic=4.0,
+        checkpoint=5.0,
+        training_sample=9.0,
+        total=15.0,
+    ) == {
+        "wall_seconds_setup": 1.0,
+        "wall_seconds_train": 2.0,
+        "wall_seconds_validation": 3.0,
+        "wall_seconds_diagnostic": 4.0,
+        "wall_seconds_checkpoint": 5.0,
+        "wall_seconds_training_sample": 9.0,
+        "wall_seconds_total": 15.0,
+    }
+
+
 def test_checkpoint_manifest_path_is_run_relative(tmp_path: Path) -> None:
     class Model:
         def save_pretrained(self, path: Path, *, safe_serialization: bool) -> None:
@@ -72,7 +117,6 @@ def test_training_dependency_failure_preserves_launch_record(
             "device": "cpu",
             "precision": "float32",
             "max_steps": 1,
-            "max_wall_seconds": None,
             "learning_rate": 0.001,
             "warmup_steps": 0,
             "gradient_accumulation_steps": 1,

@@ -263,6 +263,14 @@ def test_definitive_training_config_rejects_missing_scientific_field() -> None:
         validate_training_config(config)
 
 
+def test_training_wall_limit_is_not_a_scientific_config_field() -> None:
+    config = _definitive_training_config()
+    config["training"]["max_wall_seconds"] = 600
+
+    with pytest.raises(ConfigError, match="calibration-only operational"):
+        validate_training_config(config)
+
+
 def test_definitive_training_config_requires_canonical_pressure_sites() -> None:
     config = _definitive_training_config()
     config["activation_pressure"]["sites"] = ["unknown"]
@@ -334,7 +342,6 @@ def _definitive_training_config() -> dict[str, Any]:
             "device": "cuda",
             "precision": "bfloat16",
             "max_steps": 100,
-            "max_wall_seconds": 3600,
             "learning_rate": 0.001,
             "warmup_steps": 10,
             "gradient_accumulation_steps": 2,

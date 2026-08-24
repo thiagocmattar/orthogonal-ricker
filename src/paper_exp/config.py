@@ -210,7 +210,6 @@ def validate_training_config(config: Mapping[str, Any]) -> None:
         "device",
         "precision",
         "max_steps",
-        "max_wall_seconds",
         "learning_rate",
         "warmup_steps",
         "gradient_accumulation_steps",
@@ -230,9 +229,11 @@ def validate_training_config(config: Mapping[str, Any]) -> None:
             "Config field training.precision must be auto, float32, float16, or bfloat16."
         )
     max_steps = _positive_integer(training["max_steps"], "training.max_steps")
-    max_wall_seconds = training["max_wall_seconds"]
-    if max_wall_seconds is not None:
-        _positive_number(max_wall_seconds, "training.max_wall_seconds")
+    if "max_wall_seconds" in training:
+        raise ConfigError(
+            "Config field training.max_wall_seconds is not supported; wall-time limits "
+            "are calibration-only operational settings."
+        )
     _positive_number(training["learning_rate"], "training.learning_rate")
     warmup_steps = _nonnegative_integer(training["warmup_steps"], "training.warmup_steps")
     if warmup_steps > max_steps:
