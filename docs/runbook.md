@@ -169,41 +169,30 @@ credential, or model/dataset token. Test only whether a credential resolves.
 
 The expected Windows operator identity is
 `$env:USERPROFILE\.ssh\id_ed25519_runpod`; only its public half or fingerprint
-may be inspected or registered. The read-only check on 2026-08-24 established:
+may be inspected or registered. Checks and the approved repair on 2026-08-24
+established:
 
 - the private and public files parse as the same ED25519 key pair;
 - fingerprint
   `SHA256:ew2/c7ja1vPEtMZEP+sAHT2NzJhW+Np7HdNlWdRXcc8`;
-- Windows OpenSSH rejects the private key as `UNPROTECTED PRIVATE KEY FILE`
-  because inherited ACL entries make it accessible to other identities;
-- the key's passphrase state has therefore not yet been tested;
-- the Windows `ssh-agent` is disabled/stopped and the key is not loaded;
+- the private key is owned by `TCML\thima`, has protected inheritance, and has
+  exactly one allow rule granting that operator full control;
+- Windows OpenSSH reads it without an interactive passphrase and derives the
+  exact stored public key;
+- the Windows `ssh-agent` remains disabled/stopped but is not required when the
+  key is supplied explicitly with `-i`;
 - `runpodctl` has no local installation or authentication; and
-- the public key's RunPod registration and a live Pod login remain
-  unverified.
+- a live Pod login remains unverified.
 
-Do not describe this as end-to-end SSH validation. Before creating an
-SSH-controlled Pod, confirm that the exact public fingerprint is registered in
-RunPod; registered keys are injected at Pod boot. The private-key ACL must be
-repaired narrowly with explicit user approval and then checked again before a
-Pod is created. Do not infer whether the key has a passphrase until OpenSSH can
-read it. If it does, a human must unlock it; on this machine that human-only
-agent preparation is:
+Do not describe this as end-to-end SSH validation until a live Pod accepts the
+key. The connected MCP `create_pod` tool accepts `sshPublicKey`; pass the
+contents of the matching `.pub` file directly so the official RunPod image
+authorizes it and exposes `22/tcp`. This avoids depending on account-level key
+registration. If a different creation lane does not inject the key explicitly,
+confirm that the exact public fingerprint is registered before Pod boot.
 
-```powershell
-# Run the service commands once in an elevated PowerShell.
-Set-Service -Name ssh-agent -StartupType Manual
-Start-Service -Name ssh-agent
-
-# Run in the operator's normal PowerShell and enter the passphrase locally.
-ssh-add "$env:USERPROFILE\.ssh\id_ed25519_runpod"
-ssh-add -l
-```
-
-Do not change the private-key ACL automatically. The current
-`UNPROTECTED PRIVATE KEY FILE` result requires approval for a narrow ACL repair
-that removes access by unrelated identities while retaining the operator's
-access. If a later live test reports `Permission denied (publickey)`, verify
+Do not loosen or replace the repaired private-key ACL automatically. If a later
+live test reports `Permission denied (publickey)`, verify explicit injection or
 registration of the fingerprint above before changing the Pod or key.
 
 The definitive check is an approved disposable Pod with SSH enabled and a hard
