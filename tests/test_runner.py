@@ -219,6 +219,7 @@ def test_parallel_worker_maps_slot_environment_and_reports_completion(
         3,
         "gpu-3",
         "3",
+        "GPU-test",
         123,
         Sender(),
     )
@@ -582,6 +583,51 @@ def test_isolated_worker_accepts_one_bfloat16_cuda_device(
     }
 
 
+def test_worker_slot_probe_requires_distinct_homogeneous_gpus(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    slots = (
+        runner.WorkerSlot("gpu-0", "0"),
+        runner.WorkerSlot("gpu-1", "1"),
+    )
+    identities = {
+        "0": {
+            "uuid": "GPU-a",
+            "name": "Test GPU",
+            "total_memory_bytes": 48 * 1024**3,
+            "compute_capability": "8.9",
+        },
+        "1": {
+            "uuid": "GPU-b",
+            "name": "Test GPU",
+            "total_memory_bytes": 48 * 1024**3,
+            "compute_capability": "8.9",
+        },
+    }
+    monkeypatch.setattr(
+        runner,
+        "_probe_cuda_slot",
+        lambda slot: identities[str(slot.payload)],
+    )
+
+    assert runner._probe_worker_slots(slots) == {
+        "gpu-0": identities["0"],
+        "gpu-1": identities["1"],
+    }
+
+    identities["1"] = {**identities["1"], "uuid": "GPU-a"}
+    with pytest.raises(runner.RunnerError, match="same physical GPU"):
+        runner._probe_worker_slots(slots)
+
+    identities["1"] = {
+        **identities["1"],
+        "uuid": "GPU-b",
+        "name": "Different GPU",
+    }
+    with pytest.raises(runner.RunnerError, match="homogeneous GPU class"):
+        runner._probe_worker_slots(slots)
+
+
 @pytest.mark.parametrize(
     ("mode", "status"),
     (("calibrate", "complete"), ("prepare-data", "failed")),
@@ -835,6 +881,19 @@ def _stub_preflight(monkeypatch: pytest.MonkeyPatch) -> None:
         lambda **_kwargs: _null_guard(),
     )
     monkeypatch.setattr(runner, "_require_parallel_launch_ready", lambda _root: None)
+    monkeypatch.setattr(
+        runner,
+        "_probe_worker_slots",
+        lambda slots: {
+            slot.slot_id: {
+                "uuid": f"GPU-{slot.payload}",
+                "name": "Test GPU",
+                "total_memory_bytes": 48 * 1024**3,
+                "compute_capability": "8.9",
+            }
+            for slot in slots
+        },
+    )
 
 
 @contextmanager

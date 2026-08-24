@@ -188,6 +188,7 @@ def run_launch(
                 )
         elif pending:
             launch_id = uuid4().hex
+            slot_identities = _probe_worker_slots(resolved_slots)
 
             def worker(
                 item: WorkItem[tuple[int, Path, dict[str, Any]]],
@@ -209,6 +210,7 @@ def run_launch(
                     launch_position=index,
                     launch_size=len(loaded),
                     slot=slot,
+                    expected_gpu_uuid=str(slot_identities[slot.slot_id]["uuid"]),
                 )
 
             try:
@@ -455,6 +457,7 @@ def _run_one_isolated(
     launch_position: int,
     launch_size: int,
     slot: WorkerSlot[str],
+    expected_gpu_uuid: str,
 ) -> Path:
     """Run one config in a fresh process with one explicit visible GPU."""
 
@@ -472,6 +475,7 @@ def _run_one_isolated(
             launch_size,
             slot.slot_id,
             slot.payload,
+            expected_gpu_uuid,
             os.getpid(),
             sender,
         ),
@@ -539,6 +543,7 @@ def _worker_process_entry(
     launch_size: int,
     slot_id: str,
     cuda_visible_device: str,
+    expected_gpu_uuid: str,
     coordinator_pid: int,
     sender: Any,
 ) -> None:
@@ -554,6 +559,11 @@ def _worker_process_entry(
     os.environ["PAPER_EXP_COORDINATOR_PID"] = str(coordinator_pid)
     try:
         gpu = _require_isolated_cuda_runtime(config)
+        if gpu["uuid"] != expected_gpu_uuid:
+            raise WorkerProcessError(
+                "Assigned CUDA device identity changed after coordinator preflight: "
+                f"expected {expected_gpu_uuid}, observed {gpu['uuid']}."
+            )
         os.environ["PAPER_EXP_WORKER_GPU_UUID"] = gpu["uuid"]
         os.environ["PAPER_EXP_WORKER_GPU_NAME"] = gpu["name"]
         os.environ["PAPER_EXP_WORKER_GPU_TOTAL_MEMORY_BYTES"] = str(
@@ -589,15 +599,90 @@ def _bounded_error_message(error: BaseException, *, limit: int = 4096) -> str:
     return message[: limit - 3] + "..."
 
 
+def _probe_worker_slots(
+    slots: Sequence[WorkerSlot[str]],
+) -> dict[str, dict[str, Any]]:
+    """Resolve every ordinal to one stable, distinct physical GPU identity."""
+
+    identities = {slot.slot_id: _probe_cuda_slot(slot) for slot in slots}
+    uuids = [str(identity["uuid"]) for identity in identities.values()]
+    if len(set(uuids)) != len(uuids):
+        raise RunnerError(
+            "Distinct CUDA device ordinals resolved to the same physical GPU UUID."
+        )
+    hardware = {
+        (
+            str(identity["name"]),
+            int(identity["total_memory_bytes"]),
+            str(identity["compute_capability"]),
+        )
+        for identity in identities.values()
+    }
+    if len(hardware) != 1:
+        raise RunnerError(
+            "All scientific worker slots must resolve to one homogeneous GPU class."
+        )
+    return identities
+
+
+def _probe_cuda_slot(slot: WorkerSlot[str]) -> dict[str, Any]:
+    """Probe one slot in a fresh process before any scientific attempt starts."""
+
+    context = multiprocessing.get_context("spawn")
+    receiver, sender = context.Pipe(duplex=False)
+    process = context.Process(
+        target=_cuda_probe_process_entry,
+        args=(str(slot.payload), sender),
+        name=f"paper-exp-probe-{slot.slot_id}",
+    )
+    try:
+        process.start()
+    except BaseException:
+        sender.close()
+        receiver.close()
+        raise
+    sender.close()
+    message, exit_code = _receive_and_reap_worker(process, receiver)
+    if (
+        isinstance(message, dict)
+        and message.get("status") == "completed"
+        and isinstance(message.get("gpu"), dict)
+        and exit_code == 0
+    ):
+        return dict(message["gpu"])
+    if isinstance(message, dict) and message.get("status") == "failed":
+        detail = f"{message.get('error_type')}: {message.get('error_message')}"
+    else:
+        detail = "probe exited without a terminal result"
+    raise RunnerError(
+        f"CUDA probe for slot {slot.slot_id} failed (exit code {exit_code}): {detail}."
+    )
+
+
+def _cuda_probe_process_entry(cuda_visible_device: str, sender: Any) -> None:
+    """Fresh-process CUDA probe entrypoint."""
+
+    os.environ["CUDA_VISIBLE_DEVICES"] = cuda_visible_device
+    try:
+        gpu = _probe_visible_cuda_device()
+    except BaseException as error:
+        sender.send(
+            {
+                "status": "failed",
+                "error_type": type(error).__qualname__,
+                "error_message": _bounded_error_message(error),
+            }
+        )
+        raise
+    else:
+        sender.send({"status": "completed", "gpu": gpu})
+    finally:
+        sender.close()
+
+
 def _require_isolated_cuda_runtime(config: dict[str, Any]) -> dict[str, Any]:
     """Fail closed unless the child sees one BF16-capable CUDA device."""
 
-    try:
-        import torch
-    except ImportError as error:
-        raise WorkerProcessError(
-            "Isolated GPU worker cannot import torch after device isolation."
-        ) from error
     if config["training"]["device"] not in {"cuda", "cuda:0"}:
         raise WorkerProcessError(
             "Isolated GPU worker requires training.device cuda or cuda:0."
@@ -606,6 +691,16 @@ def _require_isolated_cuda_runtime(config: dict[str, Any]) -> dict[str, Any]:
         raise WorkerProcessError(
             "Isolated GPU worker requires training.precision bfloat16."
         )
+    return _probe_visible_cuda_device()
+
+
+def _probe_visible_cuda_device() -> dict[str, Any]:
+    try:
+        import torch
+    except ImportError as error:
+        raise WorkerProcessError(
+            "Isolated GPU worker cannot import torch after device isolation."
+        ) from error
     if not torch.cuda.is_available():
         raise WorkerProcessError(
             "Assigned CUDA device is unavailable after applying CUDA_VISIBLE_DEVICES."
