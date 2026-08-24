@@ -33,7 +33,7 @@ PROHIBITED_USE = (
 )
 
 _HASH_RE = re.compile(r"^[0-9a-f]{64}$")
-_FLOATING_REVISIONS = frozenset({"main", "master", "head", "latest"})
+_IMMUTABLE_REVISION_RE = re.compile(r"^[0-9a-f]{40,64}$")
 _SCIENTIFIC_KEY_TOKENS = frozenset(
     {
         "accuracy",
@@ -116,8 +116,11 @@ class HardwareProfileRequest:
         _require_nonempty_string(self.architecture, "architecture")
         _require_nonempty_string(self.revision, "revision")
         _require_nonempty_string(self.gpu_class, "gpu_class")
-        if self.revision.strip().lower() in _FLOATING_REVISIONS:
-            raise ValueError("revision must be pinned, not a floating revision name.")
+        if _IMMUTABLE_REVISION_RE.fullmatch(self.revision) is None:
+            raise ValueError(
+                "revision must be an immutable 40- to 64-character lowercase "
+                "hex commit."
+            )
         if self.sequence_length != SEQUENCE_LENGTH:
             raise ValueError(f"sequence_length must be {SEQUENCE_LENGTH}.")
         if self.global_sequences != GLOBAL_SEQUENCES:

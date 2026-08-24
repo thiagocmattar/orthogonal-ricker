@@ -46,8 +46,10 @@ def test_request_derives_only_exact_global_batch_decompositions() -> None:
         _request(candidates=(2,), sequence_length=1_024)
     with pytest.raises(ValueError, match="global_sequences must be 128"):
         _request(candidates=(2,), global_sequences=64)
-    with pytest.raises(ValueError, match="pinned"):
+    with pytest.raises(ValueError, match="immutable"):
         _request(candidates=(2,), revision="main")
+    with pytest.raises(ValueError, match="lowercase hex"):
+        _request(candidates=(2,), revision="A" * 40)
     with pytest.raises(ValueError, match="at least 2"):
         _request(candidates=(2,), repeats=1)
 
