@@ -65,7 +65,6 @@ def run_launch(
     repository: str | Path | None = None,
     retry_failed: bool | None = None,
     worker_slots: Sequence[WorkerSlot[str]] | None = None,
-    allow_shared_device: bool | None = None,
 ) -> list[Path]:
     """Run one plan-defined config list under a single launch lock.
 
@@ -78,11 +77,10 @@ def run_launch(
 
     root = repository_path(repository)
     runner = _resolve_runner(runner_path, root)
-    retry_failed, resolved_slots, shared_device = _resolve_launch_options(
+    retry_failed, resolved_slots = _resolve_launch_options(
         runner,
         requested_retry=retry_failed,
         requested_slots=worker_slots,
-        requested_shared_device=allow_shared_device,
     )
     if resolved_slots:
         _require_parallel_launch_ready(root)
@@ -144,8 +142,6 @@ def run_launch(
     ]
     if retry_failed:
         command_parts.append("--retry-failed")
-    if shared_device:
-        command_parts.append("--allow-shared-device")
     for slot in resolved_slots:
         command_parts.extend(("--worker-slot", f"{slot.slot_id}={slot.payload}"))
     command = shlex.join(command_parts)
@@ -317,33 +313,26 @@ def _resolve_launch_options(
     *,
     requested_retry: bool | None,
     requested_slots: Sequence[WorkerSlot[str]] | None,
-    requested_shared_device: bool | None,
-) -> tuple[bool, tuple[WorkerSlot[str], ...], bool]:
+) -> tuple[bool, tuple[WorkerSlot[str], ...]]:
     try:
         invoked_runner = Path(sys.argv[0]).resolve() == runner
     except (OSError, RuntimeError):
         invoked_runner = False
-    parsed_retry, parsed_slots, parsed_shared_device = (
+    parsed_retry, parsed_slots = (
         _parse_runner_arguments(sys.argv[1:])
         if invoked_runner
-        else (False, (), False)
+        else (False, ())
     )
     retry = parsed_retry if requested_retry is None else requested_retry
     slots = parsed_slots if requested_slots is None else tuple(requested_slots)
-    shared_device = (
-        parsed_shared_device
-        if requested_shared_device is None
-        else requested_shared_device
-    )
-    _validate_worker_slots(slots, allow_shared_device=shared_device)
-    return retry, slots, shared_device
+    _validate_worker_slots(slots)
+    return retry, slots
 
 
 def _parse_runner_arguments(
     arguments: Sequence[str],
-) -> tuple[bool, tuple[WorkerSlot[str], ...], bool]:
+) -> tuple[bool, tuple[WorkerSlot[str], ...]]:
     retry_failed = False
-    allow_shared_device = False
     slots: list[WorkerSlot[str]] = []
     index = 0
     while index < len(arguments):
@@ -355,15 +344,6 @@ def _parse_runner_arguments(
                     "only once."
                 )
             retry_failed = True
-            index += 1
-            continue
-        if argument == "--allow-shared-device":
-            if allow_shared_device:
-                raise RunnerError(
-                    "Unsupported case-runner arguments: --allow-shared-device "
-                    "may appear only once."
-                )
-            allow_shared_device = True
             index += 1
             continue
         if argument == "--worker-slot":
@@ -379,12 +359,11 @@ def _parse_runner_arguments(
         rendered = " ".join(arguments)
         raise RunnerError(
             f"Unsupported case-runner arguments: {rendered}. Supported arguments "
-            "are --retry-failed, --allow-shared-device, and repeated "
-            "--worker-slot SLOT=CUDA_DEVICE."
+            "are --retry-failed and repeated --worker-slot SLOT=CUDA_DEVICE."
         )
     result = tuple(slots)
-    _validate_worker_slots(result, allow_shared_device=allow_shared_device)
-    return retry_failed, result, allow_shared_device
+    _validate_worker_slots(result)
+    return retry_failed, result
 
 
 def _parse_worker_slot(value: str) -> WorkerSlot[str]:
@@ -404,11 +383,7 @@ def _parse_worker_slot(value: str) -> WorkerSlot[str]:
     return WorkerSlot(slot_id=slot_id, payload=cuda_device)
 
 
-def _validate_worker_slots(
-    slots: Sequence[WorkerSlot[str]],
-    *,
-    allow_shared_device: bool = False,
-) -> None:
+def _validate_worker_slots(slots: Sequence[WorkerSlot[str]]) -> None:
     slot_ids = [slot.slot_id for slot in slots]
     if len(set(slot_ids)) != len(slot_ids):
         raise RunnerError("Case runner worker slot IDs must be unique.")
@@ -420,16 +395,11 @@ def _validate_worker_slots(
     duplicate_devices = sorted(
         {device for device in devices if devices.count(device) > 1}
     )
-    if allow_shared_device and not duplicate_devices:
+    if duplicate_devices:
         raise RunnerError(
-            "--allow-shared-device requires at least two worker slots mapped to "
-            "the same CUDA device."
-        )
-    if duplicate_devices and not allow_shared_device:
-        raise RunnerError(
-            "Multiple worker slots map to the same CUDA device; pass "
-            "--allow-shared-device only after the reviewed hardware-density "
-            f"profile supports this packing: {', '.join(duplicate_devices)}."
+            "Scientific worker slots must map to distinct CUDA device ordinals; "
+            "same-device packing requires a future launch contract bound to an "
+            f"exact reviewed hardware profile: {', '.join(duplicate_devices)}."
         )
 
 
@@ -514,15 +484,7 @@ def _run_one_isolated(
         receiver.close()
         raise
     sender.close()
-    try:
-        message = receiver.recv()
-    except EOFError:
-        message = None
-    finally:
-        receiver.close()
-    process.join()
-    exit_code = process.exitcode
-    process.close()
+    message, exit_code = _receive_and_reap_worker(process, receiver)
 
     if (
         isinstance(message, dict)
@@ -539,6 +501,32 @@ def _run_one_isolated(
         f"Isolated worker for {config_path.name} on {slot.slot_id} failed "
         f"(exit code {exit_code}): {detail}."
     )
+
+
+def _receive_and_reap_worker(process: Any, receiver: Any) -> tuple[Any, int | None]:
+    """Receive one bounded result and always drain a successfully started child."""
+
+    receive_error: BaseException | None = None
+    message: Any = None
+    try:
+        try:
+            message = receiver.recv()
+        except EOFError:
+            message = None
+        except BaseException as error:
+            receive_error = error
+    finally:
+        try:
+            receiver.close()
+        finally:
+            process.join()
+    exit_code = process.exitcode
+    process.close()
+    if receive_error is not None:
+        raise WorkerProcessError(
+            "Failed while receiving an isolated worker result after draining the child."
+        ) from receive_error
+    return message, exit_code
 
 
 def _worker_process_entry(

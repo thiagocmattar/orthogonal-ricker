@@ -229,6 +229,33 @@ def test_parallel_worker_maps_slot_environment_and_reports_completion(
     assert environment["PAPER_EXP_COORDINATOR_PID"] == "123"
 
 
+def test_isolated_worker_ipc_error_still_drains_and_closes_child() -> None:
+    events: list[str] = []
+
+    class Receiver:
+        def recv(self) -> object:
+            events.append("recv")
+            raise OSError("injected receive failure")
+
+        def close(self) -> None:
+            events.append("receiver-close")
+
+    class Process:
+        exitcode = 1
+
+        def join(self) -> None:
+            events.append("join")
+
+        def close(self) -> None:
+            events.append("process-close")
+
+    with pytest.raises(runner.WorkerProcessError, match="after draining") as caught:
+        runner._receive_and_reap_worker(Process(), Receiver())
+
+    assert isinstance(caught.value.__cause__, OSError)
+    assert events == ["recv", "receiver-close", "join", "process-close"]
+
+
 @pytest.mark.parametrize("prefixes", [(2, 1), (1, 1)])
 def test_parent_runner_rejects_non_increasing_config_order(
     tmp_path: Path,
@@ -374,7 +401,7 @@ def test_parent_runner_rejects_unsupported_script_arguments(
 
 
 def test_case_runner_parses_retry_and_explicit_worker_slots() -> None:
-    retry, slots, shared_device = runner._parse_runner_arguments(
+    retry, slots = runner._parse_runner_arguments(
         [
             "--worker-slot",
             "gpu-0=0",
@@ -384,33 +411,16 @@ def test_case_runner_parses_retry_and_explicit_worker_slots() -> None:
     )
 
     assert retry is True
-    assert shared_device is False
     assert slots == (
         runner.WorkerSlot("gpu-0", "0"),
         runner.WorkerSlot("gpu-1", "1"),
     )
 
 
-def test_case_runner_requires_explicit_shared_device_opt_in() -> None:
+def test_case_runner_rejects_same_device_packing() -> None:
     arguments = ["--worker-slot", "worker-a=0", "--worker-slot", "worker-b=0"]
-    with pytest.raises(runner.RunnerError, match="allow-shared-device"):
+    with pytest.raises(runner.RunnerError, match="distinct CUDA device"):
         runner._parse_runner_arguments(arguments)
-
-    retry, slots, shared_device = runner._parse_runner_arguments(
-        [*arguments, "--allow-shared-device"]
-    )
-
-    assert retry is False
-    assert shared_device is True
-    assert slots == (
-        runner.WorkerSlot("worker-a", "0"),
-        runner.WorkerSlot("worker-b", "0"),
-    )
-
-    with pytest.raises(runner.RunnerError, match="requires at least two"):
-        runner._parse_runner_arguments(
-            ["--worker-slot", "worker-a=0", "--allow-shared-device"]
-        )
 
 
 @pytest.mark.parametrize(

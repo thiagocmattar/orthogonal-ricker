@@ -94,6 +94,30 @@ def test_start_run_records_explicit_parallel_worker_assignment(
     }
 
 
+def test_parallel_worker_assignment_requires_cuda_selector(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    worker_environment = (
+        "PAPER_EXP_PARALLEL_LAUNCH_ID",
+        "PAPER_EXP_WORKER_SLOT_ID",
+        "PAPER_EXP_WORKER_CONFIG_ID",
+        "PAPER_EXP_WORKER_LAUNCH_POSITION",
+        "PAPER_EXP_WORKER_LAUNCH_SIZE",
+        "PAPER_EXP_COORDINATOR_PID",
+        "PAPER_EXP_WORKER_GPU_UUID",
+        "PAPER_EXP_WORKER_GPU_NAME",
+        "PAPER_EXP_WORKER_GPU_TOTAL_MEMORY_BYTES",
+        "PAPER_EXP_WORKER_GPU_COMPUTE_CAPABILITY",
+        "CUDA_VISIBLE_DEVICES",
+    )
+    for name in worker_environment:
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("PAPER_EXP_PARALLEL_LAUNCH_ID", "launch-123")
+
+    with pytest.raises(RuntimeError, match="cuda_visible_devices"):
+        utils_module.collect_worker_assignment()
+
+
 def test_complete_run_writes_completed_manifest_last(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
