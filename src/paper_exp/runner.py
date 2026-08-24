@@ -32,11 +32,19 @@ def run_launch(
     config_paths: Sequence[str | Path],
     *,
     repository: str | Path | None = None,
+    retry_failed: bool | None = None,
 ) -> list[Path]:
-    """Run one plan-defined config list serially under a single launch lock."""
+    """Run one plan-defined config list serially under a single launch lock.
+
+    A case-runner invocation containing ``--retry-failed`` explicitly opts in
+    to retrying coherent failed attempts. Direct callers may pass the keyword
+    instead.
+    """
 
     root = repository_path(repository)
     runner = _resolve_runner(runner_path, root)
+    if retry_failed is None:
+        retry_failed = "--retry-failed" in sys.argv[1:]
     if not config_paths:
         raise RunnerError(f"Runner has no configs: {runner}")
 
@@ -87,18 +95,22 @@ def run_launch(
         require_token_cache_output(config, repository=root, source=path)
         loaded.append((path, config))
 
-    command = shlex.join(
-        [Path(sys.executable).name, runner.relative_to(root).as_posix()]
-    )
+    command_parts = [
+        Path(sys.executable).name,
+        runner.relative_to(root).as_posix(),
+    ]
+    if retry_failed:
+        command_parts.append("--retry-failed")
+    command = shlex.join(command_parts)
     prior_completed = [
-        _completed_attempt_for_config(path, config)
+        _completed_attempt_for_config(path, config, allow_failed_retry=retry_failed)
         for path, config in loaded
     ]
     completed: list[Path] = []
     with direct_launch_guard(repository=root):
         # Close the preflight-to-lock race before creating any new attempt.
         prior_completed = [
-            _completed_attempt_for_config(path, config)
+            _completed_attempt_for_config(path, config, allow_failed_retry=retry_failed)
             for path, config in loaded
         ]
         for index, ((path, config), existing) in enumerate(
@@ -123,6 +135,8 @@ def run_launch(
 def _completed_attempt_for_config(
     config_path: Path,
     config: dict[str, Any],
+    *,
+    allow_failed_retry: bool,
 ) -> Path | None:
     """Return one reusable completion, or require a safe retry state."""
 
@@ -175,7 +189,19 @@ def _completed_attempt_for_config(
             f"Cannot resume {config_path.name}: multiple coherent completed "
             f"attempts are ambiguous: {names}."
         )
-    return coherent_completed[0] if coherent_completed else None
+    if coherent_completed:
+        return coherent_completed[0]
+
+    failed = [attempt for attempt, status in attempts if status == "failed"]
+    if failed and not allow_failed_retry:
+        names = ", ".join(path.name for path in failed)
+        raise RunnerError(
+            f"Cannot retry {config_path.name} without explicit recovery "
+            f"authorization; coherent failed attempts: {names}. Record the "
+            "reviewed infrastructure failure, then invoke the case runner "
+            "with --retry-failed."
+        )
+    return None
 
 
 def _config_snapshot_matches(path: Path, expected: dict[str, Any]) -> bool:

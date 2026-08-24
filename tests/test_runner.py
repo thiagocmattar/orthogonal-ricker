@@ -143,14 +143,21 @@ def test_parent_runner_skips_one_completion_and_retries_only_failed_configs(
         config_path: Path,
         command: str,
     ) -> Path:
-        del command
+        assert command.endswith(
+            "experiments/01-first-set/run/runner.py --retry-failed"
+        )
         calls.append(config_path.name)
         return config_path.parent.parent / "raw" / config_path.stem / "new-attempt"
 
     _stub_preflight(monkeypatch)
     monkeypatch.setattr(runner, "_run_one", run_one)
 
-    completed = runner.run_launch(runner_path, configs, repository=tmp_path)
+    completed = runner.run_launch(
+        runner_path,
+        configs,
+        repository=tmp_path,
+        retry_failed=True,
+    )
 
     assert calls == ["002-case.yaml", "003-case.yaml"]
     assert completed == [
@@ -158,6 +165,25 @@ def test_parent_runner_skips_one_completion_and_retries_only_failed_configs(
         configs[1].parent.parent / "raw" / configs[1].stem / "new-attempt",
         configs[2].parent.parent / "raw" / configs[2].stem / "new-attempt",
     ]
+
+
+def test_parent_runner_requires_explicit_failed_retry_authorization(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runner_path, configs = _layout(tmp_path, (1,))
+    failed = _write_attempt(configs[0], sequence=1, status="failed")
+    _stub_preflight(monkeypatch)
+    monkeypatch.setattr(
+        runner,
+        "direct_launch_guard",
+        lambda **_kwargs: pytest.fail("unauthorized retry must fail before locking"),
+    )
+
+    with pytest.raises(runner.RunnerError, match="--retry-failed"):
+        runner.run_launch(runner_path, configs, repository=tmp_path)
+
+    assert sorted(path.name for path in failed.parent.iterdir()) == [failed.name]
 
 
 @pytest.mark.parametrize("unsafe_status", ("running", "inconsistent"))
@@ -186,7 +212,12 @@ def test_parent_runner_rejects_unsafe_attempt_state_before_launch_mutation(
     )
 
     with pytest.raises(runner.RunnerError, match="running or inconsistent"):
-        runner.run_launch(runner_path, configs, repository=tmp_path)
+        runner.run_launch(
+            runner_path,
+            configs,
+            repository=tmp_path,
+            retry_failed=True,
+        )
 
     assert guard_entered is False
     assert sorted(path.name for path in first.parent.iterdir()) == [first.name]
