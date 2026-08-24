@@ -151,13 +151,13 @@ def test_parent_runner_skips_one_completion_and_retries_only_failed_configs(
 
     _stub_preflight(monkeypatch)
     monkeypatch.setattr(runner, "_run_one", run_one)
-
-    completed = runner.run_launch(
-        runner_path,
-        configs,
-        repository=tmp_path,
-        retry_failed=True,
+    monkeypatch.setattr(
+        runner.sys,
+        "argv",
+        [str(runner_path), "--retry-failed"],
     )
+
+    completed = runner.run_launch(runner_path, configs, repository=tmp_path)
 
     assert calls == ["002-case.yaml", "003-case.yaml"]
     assert completed == [
@@ -186,6 +186,42 @@ def test_parent_runner_requires_explicit_failed_retry_authorization(
     assert sorted(path.name for path in failed.parent.iterdir()) == [failed.name]
 
 
+@pytest.mark.parametrize(
+    "arguments",
+    (["--unknown"], ["--retry-failed", "--retry-failed"]),
+)
+def test_parent_runner_rejects_unsupported_script_arguments(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    arguments: list[str],
+) -> None:
+    runner_path, configs = _layout(tmp_path, (1,))
+    _stub_preflight(monkeypatch)
+    monkeypatch.setattr(runner.sys, "argv", [str(runner_path), *arguments])
+
+    with pytest.raises(runner.RunnerError, match="Unsupported case-runner"):
+        runner.run_launch(runner_path, configs, repository=tmp_path)
+
+
+@pytest.mark.parametrize(
+    ("mode", "status"),
+    (("calibrate", "complete"), ("prepare-data", "failed")),
+)
+def test_parent_runner_ignores_non_pretrain_attempt_state(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    mode: str,
+    status: str,
+) -> None:
+    runner_path, configs = _layout(tmp_path, (1,))
+    _write_attempt(configs[0], sequence=1, status=status, mode=mode)
+    _stub_preflight(monkeypatch)
+    expected = configs[0].parent.parent / "raw" / configs[0].stem / "new-pretrain"
+    monkeypatch.setattr(runner, "_run_one", lambda *_args, **_kwargs: expected)
+
+    assert runner.run_launch(runner_path, configs, repository=tmp_path) == [expected]
+
+
 @pytest.mark.parametrize("unsafe_status", ("running", "inconsistent"))
 def test_parent_runner_rejects_unsafe_attempt_state_before_launch_mutation(
     tmp_path: Path,
@@ -211,7 +247,7 @@ def test_parent_runner_rejects_unsafe_attempt_state_before_launch_mutation(
         lambda *_args, **_kwargs: pytest.fail("unsafe state must abort the tranche"),
     )
 
-    with pytest.raises(runner.RunnerError, match="running or inconsistent"):
+    with pytest.raises(runner.RunnerError, match="unsafe attempt state"):
         runner.run_launch(
             runner_path,
             configs,
@@ -221,6 +257,21 @@ def test_parent_runner_rejects_unsafe_attempt_state_before_launch_mutation(
 
     assert guard_entered is False
     assert sorted(path.name for path in first.parent.iterdir()) == [first.name]
+
+
+def test_parent_runner_rejects_unreviewed_statusless_pretrain_attempt(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runner_path, configs = _layout(tmp_path, (1,))
+    attempt = _write_attempt(configs[0], sequence=1, status="statusless")
+    _stub_preflight(monkeypatch)
+    monkeypatch.setattr(runner, "classify_run_directory", lambda _path: "complete")
+
+    with pytest.raises(runner.RunnerError, match="statusless"):
+        runner.run_launch(runner_path, configs, repository=tmp_path)
+
+    assert attempt.is_dir()
 
 
 def test_parent_runner_rejects_multiple_coherent_completions(
@@ -239,6 +290,33 @@ def test_parent_runner_rejects_multiple_coherent_completions(
 
     with pytest.raises(runner.RunnerError, match="multiple coherent completed"):
         runner.run_launch(runner_path, configs, repository=tmp_path)
+
+
+def test_parent_runner_rechecks_attempt_state_after_taking_lock(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runner_path, configs = _layout(tmp_path, (1,))
+    _stub_preflight(monkeypatch)
+    existing: Path | None = None
+
+    @contextmanager
+    def guard(**_kwargs: object) -> Iterator[None]:
+        nonlocal existing
+        existing = _write_attempt(configs[0], sequence=1, status="complete")
+        yield
+
+    monkeypatch.setattr(runner, "direct_launch_guard", guard)
+    monkeypatch.setattr(
+        runner,
+        "_run_one",
+        lambda *_args, **_kwargs: pytest.fail("locked recheck must reuse completion"),
+    )
+
+    completed = runner.run_launch(runner_path, configs, repository=tmp_path)
+
+    assert existing is not None
+    assert completed == [existing]
 
 
 def test_parent_runner_rejects_attempt_from_mutated_config(
@@ -390,6 +468,7 @@ def _write_attempt(
     sequence: int,
     status: str,
     config: dict[str, object] | None = None,
+    mode: str = "pretrain",
 ) -> Path:
     run_dir = (
         config_path.parent.parent
@@ -406,11 +485,11 @@ def _write_attempt(
         "config_id": config_path.stem,
         "run_id": run_dir.name,
         "tranche_id": config_path.parent.parent.name,
-        "mode": "pretrain",
+        "mode": mode,
         "git_commit": "a" * 40,
         "git_dirty": False,
     }
-    if status == "complete":
+    if status in {"complete", "statusless"}:
         (run_dir / "metrics.json").write_text("{}\n", encoding="utf-8")
         (run_dir / "predictions.jsonl").write_text("{}\n", encoding="utf-8")
         (run_dir / "events.jsonl").write_text(
@@ -432,7 +511,7 @@ def _write_attempt(
                     "failure": {"type": "RuntimeError", "message": "test"},
                 }
             )
-    elif status != "inconsistent":
+    elif status not in {"inconsistent", "statusless"}:
         raise ValueError(f"Unsupported test attempt status: {status}")
     (run_dir / "manifest.json").write_text(
         json.dumps(manifest) + "\n", encoding="utf-8"

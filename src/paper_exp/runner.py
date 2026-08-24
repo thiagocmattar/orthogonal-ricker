@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 import shlex
 import sys
@@ -27,6 +28,19 @@ class RunnerError(LaunchError):
     """Raised when an experiment-set runner is malformed or a run fails."""
 
 
+_NON_PRETRAIN_MODES = frozenset(
+    {
+        "activation-histograms",
+        "activation-propagation",
+        "calibrate",
+        "clip-sweep",
+        "prepare-data",
+        "smoke",
+        "weight-histograms",
+    }
+)
+
+
 def run_launch(
     runner_path: str | Path,
     config_paths: Sequence[str | Path],
@@ -43,8 +57,7 @@ def run_launch(
 
     root = repository_path(repository)
     runner = _resolve_runner(runner_path, root)
-    if retry_failed is None:
-        retry_failed = "--retry-failed" in sys.argv[1:]
+    retry_failed = _resolve_retry_failed(runner, retry_failed)
     if not config_paths:
         raise RunnerError(f"Runner has no configs: {runner}")
 
@@ -159,7 +172,16 @@ def _completed_attempt_for_config(
         if attempt.is_symlink() or not attempt.is_dir():
             attempts.append((attempt, "inconsistent"))
             continue
+        manifest = _read_manifest(attempt / "manifest.json")
+        mode = manifest.get("mode") if manifest is not None else None
+        if mode in _NON_PRETRAIN_MODES:
+            continue
+        if manifest is None or mode != "pretrain":
+            attempts.append((attempt, "inconsistent"))
+            continue
         status = classify_run_directory(attempt)
+        if status == "complete" and manifest.get("status") != "completed":
+            status = "statusless"
         if status != "inconsistent" and not _config_snapshot_matches(
             attempt / "config.yaml", config
         ):
@@ -169,15 +191,15 @@ def _completed_attempt_for_config(
     unsafe = [
         (attempt, status)
         for attempt, status in attempts
-        if status in {"running", "inconsistent"}
+        if status in {"running", "inconsistent", "statusless"}
     ]
     if unsafe:
         details = ", ".join(
             f"{attempt.name}={status}" for attempt, status in unsafe
         )
         raise RunnerError(
-            f"Cannot resume {config_path.name} safely; running or inconsistent "
-            f"attempt state: {details}."
+            f"Cannot resume {config_path.name} safely; unsafe attempt state: "
+            f"{details}."
         )
 
     coherent_completed = [
@@ -202,6 +224,36 @@ def _completed_attempt_for_config(
             "with --retry-failed."
         )
     return None
+
+
+def _resolve_retry_failed(runner: Path, requested: bool | None) -> bool:
+    if requested is not None:
+        return requested
+    try:
+        invoked_runner = Path(sys.argv[0]).resolve() == runner
+    except (OSError, RuntimeError):
+        invoked_runner = False
+    if not invoked_runner:
+        return False
+    arguments = sys.argv[1:]
+    if not arguments:
+        return False
+    if arguments == ["--retry-failed"]:
+        return True
+    rendered = " ".join(arguments)
+    raise RunnerError(
+        f"Unsupported case-runner arguments: {rendered}. The only supported "
+        "recovery argument is --retry-failed."
+    )
+
+
+def _read_manifest(path: Path) -> dict[str, Any] | None:
+    try:
+        with path.open("r", encoding="utf-8") as handle:
+            manifest = json.load(handle)
+    except (OSError, UnicodeError, ValueError):
+        return None
+    return manifest if isinstance(manifest, dict) else None
 
 
 def _config_snapshot_matches(path: Path, expected: dict[str, Any]) -> bool:
