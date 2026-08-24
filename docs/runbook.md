@@ -137,6 +137,140 @@ reuse, failure draining, and resource teardown using infrastructure-only smoke
 inputs. Same-GPU process packing is allowed only if the `OPS-04` measurements
 show a useful aggregate-throughput gain for the frozen physical batch.
 
+### RunPod Operations
+
+This subsection is the operator procedure for RunPod. It does not relax the
+launch gate above: while `experiment_plan.md` is a placeholder, RunPod may be
+used only for explicitly identified infrastructure profiling and smoke work.
+
+#### Skill and tool routing
+
+For every multi-step RunPod task, load the installed `runpod` router skill
+first. Then use the smallest applicable lane:
+
+- `runpod-usage` for Pod-versus-serverless, GPU, storage, and batch-training
+  design;
+- `runpod-mcp` for catalog and capacity reads and for Pod, volume, log,
+  billing, and lifecycle operations;
+- `runpodctl` for SSH-key registration, fresh SSH connection details, file
+  transfer, and reproducible terminal workflows;
+- `companion-clis` only when GitHub, Hugging Face, Docker, or RunPod S3 is
+  actually required.
+
+Pretraining and its infrastructure smoke use Pods, not Serverless or Flash.
+The connected MCP schemas and `runpodctl ... --help` are authoritative when a
+skill snapshot and the installed tool differ. MCP OAuth authenticates the MCP
+control plane only; it does not authenticate `runpodctl`.
+
+Never print, copy into chat, or commit an API key, private SSH key, registry
+credential, or model/dataset token. Test only whether a credential resolves.
+
+#### SSH identity and validation
+
+The expected Windows operator identity is
+`$env:USERPROFILE\.ssh\id_ed25519_runpod`; only its public half or fingerprint
+may be inspected or registered. The read-only check on 2026-08-24 established:
+
+- the private and public files parse as the same ED25519 key pair;
+- fingerprint
+  `SHA256:ew2/c7ja1vPEtMZEP+sAHT2NzJhW+Np7HdNlWdRXcc8`;
+- Windows OpenSSH rejects the private key as `UNPROTECTED PRIVATE KEY FILE`
+  because inherited ACL entries make it accessible to other identities;
+- the key's passphrase state has therefore not yet been tested;
+- the Windows `ssh-agent` is disabled/stopped and the key is not loaded;
+- `runpodctl` has no local installation or authentication; and
+- the public key's RunPod registration and a live Pod login remain
+  unverified.
+
+Do not describe this as end-to-end SSH validation. Before creating an
+SSH-controlled Pod, confirm that the exact public fingerprint is registered in
+RunPod; registered keys are injected at Pod boot. The private-key ACL must be
+repaired narrowly with explicit user approval and then checked again before a
+Pod is created. Do not infer whether the key has a passphrase until OpenSSH can
+read it. If it does, a human must unlock it; on this machine that human-only
+agent preparation is:
+
+```powershell
+# Run the service commands once in an elevated PowerShell.
+Set-Service -Name ssh-agent -StartupType Manual
+Start-Service -Name ssh-agent
+
+# Run in the operator's normal PowerShell and enter the passphrase locally.
+ssh-add "$env:USERPROFILE\.ssh\id_ed25519_runpod"
+ssh-add -l
+```
+
+Do not change the private-key ACL automatically. The current
+`UNPROTECTED PRIVATE KEY FILE` result requires approval for a narrow ACL repair
+that removes access by unrelated identities while retaining the operator's
+access. If a later live test reports `Permission denied (publickey)`, verify
+registration of the fingerprint above before changing the Pod or key.
+
+The definitive check is an approved disposable Pod with SSH enabled and a hard
+termination deadline. After retrieving its current host and port, require this
+non-interactive command to return exactly `RUNPOD_SSH_OK` with exit code zero:
+
+```powershell
+$key = "$env:USERPROFILE\.ssh\id_ed25519_runpod"
+ssh -o BatchMode=yes -o IdentitiesOnly=yes `
+  -o StrictHostKeyChecking=accept-new `
+  -o UserKnownHostsFile=tmp/runpod_known_hosts `
+  -o ConnectTimeout=15 -i $key -p <port> root@<host> `
+  "printf RUNPOD_SSH_OK"
+```
+
+Use a repository-ignored known-hosts file as shown; do not disable host-key
+checking globally. Registration and local integrity alone are not substitutes
+for this live check.
+
+#### Discover and resume before creating
+
+At the start of every agentic session, use MCP to list Pods and network
+volumes before any creation. Empty lists are valid. For every existing project
+resource, retrieve its current state and match its name, Pod/volume ID, data
+center, GPU, image, mount path, automatic-termination deadline, and intended
+Git SHA. Use names beginning `osp-` and including purpose plus a short Git SHA
+so discovery is unambiguous.
+
+After every Pod start or restart, retrieve fresh SSH connection details; host
+and port may change. On connection, verify the checkout path, clean Git SHA,
+environment identity, active process, exact attempt directory, terminal or
+running manifest, and latest event before acting. An existing runner or an
+ambiguous `running` attempt means monitor only: never start another runner or
+infer state from chat history.
+
+#### Persistence and concurrency
+
+Mount persistent storage at `/workspace`. Keep the execution checkout,
+dependency and dataset caches, detached-process logs, ignored raw artifacts,
+and checkpoints below that mount; container-only paths such as `/root` are
+ephemeral. Pin the container image, dependency constraints, and clean Git SHA.
+Long-running commands must survive SSH loss and write their log to
+`/workspace`.
+
+One multi-GPU Pod with one authoritative coordinator is the first supported
+parallel shape. Do not run independent case runners or allow concurrent
+writable checkouts on one network volume. Multi-Pod execution remains blocked
+until `OPS-05` defines external exact-once claims, per-worker writable roots,
+durable collection, and shared read-only caches, and `OPS-06` verifies them.
+
+#### Approval, cost guard, and teardown
+
+Before creating any billable resource, report the exact purpose, cloud tier,
+GPU SKU and count, current hourly price, data center, image, volume and storage
+price, maximum duration, maximum projected cost, automatic-termination
+deadline, and cleanup intent. Obtain explicit approval for that resource
+envelope. Infrastructure-smoke approval is separate from scientific-launch
+approval.
+
+Before removing compute, verify that required logs and artifacts are durable.
+Delete the Pod first, confirm that it is absent, and then re-list Pods and
+volumes. Delete a temporary volume only after its exact contents have been
+verified as copied or disposable; volume deletion is destructive, while a
+retained volume continues to bill. Report every retained resource and its
+recurring cost. A timeout or failed setup does not imply that creation failed:
+always discover and clean up by resource ID.
+
 ## 5. Monitor Without Mutation
 
 Inspect the active run's `manifest.json` and `events.jsonl`, plus the exact
@@ -190,7 +324,12 @@ read-only review.
 
 ## 7. Handoff
 
-A live handoff states the Git SHA, exact scaffold and case runner, ordered configs,
-completed/active/remaining counts, active run and process, latest metrics,
-current-run and full-tranche ETCs, failures, and next plan-authorized action.
-The receiving agent verifies files and processes; chat text is not evidence.
+A live handoff states the Git SHA, exact scaffold and case runner, ordered
+configs, completed/active/remaining counts, active run and process, latest
+metrics, current-run and full-tranche ETCs, failures, and next plan-authorized
+action. For RunPod it also states Pod and volume IDs and names, data center,
+GPU, pinned image, mount and checkout paths, active command/process, exact
+attempt directory, automatic-termination deadline, and retain/delete intent.
+The receiving agent re-lists resources and retrieves fresh SSH details rather
+than trusting copied host/port values. It verifies files and processes; chat
+text is not evidence.

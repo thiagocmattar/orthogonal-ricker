@@ -18,6 +18,9 @@ Then read the document that owns the task:
   `docs/experimental-design/README.md`, and `experiments/README.md`;
 - measurements: `docs/diagnostics.md`;
 - launches, ETC, monitoring, or recovery: `docs/runbook.md`;
+- RunPod provisioning, SSH, persistence, cost control, or teardown: load the
+  installed `runpod` router skill first, then follow
+  `docs/runbook.md#runpod-operations`;
 - figures: `docs/plotting.md`;
 - artifact status and completeness: `experiments/README.md`.
 
