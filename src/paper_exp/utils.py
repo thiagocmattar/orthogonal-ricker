@@ -182,7 +182,12 @@ def collect_worker_assignment() -> dict[str, Any] | None:
         "cuda_visible_devices": "CUDA_VISIBLE_DEVICES",
     }
     values = {field: os.environ.get(name) for field, name in names.items()}
-    if not any(value is not None for value in values.values()):
+    worker_markers = {
+        field: value
+        for field, value in values.items()
+        if names[field].startswith("PAPER_EXP_")
+    }
+    if not any(value is not None for value in worker_markers.values()):
         return None
     missing = sorted(field for field, value in values.items() if value is None)
     if missing:

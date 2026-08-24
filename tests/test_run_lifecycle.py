@@ -118,6 +118,17 @@ def test_parallel_worker_assignment_requires_cuda_selector(
         utils_module.collect_worker_assignment()
 
 
+def test_cuda_selector_alone_is_not_a_parallel_worker_assignment(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    for name in tuple(utils_module.os.environ):
+        if name.startswith("PAPER_EXP_"):
+            monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("CUDA_VISIBLE_DEVICES", "0")
+
+    assert utils_module.collect_worker_assignment() is None
+
+
 def test_complete_run_writes_completed_manifest_last(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
