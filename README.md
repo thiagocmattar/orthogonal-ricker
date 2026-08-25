@@ -91,22 +91,27 @@ After the relevant case groups enter the definitive plan's reviewed scope:
 4. Commit the reviewed runner and configs before launch.
 5. Prepare the declared dataset cache.
 6. Run a calibration when no reliable same-hardware throughput estimate exists.
-7. Execute the case runner; it reuses coherent completed configs and, by
-   default, runs new cases serially under one lock. Once the concurrent-launch
-   workboard items are resolved, repeated explicit worker slots enable bounded
-   one-process-per-GPU execution under that same parent. A reviewed
-   infrastructure retry requires the explicit `--retry-failed` flag.
+   A1 may calibrate distinct configs concurrently under one coordinator and
+   lock, with one process per distinct homogeneous GPU.
+7. Execute the case runner; it reuses coherent completed configs and runs new
+   cases serially under one lock. Worker slots fail closed for definitive
+   pretraining. A reviewed infrastructure retry requires the explicit
+   `--retry-failed` flag.
 8. Verify terminal artifacts before running diagnostics or plotting.
 9. Record accepted evidence in the experiment and paper maps.
 
-Data preparation and throughput calibration remain explicit single-config
-operations. The path below shows the naming pattern; it is not an allocated
-launch:
+Data preparation and solo throughput calibration remain explicit
+single-config operations. The path below shows the naming pattern; it is not
+an allocated launch:
 
 ```bash
 make prepare-data CONFIG=experiments/NN-phase-tranche/run/CCC-case.yaml
 make calibrate CONFIG=experiments/NN-phase-tranche/run/CCC-case.yaml
 ```
+
+The reviewed A1 calibration can instead pass its three distinct configs and
+two explicit GPU slots to one CLI coordinator; see the runbook. This is an
+operational timing workflow, not concurrent definitive pretraining.
 
 Every definitive training tranche, even one containing a single config, uses
 its committed case runner:

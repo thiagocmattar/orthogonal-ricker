@@ -39,7 +39,7 @@ design SHA.
 | Training scope | All 1,000,000 training documents; 1,491,711,416 cached tokens |
 | 14M architecture | `EleutherAI/pythia-14m-deduped` at revision `7386d9a4ae45aef494a6e704910394def3037fc5` |
 | 14M tokenizer | `EleutherAI/pythia-14m-deduped` at the same revision |
-| Training-implementation identity | `TODO:` freeze after the training and method blockers close |
+| Training-implementation identity | `a1_pretraining_v1` |
 | Tokenization | Append EOS; store `int32` token IDs |
 | Training cache | `03-pythia-14m-minipile-random-full-10min`; SHA-256 `da82a2ea2e0080c7fd681c7a93b07d3d9ff3d5357a8640895a82d536a1eaf97c` |
 | Validation source | First 500 validation documents; `shuffled_source_documents_half_v1`; partition seed `20260718` |
@@ -64,12 +64,16 @@ and tokenizer only; model parameters are initialized randomly and released
 checkpoint weights are not loaded.
 
 The training-implementation identity is part of every condition fingerprint
-and immutable config. Increment it whenever model construction, sampling,
-optimization/schedule, thresholding, pressure, data partition, or required
-training-time validation/checkpoint semantics change. Post-hoc diagnostic
-schema versions are separate and do not invalidate a compatible checkpoint.
-Do not use the whole Git SHA for this identity: manifests retain exact Git
-provenance, while documentation-only commits must not prevent valid reuse.
+and immutable config. It names the behaviorally frozen active training
+contract, not the Git revision: manifests retain exact Git provenance
+separately. Increment it whenever a change alters model construction,
+sampling, optimization/schedule, an exercised threshold or pressure path,
+data partitioning, or required training-time validation/checkpoint semantics
+for an existing config. Adding a dormant, separately configured method path
+does not by itself invalidate A1. Any later use of an A1 checkpoint across a
+code revision requires explicit evidence that A1's active A0/no-pressure path
+is unchanged; otherwise bump the identity and block reuse for review. Post-hoc
+diagnostic schema versions remain separate.
 
 ## Batch and Learning-Rate Grids
 
@@ -92,7 +96,7 @@ micro_batch_size * gradient_accumulation_steps = 128
 | Pythia-70M | 16 | 8 | 71,513 | 71.0% | Operational proposal; not reviewed |
 | Pythia-410M | 4 | 32 | 10,853 | 61.5% | Operational proposal; not reviewed |
 
-These proposed values came from the 2026-08-25 idle-GPU profile on one Secure
+These measured values came from the 2026-08-25 idle-GPU profile on one Secure
 Cloud NVIDIA A40 48GB, with two repeats over every listed microbatch and the
 profile-only A1-H/ReLU workload with OL1 on `h` and AdamW. Profile report
 SHA-256 values are respectively
@@ -126,6 +130,7 @@ reviewed, do not copy any row into scientific configs.
 | Sequence length | `2,048` |
 | Precision | BF16 CUDA autocast; FP32 parameters and AdamW state |
 | Tuned optimizer field | Peak learning rate only |
+| Training-event logging | Update 1, every 10 updates, and final update |
 
 The released Pythia recipe uses Adam and FP16 dynamic loss scaling. This plan
 records its deliberate implementation choices—PyTorch AdamW and BF16—rather
@@ -161,6 +166,12 @@ The cache contains 728,374 complete 2,048-token blocks and a 1,464-token tail.
 Within a seed, all matched conditions share the complete-block permutation and
 schedule hash. A nominal seed without the realized schedule hash is not a
 matched data order.
+
+For A1 seed 0 with the verified 14M cache and physical batch 16 × 8, the
+realized `full-pass-wrap` schedule SHA-256 is
+`35da3f6aa891a2248407344715e4c75e99cb518b17119a8e66004466a823a21c`.
+Every A1 config must pin that value, the training-cache digest above, and the
+selection-cache token digest above.
 
 Definitive pretraining stops at the exact optimizer-step budget, not a wall
 clock limit. The runbook's calibration accumulates 600 seconds of completed

@@ -45,11 +45,11 @@ if __name__ == "__main__":
 
 The parent requires the tuple to list every YAML config in `run/` exactly once,
 holds one experiment lock, and runs configs serially under the current
-repository policy. The bounded worker-slot path is implemented and tested but
-remains dormant for definitive scientific work. Enabling it requires an
-explicit `AGENTS.md` policy revision and a compatible reviewed plan, not only
-resolved infrastructure workboard items. Even a one-config scientific tranche
-uses its runner. Never run case runners in parallel.
+repository policy. Bounded worker slots are available only to the separate
+calibration command; a case runner rejects them. Enabling concurrent definitive
+pretraining requires an explicit `AGENTS.md` policy revision and a compatible
+reviewed plan. Even a one-config scientific tranche uses its runner. Never run
+case runners in parallel.
 
 `00-infrastructure-smoke/run/00-smoke.yaml` is the only runner-free exception.
 It is an infrastructure check, not a paper experiment or a scientific config

@@ -83,6 +83,14 @@ or truncate definitive pretraining. A scientific learning-rate screen is a
 normal training tranche and must use a case runner. `OPS-03` closes only after
 the local implementation is paired with a same-hardware timing artifact.
 
+For A1, calibration may be solo or bounded concurrent. Concurrent calibration
+accepts distinct committed configs from one scaffold under one coordinator and
+repository lock. It requires at least two explicit worker slots, one process
+per distinct homogeneous BF16-capable physical GPU, and records the GPU,
+Torch, CUDA runtime, launch, slot, and config identity in every calibration
+manifest. It never reuses a calibration attempt as pretraining evidence.
+Multiple coordinators, same-GPU packing, and multi-Pod dispatch are forbidden.
+
 ## 4. Launch
 
 Single-config data preparation and throughput calibration commands remain
@@ -92,6 +100,23 @@ available:
 make prepare-data CONFIG=experiments/<scaffold>/run/<config>.yaml
 make calibrate CONFIG=experiments/<scaffold>/run/<config>.yaml
 ```
+
+After A1 is reviewed and its three configs are committed, the approved
+two-GPU calibration shape is:
+
+```bash
+python -m paper_exp.cli calibrate \
+  --config experiments/<a1-scaffold>/run/<first>.yaml \
+  --config experiments/<a1-scaffold>/run/<second>.yaml \
+  --config experiments/<a1-scaffold>/run/<third>.yaml \
+  --worker-slot gpu-0=0 \
+  --worker-slot gpu-1=1
+```
+
+The coordinator admits two configs first and the third when one slot becomes
+free. Run the predeclared solo calibration separately before this command when
+measuring concurrency overhead. Calibration concurrency does not authorize a
+definitive training launch or cloud spend.
 
 Run every definitive training tranche through its case runner, including a
 tranche with only one config:
@@ -124,17 +149,13 @@ Never start two case runners in parallel. Data preparation and diagnostics run
 one config at a time unless the final plan explicitly adds a serial runner for
 that workflow.
 
-The bounded one-host worker-slot path is implemented and live-validated, but
-`AGENTS.md` currently requires serial scientific execution. Do not pass worker
-slots to a definitive case runner. Enabling that dormant path requires an
-explicit revision of the repository launch policy and a compatible reviewed
-experiment plan; resolving infrastructure workboard items alone is not launch
-authorization. If enabled later, it retains one authoritative coordinator,
-one complete-tranche preflight, and one lock, and requires one distinct
-homogeneous BF16-capable physical GPU per slot. Multiple case runners,
-same-GPU scientific packing, and multi-Pod scientific dispatch remain
-unsupported. The infrastructure smoke may use explicit worker slots; passing
-it does not authorize concurrent experiments.
+The isolated worker engine is implemented and live-validated for
+infrastructure smoke and is now exposed only by bounded calibration.
+`AGENTS.md` requires serial definitive pretraining, and the case runner rejects
+worker slots. Enabling concurrent definitive runs would require an explicit
+repository-policy revision, a compatible reviewed plan, and separate launch
+approval. Multiple case runners, same-GPU packing, and multi-Pod dispatch
+remain unsupported.
 
 ### RunPod Operations
 

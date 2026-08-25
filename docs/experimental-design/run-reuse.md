@@ -37,6 +37,16 @@ Changing from `lr-400m` to `full-pass-wrap` is a new condition. Adding a
 post-hoc diagnostic to a saved compatible final checkpoint is not new
 training.
 
+The training-implementation identity is behavioral rather than a Git SHA.
+Exact Git provenance is still mandatory in every attempt. A new dormant method
+path may retain the identity only when it cannot affect the earlier config's
+active path. Before reusing selected A1 A0 evidence from a later code revision,
+record an unchanged-active-path check covering random initialization,
+forward/loss, task gradients, optimizer/schedule, data order, validation, and
+checkpoint semantics. If that check is absent or fails, the identity changes
+and cross-revision reuse stops for review; never rerun A1 silently to conceal
+the incompatibility.
+
 ## Allocation Procedure
 
 Before creating a config:

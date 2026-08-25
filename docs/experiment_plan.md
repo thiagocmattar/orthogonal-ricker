@@ -7,6 +7,12 @@ Reviewed case groups: []
 > **Launch gate:** scientific configuration allocation, calibration, and
 > launches are blocked.
 
+The committed [`A1 formal review packet`](experimental-design/a1-review-packet.md)
+is ready for review. Approval must name its exact Git SHA; only then may this
+manifest list `A1-lr-screen` as reviewed and permit materialization of its
+three configs. Formal plan approval is not RunPod spending or definitive-launch
+approval.
+
 This file remains the sole launch-status authority. The proposed scientific
 design is split into focused components under
 [`experimental-design/`](experimental-design/README.md) so agents read and edit
