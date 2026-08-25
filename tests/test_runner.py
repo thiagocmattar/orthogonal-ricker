@@ -1171,22 +1171,176 @@ def test_case_runner_rejects_configs_outside_tracked_authorization(
         )
 
 
-def test_a1_runner_tracks_the_exact_parallel_authorization() -> None:
+def test_a1_boundary_extension_runner_is_exactly_four_configs_and_serial() -> None:
     repository = Path(__file__).resolve().parents[1]
     namespace = runpy.run_path(
         str(repository / "experiments" / "01-a1-lr-screen" / "run" / "runner.py")
     )
 
-    assert namespace["PARALLEL_AUTHORIZATION"] == runner.ParallelLaunchAuthorization(
-        worker_count=2,
-        required_gpu_name="NVIDIA A40",
-        config_ids=(
-            "001-a1-lr-5e-4",
-            "002-a1-lr-1e-3",
-            "003-a1-lr-2e-3",
-        ),
+    assert namespace["CONFIGS"] == (
+        "experiments/01-a1-lr-screen/run/001-a1-lr-5e-4.yaml",
+        "experiments/01-a1-lr-screen/run/002-a1-lr-1e-3.yaml",
+        "experiments/01-a1-lr-screen/run/003-a1-lr-2e-3.yaml",
+        "experiments/01-a1-lr-screen/run/004-a1-lr-4e-3.yaml",
     )
-    assert len(namespace["CONFIGS"]) == 3
+    assert namespace["REQUIRED_COMPLETED_CONFIG_IDS"] == (
+        "001-a1-lr-5e-4",
+        "002-a1-lr-1e-3",
+        "003-a1-lr-2e-3",
+    )
+    assert "PARALLEL_AUTHORIZATION" not in namespace
+
+
+def test_required_completed_reuse_fails_closed_before_rerun(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runner_path, configs = _layout(tmp_path, (1, 2, 3, 4))
+    _write_attempt(configs[0], sequence=1, status="complete")
+    _write_attempt(configs[1], sequence=1, status="complete")
+    _stub_preflight(monkeypatch)
+    monkeypatch.setattr(
+        runner,
+        "direct_launch_guard",
+        lambda **_kwargs: pytest.fail("missing required reuse must fail before lock"),
+    )
+    monkeypatch.setattr(
+        runner,
+        "_run_one",
+        lambda *_args, **_kwargs: pytest.fail("required reuse must never rerun"),
+    )
+
+    with pytest.raises(runner.RunnerError, match="003-case.*Refusing to rerun"):
+        runner.run_launch(
+            runner_path,
+            configs,
+            repository=tmp_path,
+            required_completed_config_ids=tuple(path.stem for path in configs[:3]),
+        )
+
+
+def test_required_completed_reuse_runs_only_unprotected_pending_config(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runner_path, configs = _layout(tmp_path, (1, 2, 3, 4))
+    existing = [
+        _write_attempt(path, sequence=1, status="complete") for path in configs[:3]
+    ]
+    expected = configs[3].parent.parent / "raw" / configs[3].stem / "001-new"
+    calls: list[Path] = []
+
+    def run_one(
+        _config: dict[str, object],
+        *,
+        config_path: Path,
+        command: str,
+    ) -> Path:
+        del command
+        calls.append(config_path)
+        return expected
+
+    _stub_preflight(monkeypatch)
+    monkeypatch.setattr(runner, "_run_one", run_one)
+
+    completed = runner.run_launch(
+        runner_path,
+        configs,
+        repository=tmp_path,
+        required_completed_config_ids=tuple(path.stem for path in configs[:3]),
+    )
+
+    assert calls == [configs[3]]
+    assert completed == [*existing, expected]
+
+
+def test_required_completed_reuse_rechecks_after_taking_lock(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runner_path, configs = _layout(tmp_path, (1, 2))
+    existing = _write_attempt(configs[0], sequence=1, status="complete")
+    required_scans = 0
+
+    def completed_attempt(
+        _config_path: Path,
+        _config: dict[str, object],
+        *,
+        allow_failed_retry: bool,
+    ) -> Path | None:
+        nonlocal required_scans
+        del allow_failed_retry
+        if _config_path != configs[0]:
+            return None
+        required_scans += 1
+        return existing if required_scans == 1 else None
+
+    _stub_preflight(monkeypatch)
+    monkeypatch.setattr(runner, "_completed_attempt_for_config", completed_attempt)
+    monkeypatch.setattr(
+        runner,
+        "_run_one",
+        lambda *_args, **_kwargs: pytest.fail("locked recheck must fail closed"),
+    )
+
+    with pytest.raises(runner.RunnerError, match="001-case.*Refusing to rerun"):
+        runner.run_launch(
+            runner_path,
+            configs,
+            repository=tmp_path,
+            required_completed_config_ids=(configs[0].stem,),
+        )
+
+    assert required_scans == 2
+
+
+@pytest.mark.parametrize(
+    ("required", "message"),
+    (
+        (("001-case", "001-case"), "distinct nonempty"),
+        (("999-case",), "not present"),
+        (("002-case", "001-case"), "runner config order"),
+    ),
+)
+def test_required_completed_reuse_rejects_invalid_tracked_metadata(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    required: tuple[str, ...],
+    message: str,
+) -> None:
+    runner_path, configs = _layout(tmp_path, (1, 2))
+    _stub_preflight(monkeypatch)
+
+    with pytest.raises(runner.RunnerError, match=message):
+        runner.run_launch(
+            runner_path,
+            configs,
+            repository=tmp_path,
+            required_completed_config_ids=required,
+        )
+
+
+def test_required_completed_reuse_cannot_be_overridden_by_failed_retry(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runner_path, configs = _layout(tmp_path, (1, 2))
+    _write_attempt(configs[0], sequence=1, status="failed")
+    _stub_preflight(monkeypatch)
+    monkeypatch.setattr(
+        runner,
+        "direct_launch_guard",
+        lambda **_kwargs: pytest.fail("required failed source must not reach lock"),
+    )
+
+    with pytest.raises(runner.RunnerError, match="001-case.*Refusing to rerun"):
+        runner.run_launch(
+            runner_path,
+            configs,
+            repository=tmp_path,
+            retry_failed=True,
+            required_completed_config_ids=(configs[0].stem,),
+        )
 
 
 def test_case_runner_rejects_same_device_packing() -> None:
@@ -1575,7 +1729,12 @@ def test_parent_runner_rejects_multiple_coherent_completions(
     )
 
     with pytest.raises(runner.RunnerError, match="multiple coherent completed"):
-        runner.run_launch(runner_path, configs, repository=tmp_path)
+        runner.run_launch(
+            runner_path,
+            configs,
+            repository=tmp_path,
+            required_completed_config_ids=(configs[0].stem,),
+        )
 
 
 def test_parent_runner_rechecks_attempt_state_after_taking_lock(
@@ -1619,7 +1778,12 @@ def test_parent_runner_rejects_attempt_from_mutated_config(
     _stub_preflight(monkeypatch)
 
     with pytest.raises(runner.RunnerError, match="inconsistent"):
-        runner.run_launch(runner_path, configs, repository=tmp_path)
+        runner.run_launch(
+            runner_path,
+            configs,
+            repository=tmp_path,
+            required_completed_config_ids=(configs[0].stem,),
+        )
 
 
 @pytest.mark.parametrize("invalid_name", ("launch.py", "01-first-set.py"))

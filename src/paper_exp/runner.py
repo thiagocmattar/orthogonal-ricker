@@ -104,6 +104,7 @@ def run_launch(
     retry_failed: bool | None = None,
     worker_slots: Sequence[WorkerSlot[str]] | None = None,
     parallel_authorization: ParallelLaunchAuthorization | None = None,
+    required_completed_config_ids: Sequence[str] = (),
 ) -> list[Path]:
     """Run one plan-defined config list under a single launch lock.
 
@@ -111,7 +112,9 @@ def run_launch(
     to retrying coherent failed attempts. Direct callers may pass the keyword
     instead. Without worker slots, configs run serially. With at least two
     explicit worker slots, pending configs run under one bounded coordinator
-    with one isolated process per distinct homogeneous GPU.
+    with one isolated process per distinct homogeneous GPU. Config IDs listed
+    in ``required_completed_config_ids`` must already have one coherent
+    completed attempt; the runner fails closed instead of rerunning them.
     """
 
     root = repository_path(repository)
@@ -147,6 +150,33 @@ def run_launch(
             f"received {len(resolved_slots)}."
         )
     config_ids = tuple(path.stem for path in configs)
+    required_completed = tuple(required_completed_config_ids)
+    if (
+        any(
+            not isinstance(config_id, str) or not config_id.strip()
+            for config_id in required_completed
+        )
+        or len(set(required_completed)) != len(required_completed)
+    ):
+        raise RunnerError(
+            "Required completed config IDs must be distinct nonempty strings."
+        )
+    unknown_required = [
+        config_id for config_id in required_completed if config_id not in config_ids
+    ]
+    if unknown_required:
+        raise RunnerError(
+            "Required completed config IDs are not present in this runner: "
+            + ", ".join(unknown_required)
+        )
+    required_set = set(required_completed)
+    runner_order = tuple(
+        config_id for config_id in config_ids if config_id in required_set
+    )
+    if required_completed != runner_order:
+        raise RunnerError(
+            "Required completed config IDs must follow the runner config order."
+        )
     if (
         resolved_slots
         and parallel_authorization is not None
@@ -221,12 +251,14 @@ def run_launch(
         _completed_attempt_for_config(path, config, allow_failed_retry=retry_failed)
         for path, config in loaded
     ]
+    _require_completed_reuse(config_ids, prior_completed, required_completed)
     with direct_launch_guard(repository=root):
         # Close the preflight-to-lock race before creating any new attempt.
         prior_completed = [
             _completed_attempt_for_config(path, config, allow_failed_retry=retry_failed)
             for path, config in loaded
         ]
+        _require_completed_reuse(config_ids, prior_completed, required_completed)
         pending: list[WorkItem[tuple[int, Path, dict[str, Any]]]] = []
         completed_by_config: dict[str, Path] = {}
         for index, ((path, config), existing) in enumerate(
@@ -305,6 +337,25 @@ def run_launch(
 
         completed = [completed_by_config[path.stem] for path, _config in loaded]
     return completed
+
+
+def _require_completed_reuse(
+    config_ids: Sequence[str],
+    completed_attempts: Sequence[Path | None],
+    required_completed_config_ids: Sequence[str],
+) -> None:
+    required = set(required_completed_config_ids)
+    missing = [
+        config_id
+        for config_id, completed in zip(config_ids, completed_attempts, strict=True)
+        if config_id in required and completed is None
+    ]
+    if missing:
+        raise RunnerError(
+            "Required completed reuse is unavailable for: "
+            + ", ".join(missing)
+            + ". Refusing to rerun these configs."
+        )
 
 
 def run_calibrations(
