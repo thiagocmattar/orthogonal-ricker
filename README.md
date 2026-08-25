@@ -91,9 +91,11 @@ After the relevant case groups enter the definitive plan's reviewed scope:
 4. Commit the reviewed runner and configs before launch.
 5. Prepare the declared dataset cache.
 6. Run a calibration when no reliable same-hardware throughput estimate exists.
-7. Execute the case runner; it reuses coherent completed configs and runs new
-   cases serially under one lock. A reviewed infrastructure retry requires the
-   explicit `--retry-failed` flag.
+7. Execute the case runner; it reuses coherent completed configs and, by
+   default, runs new cases serially under one lock. Once the concurrent-launch
+   workboard items are resolved, repeated explicit worker slots enable bounded
+   one-process-per-GPU execution under that same parent. A reviewed
+   infrastructure retry requires the explicit `--retry-failed` flag.
 8. Verify terminal artifacts before running diagnostics or plotting.
 9. Record accepted evidence in the experiment and paper maps.
 
@@ -116,8 +118,9 @@ python experiments/NN-phase-tranche/run/runner.py
 The case runner contains only the ordered config paths and delegates to
 `paper_exp.runner.run_launch`. Its scaffold prefix serializes launches; its
 phase label maps it to the plan. The parent validates the complete tranche,
-requires every config to be a direct sibling of the runner, and stops on the
-first failure. See [`experiments/README.md`](experiments/README.md).
+requires every config to be a direct sibling of the runner, and stops
+admission on the first failure. See
+[`experiments/README.md`](experiments/README.md).
 
 Before launch, report the estimated time to completion (ETC) for the first run
 and the complete tranche, including the estimate basis and uncertainty. Monitor

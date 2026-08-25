@@ -130,8 +130,9 @@ schedule hash. A nominal seed without the realized schedule hash is not a
 matched data order.
 
 Definitive pretraining stops at the exact optimizer-step budget, not a wall
-clock limit. The runbook's 600-second calibration cap is operational and must
-not alter this training condition.
+clock limit. The runbook's calibration accumulates 600 seconds of completed
+optimizer-step time, with other phases reported separately; that operational
+timer must not alter this training condition.
 
 ## Validation and Checkpoints
 

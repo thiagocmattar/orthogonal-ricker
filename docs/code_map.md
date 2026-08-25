@@ -18,8 +18,9 @@ pinned scaffold raw/ -> plots/dispatch.py -> family renderer -> scaffold figs/
 - Every definitive training tranche enters through
   `experiments/NN-<phase>-<tranche>/run/runner.py`, even when the tranche
   contains one config.
-- `runner.py` is the only parent runner. It validates the whole tranche, holds
-  one lock, and launches its committed configs serially.
+- `runner.py` is the only parent runner. It validates the whole tranche and
+  holds one lock. Serial execution is the default; reviewed repeated worker
+  slots select bounded isolated one-process-per-GPU execution.
 - Diagnostics consume exact saved run/checkpoint identities. Plots consume
   saved artifacts only.
 
@@ -34,7 +35,12 @@ Paths below are relative to `src/paper_exp/`.
 | `config.py` | YAML loading; common, training, and diagnostic schema validation; random-initialization plus `model.topology_id`/`model.site_gate` contracts | A reviewed config field or invariant changes |
 | `topology.py` | Canonical transformer-site aliases, exact site metadata, supported topology IDs, active-port sets, and site-gate schema | Site nomenclature, a reviewed topology, or the gate-field contract changes |
 | `launch.py` | Repository/scaffold/config resolution, reviewed-plan and clean-Git gates, owned `raw/` output roots, and the exclusive lock | Launch-wide preflight policy changes |
-| `runner.py` | Generic parent runner, scaffold/config validation, attempt-state resume preflight, completed-config reuse, and serial fail-stop execution | Behavior shared by every case runner changes |
+| `runner.py` | Generic parent runner, scaffold/config validation, attempt-state resume preflight, completed-config reuse, serial execution, and optional bounded isolated GPU workers | Behavior shared by every case runner changes |
+| `parallel.py` | Deterministic bounded admission, slot assignment, failure draining, and unadmitted-work accounting | Shared concurrent-coordinator semantics change |
+| `hardware_profile.py` | Pure non-evidence physical-batch request, result, selection, and artifact contracts | The microbatch profiling grid or operational selection rule changes |
+| `hardware_profile_run.py` | Restart-safe fresh-process hardware-profile coordination and durable attempt/artifact publication | Profile orchestration, retry, or provenance changes |
+| `hardware_profile_worker.py` | CUDA-only random-Pythia/OL1 profiling workload and synchronized operational measurements | The production-shaped profiling workload or timing boundary changes |
+| `infrastructure_smoke.py` | Two-worker failure, drain, explicit recovery, completed reuse, GPU isolation, and evidence report | The combined concurrency/GPU smoke contract changes |
 | `run.py` | Run IDs, immutable config snapshot, running/completed/failed manifests, and atomic artifact writes | The common run envelope or lifecycle changes |
 | `training.py` | Calibration/pretraining orchestration, evaluation, event logging, and final checkpoint publication | The end-to-end training workflow changes |
 | `optimization.py` | AdamW construction, minibatch sampling, LR warmup, naive L1 steps, OL1 post-Adam correction, and norm metrics | Optimizer-step mathematics or step metrics change |

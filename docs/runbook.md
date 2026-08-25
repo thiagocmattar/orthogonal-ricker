@@ -74,12 +74,14 @@ assumptions, and uncertainty, then wait for explicit launch approval. If no
 defensible same-hardware estimate exists, run the plan-approved calibration
 first.
 
-`calibrate` means a 600-second production-shaped timing sample on the launch
-hardware, with setup, training, validation, diagnostics, and checkpoint costs
-reported separately. Its operational duration cap must not change the
-immutable scientific config or truncate definitive pretraining; this remains
-blocked until workboard item `OPS-03` is implemented. A scientific
-learning-rate screen is a normal training tranche and must use a case runner.
+`calibrate` means exactly 600 accumulated seconds inside completed
+production-shaped optimizer steps on the launch hardware. Setup, validation,
+diagnostics, and checkpoint timing are measured and reported separately, so
+total elapsed calibration time is longer than 600 seconds. The operational
+timer is checked only at completed optimizer-step boundaries and cannot enter
+or truncate definitive pretraining. A scientific learning-rate screen is a
+normal training tranche and must use a case runner. `OPS-03` closes only after
+the local implementation is paired with a same-hardware timing artifact.
 
 ## 4. Launch
 
@@ -114,28 +116,31 @@ The parent runner:
   `--retry-failed` recovery flag;
 - aborts before mutation on running, statusless, inconsistent, or ambiguous
   pretraining state;
-- executes one config at a time;
-- stops immediately on the first escaping failure.
+- executes one config at a time unless reviewed worker slots are supplied;
+- stops admitting new configs on the first escaping failure and drains every
+  already-admitted worker to terminal state.
 
 Never start two case runners in parallel. Data preparation and diagnostics run
 one config at a time unless the final plan explicitly adds a serial runner for
 that workflow.
 
-Concurrent execution is planned but remains blocked by workboard items
-`CLOUD-01`, `OPS-05`, and `OPS-06`. The reviewed concurrent design must retain
-one authoritative case-runner coordinator and one complete-tranche preflight,
-then dispatch distinct immutable configs to bounded isolated subprocess/Pod/GPU
-slots with exact-once claims and disjoint attempt roots. Multiple independent
-case runners remain forbidden. On a worker failure, the coordinator stops
-admitting new configs, lets already-running siblings publish terminal state,
-and exits nonzero; it never kills workers in a way that strands `running`
-manifests. A multi-Pod coordinator cannot rely on this repository's local lock.
+Concurrent scientific execution remains disabled until `CLOUD-01`, `OPS-04`,
+`OPS-05`, and `OPS-06` are all resolved. The implemented one-host mode retains
+one authoritative case-runner coordinator, one complete-tranche preflight,
+and one lock, then dispatches distinct immutable configs to bounded fresh
+subprocesses with explicit slots such as:
 
-Before enabling that mode, `OPS-06` must demonstrate actual concurrent GPU
-workers, device/output isolation, durable artifact collection, completion
-reuse, failure draining, and resource teardown using infrastructure-only smoke
-inputs. Same-GPU process packing is allowed only if the `OPS-04` measurements
-show a useful aggregate-throughput gain for the frozen physical batch.
+```bash
+python experiments/NN-phase-tranche/run/runner.py \
+  --worker-slot gpu-0=0 --worker-slot gpu-1=1
+```
+
+Each slot must resolve to one distinct homogeneous BF16-capable physical GPU.
+The parent records slot/GPU assignment provenance, stops admission after a
+failure, drains admitted siblings, and exits nonzero. Multiple case runners,
+same-GPU scientific packing, and multi-Pod scientific dispatch are not
+supported. The infrastructure smoke alone has an explicit shared-GPU test
+mode; passing it does not authorize that shape for experiments.
 
 ### RunPod Operations
 
@@ -162,6 +167,21 @@ The connected MCP schemas and `runpodctl ... --help` are authoritative when a
 skill snapshot and the installed tool differ. MCP OAuth authenticates the MCP
 control plane only; it does not authenticate `runpodctl`.
 
+The repository-ignored Windows client used by this workflow is
+`tmp/runpodctl-v2.8.0.exe`, pinned to official release `v2.8.0` with SHA-256
+`85c8e7daac6f11a1e7047a06113dfbed0d778cc0aac6e57560ce116aca09ada7`.
+Before its first mutating use, the operator must run the following locally and
+enter the API key only in that interactive flow:
+
+```powershell
+.\tmp\runpodctl-v2.8.0.exe doctor
+```
+
+Do not paste the key into chat. Recheck the binary digest and `--help` schema
+after replacement or upgrade. This version supports backend
+`--terminate-after <absolute-UTC-time>` and `--stop-after`; use termination for
+the disposable smoke so cleanup does not depend on the agent remaining alive.
+
 Never print, copy into chat, or commit an API key, private SSH key, registry
 credential, or model/dataset token. Test only whether a credential resolves.
 
@@ -181,7 +201,8 @@ established:
   exact stored public key;
 - the Windows `ssh-agent` remains disabled/stopped but is not required when the
   key is supplied explicitly with `-i`;
-- `runpodctl` has no local installation or authentication; and
+- the pinned workspace-local `runpodctl` binary is verified but still needs
+  its one-time local `doctor` authentication; and
 - a live Pod login remains unverified.
 
 Do not describe this as end-to-end SSH validation until a live Pod accepts the
@@ -195,9 +216,11 @@ Do not loosen or replace the repaired private-key ACL automatically. If a later
 live test reports `Permission denied (publickey)`, verify explicit injection or
 registration of the fingerprint above before changing the Pod or key.
 
-The definitive check is an approved disposable Pod with SSH enabled and a hard
-termination deadline. After retrieving its current host and port, require this
-non-interactive command to return exactly `RUNPOD_SSH_OK` with exit code zero:
+The definitive check is the first assertion of the approved combined
+GPU/concurrency smoke, not a standalone SSH exercise. The disposable Pod must
+have SSH enabled and a backend hard-termination deadline. After retrieving its
+current host and port, require this non-interactive command to return exactly
+`RUNPOD_SSH_OK` with exit code zero:
 
 ```powershell
 $key = "$env:USERPROFILE\.ssh\id_ed25519_runpod"
@@ -230,18 +253,115 @@ infer state from chat history.
 
 #### Persistence and concurrency
 
-Mount persistent storage at `/workspace`. Keep the execution checkout,
-dependency and dataset caches, detached-process logs, ignored raw artifacts,
-and checkpoints below that mount; container-only paths such as `/root` are
-ephemeral. Pin the container image, dependency constraints, and clean Git SHA.
-Long-running commands must survive SSH loss and write their log to
-`/workspace`.
+Mount the Pod volume at `/workspace`. Keep the execution checkout, dependency
+and model caches, detached-process logs, ignored raw artifacts, and checkpoints
+below that mount; container-only paths such as `/root` are ephemeral. A Pod
+volume survives stop/restart but is deleted with the Pod, so retrieve required
+artifacts before termination. Pin the container image, dependency constraints,
+and clean Git SHA. Long-running commands must survive SSH loss and write their
+log to `/workspace`.
 
-One multi-GPU Pod with one authoritative coordinator is the first supported
-parallel shape. Do not run independent case runners or allow concurrent
-writable checkouts on one network volume. Multi-Pod execution remains blocked
-until `OPS-05` defines external exact-once claims, per-worker writable roots,
-durable collection, and shared read-only caches, and `OPS-06` verifies them.
+One multi-GPU Pod with one authoritative coordinator and one writable checkout
+is the supported parallel shape. Do not run independent case runners or allow
+concurrent writable checkouts on one volume. Multi-Pod scientific execution is
+outside this implementation and requires a future reviewed contract rather
+than an ad hoc extension of the local lock.
+
+#### Combined GPU smoke and hardware profile
+
+Run the local fault-injection proof before requesting cloud resources:
+
+```bash
+python -m paper_exp.cli smoke \
+  --config experiments/00-infrastructure-smoke/run/00-smoke.yaml \
+  --worker-slot smoke-0=0 --worker-slot smoke-1=1
+```
+
+The approved live procedure is one combined operation:
+
+1. Re-list Pods and network volumes through MCP; reconcile every existing
+   `osp-` resource before creation.
+2. Create one Secure Cloud two-GPU Pod named `osp-smoke-<short-git-sha>` with
+   SSH, `22/tcp`, an ephemeral Pod volume at `/workspace`, and an absolute
+   backend termination time no more than four hours later. Do not create a
+   network volume for this disposable operation.
+3. Make the non-interactive `RUNPOD_SSH_OK` assertion above. If it fails, retain
+   the deadline, collect the resource state, and either correct explicit key
+   injection or terminate; do not turn it into an open-ended SSH investigation.
+4. Transfer a Git bundle for the approved SHA, verify the bundle, create one
+   checkout under `/workspace`, install the exact constraint snapshot, and
+   require a clean checkout at that SHA. Record the Pod image, driver, CUDA,
+   Python, Torch, Transformers, and GPU identities.
+5. Run the two-GPU smoke below. It proves concurrent overlap, one injected
+   failure, stop-admitting/drain behavior, explicit unchanged recovery,
+   completed-work reuse, distinct stable physical GPU UUIDs, BF16 execution,
+   and disjoint durable attempt roots.
+6. With both GPUs otherwise idle, run the 14M, 70M, and 410M hardware profiles
+   sequentially on one physical GPU. Warm each pinned Hugging Face config cache
+   before profiling; do not overlap profiles or any other GPU process.
+7. Retrieve the smoke and profile artifacts plus checksums and setup log,
+   verify them locally, terminate the Pod, and re-list Pods and volumes until
+   the project inventory is empty.
+
+The pinned base image for this smoke is:
+
+```text
+runpod/pytorch@sha256:4d1721e62b56d345c83b4fd6090664be6daf9312caab5b2e76f23d8231941851
+```
+
+Install the repository with `constraints/requirements-ci.txt`; the live
+environment record, not the image tag, proves the package versions actually
+used. The Pod creation pattern is:
+
+```powershell
+.\tmp\runpodctl-v2.8.0.exe pod create `
+  --name osp-smoke-<short-git-sha> --cloud-type SECURE `
+  --gpu-id "<current-catalog-gpu-id>" --gpu-count 2 `
+  --image "<immutable-image-above>" `
+  --container-disk-in-gb 30 --volume-in-gb 50 `
+  --volume-mount-path /workspace --ports "22/tcp" `
+  --terminate-after "<absolute-UTC-deadline>"
+```
+
+Use the current catalog result rather than copying an old GPU ID, price, or
+data center from this document. The remote concurrency command is:
+
+```bash
+python -m paper_exp.cli smoke \
+  --config experiments/00-infrastructure-smoke/run/00-smoke.yaml \
+  --worker-slot gpu-0=0 --worker-slot gpu-1=1 --require-cuda
+```
+
+The infrastructure-only profile identities are operational sizing inputs, not
+approved paper pins:
+
+| Architecture | Revision |
+| --- | --- |
+| `EleutherAI/pythia-14m-deduped` | `7386d9a4ae45aef494a6e704910394def3037fc5` |
+| `EleutherAI/pythia-70m-deduped` | `f289af01c98892bc173f73d2075d1b9ee19af190` |
+| `EleutherAI/pythia-410m-deduped` | `b5e8535141902c0e985cea61fd02afe7fe86af32` |
+
+For each row, use the exact GPU class observed on the Pod and this command
+shape with a distinct absolute work root:
+
+```bash
+python -m paper_exp.cli profile-hardware \
+  --architecture <architecture> --revision <revision> \
+  --gpu-class "<observed GPU class and VRAM>" \
+  --candidate-microbatches 1,2,4,8,16,32,64,128 --repeats 2 \
+  --cuda-device 0 --worker-timeout-seconds 1200 \
+  --container-image "<immutable-image-above>" \
+  --work-root /workspace/osp-profile/<model>
+```
+
+Selection is only over the supplied grid: every listed candidate must run.
+All repeats must fit within 90% reserved VRAM; candidates within 2% of the
+fastest median core-update throughput prefer lower worst-repeat reserved
+memory. No loss, sparsity, or other scientific result is retained. These
+measurements select the physical-batch decomposition and estimate smoke
+duration only. They are not end-to-end ETC evidence; the separate 600-second
+same-hardware calibration supplies the launch ETC after scientific configs are
+reviewed.
 
 #### Approval, cost guard, and teardown
 

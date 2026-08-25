@@ -43,10 +43,13 @@ if __name__ == "__main__":
     run_launch(__file__, CONFIGS)
 ```
 
-The parent requires the tuple to list every YAML config in `run/` exactly once,
-holds one experiment lock, runs configs serially in increasing prefix order,
-and stops on the first failure. Even a one-config scientific tranche uses its
-runner. Never run case runners in parallel.
+The parent requires the tuple to list every YAML config in `run/` exactly once
+and holds one experiment lock. It runs serially by default. After the
+concurrent-launch workboard items are resolved, repeated explicit worker slots
+permit bounded execution of distinct configs in increasing admission order,
+with one fresh process per physical GPU. The parent stops admission on the
+first failure and drains already-admitted workers. Even a one-config
+scientific tranche uses its runner. Never run case runners in parallel.
 
 `00-infrastructure-smoke/run/00-smoke.yaml` is the only runner-free exception.
 It is an infrastructure check, not a paper experiment or a scientific config
