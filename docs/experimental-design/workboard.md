@@ -27,7 +27,7 @@ copied into this table.
 | `OPS-01` | resolved | A1 config allocation | Validate catalog counts, reviewed design SHA/blobs, exact A1 group membership, config/manifest identity, and duplicate fingerprints | Commit `99c2d03`; all 18 catalog expressions checked; A1-only materialization, strict check, launch preflight, canonical fingerprints, and manifest SHA tests |
 | `OPS-08` | open | A2+ config allocation | Add exact physical-cell materialization contracts for non-A1 groups | Per-group field/grid/decision/reuse tests; current implementation fails closed for every non-A1 group |
 | `OPS-02` | resolved | recovery | Scope resume to pretraining, skip completed configs, require explicit failed-retry authorization, and stop on unsafe state | Commits `8de8324`, `5263dba`, `be0c9a4`; 301 tests, strict check, and infrastructure smoke passed |
-| `OPS-03` | in_progress | calibration/launch | Add a 600-second calibration-only limit that cannot truncate definitive pretraining; record setup, train, validation, diagnostic, and checkpoint timing separately | Commit `242c439` and local lifecycle tests; production-shaped same-hardware timing artifact still required |
+| `OPS-03` | resolved | calibration/launch | Add a 600-second calibration-only limit that cannot truncate definitive pretraining; record setup, train, validation, diagnostic, and checkpoint timing separately | Commit `242c439`, local lifecycle tests, and the accepted [A1 same-hardware calibration](a1-calibration-packet.md); acceptance digest `d6b12d230e1b82a5b57f75857283b1b84690cadfe8264742e4e2b7456a051216` |
 | `OPS-04` | resolved | A1+ | Freeze the Pythia-14M physical microbatch and gradient-accumulation decomposition on A40 48GB while preserving 128 sequences per optimizer update | Commits `0852a2e`, `037a705`, `131a142`; live idle-GPU profile selected microbatch 16 / accumulation 8; value explicitly approved on 2026-08-25 |
 | `OPS-07` | in_progress | C1+ | Review/freeze the proposed Pythia-70M and Pythia-410M physical-batch decompositions on their pinned RunPod GPU class | Live idle-A40 profiles exist and proposals are recorded in `protocol.md`; scale-up value review remains outside the A1 packet |
 | `CLOUD-01` | resolved | cloud smoke/launch | Set up RunPod for agent operation from the official `agent-setup.md`: install the skill bundle and Codex marketplace plugin, complete user OAuth, and define secure storage, environment, provenance, and teardown practice | Commits `8fc134b`, `82f67d3`; authenticated MCP and pinned `runpodctl` v2.8.0; [operator procedure](../runbook.md#runpod-operations); Pod `zv71bv4m85nvhu` in `CA-MTL-1` passed live SSH/GPU proof on 2026-08-25, artifacts were retrieved, and MCP plus CLI inventory checks after deletion returned no Pods or volumes; artifact-pack SHA-256 `65ac472668b347ff74aab7886160cbc4674a8bd533cc037d92e171635e81623c` |
@@ -44,7 +44,7 @@ Readiness is derived from this table, the reviewed case-group scope, and
 
 | Stage | State | Required closure/decision |
 | --- | --- | --- |
-| A1 | ready | Group `A1-lr-screen` reviewed at design commit `54be534f383001b4af3d3b43597e135d4ca6653d`; exact configs `001`–`003` materialized; live `OPS-03` calibration and launch approval remain recurring prelaunch checks |
+| A1 | ready | Group `A1-lr-screen` reviewed at design commit `54be534f383001b4af3d3b43597e135d4ca6653d`; exact configs `001`–`003` materialized; same-hardware calibration accepted; definitive launch and its resource envelope remain unapproved |
 | A2 | blocked | Reviewed A2 groups; A1 decision `lr_14m`; `DIAG-02`, `OPS-08` |
 | A3 | blocked | Reviewed group `A3-ol1-screen`; A2 complete; `METHOD-02`, `DIAG-03`, `OPS-08` |
 | B1 | blocked | Reviewed group `B1-threshold-screen`; A2 terminal interpretation; `METHOD-01`, `DIAG-01`, `OPS-08` |
@@ -61,10 +61,10 @@ moving to the next item.
 ## Recurring Prelaunch Checks
 
 After a case group is reviewed and its configs are committed, every tranche
-still needs the runbook preflight, the `OPS-03` calibration facility, a
-production-shaped same-hardware timing sample, first-run/full-tranche ETCs,
-and explicit launch approval. These are launch checks, not plan-review
-blockers.
+still needs the runbook preflight, a production-shaped same-hardware timing
+sample, first-run/full-tranche ETCs, and explicit launch approval. These are
+launch checks, not plan-review blockers. A1 has completed its timing sample;
+later tranches must supply their own.
 
 `CLOUD-01`, `OPS-04`, `OPS-05`, and `OPS-06` support the approved A1
 calibration shape, but their resolution is not scientific-launch or spending

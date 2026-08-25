@@ -14,6 +14,7 @@ Pythia-14M discovery and Pythia-70M/410M replication program.
 | --- | --- |
 | Advisor review | [`executive.md`](executive.md) |
 | Formal A1 review | [`a1-review-packet.md`](a1-review-packet.md) |
+| A1 calibration and ETC | [`a1-calibration-packet.md`](a1-calibration-packet.md) |
 | Shared scientific configuration | [`protocol.md`](protocol.md) |
 | Stage design or selection | [Phase A](phases/a-pressure.md), [B](phases/b-threshold.md), or [C](phases/c-scale.md), plus [`cases.yaml`](cases.yaml) |
 | Config allocation or reuse | [`cases.yaml`](cases.yaml), [`run-reuse.md`](run-reuse.md), and [`../../experiments/README.md`](../../experiments/README.md) |

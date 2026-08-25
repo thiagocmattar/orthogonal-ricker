@@ -3,8 +3,9 @@
 **Status:** formally approved at design commit
 `54be534f383001b4af3d3b43597e135d4ca6653d`; the manifest reviews only
 `A1-lr-screen`. Its three immutable configs are materialized under
-`experiments/01-a1-lr-screen/`. RunPod spending, calibration, and definitive
-pretraining still require their separate approvals.
+`experiments/01-a1-lr-screen/`. The separately approved calibration is now
+accepted in [`a1-calibration-packet.md`](a1-calibration-packet.md); definitive
+pretraining and any new RunPod spending remain unapproved.
 
 This packet summarizes the exact `A1-lr-screen` scope for review at one Git
 commit. If any summary conflicts with a normative component listed in
@@ -54,9 +55,9 @@ package, device, and attempt provenance.
 | Strict repository check | 0 errors, 0 warnings |
 | Local infrastructure smoke | Completed at `experiments/00-infrastructure-smoke/raw/00-smoke/009-20260825-130526-1a34bf17/`; not scientific evidence |
 
-Every A1 input, implementation, identity, and physical-batch workboard item is
-resolved. `OPS-03` intentionally remains a prelaunch check until the approved
-production-shaped same-hardware calibration artifact exists.
+Every A1 input, implementation, identity, physical-batch, and calibration
+workboard item is resolved. The calibration is operational ETC evidence only,
+not an A1 learning-rate result.
 
 ## Effect of Formal Approval
 

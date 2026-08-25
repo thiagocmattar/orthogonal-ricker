@@ -269,6 +269,20 @@ running manifest, and latest event before acting. An existing runner or an
 ambiguous `running` attempt means monitor only: never start another runner or
 infer state from chat history.
 
+Do not assume the Pod ID is injected into the container. Before launching a
+worker, compare the MCP/control-plane Pod ID with any existing
+`RUNPOD_POD_ID`; if the variable is absent, export the exact control-plane ID:
+
+```bash
+test -n "${RUNPOD_POD_ID:-}" || export RUNPOD_POD_ID="<exact-pod-id>"
+test "$RUNPOD_POD_ID" = "<exact-pod-id>"
+```
+
+The running and terminal manifests must then record that ID. A separate
+control-plane record was accepted as an explicit limitation for the 2026-08-25
+A1 calibration, but it is not a substitute for manifest-level Pod identity in
+definitive runs.
+
 #### Persistence and concurrency
 
 Mount the Pod volume at `/workspace`. Keep the execution checkout, dependency
