@@ -44,9 +44,10 @@ initial pair overlapped for 693.34 seconds by lifecycle and approximately
 seconds because both workers initialized the model and cache together; this
 did not affect steady-state training throughput.
 
-These measurements validate the coordinator and hardware decomposition. They
-do not authorize concurrent definitive training and cannot select a learning
-rate.
+These measurements validate the coordinator and hardware decomposition. The
+calibration alone did not authorize concurrent definitive training and cannot
+select a learning rate; the later operational amendment below remains subject
+to its own committed launch and spending approvals.
 
 ## Calibrated ETC
 
@@ -65,7 +66,7 @@ The solo projection is:
 | Scope from runner start | Point ETC | Planning range | Conservative cap |
 | --- | ---: | ---: | ---: |
 | First run | 39m 41s | 37m 43s-43m 36s | 45m 34s |
-| Three-run serial tranche | 1h 59m 03s | 1h 53m-2h 11m | 2h 17m |
+| Three-run serial reference | 1h 59m 03s | 1h 53m-2h 11m | 2h 17m |
 
 The planning range applies -5%/+10% to training time; the cap applies +15%.
 Provisioning, transfer, dependency setup, retrieval, and teardown are outside
@@ -79,6 +80,10 @@ The approved calibration consumed **$0.7623164963**, measured by account
 balance delta across two short unavailable allocations and the execution Pod;
 this is below the $3.57 ceiling. The detailed billing ledger had not posted at
 teardown, so the balance delta is the cost authority for this packet.
+
+The following was this packet's original recommendation and is preserved as a
+historical reference, but it is **superseded** by the bounded two-A40
+operational amendment below.
 
 For definitive A1, use **one Secure A40 and the serial tranche runner**. At the
 2026-08-25 catalog price of $0.44/A40-hour, the three-run point compute cost is
@@ -94,6 +99,35 @@ $0.10/GB/month, the combined 80 GB adds about $0.034 for three hours; round the
 and an exact absolute termination timestamp immediately before requesting
 spending approval and creating the Pod.
 
+### Selected two-A40 amendment
+
+The selected definitive shape is the same bounded decomposition validated by
+calibration: the three committed configs run through one case-runner
+coordinator and one repository lock on one Pod, using exactly two worker slots
+mapped one-to-one to distinct homogeneous A40 GPUs. The coordinator admits two
+configs in committed order, admits the third only after a slot becomes free,
+stops new admission on the first failure, and drains admitted workers.
+
+The calibrated two-wave ETC is:
+
+| Scope | Point | Planning range | Conservative bound |
+| --- | ---: | ---: | ---: |
+| First completion | 40m 56s | 38m 58s-44m 51s | 46m 48s |
+| Three-run runner | 1h 20m 49s | 1h 16m 54s-1h 28m 39s | 1h 32m 34s |
+| From Pod creation | 1h 32m 46s | 1h 28m 51s-1h 40m 36s | 1h 44m 31s |
+
+The runner ETC excludes provisioning, transfer, dependency setup, retrieval,
+and teardown; the final row adds the measured 11m 57s provisioning/setup
+interval. The ranges are sensitivity bands, not confidence intervals. The
+historical $0.44/A40-hour price implies roughly $1.19 of runner compute only,
+but it is not a current quote or spending authorization.
+
+`TODO:` immediately before provisioning, query live two-A40 Secure Cloud
+capacity and price, confirm balance and the clean execution SHA, then report
+the exact total-cost ceiling and absolute termination deadline for separate
+spending approval. Do not substitute the superseded one-A40 `$1.36` ceiling or
+its three-hour window.
+
 ## Limitation and Required Operator Fix
 
 RunPod did not inject `RUNPOD_POD_ID`, so the concurrent calibration manifests
@@ -107,13 +141,21 @@ an operational provenance fix, not a scientific failure of the calibration.
 
 ## Next Sequence
 
-1. Commit this packet and the RunPod provenance procedure; do not change the
-   A1 configs.
-2. Obtain explicit definitive A1 approval at that exact Git SHA.
-3. Recheck one-A40 capacity and price, calculate the absolute three-hour
-   termination deadline, and obtain the separate spending approval.
-4. Transfer a clean bundle and frozen cache, export the Pod ID, run
-   `experiments/01-a1-lr-screen/run/runner.py` serially, and monitor read-only.
+1. Use bounded-A1 implementation commit `a23c56d`; do not change the A1 configs
+   or normative design components.
+2. Verify resolved `OPS-09`, the final clean execution SHA, and the complete
+   preflight, then obtain explicit definitive A1 approval at that exact SHA.
+3. Recheck two-A40 capacity and price, calculate the exact total-cost ceiling
+   and absolute termination deadline, and obtain separate spending approval.
+4. Transfer a clean bundle and frozen cache, export the Pod ID, and run one
+   coordinator while monitoring read-only:
+
+   ```bash
+   python experiments/01-a1-lr-screen/run/runner.py \
+     --worker-slot gpu-0=0 \
+     --worker-slot gpu-1=1
+   ```
+
 5. Retrieve and verify all three definitive attempts before deleting the Pod;
    then classify the cells and select the A1 learning rate under the reviewed
    rule.

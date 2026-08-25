@@ -19,8 +19,10 @@ pinned scaffold raw/ -> plots/dispatch.py -> family renderer -> scaffold figs/
   `experiments/NN-<phase>-<tranche>/run/runner.py`, even when the tranche
   contains one config.
 - `runner.py` is the only parent runner. It validates the whole tranche and
-  holds one lock. Definitive pretraining is serial; bounded isolated worker
-  slots are exposed only by calibration, not by a case runner.
+  holds one lock. Definitive pretraining is serial by default; the exact
+  `A1-lr-screen` case runner may use bounded isolated worker slots on one
+  homogeneous two-A40 Pod. Calibration uses the same worker engine but remains
+  a separate non-evidence workflow.
 - Diagnostics consume exact saved run/checkpoint identities. Plots consume
   saved artifacts only.
 
@@ -36,7 +38,7 @@ Paths below are relative to `src/paper_exp/`.
 | `design.py` | Reviewed-design SHA/blob validation, catalog counts and aliases, canonical condition fingerprints, duplicate detection, and exact group materialization guards | A case group becomes materializable or the reviewed identity/reuse contract changes |
 | `topology.py` | Canonical transformer-site aliases, exact site metadata, supported topology IDs, active-port sets, and site-gate schema | Site nomenclature, a reviewed topology, or the gate-field contract changes |
 | `launch.py` | Repository/scaffold/config resolution, reviewed-plan and clean-Git gates, owned `raw/` output roots, and the exclusive lock | Launch-wide preflight policy changes |
-| `runner.py` | Serial parent runner, scaffold/config validation, attempt-state resume preflight, completed-config reuse, and bounded calibration-only GPU coordination | Case-runner or calibration-coordinator behavior changes |
+| `runner.py` | Serial-default parent runner, scaffold/config validation, attempt-state resume preflight, completed-config reuse, config-bound parallel authorization, isolated two-GPU coordination, and bounded calibration coordination | Case-runner or calibration-coordinator behavior changes |
 | `parallel.py` | Deterministic bounded admission, slot assignment, failure draining, and unadmitted-work accounting | Shared concurrent-coordinator semantics change |
 | `hardware_profile.py` | Pure non-evidence physical-batch request, result, selection, and artifact contracts | The microbatch profiling grid or operational selection rule changes |
 | `hardware_profile_run.py` | Restart-safe fresh-process hardware-profile coordination and durable attempt/artifact publication | Profile orchestration, retry, or provenance changes |

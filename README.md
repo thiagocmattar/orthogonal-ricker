@@ -10,9 +10,10 @@ plotting utilities.
 [`docs/experimental-design/`](docs/experimental-design/README.md) contains the
 modular proposal for the lean 14M discovery and 70M/410M replication program;
 its [executive brief](docs/experimental-design/executive.md) is advisor-facing.
-Neither authorizes scientific launches. The sole launch gate remains
-[`docs/experiment_plan.md`](docs/experiment_plan.md), currently marked
-`Plan status: placeholder`.
+The sole scientific-scope authority is
+[`docs/experiment_plan.md`](docs/experiment_plan.md). It currently reviews only
+`A1-lr-screen`; every definitive launch and cloud resource envelope still
+requires its own explicit approval.
 
 The tracked release tree intentionally contains no earlier campaign configs, reports, or
 results. Those remain available through Git history on the branches and commits
@@ -94,9 +95,10 @@ After the relevant case groups enter the definitive plan's reviewed scope:
    A1 may calibrate distinct configs concurrently under one coordinator and
    lock, with one process per distinct homogeneous GPU.
 7. Execute the case runner; it reuses coherent completed configs and runs new
-   cases serially under one lock. Worker slots fail closed for definitive
-   pretraining. A reviewed infrastructure retry requires the explicit
-   `--retry-failed` flag.
+   cases serially by default under one lock. The exact `A1-lr-screen` tranche
+   may use exactly two worker slots mapped one-to-one to distinct homogeneous
+   A40 GPUs on one Pod under that same coordinator and lock. A reviewed
+   infrastructure retry requires the explicit `--retry-failed` flag.
 8. Verify terminal artifacts before running diagnostics or plotting.
 9. Record accepted evidence in the experiment and paper maps.
 
@@ -111,7 +113,10 @@ make calibrate CONFIG=experiments/NN-phase-tranche/run/CCC-case.yaml
 
 The reviewed A1 calibration can instead pass its three distinct configs and
 two explicit GPU slots to one CLI coordinator; see the runbook. This is an
-operational timing workflow, not concurrent definitive pretraining.
+operational timing workflow and is never reused as pretraining evidence. The
+separately selected definitive A1 shape uses the same bounded two-GPU
+decomposition through its case runner; it remains a distinct launch requiring
+the committed execution policy plus explicit launch and spending approvals.
 
 Every definitive training tranche, even one containing a single config, uses
 its committed case runner:
@@ -120,11 +125,14 @@ its committed case runner:
 python experiments/NN-phase-tranche/run/runner.py
 ```
 
-The case runner contains only the ordered config paths and delegates to
-`paper_exp.runner.run_launch`. Its scaffold prefix serializes launches; its
-phase label maps it to the plan. The parent validates the complete tranche,
-requires every config to be a direct sibling of the runner, and stops
-admission on the first failure. See
+The case runner contains the ordered config paths and delegates to
+`paper_exp.runner.run_launch`. A reviewed bounded exception may also carry
+tracked operational authorization; A1 binds it to the exact three config IDs,
+two workers, and A40 identity. Its scaffold prefix and lock serialize
+coordinator invocations. The parent validates the complete tranche, requires
+every config to be a direct sibling of the runner, and stops admission on the
+first failure. The A1 exception may have two already-admitted workers, which
+are drained to terminal state. See
 [`experiments/README.md`](experiments/README.md).
 
 Before launch, report the estimated time to completion (ETC) for the first run

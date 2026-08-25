@@ -91,6 +91,11 @@ separate approval of its exact resource and cost envelope.
    pretraining remains serial unless a later policy and plan review explicitly
    authorizes otherwise.
 
+That later scheduling-only review is now recorded in
+[`experiment_plan.md`](../experiment_plan.md) and
+[`a1-calibration-packet.md`](a1-calibration-packet.md). It does not change this
+packet's scientific contract or its reviewed-design identity.
+
 The calibrated ETC must be based on the 1,526-update production schedule. No
 ETC or cost estimate derived from the superseded 5,691-update horizon is valid
 for launch approval.

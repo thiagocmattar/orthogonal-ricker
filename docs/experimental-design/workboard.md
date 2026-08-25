@@ -31,8 +31,9 @@ copied into this table.
 | `OPS-04` | resolved | A1+ | Freeze the Pythia-14M physical microbatch and gradient-accumulation decomposition on A40 48GB while preserving 128 sequences per optimizer update | Commits `0852a2e`, `037a705`, `131a142`; live idle-GPU profile selected microbatch 16 / accumulation 8; value explicitly approved on 2026-08-25 |
 | `OPS-07` | in_progress | C1+ | Review/freeze the proposed Pythia-70M and Pythia-410M physical-batch decompositions on their pinned RunPod GPU class | Live idle-A40 profiles exist and proposals are recorded in `protocol.md`; scale-up value review remains outside the A1 packet |
 | `CLOUD-01` | resolved | cloud smoke/launch | Set up RunPod for agent operation from the official `agent-setup.md`: install the skill bundle and Codex marketplace plugin, complete user OAuth, and define secure storage, environment, provenance, and teardown practice | Commits `8fc134b`, `82f67d3`; authenticated MCP and pinned `runpodctl` v2.8.0; [operator procedure](../runbook.md#runpod-operations); Pod `zv71bv4m85nvhu` in `CA-MTL-1` passed live SSH/GPU proof on 2026-08-25, artifacts were retrieved, and MCP plus CLI inventory checks after deletion returned no Pods or volumes; artifact-pack SHA-256 `65ac472668b347ff74aab7886160cbc4674a8bd533cc037d92e171635e81623c` |
-| `OPS-05` | resolved | concurrent calibration | Implement bounded execution under one authoritative one-host coordinator and lock; keep definitive pretraining serial | Prior infrastructure commits through `b62f03b` plus commit `99c2d03`; live two-GPU isolation proof; calibration accepts distinct configs on distinct homogeneous GPUs, while case-runner worker slots, same-GPU packing, and multi-Pod mode fail closed |
+| `OPS-05` | resolved | concurrent calibration | Implement bounded execution under one authoritative one-host coordinator and lock; definitive pretraining was serial at this calibration milestone | Prior infrastructure commits through `b62f03b` plus commit `99c2d03`; live two-GPU isolation proof; calibration accepts distinct configs on distinct homogeneous GPUs. The later exact-A1 exception is owned by `OPS-09`; same-GPU packing and multi-Pod mode still fail closed |
 | `OPS-06` | resolved | concurrency infrastructure | Validate the bounded RunPod worker workflow with infrastructure-only smoke tests before any scientific use | Commit `b62f03b`; live report SHA-256 `2c356f51bd0068c7fd2d39ac5bbd70c3c4b3a43e53d101e7a3595f08c16bde17` proves overlap, injected failure/drain, same-coordinator-invocation recovery, completed reuse, BF16, and distinct GPUs; artifact retrieved and both RunPod inventories verified empty |
+| `OPS-09` | resolved | definitive A1 launch | Expose bounded config-level concurrency only to the exact `A1-lr-screen` case runner: one coordinator and lock, one Pod, exactly two distinct homogeneous A40 slots, stable admission, failure stop-and-drain, and unchanged per-config reuse/retry semantics | Commit `a23c56d`; authorization is bound to the ordered A1 config IDs, two workers, and `NVIDIA A40`; 74 focused runner/scheduler tests and the full 480-pass suite passed, with strict check at 0 errors/warnings and infrastructure smoke completed |
 | `PLOT-01` | open | paper release | Implement the three declared figure families from pinned artifacts | Deterministic plot tests, PDF/PNG, provenance sidecars |
 | `MAN-01` | open | manuscript release | Remove or separately validate out-of-scope 12B/long-context claims and enforce claim wording | Reviewed introduction consistent with `outputs.md` |
 
@@ -44,7 +45,7 @@ Readiness is derived from this table, the reviewed case-group scope, and
 
 | Stage | State | Required closure/decision |
 | --- | --- | --- |
-| A1 | ready | Group `A1-lr-screen` reviewed at design commit `54be534f383001b4af3d3b43597e135d4ca6653d`; exact configs `001`–`003` materialized; same-hardware calibration accepted; definitive launch and its resource envelope remain unapproved |
+| A1 | ready | Group `A1-lr-screen` reviewed at design commit `54be534f383001b4af3d3b43597e135d4ca6653d`; exact configs `001`–`003` materialized; same-hardware calibration accepted; `OPS-09` resolved; definitive launch approval and its live resource envelope remain pending |
 | A2 | blocked | Reviewed A2 groups; A1 decision `lr_14m`; `DIAG-02`, `OPS-08` |
 | A3 | blocked | Reviewed group `A3-ol1-screen`; A2 complete; `METHOD-02`, `DIAG-03`, `OPS-08` |
 | B1 | blocked | Reviewed group `B1-threshold-screen`; A2 terminal interpretation; `METHOD-01`, `DIAG-01`, `OPS-08` |
@@ -66,9 +67,11 @@ sample, first-run/full-tranche ETCs, and explicit launch approval. These are
 launch checks, not plan-review blockers. A1 has completed its timing sample;
 later tranches must supply their own.
 
-`CLOUD-01`, `OPS-04`, `OPS-05`, and `OPS-06` support the approved A1
+`CLOUD-01`, `OPS-04`, `OPS-05`, and `OPS-06` support the accepted A1
 calibration shape, but their resolution is not scientific-launch or spending
-authorization. `AGENTS.md` requires serial definitive pretraining. The only
-additional concurrency currently authorized is bounded calibration under one
-coordinator and lock, with one process per distinct homogeneous physical GPU;
-multiple runners, same-GPU packing, and multi-Pod execution remain forbidden.
+authorization. `OPS-09` owns the selected definitive A1 exception: its three
+committed configs may run under one coordinator and lock on one Pod with
+exactly two worker slots mapped one-to-one to distinct homogeneous A40 GPUs.
+All other definitive tranches remain serial by default. Multiple runners,
+same-GPU packing, heterogeneous slots, and multi-Pod execution remain
+forbidden.

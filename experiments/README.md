@@ -29,7 +29,7 @@ serve more than one tranche.
 Everything needed to reproduce a tranche belongs in its `run/` directory and
 is tracked by Git. A scientific scaffold contains exactly one thin
 `run/runner.py` and all of its immutable configs directly beside it. The runner
-declares only the ordered config paths and delegates to the shared parent:
+declares the ordered config paths and delegates to the shared parent:
 
 ```python
 from paper_exp.runner import run_launch
@@ -43,13 +43,20 @@ if __name__ == "__main__":
     run_launch(__file__, CONFIGS)
 ```
 
+A reviewed bounded execution exception may additionally declare tracked
+operational authorization in that runner. The A1 authorization is bound to its
+exact three config IDs, exactly two workers, and the `NVIDIA A40` identity; no
+other current runner carries such authorization.
+
 The parent requires the tuple to list every YAML config in `run/` exactly once,
-holds one experiment lock, and runs configs serially under the current
-repository policy. Bounded worker slots are available only to the separate
-calibration command; a case runner rejects them. Enabling concurrent definitive
-pretraining requires an explicit `AGENTS.md` policy revision and a compatible
-reviewed plan. Even a one-config scientific tranche uses its runner. Never run
-case runners in parallel.
+holds one experiment lock, and runs configs serially by default. The exact
+`A1-lr-screen` tranche may use one coordinator on one Pod with exactly two
+worker slots mapped one-to-one to distinct homogeneous A40 GPUs. It admits at
+most two configs in committed order, stops new admission on the first failure,
+and drains already-admitted workers. All other definitive tranches remain
+serial unless a later reviewed policy says otherwise. Even a one-config
+scientific tranche uses its runner. Never run case runners in parallel, pack
+two workers onto one GPU, mix GPU types, or dispatch one launch across Pods.
 
 `00-infrastructure-smoke/run/00-smoke.yaml` is the only runner-free exception.
 It is an infrastructure check, not a paper experiment or a scientific config

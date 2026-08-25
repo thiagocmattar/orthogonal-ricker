@@ -7,8 +7,14 @@ Reviewed case groups: [A1-lr-screen]
 > **Launch scope:** only `A1-lr-screen` is reviewed. Its configs are
 > materialized and its separately approved calibration is accepted in
 > [`a1-calibration-packet.md`](experimental-design/a1-calibration-packet.md).
-> Definitive pretraining and any new RunPod spending still require separate
-> explicit approvals.
+> Its selected operational execution shape is one case-runner coordinator and
+> one repository lock on one Pod, using exactly two worker slots mapped
+> one-to-one to distinct homogeneous A40 GPUs. The coordinator admits at most
+> two of the three committed configs in order, stops new admission on the first
+> failure, and drains admitted workers. This changes scheduling only: the
+> scientific contract, immutable configs, condition fingerprints, and reviewed
+> design commit remain unchanged. Definitive launch at the resulting execution
+> SHA and any new RunPod spending still require separate explicit approvals.
 
 The [`A1 formal review packet`](experimental-design/a1-review-packet.md) was
 approved at the exact reviewed design commit above. This permits materializing

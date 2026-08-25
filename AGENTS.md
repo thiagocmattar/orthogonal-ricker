@@ -26,10 +26,9 @@ Then read the document that owns the task:
 
 The reviewed `docs/experiment_plan.md` and the exact normative components it
 lists are the authority for datasets, models, budgets, seeds, comparisons,
-promotion rules, diagnostics, and paper outputs. Its current status is a
-placeholder, so do not create or launch scientific configs until the user
-reviews the definitive plan. Only case groups named in its reviewed scope may
-be materialized. Use
+promotion rules, diagnostics, and paper outputs. Its current reviewed scope is
+limited to `A1-lr-screen`; do not materialize or launch any other scientific
+case group until the user reviews an expanded definitive plan. Use
 `docs/experimental-design/cases.yaml` and
 `docs/experimental-design/run-reuse.md` to ensure one physical config per
 scientific condition and seed.
@@ -64,16 +63,23 @@ scientific condition and seed.
 - The tracked `run/` directory contains one thin `runner.py` and every
   immutable config for the tranche. Never scatter tranche runners or configs
   into repository-level directories.
-- A case runner contains only the ordered config paths and calls the single
-  parent, `paper_exp.runner.run_launch`.
+- A case runner contains the ordered config paths and calls the single parent,
+  `paper_exp.runner.run_launch`. Only a reviewed bounded execution exception
+  may add explicit tracked operational authorization metadata; A1 binds that
+  metadata to its exact three config IDs, two workers, and A40 GPU identity.
 - Definitive configs are named `CCC-<case>.yaml`; prefixes are globally unique
   and sequential. Raw attempts use
   `raw/CCC-<case>/001-<timestamp>-<id>/` inside the owning scaffold.
 - Run every definitive tranche through its case runner, including a tranche
   with one config. Never launch case runners in parallel.
-- The parent validates the complete tranche, holds one lock, executes configs
-  serially, and stops on the first failure. Keep scientific selection and
-  phase-specific behavior out of the parent.
+- The parent validates the complete tranche and holds one lock. It executes
+  configs serially by default. The exact `A1-lr-screen` tranche may instead
+  use one coordinator on one Pod with exactly two worker slots mapped
+  one-to-one to distinct homogeneous A40 GPUs. That coordinator admits at
+  most two configs in committed order, stops new admission on the first
+  failure, and drains every admitted worker. Multiple case runners, same-GPU
+  packing, heterogeneous slots, and multi-Pod dispatch remain forbidden. Keep
+  scientific selection and phase-specific behavior out of the parent.
 - Before a launch, report first-run and full-tranche ETCs, projected completion
   time, evidence, assumptions, and uncertainty. Follow `docs/runbook.md` for
   status and recovery; wait for explicit launch approval, and keep monitoring

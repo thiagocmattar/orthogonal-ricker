@@ -49,9 +49,11 @@ Scaffold numbers define launch order. Config numbers are globally unique and
 define case order across scaffolds. Do not reserve or create later scaffold
 recipes before their inputs and promotion rules are known.
 
-Each case runner contains only an ordered `CONFIGS` tuple and a call to
-`paper_exp.runner.run_launch`. Shared mechanics belong in the parent; science
-belongs in configs and the reviewed plan.
+Each case runner contains an ordered `CONFIGS` tuple and a call to
+`paper_exp.runner.run_launch`. A reviewed bounded execution exception may add
+tracked operational authorization bound to exact config IDs, worker count,
+and GPU identity; A1 is the only current exception. Shared mechanics belong in
+the parent; science belongs in configs and the reviewed plan.
 
 ## 3. Preflight and ETC
 
@@ -125,6 +127,19 @@ tranche with only one config:
 python experiments/NN-phase-tranche/run/runner.py
 ```
 
+Serial execution is the default. The exact A1 definitive shape uses its same
+committed case runner with two explicit slots on one homogeneous two-A40 Pod:
+
+```bash
+python experiments/01-a1-lr-screen/run/runner.py \
+  --worker-slot gpu-0=0 \
+  --worker-slot gpu-1=1
+```
+
+This is one coordinator, one repository lock, and one writable checkout. It
+admits at most two configs in committed order, with one process per distinct
+physical A40 GPU; it is not two case-runner invocations.
+
 The parent runner:
 
 - requires the runner and configs to be tracked;
@@ -141,7 +156,10 @@ The parent runner:
   `--retry-failed` recovery flag;
 - aborts before mutation on running, statusless, inconsistent, or ambiguous
   pretraining state;
-- executes one config at a time under the current repository policy;
+- executes one config at a time by default;
+- for the exact `A1-lr-screen` tranche only, accepts exactly two worker slots
+  mapped one-to-one to distinct homogeneous A40 GPUs on one Pod and admits at
+  most two pending configs in committed order;
 - stops admitting new configs on the first escaping failure and drains every
   already-admitted worker to terminal state.
 
@@ -150,18 +168,19 @@ one config at a time unless the final plan explicitly adds a serial runner for
 that workflow.
 
 The isolated worker engine is implemented and live-validated for
-infrastructure smoke and is now exposed only by bounded calibration.
-`AGENTS.md` requires serial definitive pretraining, and the case runner rejects
-worker slots. Enabling concurrent definitive runs would require an explicit
-repository-policy revision, a compatible reviewed plan, and separate launch
-approval. Multiple case runners, same-GPU packing, and multi-Pod dispatch
-remain unsupported.
+infrastructure smoke and bounded calibration. The selected A1 operational
+amendment exposes it to that exact definitive tranche through the config-bound
+authorization committed in `a23c56d`. Other definitive tranches remain serial
+by default. Multiple case runners, same-GPU packing, heterogeneous worker
+slots, and multi-Pod dispatch remain unsupported.
 
 ### RunPod Operations
 
 This subsection is the operator procedure for RunPod. It does not relax the
-launch gate above: while `experiment_plan.md` is a placeholder, RunPod may be
-used only for explicitly identified infrastructure profiling and smoke work.
+launch gate above. Only case groups in the reviewed `experiment_plan.md` scope
+may run scientifically, and every definitive launch and billable envelope
+requires its own explicit approval. Other RunPod use is limited to explicitly
+identified infrastructure profiling and smoke work.
 
 #### Skill and tool routing
 
@@ -294,7 +313,9 @@ and clean Git SHA. Long-running commands must survive SSH loss and write their
 log to `/workspace`.
 
 One multi-GPU Pod with one authoritative coordinator and one writable checkout
-is the supported parallel shape. Do not run independent case runners or allow
+is the supported parallel shape. For definitive pretraining, that support is
+currently limited to the exact two-A40 `A1-lr-screen` launch above; other
+tranches remain serial. Do not run independent case runners or allow
 concurrent writable checkouts on one volume. Multi-Pod scientific execution is
 outside this implementation and requires a future reviewed contract rather
 than an ad hoc extension of the local lock.
