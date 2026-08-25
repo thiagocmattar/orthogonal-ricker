@@ -17,6 +17,7 @@ from paper_exp.utils import read_json, write_jsonl
 from . import clipping_evaluation as _evaluation
 from .evaluation import eval_starts, select_device, select_dtype
 from .sources import portable_path as _portable_path
+from .sources import require_completed_pretraining_manifest
 from .sources import resolve_source_path
 
 
@@ -377,6 +378,7 @@ def _validate_clipping_source(run_path: Path, manifest: Any) -> Path:
         raise ValueError(f"Clipping source manifest identity does not match its path: {run_path}")
     if manifest.get("status") != "completed":
         raise ValueError(f"Clipping source run is not completed: {run_path}")
+    require_completed_pretraining_manifest(manifest, source_run=run_path)
     checkpoint = manifest.get("checkpoint")
     if not isinstance(checkpoint, dict) or checkpoint.get("saved") is not True:
         raise ValueError(f"Clipping source run has no saved checkpoint: {run_path}")

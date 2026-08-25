@@ -13,6 +13,10 @@ import pytest
 import paper_exp.integrity as integrity
 import paper_exp.launch as launch
 import paper_exp.runner as runner
+from paper_exp.design import (
+    TRAINING_IMPLEMENTATION_ID,
+    complete_config_sha256,
+)
 
 
 def test_parent_runner_executes_one_config_at_a_time_in_numeric_order(
@@ -62,11 +66,113 @@ def test_parent_runner_executes_one_config_at_a_time_in_numeric_order(
     assert active is False
 
 
-def test_parent_runner_dispatches_configs_once_to_explicit_worker_slots(
+def test_solo_calibration_uses_one_guard_and_calibration_mode(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    runner_path, configs = _layout(tmp_path, (1, 2, 3))
+    _runner_path, configs = _layout(tmp_path, (1,))
+    _stub_preflight(monkeypatch)
+    active = False
+
+    @contextmanager
+    def guard(**_kwargs: object) -> Iterator[None]:
+        nonlocal active
+        assert not active
+        active = True
+        try:
+            yield
+        finally:
+            active = False
+
+    expected = configs[0].parent.parent / "raw" / configs[0].stem / "001-calibrate"
+
+    def calibrate(
+        _config: dict[str, object],
+        *,
+        config_path: Path,
+        command: str,
+    ) -> Path:
+        assert active
+        assert config_path == configs[0]
+        assert command == "paper-exp calibrate"
+        return expected
+
+    monkeypatch.setattr(runner, "direct_launch_guard", guard)
+    monkeypatch.setattr(runner, "_run_one_calibration", calibrate)
+
+    assert runner.run_calibrations(
+        configs,
+        command="paper-exp calibrate",
+        repository=tmp_path,
+    ) == [expected]
+    assert active is False
+
+
+@pytest.mark.parametrize(
+    ("config_count", "slots", "message"),
+    (
+        (2, (), "exactly one config"),
+        (
+            1,
+            (
+                runner.WorkerSlot("gpu-0", "0"),
+                runner.WorkerSlot("gpu-1", "1"),
+            ),
+            "at least two distinct configs",
+        ),
+        (
+            2,
+            (runner.WorkerSlot("gpu-0", "0"),),
+            "at least two distinct configs",
+        ),
+    ),
+)
+def test_calibration_coordinator_rejects_unbounded_or_ambiguous_shapes(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    config_count: int,
+    slots: tuple[runner.WorkerSlot[str], ...],
+    message: str,
+) -> None:
+    _runner_path, configs = _layout(tmp_path, tuple(range(1, config_count + 1)))
+    _stub_preflight(monkeypatch)
+
+    with pytest.raises(runner.RunnerError, match=message):
+        runner.run_calibrations(
+            configs,
+            command="paper-exp calibrate",
+            repository=tmp_path,
+            worker_slots=slots,
+        )
+
+
+def test_calibration_coordinator_requires_one_scaffold(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _runner_path, configs = _layout(tmp_path, (1,))
+    second_scaffold = _scaffold(tmp_path, "02-second-set")
+    second = second_scaffold / "run" / "002-case.yaml"
+    second.write_text("", encoding="utf-8")
+    _stub_preflight(monkeypatch)
+
+    with pytest.raises(runner.RunnerError, match="only one scaffold"):
+        runner.run_calibrations(
+            [configs[0], second],
+            command="paper-exp calibrate",
+            repository=tmp_path,
+            worker_slots=(
+                runner.WorkerSlot("gpu-0", "0"),
+                runner.WorkerSlot("gpu-1", "1"),
+            ),
+        )
+
+
+def test_calibration_coordinator_dispatches_configs_once_to_explicit_worker_slots(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _runner_path, configs = _layout(tmp_path, (1, 2, 3))
     _stub_preflight(monkeypatch)
     monkeypatch.setattr(
         runner,
@@ -103,9 +209,9 @@ def test_parent_runner_dispatches_configs_once_to_explicit_worker_slots(
                 active -= 1
 
     monkeypatch.setattr(runner, "_run_one_isolated", run_isolated)
-    completed = runner.run_launch(
-        runner_path,
+    completed = runner.run_calibrations(
         configs,
+        command="paper-exp calibrate",
         repository=tmp_path,
         worker_slots=(
             runner.WorkerSlot("gpu-0", "0"),
@@ -128,11 +234,11 @@ def test_parent_runner_dispatches_configs_once_to_explicit_worker_slots(
     assert {slot for _name, slot, _device in calls} == {"gpu-0", "gpu-1"}
 
 
-def test_parent_runner_skips_completed_parallel_configs_without_gpu_probe(
+def test_calibration_always_creates_fresh_attempts(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    runner_path, configs = _layout(tmp_path, (1, 2))
+    _runner_path, configs = _layout(tmp_path, (1, 2))
     _stub_preflight(monkeypatch)
 
     def load(path: str | Path, **_kwargs: object) -> dict[str, object]:
@@ -142,34 +248,53 @@ def test_parent_runner_skips_completed_parallel_configs_without_gpu_probe(
         }
 
     monkeypatch.setattr(runner, "load_config", load)
-    existing = [
-        _write_attempt(path, sequence=1, status="complete", config=load(path))
+    prior = [
+        _write_attempt(
+            path,
+            sequence=1,
+            status="complete",
+            config=load(path),
+            mode="calibrate",
+        )
         for path in configs
     ]
-    monkeypatch.setattr(
-        runner,
-        "_probe_worker_slots",
-        lambda _slots: pytest.fail("completed configs must not require live GPUs"),
-    )
-    monkeypatch.setattr(
-        runner,
-        "_run_one_isolated",
-        lambda *_args, **_kwargs: pytest.fail("completed configs must not run"),
-    )
+    fresh = {
+        path.stem: path.parent.parent / "raw" / path.stem / "002-calibrate"
+        for path in configs
+    }
+    calls: list[str] = []
 
-    assert runner.run_launch(
-        runner_path,
+    def run_isolated(
+        _config: dict[str, object],
+        *,
+        config_path: Path,
+        **_kwargs: object,
+    ) -> Path:
+        calls.append(config_path.stem)
+        return fresh[config_path.stem]
+
+    monkeypatch.setattr(runner, "_run_one_isolated", run_isolated)
+
+    completed = runner.run_calibrations(
         configs,
+        command="paper-exp calibrate",
         repository=tmp_path,
-        worker_slots=(runner.WorkerSlot("gpu-0", "0"),),
-    ) == existing
+        worker_slots=(
+            runner.WorkerSlot("gpu-0", "0"),
+            runner.WorkerSlot("gpu-1", "1"),
+        ),
+    )
+
+    assert completed == [fresh[path.stem] for path in configs]
+    assert sorted(calls) == sorted(path.stem for path in configs)
+    assert prior != completed
 
 
-def test_parent_runner_probes_once_and_dispatches_only_pending_parallel_configs(
+def test_concurrent_calibration_probes_once_and_schedules_two_then_one(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    runner_path, configs = _layout(tmp_path, (1, 2, 3))
+    _runner_path, configs = _layout(tmp_path, (1, 2, 3))
     _stub_preflight(monkeypatch)
 
     def load(path: str | Path, **_kwargs: object) -> dict[str, object]:
@@ -179,12 +304,6 @@ def test_parent_runner_probes_once_and_dispatches_only_pending_parallel_configs(
         }
 
     monkeypatch.setattr(runner, "load_config", load)
-    first = _write_attempt(
-        configs[0], sequence=1, status="complete", config=load(configs[0])
-    )
-    third = _write_attempt(
-        configs[2], sequence=1, status="complete", config=load(configs[2])
-    )
     probe_calls: list[tuple[runner.WorkerSlot[str], ...]] = []
 
     def probe(
@@ -197,6 +316,8 @@ def test_parent_runner_probes_once_and_dispatches_only_pending_parallel_configs(
                 "name": "Test GPU",
                 "total_memory_bytes": 48 * 1024**3,
                 "compute_capability": "8.9",
+                "torch_version": "2.11.0+cu128",
+                "cuda_runtime_version": "12.8",
             }
             for slot in slots
         }
@@ -219,27 +340,26 @@ def test_parent_runner_probes_once_and_dispatches_only_pending_parallel_configs(
     monkeypatch.setattr(runner, "_probe_worker_slots", probe)
     monkeypatch.setattr(runner, "_run_one_isolated", run_isolated)
 
-    completed = runner.run_launch(
-        runner_path,
+    completed = runner.run_calibrations(
         configs,
+        command="paper-exp calibrate",
         repository=tmp_path,
         worker_slots=slots,
     )
 
     assert probe_calls == [slots]
-    assert isolated_calls == [configs[1].name]
+    assert sorted(isolated_calls) == sorted(path.name for path in configs)
     assert completed == [
-        first,
-        configs[1].parent.parent / "raw" / configs[1].stem / "new-attempt",
-        third,
+        path.parent.parent / "raw" / path.stem / "new-attempt"
+        for path in configs
     ]
 
 
-def test_parent_runner_parallel_failure_stops_later_admission(
+def test_concurrent_calibration_failure_stops_later_admission(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    runner_path, configs = _layout(tmp_path, (1, 2, 3))
+    _runner_path, configs = _layout(tmp_path, (1, 2, 3))
     _stub_preflight(monkeypatch)
     monkeypatch.setattr(
         runner,
@@ -261,15 +381,19 @@ def test_parent_runner_parallel_failure_stops_later_admission(
         raise RuntimeError("injected isolated failure")
 
     monkeypatch.setattr(runner, "_run_one_isolated", fail_first)
-    with pytest.raises(runner.RunnerError, match="001-case"):
-        runner.run_launch(
-            runner_path,
+    with pytest.raises(runner.RunnerError, match="injected isolated failure"):
+        runner.run_calibrations(
             configs,
+            command="paper-exp calibrate",
             repository=tmp_path,
-            worker_slots=(runner.WorkerSlot("gpu-0", "0"),),
+            worker_slots=(
+                runner.WorkerSlot("gpu-0", "0"),
+                runner.WorkerSlot("gpu-1", "1"),
+            ),
         )
 
-    assert calls == ["001-case.yaml"]
+    assert "001-case.yaml" in calls
+    assert len(calls) <= 2
 
 
 def test_parallel_worker_maps_slot_environment_and_reports_completion(
@@ -288,17 +412,6 @@ def test_parallel_worker_maps_slot_environment_and_reports_completion(
     environment: dict[str, str] = {}
     monkeypatch.setattr(runner.os, "environ", environment)
     monkeypatch.setattr(runner.os, "chdir", lambda path: None)
-    monkeypatch.setattr(
-        runner,
-        "_require_isolated_cuda_runtime",
-        lambda _config: {
-            "uuid": "GPU-test",
-            "name": "Test GPU",
-            "total_memory_bytes": 48 * 1024**3,
-            "compute_capability": "8.9",
-        },
-    )
-
     def run_one(
         _config: dict[str, object],
         *,
@@ -312,7 +425,20 @@ def test_parallel_worker_maps_slot_environment_and_reports_completion(
         assert environment["PAPER_EXP_WORKER_GPU_UUID"] == "GPU-test"
         return tmp_path / "completed"
 
-    monkeypatch.setattr(runner, "_run_one", run_one)
+    monkeypatch.setattr(runner, "_run_one_calibration", run_one)
+    expected_identity = {
+        "uuid": "GPU-test",
+        "name": "Test GPU",
+        "total_memory_bytes": 48 * 1024**3,
+        "compute_capability": "8.9",
+        "torch_version": "2.11.0+cu128",
+        "cuda_runtime_version": "12.8",
+    }
+    monkeypatch.setattr(
+        runner,
+        "_require_isolated_cuda_runtime",
+        lambda _config: expected_identity,
+    )
     runner._worker_process_entry(
         {
             "name": "001-case",
@@ -326,7 +452,7 @@ def test_parallel_worker_maps_slot_environment_and_reports_completion(
         3,
         "gpu-3",
         "3",
-        "GPU-test",
+        expected_identity,
         123,
         Sender(),
     )
@@ -335,6 +461,8 @@ def test_parallel_worker_maps_slot_environment_and_reports_completion(
         {"status": "completed", "run_dir": str(tmp_path / "completed")}
     ]
     assert environment["PAPER_EXP_COORDINATOR_PID"] == "123"
+    assert environment["PAPER_EXP_WORKER_TORCH_VERSION"] == "2.11.0+cu128"
+    assert environment["PAPER_EXP_WORKER_CUDA_RUNTIME_VERSION"] == "12.8"
 
 
 def test_isolated_worker_ipc_error_still_drains_and_closes_child() -> None:
@@ -410,7 +538,7 @@ def test_isolated_worker_does_not_close_a_live_child_after_join_failure() -> Non
     assert events == ["recv", "receiver-close", "join", "is-alive"]
 
 
-def test_gpu_uuid_mismatch_prevents_training_attempt_creation(
+def test_gpu_or_runtime_mismatch_prevents_calibration_attempt_creation(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -433,16 +561,26 @@ def test_gpu_uuid_mismatch_prevents_training_attempt_creation(
             "name": "Test GPU",
             "total_memory_bytes": 48 * 1024**3,
             "compute_capability": "8.9",
+            "torch_version": "2.11.0+cu128",
+            "cuda_runtime_version": "12.8",
         },
     )
     monkeypatch.setattr(
         runner,
-        "_run_one",
+        "_run_one_calibration",
         lambda *_args, **_kwargs: pytest.fail(
-            "UUID mismatch must fail before creating a training attempt"
+            "identity mismatch must fail before creating a calibration attempt"
         ),
     )
 
+    expected_identity = {
+        "uuid": "GPU-expected",
+        "name": "Test GPU",
+        "total_memory_bytes": 48 * 1024**3,
+        "compute_capability": "8.9",
+        "torch_version": "2.11.0+cu128",
+        "cuda_runtime_version": "12.8",
+    }
     with pytest.raises(runner.WorkerProcessError, match="identity changed"):
         runner._worker_process_entry(
             {
@@ -457,21 +595,16 @@ def test_gpu_uuid_mismatch_prevents_training_attempt_creation(
             1,
             "gpu-0",
             "0",
-            "GPU-expected",
+            expected_identity,
             123,
             Sender(),
         )
 
-    assert messages == [
-        {
-            "status": "failed",
-            "error_type": "WorkerProcessError",
-            "error_message": (
-                "Assigned CUDA device identity changed after coordinator preflight: "
-                "expected GPU-expected, observed GPU-observed."
-            ),
-        }
-    ]
+    assert len(messages) == 1
+    assert messages[0]["status"] == "failed"
+    assert messages[0]["error_type"] == "WorkerProcessError"
+    assert "GPU-expected" in str(messages[0]["error_message"])
+    assert "GPU-observed" in str(messages[0]["error_message"])
 
 
 @pytest.mark.parametrize("prefixes", [(2, 1), (1, 1)])
@@ -635,6 +768,22 @@ def test_case_runner_parses_retry_and_explicit_worker_slots() -> None:
     )
 
 
+def test_case_runner_worker_slots_remain_dormant_for_pretraining(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runner_path, configs = _layout(tmp_path, (1,))
+    _stub_preflight(monkeypatch)
+
+    with pytest.raises(runner.RunnerError, match="must run serially"):
+        runner.run_launch(
+            runner_path,
+            configs,
+            repository=tmp_path,
+            worker_slots=(runner.WorkerSlot("gpu-0", "0"),),
+        )
+
+
 def test_case_runner_rejects_same_device_packing() -> None:
     arguments = ["--worker-slot", "worker-a=0", "--worker-slot", "worker-b=0"]
     with pytest.raises(runner.RunnerError, match="distinct CUDA device"):
@@ -662,11 +811,11 @@ def test_case_runner_rejects_invalid_worker_slots(
         runner._parse_runner_arguments(arguments)
 
 
-def test_parallel_preflight_rejects_an_unmappable_config_device(
+def test_concurrent_calibration_rejects_an_unmappable_config_device(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    runner_path, configs = _layout(tmp_path, (1,))
+    _runner_path, configs = _layout(tmp_path, (1, 2))
     _stub_preflight(monkeypatch)
     monkeypatch.setattr(
         runner,
@@ -683,15 +832,18 @@ def test_parallel_preflight_rejects_an_unmappable_config_device(
     )
 
     with pytest.raises(runner.RunnerError, match="CUDA_VISIBLE_DEVICES"):
-        runner.run_launch(
-            runner_path,
+        runner.run_calibrations(
             configs,
+            command="paper-exp calibrate",
             repository=tmp_path,
-            worker_slots=(runner.WorkerSlot("gpu-0", "0"),),
+            worker_slots=(
+                runner.WorkerSlot("gpu-0", "0"),
+                runner.WorkerSlot("gpu-1", "1"),
+            ),
         )
 
 
-def test_concurrent_scientific_launch_requires_resolved_readiness_items(
+def test_concurrent_calibration_requires_resolved_readiness_items(
     tmp_path: Path,
 ) -> None:
     workboard = tmp_path / "docs" / "experimental-design" / "workboard.md"
@@ -729,7 +881,7 @@ def test_concurrent_scientific_launch_requires_resolved_readiness_items(
         ("cuda", "auto", "must select bfloat16"),
     ),
 )
-def test_parallel_preflight_requires_explicit_cuda_bfloat16(
+def test_calibration_preflight_requires_explicit_cuda_bfloat16(
     device: str,
     precision: str,
     message: str,
@@ -757,6 +909,8 @@ def test_isolated_worker_rejects_invalid_cuda_runtime(
     message: str,
 ) -> None:
     fake_torch = SimpleNamespace(
+        __version__="2.11.0+cu128",
+        version=SimpleNamespace(cuda="12.8"),
         cuda=SimpleNamespace(
             is_available=lambda: available,
             device_count=lambda: count,
@@ -775,6 +929,8 @@ def test_isolated_worker_accepts_one_bfloat16_cuda_device(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     fake_torch = SimpleNamespace(
+        __version__="2.11.0+cu128",
+        version=SimpleNamespace(cuda="12.8"),
         cuda=SimpleNamespace(
             is_available=lambda: True,
             device_count=lambda: 1,
@@ -797,6 +953,8 @@ def test_isolated_worker_accepts_one_bfloat16_cuda_device(
         "name": "Test GPU",
         "total_memory_bytes": 48 * 1024**3,
         "compute_capability": "8.9",
+        "torch_version": "2.11.0+cu128",
+        "cuda_runtime_version": "12.8",
     }
 
 
@@ -813,12 +971,16 @@ def test_worker_slot_probe_requires_distinct_homogeneous_gpus(
             "name": "Test GPU",
             "total_memory_bytes": 48 * 1024**3,
             "compute_capability": "8.9",
+            "torch_version": "2.11.0+cu128",
+            "cuda_runtime_version": "12.8",
         },
         "1": {
             "uuid": "GPU-b",
             "name": "Test GPU",
             "total_memory_bytes": 48 * 1024**3,
             "compute_capability": "8.9",
+            "torch_version": "2.11.0+cu128",
+            "cuda_runtime_version": "12.8",
         },
     }
     monkeypatch.setattr(
@@ -841,7 +1003,15 @@ def test_worker_slot_probe_requires_distinct_homogeneous_gpus(
         "uuid": "GPU-b",
         "name": "Different GPU",
     }
-    with pytest.raises(runner.RunnerError, match="homogeneous GPU class"):
+    with pytest.raises(runner.RunnerError, match="homogeneous GPU"):
+        runner._probe_worker_slots(slots)
+
+    identities["1"] = {
+        **identities["1"],
+        "name": "Test GPU",
+        "torch_version": "2.12.0+cu128",
+    }
+    with pytest.raises(runner.RunnerError, match="Torch/CUDA runtime"):
         runner._probe_worker_slots(slots)
 
 
@@ -1082,7 +1252,7 @@ def _stub_preflight(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         runner,
         "load_config",
-        lambda path, **_kwargs: {"name": Path(path).stem},
+        lambda path, **_kwargs: _runner_stub_config(Path(path)),
     )
     monkeypatch.setattr(runner, "validate_training_config", lambda _config: None)
     monkeypatch.setattr(integrity, "validate_training_config", lambda _config: None)
@@ -1107,6 +1277,8 @@ def _stub_preflight(monkeypatch: pytest.MonkeyPatch) -> None:
                 "name": "Test GPU",
                 "total_memory_bytes": 48 * 1024**3,
                 "compute_capability": "8.9",
+                "torch_version": "2.11.0+cu128",
+                "cuda_runtime_version": "12.8",
             }
             for slot in slots
         },
@@ -1133,7 +1305,7 @@ def _write_attempt(
         / f"{sequence:03d}-{status}"
     )
     run_dir.mkdir(parents=True)
-    snapshot = config or {"name": config_path.stem}
+    snapshot = config or _runner_stub_config(config_path)
     (run_dir / "config.yaml").write_text(
         json.dumps(snapshot) + "\n", encoding="utf-8"
     )
@@ -1145,6 +1317,18 @@ def _write_attempt(
         "git_commit": "a" * 40,
         "git_dirty": False,
     }
+    identity = snapshot.get("identity")
+    if isinstance(identity, dict):
+        manifest.update(
+            {
+                "case_group_id": identity["group_id"],
+                "condition_fingerprint": identity["condition_fingerprint"],
+                "training_implementation_id": identity[
+                    "training_implementation_id"
+                ],
+                "config_sha256": complete_config_sha256(snapshot),
+            }
+        )
     if status in {"complete", "statusless"}:
         (run_dir / "metrics.json").write_text("{}\n", encoding="utf-8")
         (run_dir / "predictions.jsonl").write_text("{}\n", encoding="utf-8")
@@ -1173,6 +1357,17 @@ def _write_attempt(
         json.dumps(manifest) + "\n", encoding="utf-8"
     )
     return run_dir
+
+
+def _runner_stub_config(config_path: Path) -> dict[str, object]:
+    return {
+        "name": config_path.stem,
+        "identity": {
+            "group_id": "A1-lr-screen",
+            "condition_fingerprint": "d" * 64,
+            "training_implementation_id": TRAINING_IMPLEMENTATION_ID,
+        },
+    }
 
 
 def _scaffold(tmp_path: Path, scaffold_id: str) -> Path:

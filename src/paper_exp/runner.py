@@ -70,9 +70,9 @@ def run_launch(
 
     A case-runner invocation containing ``--retry-failed`` explicitly opts in
     to retrying coherent failed attempts. Direct callers may pass the keyword
-    instead. Repeated ``--worker-slot <slot-id>=<cuda-device>`` arguments opt
-    into bounded subprocess execution while retaining this process as the only
-    coordinator and launch-lock owner.
+    instead. Definitive pretraining remains serial; the retained worker-slot
+    parser fails closed until a future reviewed policy enables that dormant
+    path.
     """
 
     root = repository_path(repository)
@@ -83,7 +83,10 @@ def run_launch(
         requested_slots=worker_slots,
     )
     if resolved_slots:
-        _require_parallel_launch_ready(root)
+        raise RunnerError(
+            "Definitive pretraining must run serially. Worker slots are "
+            "authorized only for the calibration command, not case runners."
+        )
     if not config_paths:
         raise RunnerError(f"Runner has no configs: {runner}")
 
@@ -130,8 +133,6 @@ def run_launch(
     for path in configs:
         config = load_config(path, allow_todos=False)
         validate_training_config(config)
-        if resolved_slots:
-            _require_worker_mappable_device(config, config_path=path)
         require_raw_output(config, repository=root, config_path=path)
         require_token_cache_output(config, repository=root, source=path)
         loaded.append((path, config))
@@ -142,8 +143,6 @@ def run_launch(
     ]
     if retry_failed:
         command_parts.append("--retry-failed")
-    for slot in resolved_slots:
-        command_parts.extend(("--worker-slot", f"{slot.slot_id}={slot.payload}"))
     command = shlex.join(command_parts)
     prior_completed = [
         _completed_attempt_for_config(path, config, allow_failed_retry=retry_failed)
@@ -176,57 +175,137 @@ def run_launch(
                 )
             )
 
-        if not resolved_slots:
-            for item in pending:
-                index, path, config = item.payload
-                display = path.relative_to(root).as_posix()
-                print(f"[{index}/{len(loaded)}] pretrain {display}", flush=True)
-                completed_by_config[item.config_id] = _run_one(
-                    config,
-                    config_path=path,
-                    command=command,
-                )
-        elif pending:
-            launch_id = uuid4().hex
-            slot_identities = _probe_worker_slots(resolved_slots)
-
-            def worker(
-                item: WorkItem[tuple[int, Path, dict[str, Any]]],
-                slot: WorkerSlot[str],
-            ) -> Path:
-                index, path, config = item.payload
-                display = path.relative_to(root).as_posix()
-                print(
-                    f"[{index}/{len(loaded)}] pretrain {display} "
-                    f"on {slot.slot_id} (CUDA_VISIBLE_DEVICES={slot.payload})",
-                    flush=True,
-                )
-                return _run_one_isolated(
-                    config,
-                    config_path=path,
-                    command=command,
-                    repository=root,
-                    launch_id=launch_id,
-                    launch_position=index,
-                    launch_size=len(loaded),
-                    slot=slot,
-                    expected_gpu_uuid=str(slot_identities[slot.slot_id]["uuid"]),
-                )
-
-            try:
-                report = run_bounded(pending, resolved_slots, worker)
-            except ParallelRunError as error:
-                raise RunnerError(str(error)) from error
-            completed_by_config.update(
-                {
-                    result.assignment.config_id: result.value
-                    for result in report.completed
-                    if result.value is not None
-                }
+        for item in pending:
+            index, path, config = item.payload
+            display = path.relative_to(root).as_posix()
+            print(f"[{index}/{len(loaded)}] pretrain {display}", flush=True)
+            completed_by_config[item.config_id] = _run_one(
+                config,
+                config_path=path,
+                command=command,
             )
 
         completed = [completed_by_config[path.stem] for path, _config in loaded]
     return completed
+
+
+def run_calibrations(
+    config_paths: Sequence[str | Path],
+    *,
+    command: str,
+    repository: str | Path | None = None,
+    worker_slots: Sequence[WorkerSlot[str]] = (),
+) -> list[Path]:
+    """Run exact calibration configs under one coordinator and launch lock.
+
+    The no-slot form accepts exactly one config and is the solo calibration.
+    The bounded form requires at least two distinct configs and two distinct
+    homogeneous physical GPUs. More configs than slots are admitted in stable
+    order as slots become free. Calibration attempts are always fresh and use
+    lifecycle mode ``calibrate``; they are never reused as pretraining.
+    """
+
+    root = repository_path(repository)
+    slots = tuple(worker_slots)
+    _validate_worker_slots(slots)
+    if not config_paths:
+        raise RunnerError("Calibration requires at least one exact config.")
+    try:
+        configs = [
+            resolve_launch_config(path, repository=root)[1]
+            for path in config_paths
+        ]
+    except LaunchError as error:
+        raise RunnerError(str(error)) from error
+    if len(set(configs)) != len(configs):
+        raise RunnerError("Concurrent calibration configs must be distinct.")
+    config_roots = {path.parent for path in configs}
+    if len(config_roots) != 1:
+        raise RunnerError(
+            "One calibration coordinator may use configs from only one scaffold."
+        )
+    if slots:
+        if len(slots) < 2 or len(configs) < 2:
+            raise RunnerError(
+                "Concurrent calibration requires at least two distinct configs "
+                "and two distinct worker slots."
+            )
+        if len(slots) > len(configs):
+            raise RunnerError(
+                "Concurrent calibration cannot allocate more worker slots than configs."
+            )
+        _require_parallel_launch_ready(root)
+    elif len(configs) != 1:
+        raise RunnerError(
+            "A calibration without worker slots accepts exactly one config."
+        )
+
+    loaded: list[tuple[Path, dict[str, Any]]] = []
+    for path in configs:
+        config = load_config(path, allow_todos=False)
+        validate_training_config(config)
+        if slots:
+            _require_worker_mappable_device(config, config_path=path)
+        require_raw_output(config, repository=root, config_path=path)
+        require_token_cache_output(config, repository=root, source=path)
+        loaded.append((path, config))
+
+    with direct_launch_guard(repository=root):
+        if not slots:
+            path, config = loaded[0]
+            display = path.relative_to(root).as_posix()
+            print(f"[1/1] calibrate {display}", flush=True)
+            return [
+                _run_one_calibration(
+                    config,
+                    config_path=path,
+                    command=command,
+                )
+            ]
+
+        launch_id = uuid4().hex
+        slot_identities = _probe_worker_slots(slots)
+        pending = tuple(
+            WorkItem(
+                config_id=path.stem,
+                payload=(index, path, config),
+            )
+            for index, (path, config) in enumerate(loaded, start=1)
+        )
+
+        def worker(
+            item: WorkItem[tuple[int, Path, dict[str, Any]]],
+            slot: WorkerSlot[str],
+        ) -> Path:
+            index, path, config = item.payload
+            display = path.relative_to(root).as_posix()
+            print(
+                f"[{index}/{len(loaded)}] calibrate {display} "
+                f"on {slot.slot_id} (CUDA_VISIBLE_DEVICES={slot.payload})",
+                flush=True,
+            )
+            return _run_one_isolated(
+                config,
+                config_path=path,
+                command=command,
+                repository=root,
+                launch_id=launch_id,
+                launch_position=index,
+                launch_size=len(loaded),
+                slot=slot,
+                expected_identity=slot_identities[slot.slot_id],
+            )
+
+        try:
+            report = run_bounded(pending, slots, worker)
+        except ParallelRunError as error:
+            raise RunnerError(str(error)) from error
+        completed_by_config = {
+            result.assignment.config_id: result.value
+            for result in report.completed
+            if result.value is not None
+        }
+        return [completed_by_config[path.stem] for path, _config in loaded]
 
 
 def _completed_attempt_for_config(
@@ -401,7 +480,7 @@ def _validate_worker_slots(slots: Sequence[WorkerSlot[str]]) -> None:
     )
     if duplicate_devices:
         raise RunnerError(
-            "Scientific worker slots must map to distinct CUDA device ordinals; "
+            "GPU worker slots must map to distinct CUDA device ordinals; "
             "same-device packing requires a future launch contract bound to an "
             f"exact reviewed hardware profile: {', '.join(duplicate_devices)}."
         )
@@ -444,7 +523,7 @@ def _require_parallel_launch_ready(repository: Path) -> None:
     ]
     if unresolved:
         raise RunnerError(
-            "Concurrent scientific launch remains blocked until these workboard "
+            "Concurrent calibration remains blocked until these workboard "
             f"items are resolved: {', '.join(unresolved)}."
         )
 
@@ -459,9 +538,9 @@ def _run_one_isolated(
     launch_position: int,
     launch_size: int,
     slot: WorkerSlot[str],
-    expected_gpu_uuid: str,
+    expected_identity: dict[str, Any],
 ) -> Path:
-    """Run one config in a fresh process with one explicit visible GPU."""
+    """Run one calibration in a fresh process with one explicit visible GPU."""
 
     context = multiprocessing.get_context("spawn")
     receiver, sender = context.Pipe(duplex=False)
@@ -477,7 +556,7 @@ def _run_one_isolated(
             launch_size,
             slot.slot_id,
             slot.payload,
-            expected_gpu_uuid,
+            expected_identity,
             os.getpid(),
             sender,
         ),
@@ -504,7 +583,7 @@ def _run_one_isolated(
     else:
         detail = "worker exited without a terminal result"
     raise WorkerProcessError(
-        f"Isolated worker for {config_path.name} on {slot.slot_id} failed "
+        f"Isolated calibration worker for {config_path.name} on {slot.slot_id} failed "
         f"(exit code {exit_code}): {detail}."
     )
 
@@ -572,11 +651,11 @@ def _worker_process_entry(
     launch_size: int,
     slot_id: str,
     cuda_visible_device: str,
-    expected_gpu_uuid: str,
+    expected_identity: dict[str, Any],
     coordinator_pid: int,
     sender: Any,
 ) -> None:
-    """Child-process entrypoint; the parent remains the sole coordinator."""
+    """Calibration child entrypoint; the parent remains the sole coordinator."""
 
     os.chdir(repository)
     os.environ["CUDA_VISIBLE_DEVICES"] = cuda_visible_device
@@ -588,10 +667,10 @@ def _worker_process_entry(
     os.environ["PAPER_EXP_COORDINATOR_PID"] = str(coordinator_pid)
     try:
         gpu = _require_isolated_cuda_runtime(config)
-        if gpu["uuid"] != expected_gpu_uuid:
+        if gpu != expected_identity:
             raise WorkerProcessError(
-                "Assigned CUDA device identity changed after coordinator preflight: "
-                f"expected {expected_gpu_uuid}, observed {gpu['uuid']}."
+                "Assigned CUDA device or runtime identity changed after coordinator "
+                f"preflight: expected {expected_identity!r}, observed {gpu!r}."
             )
         os.environ["PAPER_EXP_WORKER_GPU_UUID"] = gpu["uuid"]
         os.environ["PAPER_EXP_WORKER_GPU_NAME"] = gpu["name"]
@@ -601,7 +680,11 @@ def _worker_process_entry(
         os.environ["PAPER_EXP_WORKER_GPU_COMPUTE_CAPABILITY"] = gpu[
             "compute_capability"
         ]
-        run_dir = _run_one(
+        os.environ["PAPER_EXP_WORKER_TORCH_VERSION"] = gpu["torch_version"]
+        os.environ["PAPER_EXP_WORKER_CUDA_RUNTIME_VERSION"] = gpu[
+            "cuda_runtime_version"
+        ]
+        run_dir = _run_one_calibration(
             config,
             config_path=Path(config_path),
             command=command,
@@ -644,12 +727,15 @@ def _probe_worker_slots(
             str(identity["name"]),
             int(identity["total_memory_bytes"]),
             str(identity["compute_capability"]),
+            str(identity["torch_version"]),
+            str(identity["cuda_runtime_version"]),
         )
         for identity in identities.values()
     }
     if len(hardware) != 1:
         raise RunnerError(
-            "All scientific worker slots must resolve to one homogeneous GPU class."
+            "All calibration worker slots must resolve to one homogeneous GPU and "
+            "Torch/CUDA runtime."
         )
     return identities
 
@@ -748,16 +834,27 @@ def _probe_visible_cuda_device() -> dict[str, Any]:
     total_memory = int(getattr(properties, "total_memory", 0))
     major = int(getattr(properties, "major", -1))
     minor = int(getattr(properties, "minor", -1))
+    torch_version = str(getattr(torch, "__version__", "")).strip()
+    torch_runtime = getattr(torch, "version", None)
+    cuda_runtime_version = str(
+        getattr(torch_runtime, "cuda", "") or ""
+    ).strip()
     if not gpu_uuid or not gpu_name or total_memory <= 0 or major < 0 or minor < 0:
         raise WorkerProcessError(
             "Assigned CUDA device did not expose complete UUID, name, memory, and "
             "compute-capability identity."
+        )
+    if not torch_version or not cuda_runtime_version:
+        raise WorkerProcessError(
+            "Assigned CUDA device did not expose exact Torch and CUDA runtime versions."
         )
     return {
         "uuid": gpu_uuid,
         "name": gpu_name,
         "total_memory_bytes": total_memory,
         "compute_capability": f"{major}.{minor}",
+        "torch_version": torch_version,
+        "cuda_runtime_version": cuda_runtime_version,
     }
 
 
@@ -824,4 +921,20 @@ def _run_one(
         config_path=config_path,
         command=command,
         mode="pretrain",
+    )
+
+
+def _run_one_calibration(
+    config: dict[str, Any],
+    *,
+    config_path: Path,
+    command: str,
+) -> Path:
+    from paper_exp.training import run_training
+
+    return run_training(
+        config,
+        config_path=config_path,
+        command=command,
+        mode="calibrate",
     )

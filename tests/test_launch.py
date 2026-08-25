@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 
 import paper_exp.launch as launch
+import paper_exp.design as design
 
 
 def test_config_resolution_accepts_only_exact_scaffold_run_configs(
@@ -102,14 +103,25 @@ def test_launch_guard_requires_reviewed_plan_and_cleans_its_lock(
 ) -> None:
     plan = tmp_path / "docs" / "experiment_plan.md"
     plan.parent.mkdir()
-    plan.write_text("Plan status: placeholder\n", encoding="utf-8")
+    plan.write_text(
+        "Plan status: placeholder\n"
+        "Reviewed design commit: none\n"
+        "Reviewed case groups: []\n",
+        encoding="utf-8",
+    )
     monkeypatch.setattr(launch, "collect_git_dirty", lambda _root: False)
 
     with pytest.raises(launch.LaunchError, match="Plan status: reviewed"):
         with launch.direct_launch_guard(repository=tmp_path):
             pytest.fail("placeholder plan must block launch")
 
-    plan.write_text("Plan status: reviewed\n", encoding="utf-8")
+    plan.write_text(
+        "Plan status: reviewed\n"
+        f"Reviewed design commit: {'a' * 40}\n"
+        "Reviewed case groups: [A1-lr-screen]\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(design, "validate_reviewed_design", lambda _root: None)
     lock = tmp_path / "tmp" / "experiment.lock"
     with launch.direct_launch_guard(repository=tmp_path):
         assert lock.is_file()
@@ -125,7 +137,13 @@ def test_launch_guard_rejects_dirty_checkout(
 ) -> None:
     plan = tmp_path / "docs" / "experiment_plan.md"
     plan.parent.mkdir()
-    plan.write_text("Plan status: reviewed\n", encoding="utf-8")
+    plan.write_text(
+        "Plan status: reviewed\n"
+        f"Reviewed design commit: {'a' * 40}\n"
+        "Reviewed case groups: [A1-lr-screen]\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(design, "validate_reviewed_design", lambda _root: None)
     monkeypatch.setattr(launch, "collect_git_dirty", lambda _root: True)
 
     with pytest.raises(launch.LaunchError, match="Commit or stash"):

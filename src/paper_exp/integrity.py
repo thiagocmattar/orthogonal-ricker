@@ -17,6 +17,16 @@ from paper_exp.config import (
     validate_training_config,
 )
 from paper_exp.diagnostics.sources import resolve_source_path
+from paper_exp.design import (
+    CATALOG_PATH,
+    PLAN_PATH,
+    DesignError,
+    complete_config_sha256,
+    tracked_training_identities,
+    validate_catalog,
+    validate_reviewed_design,
+    validate_training_identity_fields,
+)
 from paper_exp.launch import (
     EXPERIMENTS_DIR_NAME,
     SCAFFOLD_NAME_RE,
@@ -70,7 +80,8 @@ def check_repository(root: str | Path = ".") -> list[IntegrityFinding]:
     paper_map = repository / "docs" / "paper_map.md"
     experiment_log = repository / "docs" / "experiment_log.md"
     artifact_references = _document_artifact_references(paper_map, experiment_log)
-    findings: list[IntegrityFinding] = _check_legacy_directories(repository)
+    findings: list[IntegrityFinding] = _check_design(repository)
+    findings.extend(_check_legacy_directories(repository))
     findings.extend(_check_experiments(repository))
     findings.extend(_check_runs(repository, references=artifact_references))
 
@@ -364,6 +375,101 @@ def _check_experiments(repository: Path) -> list[IntegrityFinding]:
     return findings
 
 
+def _check_design(repository: Path) -> list[IntegrityFinding]:
+    """Validate machine-readable design and tracked training identities."""
+
+    plan_exists = (repository / PLAN_PATH).is_file()
+    catalog_exists = (repository / CATALOG_PATH).is_file()
+    if not plan_exists and not catalog_exists:
+        # Small unit-test repositories may exercise only artifact layout.
+        return []
+    if not plan_exists or not catalog_exists:
+        missing = PLAN_PATH if not plan_exists else CATALOG_PATH
+        return [
+            IntegrityFinding(
+                severity="error",
+                code="design.file_missing",
+                message="The normative design manifest and case catalog must exist together.",
+                path=missing.as_posix(),
+            )
+        ]
+
+    try:
+        catalog = validate_catalog(repository)
+        review = validate_reviewed_design(repository, require_reviewed=False)
+    except DesignError as error:
+        return [
+            IntegrityFinding(
+                severity="error",
+                code="design.invalid",
+                message=str(error),
+                path=PLAN_PATH.as_posix(),
+            )
+        ]
+
+    findings: list[IntegrityFinding] = []
+    try:
+        identities = tracked_training_identities(repository)
+    except DesignError as error:
+        return [
+            IntegrityFinding(
+                severity="error",
+                code="design.config_identity_invalid",
+                message=str(error),
+                path=EXPERIMENTS_DIR_NAME,
+            )
+        ]
+    by_fingerprint: dict[str, list[Path]] = {}
+    for path, group_id, fingerprint in identities:
+        if group_id not in catalog.groups:
+            findings.append(
+                IntegrityFinding(
+                    severity="error",
+                    code="design.config_group_unknown",
+                    message=f"Training config names unknown case group {group_id}.",
+                    path=_relative_path(repository, path),
+                )
+            )
+        by_fingerprint.setdefault(fingerprint, []).append(path)
+    for paths in by_fingerprint.values():
+        if len(paths) <= 1:
+            continue
+        findings.append(
+            IntegrityFinding(
+                severity="error",
+                code="design.duplicate_fingerprint",
+                message=(
+                    "One scientific condition and seed is allocated more than once: "
+                    + ", ".join(_relative_path(repository, path) for path in paths)
+                    + "."
+                ),
+                path=EXPERIMENTS_DIR_NAME,
+            )
+        )
+    if review.status == "reviewed":
+        reviewed = set(review.reviewed_groups)
+        for path, group_id, _fingerprint in identities:
+            if group_id not in reviewed:
+                findings.append(
+                    IntegrityFinding(
+                        severity="error",
+                        code="design.config_group_unreviewed",
+                        message=f"Training config case group {group_id} is outside reviewed scope.",
+                        path=_relative_path(repository, path),
+                    )
+                )
+    elif identities:
+        findings.append(
+            IntegrityFinding(
+                severity="error",
+                code="design.config_while_placeholder",
+                message="Scientific training configs cannot exist while the plan is a placeholder.",
+                path=EXPERIMENTS_DIR_NAME,
+            )
+        )
+    return findings
+
+
 def _check_scaffold_shape(repository: Path, scaffold: Path) -> list[IntegrityFinding]:
     findings: list[IntegrityFinding] = []
     for name in sorted(_SCAFFOLD_DIRECTORIES):
@@ -654,8 +760,33 @@ def _explicit_manifest_status(run_dir: Path) -> tuple[str | None, bool]:
         return None, False
     if status not in {"running", "failed", "completed"}:
         return None, False
-    if not (run_dir / "config.yaml").is_file():
+    config_path = run_dir / "config.yaml"
+    if not config_path.is_file():
         return None, False
+    try:
+        with config_path.open("r", encoding="utf-8-sig") as handle:
+            config = safe_load(handle) or {}
+    except (OSError, UnicodeError, YAMLError):
+        return None, False
+    if not isinstance(config, dict):
+        return None, False
+    identity = config.get("identity")
+    if manifest.get("mode") in {"pretrain", "calibrate"} and identity is None:
+        return None, False
+    if identity is not None:
+        try:
+            validate_training_identity_fields(config)
+        except DesignError:
+            return None, False
+        if (
+            manifest.get("case_group_id") != identity["group_id"]
+            or manifest.get("condition_fingerprint")
+            != identity["condition_fingerprint"]
+            or manifest.get("training_implementation_id")
+            != identity["training_implementation_id"]
+            or manifest.get("config_sha256") != complete_config_sha256(config)
+        ):
+            return None, False
     if not _is_nonempty_string(manifest.get("started_at")):
         return None, False
     if not _is_nonempty_string(manifest.get("mode")):

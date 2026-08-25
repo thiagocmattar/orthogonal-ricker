@@ -9,6 +9,7 @@ from typing import Any
 import yaml
 
 from paper_exp.activations import resolve_site_aliases
+from paper_exp.design import DesignError, validate_training_identity_fields
 from paper_exp.reproducibility import TRAINING_SCHEDULE_SCHEME
 from paper_exp.topology import resolve_topology_and_gate
 
@@ -188,6 +189,10 @@ def validate_training_config(config: Mapping[str, Any]) -> None:
     """Validate the explicit scientific inputs required by training workflows."""
 
     validate_data_config(config)
+    try:
+        validate_training_identity_fields(config)
+    except DesignError as error:
+        raise ConfigError(str(error)) from error
     model = _required_mapping(config, "model")
     if model["provider"] != "huggingface":
         raise ConfigError("Config field model.provider must be 'huggingface'.")

@@ -33,6 +33,7 @@ Paths below are relative to `src/paper_exp/`.
 | `__init__.py` | Package version only | The release version changes |
 | `cli.py` | Public commands, arguments, lightweight parsing, and dispatch | A workflow gains or changes a user-facing command |
 | `config.py` | YAML loading; common, training, and diagnostic schema validation; random-initialization plus `model.topology_id`/`model.site_gate` contracts | A reviewed config field or invariant changes |
+| `design.py` | Reviewed-design SHA/blob validation, catalog counts and aliases, canonical condition fingerprints, duplicate detection, and exact group materialization guards | A case group becomes materializable or the reviewed identity/reuse contract changes |
 | `topology.py` | Canonical transformer-site aliases, exact site metadata, supported topology IDs, active-port sets, and site-gate schema | Site nomenclature, a reviewed topology, or the gate-field contract changes |
 | `launch.py` | Repository/scaffold/config resolution, reviewed-plan and clean-Git gates, owned `raw/` output roots, and the exclusive lock | Launch-wide preflight policy changes |
 | `runner.py` | Generic parent runner, scaffold/config validation, attempt-state resume preflight, completed-config reuse, serial execution, and optional bounded isolated GPU workers | Behavior shared by every case runner changes |

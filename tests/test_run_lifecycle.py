@@ -9,6 +9,7 @@ import yaml
 
 import paper_exp.run as run_module
 import paper_exp.utils as utils_module
+from paper_exp.design import TRAINING_IMPLEMENTATION_ID, complete_config_sha256
 from paper_exp.run import complete_run, run_lifecycle, start_run
 
 
@@ -39,6 +40,10 @@ def test_start_run_writes_launch_envelope_immediately(
     assert manifest["command"] == "pytest lifecycle"
     assert manifest["mode"] == "pretrain"
     assert manifest["tranche_id"] == "01-lifecycle-tests"
+    assert manifest["case_group_id"] == "A1-lr-screen"
+    assert manifest["condition_fingerprint"] == "d" * 64
+    assert manifest["training_implementation_id"] == TRAINING_IMPLEMENTATION_ID
+    assert manifest["config_sha256"] == complete_config_sha256(config)
     assert not (run.run_dir / "metrics.json").exists()
     assert not (run.run_dir / "predictions.jsonl").exists()
     assert not list(run.run_dir.glob(".*.tmp"))
@@ -60,6 +65,8 @@ def test_start_run_records_explicit_parallel_worker_assignment(
         "PAPER_EXP_WORKER_GPU_NAME": "Test GPU",
         "PAPER_EXP_WORKER_GPU_TOTAL_MEMORY_BYTES": "51539607552",
         "PAPER_EXP_WORKER_GPU_COMPUTE_CAPABILITY": "8.9",
+        "PAPER_EXP_WORKER_TORCH_VERSION": "2.11.0+cu128",
+        "PAPER_EXP_WORKER_CUDA_RUNTIME_VERSION": "12.8",
         "CUDA_VISIBLE_DEVICES": "1",
         "RUNPOD_POD_ID": "pod-test",
     }
@@ -90,6 +97,8 @@ def test_start_run_records_explicit_parallel_worker_assignment(
         "gpu_name": "Test GPU",
         "gpu_total_memory_bytes": 51539607552,
         "gpu_compute_capability": "8.9",
+        "torch_version": "2.11.0+cu128",
+        "cuda_runtime_version": "12.8",
         "runpod_pod_id": "pod-test",
     }
 
@@ -108,6 +117,8 @@ def test_parallel_worker_assignment_requires_cuda_selector(
         "PAPER_EXP_WORKER_GPU_NAME",
         "PAPER_EXP_WORKER_GPU_TOTAL_MEMORY_BYTES",
         "PAPER_EXP_WORKER_GPU_COMPUTE_CAPABILITY",
+        "PAPER_EXP_WORKER_TORCH_VERSION",
+        "PAPER_EXP_WORKER_CUDA_RUNTIME_VERSION",
         "CUDA_VISIBLE_DEVICES",
     )
     for name in worker_environment:
@@ -377,6 +388,11 @@ def _write_config(tmp_path: Path) -> tuple[dict[str, object], Path]:
         (scaffold / name).mkdir(parents=True, exist_ok=True)
     config: dict[str, object] = {
         "experiment_name": "lifecycle_test",
+        "identity": {
+            "group_id": "A1-lr-screen",
+            "condition_fingerprint": "d" * 64,
+            "training_implementation_id": TRAINING_IMPLEMENTATION_ID,
+        },
         "model": {
             "provider": "huggingface",
             "name": "test-random-model",

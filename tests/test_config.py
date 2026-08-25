@@ -11,6 +11,8 @@ from paper_exp.config import (
     validate_config_filename,
     validate_training_config,
 )
+from paper_exp.design import TRAINING_IMPLEMENTATION_ID
+from paper_exp.reproducibility import TRAINING_SCHEDULE_SCHEME
 
 
 TOPOLOGY_IDS = (
@@ -183,7 +185,7 @@ def test_seed_schedule_and_validation_partition_fields_are_validated() -> None:
         {
             "model_initialization_seed": 0,
             "data_order_seed": 11,
-            "training_schedule_scheme": "random_contiguous_blocks_with_replacement_v1",
+            "training_schedule_scheme": TRAINING_SCHEDULE_SCHEME,
             "training_schedule_hash": "a" * 64,
         }
     )
@@ -228,7 +230,7 @@ def test_model_initialization_seed_must_match_run_seed() -> None:
         {
             "model_initialization_seed": 3,
             "data_order_seed": 0,
-            "training_schedule_scheme": "random_contiguous_blocks_with_replacement_v1",
+            "training_schedule_scheme": TRAINING_SCHEDULE_SCHEME,
         }
     )
 
@@ -243,6 +245,18 @@ def test_definitive_training_config_requires_explicit_pinned_inputs() -> None:
 
     config["model"]["revision"] = "main"
     with pytest.raises(ConfigError, match="immutable"):
+        validate_training_config(config)
+
+
+def test_definitive_training_config_requires_realized_identity_and_schedule_hash() -> None:
+    config = _definitive_training_config()
+    config["run"]["training_schedule_hash"] = None
+    with pytest.raises(ConfigError, match="realized lowercase SHA-256"):
+        validate_training_config(config)
+
+    config = _definitive_training_config()
+    del config["identity"]["training_implementation_id"]
+    with pytest.raises(ConfigError, match="identity.training_implementation_id"):
         validate_training_config(config)
 
 
@@ -306,6 +320,11 @@ def _base_config(
 def _definitive_training_config() -> dict[str, Any]:
     return {
         "experiment_name": "definitive_validation_test",
+        "identity": {
+            "group_id": "A1-lr-screen",
+            "condition_fingerprint": "d" * 64,
+            "training_implementation_id": TRAINING_IMPLEMENTATION_ID,
+        },
         "model": {
             "provider": "huggingface",
             "name": "random-model",
@@ -333,17 +352,17 @@ def _definitive_training_config() -> dict[str, Any]:
         "evaluation": {"metric": "validation_loss"},
         "run": {
             "seed": 11,
-            "training_schedule_scheme": "random_contiguous_blocks_with_replacement_v1",
+            "training_schedule_scheme": TRAINING_SCHEDULE_SCHEME,
             "model_initialization_seed": 11,
             "data_order_seed": 29,
-            "training_schedule_hash": None,
+            "training_schedule_hash": "e" * 64,
         },
         "training": {
             "device": "cuda",
             "precision": "bfloat16",
             "max_steps": 100,
             "learning_rate": 0.001,
-            "warmup_steps": 10,
+            "warmup_steps": 1,
             "gradient_accumulation_steps": 2,
             "micro_batch_size": 4,
             "log_every": 5,

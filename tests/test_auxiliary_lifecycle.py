@@ -250,6 +250,60 @@ def test_source_selection_requires_one_exact_completed_checkpoint_run(
         )
 
 
+def test_calibration_checkpoint_cannot_be_selected_as_scientific_source(
+    tmp_path: Path,
+) -> None:
+    tranche_id = "01-source-tranche"
+    config_id = "15-source"
+    run_id = "001-calibration"
+    _write_completed_source(
+        tmp_path,
+        tranche_id=tranche_id,
+        config_id=config_id,
+        run_id=run_id,
+        mode="calibrate",
+    )
+
+    with pytest.raises(ValueError, match="completed pretraining attempt"):
+        find_source_run(
+            {
+                "tranche_id": tranche_id,
+                "config_id": config_id,
+                "run_id": run_id,
+            },
+            section="activation_histograms",
+            repository=tmp_path,
+        )
+
+
+def test_calibration_checkpoint_cannot_be_used_for_clipping(
+    tmp_path: Path,
+) -> None:
+    source_run = _write_completed_source(
+        tmp_path,
+        config_id="15-source",
+        run_id="001-calibration",
+        mode="calibrate",
+    )
+    config = _base_config(tmp_path)
+    (source_run / "config.yaml").write_text(
+        yaml.safe_dump(config, sort_keys=False),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="completed pretraining attempt"):
+        clipping.run_clipping_sweep(
+            checkpoint_run_dir=source_run,
+            command="pytest clip-sweep",
+            thresholds=[0.0],
+            quantiles=[],
+            sites=["h"],
+            eval_batches=1,
+        )
+
+    assert not list(Path(config["output"]["dir"]).glob("15-source-clip-*"))
+
+
 def test_activation_histograms_require_shared_requested_validation_identity(
     tmp_path: Path,
 ) -> None:
@@ -786,6 +840,7 @@ def _write_completed_source(
     config_id: str,
     run_id: str,
     tranche_id: str = "01-source-tranche",
+    mode: str = "pretrain",
 ) -> Path:
     scaffold = tmp_path / "experiments" / tranche_id
     for name in ("run", "raw", "figs"):
@@ -806,6 +861,7 @@ def _write_completed_source(
             "tranche_id": tranche_id,
             "config_id": config_id,
             "run_id": run_id,
+            "mode": mode,
             "status": "completed",
             "checkpoint": {"saved": True, "path": "checkpoints/final"},
             "tokenized_data": {

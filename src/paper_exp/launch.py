@@ -227,6 +227,17 @@ def require_raw_output(
             "Config output.dir must resolve to its owning scaffold raw directory "
             f"{expected}: {config_path}"
         )
+    if not scaffold.is_smoke and isinstance(config.get("training"), Mapping):
+        from paper_exp.design import DesignError, validate_config_for_reviewed_design
+
+        try:
+            validate_config_for_reviewed_design(
+                config,
+                repository=root,
+                config_path=config_path,
+            )
+        except DesignError as error:
+            raise LaunchError(str(error)) from error
     return resolved
 
 
@@ -284,20 +295,21 @@ def direct_launch_guard(
 
 
 def _require_reviewed_plan(repository: Path) -> None:
-    plan_path = repository / "docs" / "experiment_plan.md"
     try:
-        lines = plan_path.read_text(encoding="utf-8-sig").splitlines()
-    except (OSError, UnicodeError) as error:
-        raise LaunchError(f"Cannot read the experiment plan: {plan_path}") from error
-    status = next(
-        (line.strip() for line in lines if line.strip().startswith("Plan status:")),
-        None,
-    )
-    if status != "Plan status: reviewed":
-        raise LaunchError(
-            "Scientific launches are blocked until the first plan status is "
-            "`Plan status: reviewed`."
+        from paper_exp.design import (
+            DesignError,
+            load_plan_review,
+            validate_reviewed_design,
         )
+
+        review = load_plan_review(repository)
+        if review.status != "reviewed":
+            raise DesignError(
+                "Scientific launches are blocked until `Plan status: reviewed`."
+            )
+        validate_reviewed_design(repository)
+    except DesignError as error:
+        raise LaunchError(str(error)) from error
 
 
 def _require_clean_git_tree(repository: Path) -> None:

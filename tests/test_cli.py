@@ -140,7 +140,8 @@ def test_calibration_duration_has_no_cli_override() -> None:
             "experiments/01-a1-grid/run/001-example.yaml",
         ]
     )
-    assert args.config == "experiments/01-a1-grid/run/001-example.yaml"
+    assert args.config == ["experiments/01-a1-grid/run/001-example.yaml"]
+    assert args.worker_slot == []
 
     with pytest.raises(SystemExit):
         parser.parse_args(
@@ -152,6 +153,70 @@ def test_calibration_duration_has_no_cli_override() -> None:
                 "1",
             ]
         )
+
+
+def test_calibration_parses_repeated_configs_and_distinct_gpu_slots() -> None:
+    args = build_parser().parse_args(
+        [
+            "calibrate",
+            "--config",
+            "experiments/01-a1-grid/run/001-example.yaml",
+            "--config",
+            "experiments/01-a1-grid/run/002-example.yaml",
+            "--worker-slot",
+            "gpu-0=0",
+            "--worker-slot",
+            "gpu-1=1",
+        ]
+    )
+
+    assert args.config == [
+        "experiments/01-a1-grid/run/001-example.yaml",
+        "experiments/01-a1-grid/run/002-example.yaml",
+    ]
+    assert [(slot.slot_id, slot.payload) for slot in args.worker_slot] == [
+        ("gpu-0", "0"),
+        ("gpu-1", "1"),
+    ]
+
+
+def test_calibration_main_forwards_one_bounded_request(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, object] = {}
+
+    def fake_run_calibrations(configs, **kwargs):
+        captured["configs"] = configs
+        captured.update(kwargs)
+        return [tmp_path / "run-1", tmp_path / "run-2"]
+
+    monkeypatch.setattr(
+        "paper_exp.runner.run_calibrations",
+        fake_run_calibrations,
+    )
+
+    assert main(
+        [
+            "calibrate",
+            "--config",
+            "experiments/01-a1-grid/run/001-example.yaml",
+            "--config",
+            "experiments/01-a1-grid/run/002-example.yaml",
+            "--worker-slot",
+            "gpu-0=0",
+            "--worker-slot",
+            "gpu-1=1",
+        ]
+    ) == 0
+    assert captured["configs"] == [
+        "experiments/01-a1-grid/run/001-example.yaml",
+        "experiments/01-a1-grid/run/002-example.yaml",
+    ]
+    assert [
+        (slot.slot_id, slot.payload) for slot in captured["worker_slots"]
+    ] == [("gpu-0", "0"), ("gpu-1", "1")]
+    assert "paper_exp.cli calibrate" in str(captured["command"])
 
 
 def test_hardware_profile_requires_explicit_pinned_operational_inputs() -> None:

@@ -63,7 +63,23 @@ def build_parser() -> argparse.ArgumentParser:
         "calibrate",
         help="Run a configured throughput calibration.",
     )
-    calibrate.add_argument("--config", required=True)
+    calibrate.add_argument(
+        "--config",
+        action="append",
+        required=True,
+        help="Exact immutable config; repeat for bounded concurrent calibration.",
+    )
+    calibrate.add_argument(
+        "--worker-slot",
+        action="append",
+        type=_gpu_worker_slot,
+        default=[],
+        metavar="SLOT=CUDA_DEVICE",
+        help=(
+            "Explicit one-GPU worker mapping; repeat at least twice only with "
+            "multiple calibration configs."
+        ),
+    )
 
     profile_hardware = subparsers.add_parser(
         "profile-hardware",
@@ -215,20 +231,15 @@ def main(argv: list[str] | None = None) -> int:
             return 0
 
         if args.command == "calibrate":
-            from paper_exp.training import run_training
+            from paper_exp.runner import run_calibrations
 
-            repository, config_path = resolve_launch_config(args.config)
-            config = load_config(config_path, allow_todos=False)
-            require_raw_output(config, repository=repository, config_path=config_path)
-            require_token_cache_output(config, repository=repository, source=config_path)
-            with direct_launch_guard(repository=repository):
-                run_dir = run_training(
-                    config,
-                    config_path=config_path,
-                    command=command,
-                    mode="calibrate",
-                )
-            print(f"Calibration run written to {run_dir}")
+            run_dirs = run_calibrations(
+                args.config,
+                command=command,
+                worker_slots=args.worker_slot,
+            )
+            for run_dir in run_dirs:
+                print(f"Calibration run written to {run_dir}")
             return 0
 
         if args.command == "profile-hardware":
@@ -427,13 +438,16 @@ def _positive_float(value: str) -> float:
     return parsed
 
 
-def _smoke_worker_slot(value: str):
+def _gpu_worker_slot(value: str):
     from paper_exp.runner import RunnerError, parse_worker_slot
 
     try:
         return parse_worker_slot(value)
     except RunnerError as error:
         raise argparse.ArgumentTypeError(str(error)) from error
+
+
+_smoke_worker_slot = _gpu_worker_slot
 
 
 if __name__ == "__main__":

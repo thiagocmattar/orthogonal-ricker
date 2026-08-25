@@ -155,6 +155,33 @@ def build_manifest(
         "gpu_info": collect_gpu_info(),
         "package_versions": collect_package_versions(),
     }
+    identity = config.get("identity")
+    if identity is not None:
+        if not isinstance(identity, dict):
+            raise RuntimeError("Config identity must be a mapping before manifest publication.")
+        required_identity = (
+            "group_id",
+            "condition_fingerprint",
+            "training_implementation_id",
+        )
+        missing = [field for field in required_identity if field not in identity]
+        if missing:
+            raise RuntimeError(
+                "Config identity is incomplete before manifest publication: "
+                + ", ".join(missing)
+            )
+        from paper_exp.design import complete_config_sha256
+
+        manifest.update(
+            {
+                "case_group_id": identity["group_id"],
+                "condition_fingerprint": identity["condition_fingerprint"],
+                "training_implementation_id": identity[
+                    "training_implementation_id"
+                ],
+                "config_sha256": complete_config_sha256(config),
+            }
+        )
     worker_assignment = collect_worker_assignment()
     if worker_assignment is not None:
         if worker_assignment["config_id"] != manifest["config_id"]:
@@ -179,6 +206,8 @@ def collect_worker_assignment() -> dict[str, Any] | None:
         "gpu_name": "PAPER_EXP_WORKER_GPU_NAME",
         "gpu_total_memory_bytes": "PAPER_EXP_WORKER_GPU_TOTAL_MEMORY_BYTES",
         "gpu_compute_capability": "PAPER_EXP_WORKER_GPU_COMPUTE_CAPABILITY",
+        "torch_version": "PAPER_EXP_WORKER_TORCH_VERSION",
+        "cuda_runtime_version": "PAPER_EXP_WORKER_CUDA_RUNTIME_VERSION",
         "cuda_visible_devices": "CUDA_VISIBLE_DEVICES",
     }
     values = {field: os.environ.get(name) for field, name in names.items()}
@@ -208,6 +237,8 @@ def collect_worker_assignment() -> dict[str, Any] | None:
         "gpu_name": values["gpu_name"],
         "gpu_total_memory_bytes": int(str(values["gpu_total_memory_bytes"])),
         "gpu_compute_capability": values["gpu_compute_capability"],
+        "torch_version": values["torch_version"],
+        "cuda_runtime_version": values["cuda_runtime_version"],
         "runpod_pod_id": os.environ.get("RUNPOD_POD_ID"),
     }
 

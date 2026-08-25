@@ -69,10 +69,26 @@ def verify_completed_checkpoint_run(
         raise ValueError(f"Selected source tranche identity is inconsistent: {run_dir}")
     if manifest.get("status") != "completed":
         raise ValueError(f"Selected source run is not completed: {run_dir}")
+    require_completed_pretraining_manifest(manifest, source_run=run_dir)
     checkpoint_path = source_checkpoint_path(run_dir, manifest)
     model_files = tuple(checkpoint_path / name for name in checkpoint_files)
     if not checkpoint_path.is_dir() or not any(path.is_file() for path in model_files):
         raise FileNotFoundError(f"Selected source checkpoint is incomplete: {checkpoint_path}")
+
+
+def require_completed_pretraining_manifest(
+    manifest: dict[str, Any],
+    *,
+    source_run: Path,
+) -> None:
+    """Reject operational and diagnostic attempts as scientific sources."""
+
+    mode = manifest.get("mode")
+    if mode != "pretrain":
+        raise ValueError(
+            "Selected source checkpoint must come from a completed pretraining "
+            f"attempt, not mode {mode!r}: {source_run}"
+        )
 
 
 def source_checkpoint_path(source_run: Path, manifest: dict[str, Any]) -> Path:
