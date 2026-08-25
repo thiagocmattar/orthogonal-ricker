@@ -157,9 +157,9 @@ The parent runner:
 - aborts before mutation on running, statusless, inconsistent, or ambiguous
   pretraining state;
 - executes one config at a time by default;
-- for the exact `A1-lr-screen` tranche only, accepts exactly two worker slots
-  mapped one-to-one to distinct homogeneous A40 GPUs on one Pod and admits at
-  most two pending configs in committed order;
+- for the historical exact three-config `A1-lr-screen` recipe only, accepted
+  two worker slots mapped one-to-one to distinct homogeneous A40 GPUs on one
+  Pod; that authorization does not cover an appended config;
 - stops admitting new configs on the first escaping failure and drains every
   already-admitted worker to terminal state.
 
@@ -169,10 +169,10 @@ that workflow.
 
 The isolated worker engine is implemented and live-validated for
 infrastructure smoke and bounded calibration. The selected A1 operational
-amendment exposes it to that exact definitive tranche through the config-bound
-authorization committed in `a23c56d`. Other definitive tranches remain serial
-by default. Multiple case runners, same-GPU packing, heterogeneous worker
-slots, and multi-Pod dispatch remain unsupported.
+amendment exposed it to that exact original tranche through the config-bound
+authorization committed in `a23c56d`. The proposed fourth A1 cell and other
+definitive work remain serial by default. Multiple case runners, same-GPU
+packing, heterogeneous worker slots, and multi-Pod dispatch remain unsupported.
 
 ### RunPod Operations
 
@@ -313,9 +313,10 @@ and clean Git SHA. Long-running commands must survive SSH loss and write their
 log to `/workspace`.
 
 One multi-GPU Pod with one authoritative coordinator and one writable checkout
-is the supported parallel shape. For definitive pretraining, that support is
-currently limited to the exact two-A40 `A1-lr-screen` launch above; other
-tranches remain serial. Do not run independent case runners or allow
+is the supported parallel shape. For definitive pretraining, it was authorized
+only for the completed exact three-config A1 launch; the authorization cannot
+be extended to an appended cell. Current tranches remain serial. Do not run
+independent case runners or allow
 concurrent writable checkouts on one volume. Multi-Pod scientific execution is
 outside this implementation and requires a future reviewed contract rather
 than an ad hoc extension of the local lock.

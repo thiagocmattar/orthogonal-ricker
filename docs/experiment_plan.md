@@ -4,18 +4,21 @@ Plan status: placeholder
 Reviewed design commit: none
 Reviewed case groups: []
 
-> **Launch scope:** none. `A1-lr-screen` completed at execution commit
-> `276da7cd8e9142da48b95e12b46a99d61367ca8f`, and its predeclared selection is
-> frozen as `lr_14m = 0.002` in
-> [`decisions.md`](experimental-design/decisions.md). Recording that normative
-> upstream decision resets this manifest under the review rule below. No
-> scientific case group may now be materialized or launched until an exact new
-> scope is reviewed at a committed design SHA.
+> **Launch scope:** none. The original three `A1-lr-screen` cells completed at
+> execution commit `276da7cd8e9142da48b95e12b46a99d61367ca8f`. Because `2e-3`
+> had the lowest final selection loss at the original grid's upper boundary,
+> the proposed design adds exactly one `4e-3` cell and reopens `lr_14m` until
+> all four cells receive terminal classifications. See the
+> [`A1 boundary-extension review packet`](experimental-design/a1-boundary-extension-review-packet.md).
+> The proposal is not reviewed launch scope: do not materialize config `004`
+> or launch scientific work until this exact amendment is approved at a
+> committed design SHA.
 
 The [`A1 formal review packet`](experimental-design/a1-review-packet.md) was
 approved at design commit `54be534f383001b4af3d3b43597e135d4ca6653d`.
 That historical approval permitted its three immutable configs and the now
-completed A1 tranche only; it is not current launch authority.
+completed original tranche only; it does not authorize the proposed fourth
+cell or any current launch.
 
 This file remains the sole launch-status authority. The proposed scientific
 design is split into focused components under

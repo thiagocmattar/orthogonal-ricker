@@ -61,6 +61,8 @@ def test_repository_catalog_expands_every_declared_group_and_alias() -> None:
         "C3-frontier-replication",
         "C3-winner-confirmation",
     )
+    assert summary.groups["A1-lr-screen"]["conceptual_cells"] == 4
+    assert summary.groups["A1-lr-screen"]["unique_cases"] == 4
     assert summary.groups["B1-threshold-screen"]["conceptual_cells"] == 56
     assert summary.groups["B1-threshold-screen"]["unique_cases"] == 50
 
@@ -198,6 +200,41 @@ def test_a1_preflight_enforces_exact_physical_cell_and_duplicate_reuse(
     _git(repository, "add", duplicate_path.relative_to(repository).as_posix())
 
     with pytest.raises(DesignError, match="Duplicate scientific condition fingerprints"):
+        validate_config_for_reviewed_design(
+            config,
+            repository=repository,
+            config_path=config_path,
+        )
+
+
+def test_a1_preflight_accepts_4e_3_and_rejects_unreviewed_extension(
+    tmp_path: Path,
+) -> None:
+    repository, _design_sha = _reviewed_repository(tmp_path)
+    scaffold = repository / "experiments/01-a1-lr-screen"
+    for name in ("run", "raw", "figs"):
+        (scaffold / name).mkdir(parents=True, exist_ok=True)
+    config_path = scaffold / "run/004-a1-lr-4e-3.yaml"
+    config = _a1_config()
+    config["training"]["learning_rate"] = 4.0e-3
+    excludes = validate_catalog(repository).fingerprint_exclude_paths
+    config["identity"]["condition_fingerprint"] = condition_fingerprint(
+        config, exclude_paths=excludes
+    )
+    config_path.write_text(yaml.safe_dump(config, sort_keys=False), encoding="utf-8")
+    _git(repository, "add", config_path.relative_to(repository).as_posix())
+
+    validate_config_for_reviewed_design(
+        config,
+        repository=repository,
+        config_path=config_path,
+    )
+
+    config["training"]["learning_rate"] = 8.0e-3
+    config["identity"]["condition_fingerprint"] = condition_fingerprint(
+        config, exclude_paths=excludes
+    )
+    with pytest.raises(DesignError, match="outside the reviewed 14M grid"):
         validate_config_for_reviewed_design(
             config,
             repository=repository,

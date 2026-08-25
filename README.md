@@ -12,10 +12,11 @@ modular proposal for the lean 14M discovery and 70M/410M replication program;
 its [executive brief](docs/experimental-design/executive.md) is advisor-facing.
 The sole scientific-scope authority is
 [`docs/experiment_plan.md`](docs/experiment_plan.md). It currently reviews no
-case group: recording the completed A1 selection reset the plan to placeholder
-status. `A1-lr-screen` is complete and `lr_14m = 0.002` is frozen; any
-downstream scope requires a new committed review, and every definitive launch
-and cloud resource envelope still requires its own explicit approval.
+case group. The original three A1 cells are complete, but the proposed single
+`4e-3` upper-boundary extension reopens `lr_14m`; config `004` remains
+unmaterialized pending exact-SHA review. Any downstream scope requires a new
+committed review, and every definitive launch and cloud resource envelope
+still requires its own explicit approval.
 
 The tracked tree contains the definitive A1 recipes and their evidence index;
 raw attempts remain ignored and are addressed by exact identities from
@@ -98,9 +99,9 @@ After the relevant case groups enter the definitive plan's reviewed scope:
    A1 may calibrate distinct configs concurrently under one coordinator and
    lock, with one process per distinct homogeneous GPU.
 7. Execute the case runner; it reuses coherent completed configs and runs new
-   cases serially by default under one lock. The exact `A1-lr-screen` tranche
-   may use exactly two worker slots mapped one-to-one to distinct homogeneous
-   A40 GPUs on one Pod under that same coordinator and lock. A reviewed
+   cases serially by default under one lock. The historical A1 two-worker
+   authorization is bound to exactly configs `001`–`003` and does not cover
+   the proposed `004`; the four-config extension runner is serial. A reviewed
    infrastructure retry requires the explicit `--retry-failed` flag.
 8. Verify terminal artifacts before running diagnostics or plotting.
 9. Record accepted evidence in the experiment and paper maps.
@@ -129,12 +130,12 @@ python experiments/NN-phase-tranche/run/runner.py
 
 The case runner contains the ordered config paths and delegates to
 `paper_exp.runner.run_launch`. A reviewed bounded exception may also carry
-tracked operational authorization; A1 binds it to the exact three config IDs,
-two workers, and A40 identity. Its scaffold prefix and lock serialize
-coordinator invocations. The parent validates the complete tranche, requires
-every config to be a direct sibling of the runner, and stops admission on the
-first failure. The A1 exception may have two already-admitted workers, which
-are drained to terminal state. See
+tracked operational authorization. The historical A1 exception was bound to
+the exact original three config IDs, two workers, and A40 identity; it does not
+cover config `004`. Its scaffold prefix and lock serialize coordinator
+invocations. The parent validates the complete tranche, requires every config
+to be a direct sibling of the runner, and stops admission on the first failure.
+See
 [`experiments/README.md`](experiments/README.md).
 
 Before launch, report the estimated time to completion (ETC) for the first run

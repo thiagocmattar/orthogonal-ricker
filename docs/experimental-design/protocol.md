@@ -81,7 +81,7 @@ diagnostic schema versions remain separate.
 
 | Model | Global batch | Peak-LR grid |
 | --- | ---: | ---: |
-| Pythia-14M | 262,144 input tokens/update | `{5e-4, 1e-3, 2e-3}` |
+| Pythia-14M | 262,144 input tokens/update | `{5e-4, 1e-3, 2e-3, 4e-3}` |
 | Pythia-70M | 262,144 input tokens/update | `{5e-4, 1e-3, 2e-3}` |
 | Pythia-410M | 262,144 input tokens/update | `{1.5e-4, 3e-4, 6e-4}` |
 

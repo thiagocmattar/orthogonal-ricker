@@ -27,10 +27,11 @@ Then read the document that owns the task:
 The reviewed `docs/experiment_plan.md` and the exact normative components it
 lists are the authority for datasets, models, budgets, seeds, comparisons,
 promotion rules, diagnostics, and paper outputs. Its current status is
-`placeholder` with no reviewed case group after recording the completed A1
-decision. Do not materialize or launch another scientific case group until the
-user reviews an expanded definitive plan. The completed A1 configs and evidence
-remain historical inputs and must not be rerun merely because scope reset. Use
+`placeholder` with no reviewed case group while the proposed `4e-3` A1
+boundary extension awaits exact-SHA review. Do not materialize config `004` or
+launch another scientific case group until the user reviews the amended
+definitive plan. The completed A1 configs and evidence remain exact reusable
+inputs and must not be rerun merely because scope reset. Use
 `docs/experimental-design/cases.yaml` and
 `docs/experimental-design/run-reuse.md` to ensure one physical config per
 scientific condition and seed.
@@ -68,20 +69,21 @@ scientific condition and seed.
 - A case runner contains the ordered config paths and calls the single parent,
   `paper_exp.runner.run_launch`. Only a reviewed bounded execution exception
   may add explicit tracked operational authorization metadata; A1 binds that
-  metadata to its exact three config IDs, two workers, and A40 GPU identity.
+  metadata to its exact original three config IDs, two workers, and A40 GPU
+  identity. It is historical and does not authorize an appended A1 cell.
 - Definitive configs are named `CCC-<case>.yaml`; prefixes are globally unique
   and sequential. Raw attempts use
   `raw/CCC-<case>/001-<timestamp>-<id>/` inside the owning scaffold.
 - Run every definitive tranche through its case runner, including a tranche
   with one config. Never launch case runners in parallel.
 - The parent validates the complete tranche and holds one lock. It executes
-  configs serially by default. The exact `A1-lr-screen` tranche may instead
-  use one coordinator on one Pod with exactly two worker slots mapped
-  one-to-one to distinct homogeneous A40 GPUs. That coordinator admits at
-  most two configs in committed order, stops new admission on the first
-  failure, and drains every admitted worker. Multiple case runners, same-GPU
-  packing, heterogeneous slots, and multi-Pod dispatch remain forbidden. Keep
-  scientific selection and phase-specific behavior out of the parent.
+  configs serially by default. The completed original three-cell A1 launch
+  historically used one coordinator and two distinct homogeneous A40 slots;
+  that exact authorization cannot be widened. The proposed fourth A1 cell is
+  serial because it is the only pending condition. Multiple case runners,
+  same-GPU packing, heterogeneous slots, and multi-Pod dispatch remain
+  forbidden. Keep scientific selection and phase-specific behavior out of the
+  parent.
 - Before a launch, report first-run and full-tranche ETCs, projected completion
   time, evidence, assumptions, and uncertainty. Follow `docs/runbook.md` for
   status and recovery; wait for explicit launch approval, and keep monitoring
