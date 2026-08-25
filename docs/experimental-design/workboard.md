@@ -44,7 +44,7 @@ Readiness is derived from this table, the reviewed case-group scope, and
 
 | Stage | State | Required closure/decision |
 | --- | --- | --- |
-| A1 | blocked | Formal review of group `A1-lr-screen`; every input, implementation, and physical-batch blocker is resolved |
+| A1 | ready | Group `A1-lr-screen` reviewed at design commit `54be534f383001b4af3d3b43597e135d4ca6653d`; exact configs `001`–`003` materialized; live `OPS-03` calibration and launch approval remain recurring prelaunch checks |
 | A2 | blocked | Reviewed A2 groups; A1 decision `lr_14m`; `DIAG-02`, `OPS-08` |
 | A3 | blocked | Reviewed group `A3-ol1-screen`; A2 complete; `METHOD-02`, `DIAG-03`, `OPS-08` |
 | B1 | blocked | Reviewed group `B1-threshold-screen`; A2 terminal interpretation; `METHOD-01`, `DIAG-01`, `OPS-08` |

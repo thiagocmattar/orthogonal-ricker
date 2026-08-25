@@ -1,8 +1,10 @@
 # A1 Learning-Rate Screen — Formal Review Packet
 
-**Status:** implementation complete; awaiting formal plan approval. The launch
-manifest remains `placeholder`, so no scientific config, calibration, cloud
-resource, or pretraining launch is authorized by this document.
+**Status:** formally approved at design commit
+`54be534f383001b4af3d3b43597e135d4ca6653d`; the manifest reviews only
+`A1-lr-screen`. Its three immutable configs are materialized under
+`experiments/01-a1-lr-screen/`. RunPod spending, calibration, and definitive
+pretraining still require their separate approvals.
 
 This packet summarizes the exact `A1-lr-screen` scope for review at one Git
 commit. If any summary conflicts with a normative component listed in
