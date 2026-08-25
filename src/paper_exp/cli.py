@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import math
 from pathlib import Path
 import shlex
 import sys
@@ -9,6 +10,7 @@ from paper_exp.config import ConfigError, load_config
 from paper_exp.launch import (
     LaunchError,
     direct_launch_guard,
+    repository_path,
     require_raw_output,
     require_token_cache_output,
     resolve_launch_config,
@@ -32,6 +34,24 @@ def build_parser() -> argparse.ArgumentParser:
 
     smoke = subparsers.add_parser("smoke", help="Run a tiny local harness check.")
     smoke.add_argument("--config", required=True)
+    smoke.add_argument(
+        "--worker-slot",
+        action="append",
+        type=_smoke_worker_slot,
+        default=[],
+        metavar="SLOT=CUDA_DEVICE",
+        help="Explicit worker mapping; repeat exactly twice for concurrent smoke.",
+    )
+    smoke.add_argument(
+        "--require-cuda",
+        action="store_true",
+        help="Require one BF16 CUDA GPU per concurrent smoke worker.",
+    )
+    smoke.add_argument(
+        "--allow-shared-gpu",
+        action="store_true",
+        help="Infrastructure-smoke-only opt-in to map both workers to one GPU.",
+    )
 
     prepare_data = subparsers.add_parser(
         "prepare-data",
@@ -44,6 +64,39 @@ def build_parser() -> argparse.ArgumentParser:
         help="Run a configured throughput calibration.",
     )
     calibrate.add_argument("--config", required=True)
+
+    profile_hardware = subparsers.add_parser(
+        "profile-hardware",
+        help="Run a non-scientific physical-microbatch profile on one GPU.",
+    )
+    profile_hardware.add_argument("--architecture", required=True)
+    profile_hardware.add_argument("--revision", required=True)
+    profile_hardware.add_argument("--gpu-class", required=True)
+    profile_hardware.add_argument(
+        "--candidate-microbatches",
+        required=True,
+        type=_positive_int_list,
+        metavar="N[,N...]",
+    )
+    profile_hardware.add_argument("--repeats", type=_positive_int, default=2)
+    profile_hardware.add_argument("--cuda-device", type=_nonnegative_int, required=True)
+    profile_hardware.add_argument(
+        "--worker-timeout-seconds",
+        type=_positive_float,
+        required=True,
+        help="Hard timeout for each fresh profiling worker.",
+    )
+    profile_hardware.add_argument(
+        "--container-image",
+        required=True,
+        help="Immutable container reference ending in @sha256:<64 hex>.",
+    )
+    profile_hardware.add_argument("--work-root", required=True)
+    profile_hardware.add_argument(
+        "--retry-failed",
+        action="store_true",
+        help="Resume only after reviewing a preserved infrastructure failure.",
+    )
 
     check = subparsers.add_parser(
         "check",
@@ -134,7 +187,14 @@ def main(argv: list[str] | None = None) -> int:
             require_raw_output(
                 config, repository=repository, config_path=config_path
             )
-            run_dir = run_smoke(config, config_path=config_path, command=command)
+            run_dir = run_smoke(
+                config,
+                config_path=config_path,
+                command=command,
+                worker_slots=args.worker_slot,
+                require_cuda=args.require_cuda,
+                allow_shared_gpu=args.allow_shared_gpu,
+            )
             print(f"Smoke run written to {run_dir}")
             return 0
 
@@ -169,6 +229,35 @@ def main(argv: list[str] | None = None) -> int:
                     mode="calibrate",
                 )
             print(f"Calibration run written to {run_dir}")
+            return 0
+
+        if args.command == "profile-hardware":
+            from paper_exp.hardware_profile import HardwareProfileRequest
+            from paper_exp.hardware_profile_run import run_hardware_profile
+
+            request = HardwareProfileRequest(
+                architecture=args.architecture,
+                revision=args.revision,
+                gpu_class=args.gpu_class,
+                candidate_microbatches=tuple(args.candidate_microbatches),
+                repeats=args.repeats,
+            )
+            work_root = Path(args.work_root)
+            if not work_root.is_absolute():
+                work_root = repository_path() / work_root
+            result = run_hardware_profile(
+                request,
+                cuda_device=args.cuda_device,
+                work_root=work_root,
+                checkpoint_scratch=work_root / "checkpoint-scratch",
+                worker_timeout_seconds=args.worker_timeout_seconds,
+                container_image=args.container_image,
+                retry_failed=args.retry_failed,
+            )
+            print(
+                "Hardware profile written to "
+                f"{result.artifact_path} (sha256 {result.artifact_sha256})"
+            )
             return 0
 
         if args.command == "check":
@@ -300,6 +389,51 @@ def _parse_str_list(value: str) -> list[str]:
     if not value.strip():
         return []
     return [part.strip() for part in value.split(",") if part.strip()]
+
+
+def _nonnegative_int(value: str) -> int:
+    try:
+        parsed = int(value)
+    except ValueError as error:
+        raise argparse.ArgumentTypeError("must be a nonnegative integer") from error
+    if parsed < 0:
+        raise argparse.ArgumentTypeError("must be a nonnegative integer")
+    return parsed
+
+
+def _positive_int(value: str) -> int:
+    parsed = _nonnegative_int(value)
+    if parsed == 0:
+        raise argparse.ArgumentTypeError("must be a positive integer")
+    return parsed
+
+
+def _positive_int_list(value: str) -> tuple[int, ...]:
+    parts = value.split(",")
+    if not parts or any(not part.strip() for part in parts):
+        raise argparse.ArgumentTypeError(
+            "must be a comma-separated list of positive integers"
+        )
+    return tuple(_positive_int(part.strip()) for part in parts)
+
+
+def _positive_float(value: str) -> float:
+    try:
+        parsed = float(value)
+    except ValueError as error:
+        raise argparse.ArgumentTypeError("must be a positive finite number") from error
+    if not math.isfinite(parsed) or parsed <= 0.0:
+        raise argparse.ArgumentTypeError("must be a positive finite number")
+    return parsed
+
+
+def _smoke_worker_slot(value: str):
+    from paper_exp.runner import RunnerError, parse_worker_slot
+
+    try:
+        return parse_worker_slot(value)
+    except RunnerError as error:
+        raise argparse.ArgumentTypeError(str(error)) from error
 
 
 if __name__ == "__main__":

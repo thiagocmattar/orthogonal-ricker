@@ -351,11 +351,11 @@ def _parse_runner_arguments(
         if argument == "--worker-slot":
             if index + 1 >= len(arguments):
                 raise RunnerError("Case runner --worker-slot requires SLOT=CUDA_DEVICE.")
-            slots.append(_parse_worker_slot(arguments[index + 1]))
+            slots.append(parse_worker_slot(arguments[index + 1]))
             index += 2
             continue
         if argument.startswith("--worker-slot="):
-            slots.append(_parse_worker_slot(argument.split("=", 1)[1]))
+            slots.append(parse_worker_slot(argument.split("=", 1)[1]))
             index += 1
             continue
         rendered = " ".join(arguments)
@@ -368,7 +368,9 @@ def _parse_runner_arguments(
     return retry_failed, result
 
 
-def _parse_worker_slot(value: str) -> WorkerSlot[str]:
+def parse_worker_slot(value: str) -> WorkerSlot[str]:
+    """Parse one explicit CUDA worker mapping shared by runners and smoke."""
+
     slot_id, separator, cuda_device = value.partition("=")
     if not separator or not _WORKER_SLOT_ID_RE.fullmatch(slot_id):
         raise RunnerError(
@@ -392,7 +394,7 @@ def _validate_worker_slots(slots: Sequence[WorkerSlot[str]]) -> None:
     for slot in slots:
         if slot.payload is None:
             raise RunnerError("Every case runner worker slot requires a CUDA device.")
-        _parse_worker_slot(f"{slot.slot_id}={slot.payload}")
+        parse_worker_slot(f"{slot.slot_id}={slot.payload}")
     devices = [str(slot.payload) for slot in slots]
     duplicate_devices = sorted(
         {device for device in devices if devices.count(device) > 1}

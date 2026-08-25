@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-from collections.abc import Iterator, Mapping
+from collections.abc import Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from copy import deepcopy
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from hashlib import sha256
 import json
 from pathlib import Path
 import re
@@ -15,6 +16,7 @@ import yaml
 
 from paper_exp.config import validate_config, validate_smoke_config
 from paper_exp.launch import EXPERIMENTS_DIR_NAME, SCAFFOLD_NAME_RE
+from paper_exp.parallel import WorkerSlot
 from paper_exp.utils import build_manifest, write_json, write_jsonl
 
 RUN_SEQUENCE_RE = re.compile(r"^(\d{3})-")
@@ -187,7 +189,39 @@ def run_smoke(
     config_path: str | Path,
     command: str,
     run_id: str | None = None,
+    worker_slots: Sequence[WorkerSlot[str]] = (),
+    require_cuda: bool = False,
+    allow_shared_gpu: bool = False,
 ) -> Path:
+    from paper_exp.runner import RunnerError, parse_worker_slot
+
+    if not isinstance(require_cuda, bool) or not isinstance(allow_shared_gpu, bool):
+        raise TypeError("Smoke CUDA flags must be booleans.")
+    requested_slots = tuple(worker_slots)
+    if any(not isinstance(slot, WorkerSlot) for slot in requested_slots):
+        raise ValueError("Smoke worker slots must be WorkerSlot values.")
+    try:
+        slots = tuple(
+            parse_worker_slot(f"{slot.slot_id}={slot.payload}")
+            for slot in requested_slots
+        )
+    except RunnerError as error:
+        raise ValueError(f"Invalid smoke worker slot: {error}") from error
+    if slots != requested_slots:
+        raise ValueError("Smoke worker slots must use canonical string IDs and devices.")
+    if slots and len(slots) != 2:
+        raise ValueError("Concurrent smoke requires exactly two worker slots.")
+    if len({slot.slot_id for slot in slots}) != len(slots):
+        raise ValueError("Smoke worker slot IDs must be distinct.")
+    if not slots and (require_cuda or allow_shared_gpu):
+        raise ValueError(
+            "--require-cuda and --allow-shared-gpu require two worker slots."
+        )
+    devices = tuple(slot.payload for slot in slots)
+    if len(set(devices)) != len(devices) and not allow_shared_gpu:
+        raise ValueError(
+            "Smoke CUDA devices must be distinct unless shared-GPU mode is explicit."
+        )
     validate_smoke_config(config)
     with run_lifecycle(
         config,
@@ -211,7 +245,62 @@ def run_smoke(
             "smoke/num_examples": len(predictions),
             "smoke/passed": bool(predictions),
         }
-        return complete_run(run, metrics=metrics, predictions=predictions)
+        manifest_updates: dict[str, Any] | None = None
+        if slots:
+            from paper_exp.infrastructure_smoke import REPORT_HASH_NAME
+            from paper_exp.infrastructure_smoke import REPORT_NAME
+            from paper_exp.infrastructure_smoke import (
+                run_concurrent_infrastructure_smoke,
+            )
+            concurrent_root = run.run_dir / "concurrent"
+            report = run_concurrent_infrastructure_smoke(
+                slots,
+                concurrent_root,
+                require_cuda=require_cuda,
+                allow_shared_gpu=allow_shared_gpu,
+            )
+            report_bytes = (concurrent_root / REPORT_NAME).read_bytes()
+            report_sha256 = sha256(report_bytes).hexdigest()
+            expected_sidecar = (report_sha256 + "\n").encode("ascii")
+            if (concurrent_root / REPORT_HASH_NAME).read_bytes() != expected_sidecar:
+                raise RuntimeError(
+                    "Concurrent infrastructure smoke report checksum is invalid."
+                )
+            try:
+                saved_report = json.loads(report_bytes)
+            except (UnicodeError, ValueError) as error:
+                raise RuntimeError(
+                    "Concurrent infrastructure smoke report is malformed."
+                ) from error
+            if saved_report != report:
+                raise RuntimeError(
+                    "Concurrent infrastructure smoke report differs from its result."
+                )
+            if report.get("passed") is not True:
+                raise RuntimeError("Concurrent infrastructure smoke did not pass.")
+            metrics.update(
+                {
+                    "smoke/concurrent_passed": report["passed"],
+                    "smoke/concurrent_attempts": len(report["attempts"]),
+                }
+            )
+            manifest_updates = {
+                "infrastructure_smoke": {
+                    "report": f"concurrent/{REPORT_NAME}",
+                    "sha256": report_sha256,
+                    "require_cuda": require_cuda,
+                    "allow_shared_gpu": allow_shared_gpu,
+                    "worker_slots": {
+                        slot.slot_id: slot.payload for slot in slots
+                    },
+                }
+            }
+        return complete_run(
+            run,
+            metrics=metrics,
+            predictions=predictions,
+            manifest_updates=manifest_updates,
+        )
 
 
 def create_run_dir(
