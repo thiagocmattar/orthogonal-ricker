@@ -52,6 +52,8 @@ def test_request_derives_only_exact_global_batch_decompositions() -> None:
         _request(candidates=(2,), revision="A" * 40)
     with pytest.raises(ValueError, match="at least 2"):
         _request(candidates=(2,), repeats=1)
+    with pytest.raises(ValueError, match="at most 3"):
+        _request(candidates=(2,), repeats=4)
 
 
 def test_flat_synthetic_hash_is_stable_across_microbatch_reshapes() -> None:
@@ -178,6 +180,39 @@ def test_selector_does_not_use_one_success_or_incomplete_repeat_records() -> Non
         select_profile_candidate(request, (one_success, incomplete))
 
 
+def test_selector_disqualifies_intermittent_oom_even_with_two_successes() -> None:
+    request = _request(candidates=(2, 4), repeats=3)
+    intermittent = CandidateProfileResult(
+        microbatch_sequences=2,
+        gradient_accumulation_steps=64,
+        repeats=(
+            _success(2, 1, throughput=9_999.0),
+            _success(2, 2, throughput=9_999.0),
+            ProfileRepeatResult(
+                microbatch_sequences=2,
+                repeat_index=3,
+                fit=False,
+                error="out of memory",
+                synchronized_seconds=None,
+                tokens_per_second=None,
+                peak_allocated_bytes=None,
+                peak_reserved_bytes=None,
+                total_vram_bytes=None,
+            ),
+        ),
+    )
+    stable = _candidate(
+        4,
+        throughputs=(900.0, 910.0, 905.0),
+        reserved=19_000_000_000,
+    )
+
+    assert (
+        select_profile_candidate(request, (intermittent, stable)).microbatch_sequences
+        == 4
+    )
+
+
 def test_selector_fails_when_no_candidate_is_eligible() -> None:
     request = _request(candidates=(2,))
     result = _candidate(
@@ -186,7 +221,7 @@ def test_selector_fails_when_no_candidate_is_eligible() -> None:
         reserved=43_200_000_001,
     )
 
-    with pytest.raises(NoEligibleProfileCandidate, match="two successful repeats"):
+    with pytest.raises(NoEligibleProfileCandidate, match="every requested repeat"):
         select_profile_candidate(request, (result,))
 
 

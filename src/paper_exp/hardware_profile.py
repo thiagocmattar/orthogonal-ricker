@@ -23,6 +23,7 @@ from typing import Any, Protocol
 SEQUENCE_LENGTH = 2_048
 GLOBAL_SEQUENCES = 128
 MIN_SUCCESSFUL_REPEATS = 2
+MAX_PROFILE_REPEATS = 3
 MAX_RESERVED_VRAM_FRACTION = 0.90
 THROUGHPUT_TIE_FRACTION = 0.02
 
@@ -130,6 +131,8 @@ class HardwareProfileRequest:
             raise ValueError(
                 f"repeats must be at least {MIN_SUCCESSFUL_REPEATS}."
             )
+        if self.repeats > MAX_PROFILE_REPEATS:
+            raise ValueError(f"repeats must be at most {MAX_PROFILE_REPEATS}.")
         if not isinstance(self.candidate_microbatches, Sequence) or isinstance(
             self.candidate_microbatches,
             (str, bytes),
@@ -444,9 +447,9 @@ def select_profile_candidate(
 ) -> ProfileSelection:
     """Select by throughput, treating values within 2% as a memory tie.
 
-    Eligibility requires the complete requested repeat record, at least two
-    successful synchronized repeats, and no successful repeat whose reserved
-    VRAM exceeds 90% of total VRAM.  Among candidates within 2% of the best
+    Eligibility requires every requested repeat to fit, at least two
+    synchronized repeats, and no repeat whose reserved VRAM exceeds 90% of
+    total VRAM.  Among candidates within 2% of the best
     median throughput, lower worst-repeat reserved memory wins.  Remaining
     ties prefer higher throughput and then the lower microbatch.
     """
@@ -455,7 +458,7 @@ def select_profile_candidate(
     eligible: list[ProfileSelection] = []
     for candidate in ordered:
         successful = candidate.successful_repeats
-        if len(successful) < MIN_SUCCESSFUL_REPEATS:
+        if len(successful) != request.repeats:
             continue
         if any(
             result.peak_reserved_bytes * 10 > result.total_vram_bytes * 9
@@ -479,7 +482,7 @@ def select_profile_candidate(
 
     if not eligible:
         raise NoEligibleProfileCandidate(
-            "No candidate has two successful repeats within 90% reserved VRAM."
+            "No candidate fits every requested repeat within 90% reserved VRAM."
         )
     fastest = max(value.median_tokens_per_second for value in eligible)
     tied = [
