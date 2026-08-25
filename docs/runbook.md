@@ -116,7 +116,7 @@ The parent runner:
   `--retry-failed` recovery flag;
 - aborts before mutation on running, statusless, inconsistent, or ambiguous
   pretraining state;
-- executes one config at a time unless reviewed worker slots are supplied;
+- executes one config at a time under the current repository policy;
 - stops admitting new configs on the first escaping failure and drains every
   already-admitted worker to terminal state.
 
@@ -124,23 +124,17 @@ Never start two case runners in parallel. Data preparation and diagnostics run
 one config at a time unless the final plan explicitly adds a serial runner for
 that workflow.
 
-Concurrent scientific execution remains disabled until `CLOUD-01`, `OPS-04`,
-`OPS-05`, and `OPS-06` are all resolved. The implemented one-host mode retains
-one authoritative case-runner coordinator, one complete-tranche preflight,
-and one lock, then dispatches distinct immutable configs to bounded fresh
-subprocesses with explicit slots such as:
-
-```bash
-python experiments/NN-phase-tranche/run/runner.py \
-  --worker-slot gpu-0=0 --worker-slot gpu-1=1
-```
-
-Each slot must resolve to one distinct homogeneous BF16-capable physical GPU.
-The parent records slot/GPU assignment provenance, stops admission after a
-failure, drains admitted siblings, and exits nonzero. Multiple case runners,
-same-GPU scientific packing, and multi-Pod scientific dispatch are not
-supported. The infrastructure smoke alone has an explicit shared-GPU test
-mode; passing it does not authorize that shape for experiments.
+The bounded one-host worker-slot path is implemented and live-validated, but
+`AGENTS.md` currently requires serial scientific execution. Do not pass worker
+slots to a definitive case runner. Enabling that dormant path requires an
+explicit revision of the repository launch policy and a compatible reviewed
+experiment plan; resolving infrastructure workboard items alone is not launch
+authorization. If enabled later, it retains one authoritative coordinator,
+one complete-tranche preflight, and one lock, and requires one distinct
+homogeneous BF16-capable physical GPU per slot. Multiple case runners,
+same-GPU scientific packing, and multi-Pod scientific dispatch remain
+unsupported. The infrastructure smoke may use explicit worker slots; passing
+it does not authorize concurrent experiments.
 
 ### RunPod Operations
 
@@ -189,8 +183,8 @@ credential, or model/dataset token. Test only whether a credential resolves.
 
 The expected Windows operator identity is
 `$env:USERPROFILE\.ssh\id_ed25519_runpod`; only its public half or fingerprint
-may be inspected or registered. Checks and the approved repair on 2026-08-24
-established:
+may be inspected or registered. Checks and the approved repair on 2026-08-24,
+followed by the disposable live verification on 2026-08-25, established:
 
 - the private and public files parse as the same ED25519 key pair;
 - fingerprint
@@ -201,16 +195,19 @@ established:
   exact stored public key;
 - the Windows `ssh-agent` remains disabled/stopped but is not required when the
   key is supplied explicitly with `-i`;
-- the pinned workspace-local `runpodctl` binary is verified but still needs
-  its one-time local `doctor` authentication; and
-- a live Pod login remains unverified.
+- the pinned workspace-local `runpodctl` binary is verified and its one-time
+  local `doctor` authentication completed without exposing the API key; and
+- direct SSH to a Secure Cloud Pod accepted this exact key and returned
+  `RUNPOD_SSH_OK` non-interactively.
 
-Do not describe this as end-to-end SSH validation until a live Pod accepts the
-key. The connected MCP `create_pod` tool accepts `sshPublicKey`; pass the
-contents of the matching `.pub` file directly so the official RunPod image
-authorizes it and exposes `22/tcp`. This avoids depending on account-level key
-registration. If a different creation lane does not inject the key explicitly,
-confirm that the exact public fingerprint is registered before Pod boot.
+That result validates the identity and procedure, not a future allocation's
+ephemeral endpoint. Every new or restarted Pod still requires the live
+assertion below using fresh connection details. The connected MCP `create_pod`
+tool accepts `sshPublicKey`; pass the contents of the matching `.pub` file
+directly so the official RunPod image authorizes it and exposes `22/tcp`. This
+avoids depending on account-level key registration. If a different creation
+lane does not inject the key explicitly, confirm that the exact public
+fingerprint is registered before Pod boot.
 
 Do not loosen or replace the repaired private-key ACL automatically. If a later
 live test reports `Permission denied (publickey)`, verify explicit injection or
@@ -289,9 +286,10 @@ The approved live procedure is one combined operation:
    the deadline, collect the resource state, and either correct explicit key
    injection or terminate; do not turn it into an open-ended SSH investigation.
 4. Transfer a Git bundle for the approved SHA, verify the bundle, create one
-   checkout under `/workspace`, install the exact constraint snapshot, and
-   require a clean checkout at that SHA. Record the Pod image, driver, CUDA,
-   Python, Torch, Transformers, and GPU identities.
+   checkout under `/workspace`, install the exact CUDA 12.8 Torch wheel and
+   then the constraint snapshot using the verified block below, and require a
+   clean checkout at that SHA. Record the Pod image, driver, CUDA, Python,
+   Torch, Transformers, and GPU identities.
 5. Run the two-GPU smoke below. It proves concurrent overlap, one injected
    failure with complete draining of admitted work, explicit unchanged
    recovery, completed-work reuse, distinct stable physical GPU UUIDs, BF16
@@ -312,9 +310,42 @@ The pinned base image for this smoke is:
 runpod/pytorch@sha256:4d1721e62b56d345c83b4fd6090664be6daf9312caab5b2e76f23d8231941851
 ```
 
-Install the repository with `constraints/requirements-ci.txt`; the live
-environment record, not the image tag, proves the package versions actually
-used. The Pod creation pattern is:
+The constraints file pins Torch's public version, but not its CUDA wheel
+variant or package index. On the pinned CUDA 12.8 image, a one-step editable
+install was observed to select the CUDA 13.0 (`cu130`) wheel, which could not
+initialize against the allocated host driver. Install and verify the CUDA 12.8
+wheel first, then apply the repository constraints:
+
+```bash
+python3 -m pip install --break-system-packages --force-reinstall \
+  --index-url https://download.pytorch.org/whl/cu128 \
+  'torch==2.11.0+cu128'
+python3 -m pip uninstall --break-system-packages -y torchvision torchaudio
+python3 -m pip install --break-system-packages \
+  -c constraints/requirements-ci.txt -e '.[dev]'
+python3 -m pip check
+python3 - <<'PY'
+import torch
+
+assert torch.__version__ == "2.11.0+cu128"
+assert torch.version.cuda == "12.8"
+assert torch.cuda.is_available()
+assert torch.cuda.device_count() == 2
+print(torch.__version__, torch.version.cuda)
+PY
+nvidia-smi --query-gpu=index,name,uuid,memory.total,driver_version \
+  --format=csv,noheader
+```
+
+Use `--index-url`, not `--extra-index-url`, for the Torch step. The local
+`+cu128` build satisfies the constraints file's public `torch==2.11.0` pin, so
+do not make the cross-platform constraints file CUDA-specific. The image digest
+pins the container, not RunPod's host driver; record the observed driver on
+every allocation. A changed driver/runtime identity requires fresh smoke and
+profile evidence under new work roots. The live environment record, not the
+image tag alone, proves the package versions actually used.
+
+The Pod creation pattern is:
 
 ```powershell
 .\tmp\runpodctl-v2.8.0.exe pod create `
@@ -344,17 +375,26 @@ approved paper pins:
 | `EleutherAI/pythia-70m-deduped` | `f289af01c98892bc173f73d2075d1b9ee19af190` |
 | `EleutherAI/pythia-410m-deduped` | `b5e8535141902c0e985cea61fd02afe7fe86af32` |
 
-For each row, use the exact GPU class observed on the Pod and this command
-shape with a distinct absolute work root:
+For profiling, derive `--gpu-class` from the exact Torch runtime name seen by
+the isolated worker; do not reuse the RunPod catalog GPU ID or append catalog
+or VRAM display text. Device memory is recorded separately. Create only the
+shared profile parent before the first run: the profiler creates each leaf work
+root but deliberately does not create missing ancestors. A leaf must be absent
+for its first run or already be the same profile-owned root for exact resume.
 
 ```bash
-python -m paper_exp.cli profile-hardware \
+GPU_CLASS="$(CUDA_VISIBLE_DEVICES=0 python3 -c \
+  'import torch; print(torch.cuda.get_device_name(0))')"
+PROFILE_PARENT=/workspace/osp-profile
+mkdir -p "$PROFILE_PARENT"
+
+python3 -m paper_exp.cli profile-hardware \
   --architecture <architecture> --revision <revision> \
-  --gpu-class "<observed GPU class and VRAM>" \
+  --gpu-class "$GPU_CLASS" \
   --candidate-microbatches 1,2,4,8,16,32,64,128 --repeats 2 \
   --cuda-device 0 --worker-timeout-seconds 1200 \
   --container-image "<immutable-image-above>" \
-  --work-root /workspace/osp-profile/<model>
+  --work-root "$PROFILE_PARENT/<model>"
 ```
 
 Selection is only over the supplied grid: every listed candidate must run.

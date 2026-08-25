@@ -66,19 +66,31 @@ single-device harness:
 micro_batch_size * gradient_accumulation_steps = 128
 ```
 
-| Model | Microbatch | Accumulation |
-| --- | ---: | ---: |
-| Pythia-14M | `TODO: OPS-04` | `TODO: OPS-04` |
-| Pythia-70M | `TODO: OPS-04` | `TODO: OPS-04` |
-| Pythia-410M | `TODO: OPS-04` | `TODO: OPS-04` |
+| Model | Proposed microbatch | Proposed accumulation | Median core tokens/s | Peak reserved VRAM (% of total) |
+| --- | ---: | ---: | ---: | ---: |
+| Pythia-14M | 16 | 8 | 141,871 | 64.5% |
+| Pythia-70M | 16 | 8 | 71,513 | 71.0% |
+| Pythia-410M | 4 | 32 | 10,853 | 61.5% |
 
-Freeze these values before reviewing the corresponding case groups under
-workboard item `OPS-04`. Use a non-evidence memory-fit and throughput procedure
-on each model's pinned RunPod GPU class, including the worst-memory OL1 path.
-The choice uses operational measurements only and must preserve the same 128
-sequences per optimizer update and matched data grouping. The post-review ETC
-calibration verifies the frozen decomposition and measures throughput; it never
-tunes it. If no adequate evidence exists, keep the group unreviewed.
+These proposed values came from the 2026-08-25 idle-GPU profile on one Secure
+Cloud NVIDIA A40 48GB, with two repeats over every listed microbatch and the
+profile-only A1-H/ReLU workload with OL1 on `h` and AdamW. Profile report
+SHA-256 values are respectively
+`c2664914c956b834b5e85a9f03833ae5c928db0a815112d8475c9f2c8c7060bd`,
+`3ee61118fc0baba3759bf74926a79c71eee7b044d1e1545e83798dda7b6ea091`, and
+`97eed475385e834d25490c94245ee682a1435e81b77a8acbfcd3a8fef801dc43`.
+The locally retrieved pack is at
+`experiments/00-infrastructure-smoke/raw/runpod-20260825-b62f03b/`
+(ignored by Git). Archive
+`runpod-artifacts-b62f03b-20260825T1104Z.tar.gz` has SHA-256
+`65ac472668b347ff74aab7886160cbc4674a8bd533cc037d92e171635e81623c`.
+
+Freeze these values only after explicit review under workboard item `OPS-04`.
+The measurements are operational, not scientific evidence or end-to-end ETCs;
+they preserve 128 sequences per update and matched data grouping. The
+post-review ETC calibration verifies the frozen decomposition and measures
+production throughput; it never tunes it. Until review, keep the corresponding
+case groups unreviewed and do not copy the proposals into scientific configs.
 
 ## Fixed Optimization Recipe
 
