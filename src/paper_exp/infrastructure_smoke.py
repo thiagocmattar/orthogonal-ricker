@@ -118,27 +118,49 @@ def run_concurrent_infrastructure_smoke(
         - max(first["payload_started_ns"], sibling["payload_started_ns"]),
     )
     _require(overlap_ns > 0, "the initially admitted subprocesses did not overlap")
+    failed_results = {result["task_id"]: result for result in failed["results"]}
+    admitted_ids = [result["task_id"] for result in failed["results"]]
+    partition_ids = admitted_ids + failed["unadmitted_task_ids"]
     _require(
-        failed["unadmitted_task_ids"] == [tasks[2].task_id],
-        "the coordinator admitted work after observing failure",
+        len(partition_ids) == len(set(partition_ids))
+        and sorted(partition_ids) == sorted(task.task_id for task in tasks),
+        "the injected-failure pass did not partition admitted and pending work",
     )
     _require(
         first["status"] == "failed"
         and sibling["status"] == "completed"
+        and failed_results[tasks[0].task_id]["status"] == "failed"
+        and failed_results[tasks[1].task_id]["status"] == "completed"
+        and all(
+            result["status"] == "completed"
+            for task_id, result in failed_results.items()
+            if task_id != tasks[0].task_id
+        )
         and sibling["finished_ns"] > first["finished_ns"]
-        and failed["finished_ns"] >= sibling["finished_ns"],
+        and all(
+            failed["finished_ns"]
+            >= _state(root, task).manifest["finished_ns"]  # type: ignore[index]
+            for task in tasks
+            if task.task_id in failed_results and task.task_id != tasks[0].task_id
+        ),
         "the admitted sibling was not drained after failure",
     )
+    completed_before_recovery = [
+        task.task_id for task in tasks if _state(root, task).status == "completed"
+    ]
+    expected_recovery = [
+        task.task_id for task in tasks if task.task_id not in completed_before_recovery
+    ]
     recovered = _run_pass(
         root, "explicit-recovery", tasks, worker_slots, require_cuda, task_sleep_seconds,
         barrier_timeout_seconds, None, True,
     )
     _require(
-        recovered["skipped_task_ids"] == [tasks[1].task_id]
-        and sorted(result["task_id"] for result in recovered["results"])
-        == sorted((tasks[0].task_id, tasks[2].task_id))
+        recovered["skipped_task_ids"] == completed_before_recovery
+        and [result["task_id"] for result in recovered["results"]]
+        == expected_recovery
         and all(result["status"] == "completed" for result in recovered["results"]),
-        "explicit recovery did not reuse the sibling and complete remaining work",
+        "explicit recovery did not reuse completed work and finish remaining work",
     )
     restarted = _run_pass(
         root, "completed-restart", tasks, worker_slots, require_cuda, task_sleep_seconds,
@@ -311,6 +333,16 @@ def _run_pass(
         parallel_report = error.report
     if (parallel_error is not None) != (fail_task_id is not None):
         raise InfrastructureSmokeError(f"Pass {pass_id!r} had an unexpected outcome")
+    if parallel_error is not None:
+        triggering = parallel_error.report.triggering_failure
+        if triggering is None or triggering.assignment.config_id != fail_task_id:
+            observed = (
+                None if triggering is None else triggering.assignment.config_id
+            )
+            raise InfrastructureSmokeError(
+                f"Pass {pass_id!r} expected failure {fail_task_id!r}, "
+                f"observed {observed!r}"
+            )
     return _pass_record(pass_id, time.time_ns(), skipped, parallel_report)
 
 def _spawn_worker(
@@ -741,6 +773,7 @@ def _validate_worker_request(request: Mapping[str, Any], request_path: Path) -> 
         "injected-failure": {
             SMOKE_TASK_IDS[0]: ("001", True),
             SMOKE_TASK_IDS[1]: ("001", False),
+            SMOKE_TASK_IDS[2]: ("001", False),
         },
         "explicit-recovery": {
             SMOKE_TASK_IDS[0]: ("002", False),
@@ -751,13 +784,15 @@ def _validate_worker_request(request: Mapping[str, Any], request_path: Path) -> 
     if task_id not in pass_tasks:
         raise InfrastructureSmokeError(f"Task is not valid for request pass: {path}")
     expected_attempt, expected_failure = pass_tasks[task_id]
-    expected_barrier = list(pass_tasks)
+    expected_barriers = [list(pass_tasks)[:2]]
+    if pass_id == "explicit-recovery" and task_id == SMOKE_TASK_IDS[0]:
+        expected_barriers.append([SMOKE_TASK_IDS[0]])
     if (
         request["task_index"] != task_index
         or request["task_input_sha256"] != expected_task.input_sha256
         or request["attempt_id"] != expected_attempt
         or request["inject_failure"] is not expected_failure
-        or request["barrier_tasks"] != expected_barrier
+        or request["barrier_tasks"] not in expected_barriers
         or attempt.name != expected_attempt
         or attempt.parent.name != task_id
     ):

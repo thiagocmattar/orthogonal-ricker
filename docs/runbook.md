@@ -293,9 +293,12 @@ The approved live procedure is one combined operation:
    require a clean checkout at that SHA. Record the Pod image, driver, CUDA,
    Python, Torch, Transformers, and GPU identities.
 5. Run the two-GPU smoke below. It proves concurrent overlap, one injected
-   failure, stop-admitting/drain behavior, explicit unchanged recovery,
-   completed-work reuse, distinct stable physical GPU UUIDs, BF16 execution,
-   and disjoint durable attempt roots.
+   failure with complete draining of admitted work, explicit unchanged
+   recovery, completed-work reuse, distinct stable physical GPU UUIDs, BF16
+   execution, and disjoint durable attempt roots. The deterministic scheduler
+   test separately proves that no work is admitted after the coordinator
+   observes a failure; work admitted before that observation remains valid and
+   is drained.
 6. With both GPUs otherwise idle, run the 14M, 70M, and 410M hardware profiles
    sequentially on one physical GPU. Warm each pinned Hugging Face config cache
    before profiling; do not overlap profiles or any other GPU process.

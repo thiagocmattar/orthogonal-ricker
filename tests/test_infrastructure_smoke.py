@@ -4,6 +4,7 @@ from hashlib import sha256
 import json
 import os
 from pathlib import Path
+from threading import Event
 from types import SimpleNamespace
 
 import pytest
@@ -46,13 +47,19 @@ def test_local_script_proves_overlap_drain_recovery_and_restart(
     assert report["evidence"]["initial_overlap_nanoseconds"] > 0
     assert os.environ["CUDA_VISIBLE_DEVICES"] == "parent"
     failed = report["passes"]["injected_failure"]
-    assert [item["status"] for item in failed["results"]] == ["failed", "completed"]
-    assert failed["unadmitted_task_ids"] == [SMOKE_TASK_IDS[2]]
+    assert [item["status"] for item in failed["results"][:2]] == [
+        "failed",
+        "completed",
+    ]
+    assert failed["unadmitted_task_ids"] in ([], [SMOKE_TASK_IDS[2]])
     recovered = report["passes"]["explicit_recovery"]
-    assert recovered["skipped_task_ids"] == [SMOKE_TASK_IDS[1]]
-    assert sorted(item["task_id"] for item in recovered["results"]) == sorted(
-        (SMOKE_TASK_IDS[0], SMOKE_TASK_IDS[2])
-    )
+    completed_first = [
+        item["task_id"] for item in failed["results"] if item["status"] == "completed"
+    ]
+    assert recovered["skipped_task_ids"] == completed_first
+    assert [item["task_id"] for item in recovered["results"]] == [
+        task_id for task_id in SMOKE_TASK_IDS if task_id not in completed_first
+    ]
     assert report["passes"]["completed_restart"]["results"] == []
 
     manifests = [
@@ -72,6 +79,52 @@ def test_local_script_proves_overlap_drain_recovery_and_restart(
     assert (root / REPORT_HASH_NAME).read_text(encoding="ascii").strip() == sha256(
         report_path.read_bytes()
     ).hexdigest()
+
+
+def test_smoke_accepts_work_admitted_before_failure_becomes_observable(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    original_spawn = smoke._spawn_worker
+    third_completed = Event()
+
+    def reordered_spawn(*args: object, **kwargs: object) -> None:
+        pass_id = args[1]
+        task = args[2]
+        assert isinstance(task, smoke._Task)
+        if pass_id == "injected-failure" and task.task_id == SMOKE_TASK_IDS[0]:
+            try:
+                original_spawn(*args, **kwargs)  # type: ignore[arg-type]
+            except InfrastructureSmokeError:
+                assert third_completed.wait(timeout=10)
+                raise
+            pytest.fail("the injected failure unexpectedly completed")
+        original_spawn(*args, **kwargs)  # type: ignore[arg-type]
+        if pass_id == "injected-failure" and task.task_id == SMOKE_TASK_IDS[2]:
+            third_completed.set()
+
+    monkeypatch.setattr(smoke, "_spawn_worker", reordered_spawn)
+    report = run_concurrent_infrastructure_smoke(
+        (WorkerSlot("slot-0", "0"), WorkerSlot("slot-1", "1")),
+        tmp_path / "concurrent",
+        require_cuda=False,
+        task_sleep_seconds=0.03,
+        barrier_timeout_seconds=10,
+    )
+
+    failed = report["passes"]["injected_failure"]
+    assert [item["status"] for item in failed["results"]] == [
+        "failed",
+        "completed",
+        "completed",
+    ]
+    assert failed["unadmitted_task_ids"] == []
+    recovered = report["passes"]["explicit_recovery"]
+    assert recovered["skipped_task_ids"] == list(SMOKE_TASK_IDS[1:])
+    assert [item["task_id"] for item in recovered["results"]] == [SMOKE_TASK_IDS[0]]
+    assert report["passes"]["completed_restart"]["skipped_task_ids"] == list(
+        SMOKE_TASK_IDS
+    )
+    assert len(report["attempts"]) == 4
 
 
 def test_tampered_request_cannot_satisfy_completed_restart(tmp_path: Path) -> None:
