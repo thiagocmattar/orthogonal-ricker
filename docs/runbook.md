@@ -368,9 +368,11 @@ reviewed.
 Before creating any billable resource, report the exact purpose, cloud tier,
 GPU SKU and count, current hourly price, data center, image, volume and storage
 price, maximum duration, maximum projected cost, automatic-termination
-deadline, and cleanup intent. Obtain explicit approval for that resource
-envelope. Infrastructure-smoke approval is separate from scientific-launch
-approval.
+deadline, and cleanup intent. If the capacity API does not expose placement
+before allocation, state the permitted data-center scope explicitly and record
+the selected center immediately after creation. Obtain explicit approval for
+that resource envelope. Infrastructure-smoke approval is separate from
+scientific-launch approval.
 
 Before removing compute, verify that required logs and artifacts are durable.
 Delete the Pod first, confirm that it is absent, and then re-list Pods and
