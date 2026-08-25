@@ -36,7 +36,8 @@ design SHA.
 | --- | --- |
 | Dataset | `JeanKaddour/minipile` at revision `18ad1b0c701eaa0de03d3cecfdd769cbc70ffbd0` |
 | Dataset fields | Loader default configuration; `train` split; `text` column |
-| Training scope | All 1,000,000 training documents; 1,491,711,416 cached tokens |
+| Training-cache source | All 1,000,000 training documents; 1,491,711,416 cached tokens |
+| Training horizon | `lr-400m`: 1,526 updates; 400,031,744 input tokens |
 | 14M architecture | `EleutherAI/pythia-14m-deduped` at revision `7386d9a4ae45aef494a6e704910394def3037fc5` |
 | 14M tokenizer | `EleutherAI/pythia-14m-deduped` at the same revision |
 | Training-implementation identity | `a1_pretraining_v1` |
@@ -159,7 +160,7 @@ The cache contains 728,374 complete 2,048-token blocks and a 1,464-token tail.
 
 | Budget ID | Updates | Input tokens | Rule |
 | --- | ---: | ---: | --- |
-| `lr-400m` | 1,526 | 400,031,744 | First 1,526 updates of the seed's complete-block permutation |
+| `lr-400m` | 1,526 | 400,031,744 | First 1,526 updates (195,328 complete blocks) of the seed's permutation; no wrap |
 | `full-pass-wrap` | 5,691 | 1,491,861,504 | Visit every complete block once, repeat the permutation's first 74 blocks to fill the last global batch, and exclude the tail |
 
 `full-pass-wrap` is one complete-block pass plus a 0.010% deterministic wrap.
@@ -168,10 +169,16 @@ schedule hash. A nominal seed without the realized schedule hash is not a
 matched data order.
 
 For A1 seed 0 with the verified 14M cache and physical batch 16 × 8, the
-realized `full-pass-wrap` schedule SHA-256 is
-`35da3f6aa891a2248407344715e4c75e99cb518b17119a8e66004466a823a21c`.
+realized `lr-400m` schedule SHA-256 is
+`5feffe55fe37c764e86c6709500f1b0afad85be652de127f5fc7c958a7eb481c`.
 Every A1 config must pin that value, the training-cache digest above, and the
 selection-cache token digest above.
+
+A1 consumes 195,328 complete blocks (26.817% of the complete-block cache),
+leaves 533,046 complete blocks unused, and excludes the tail. Its LR decision
+is therefore specific to the 400,031,744-token horizon; it is not a full-pass,
+convergence, or horizon-independent optimum claim. This A1 reduction does not
+change the budget assigned to any downstream group in `cases.yaml`.
 
 Definitive pretraining stops at the exact optimizer-step budget, not a wall
 clock limit. The runbook's calibration accumulates 600 seconds of completed

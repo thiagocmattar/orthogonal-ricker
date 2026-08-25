@@ -34,9 +34,10 @@ Fixed settings: AdamW, betas `(0.9, 0.95)`, epsilon `1e-8`, weight decay
 and BF16 computation with FP32 parameters/state. The LR warms linearly for 1%
 of updates, then cosine-decays to 10% of peak. Only peak LR is tuned.
 
-The 14M discovery and C2/C3 replication runs use one complete-block MiniPile
-pass plus a 74-block fixed-batch wrap: 5,691 updates and 1,491,861,504 input
-tokens. C1 LR screens use 1,526 updates (400,031,744 tokens).
+A1 and C1 learning-rate screens use 1,526 updates (400,031,744 input tokens).
+A2/A3, B1/B2, and C2/C3 retain one complete-block MiniPile pass plus a
+74-block fixed-batch wrap: 5,691 updates and 1,491,861,504 input tokens. The A1
+decision is specific to its 400M-token horizon.
 
 ## Sites and Thresholds
 

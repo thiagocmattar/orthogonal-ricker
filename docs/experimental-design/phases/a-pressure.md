@@ -4,7 +4,8 @@
 > [`../cases.yaml`](../cases.yaml). Shared settings are in
 > [`../protocol.md`](../protocol.md).
 
-All Phase A training uses `full-pass-wrap`.
+A1 uses `lr-400m`: 400,031,744 input tokens and 1,526 optimizer updates. A2 and
+A3 retain `full-pass-wrap`.
 
 ## A1 Learning Rate
 
@@ -18,7 +19,8 @@ an exact tie favors the lower LR. If no LR is eligible, stop A2, A3, B1, and
 B2 for review.
 
 **Produces:** decision `lr_14m`. Report the complete tuning table and make no
-sparsity claim from A1.
+sparsity claim from A1. The decision selects the best tested LR for Pythia-14M
+at this fixed horizon; it does not establish a horizon-independent optimum.
 
 ## A2 L1 Spillover
 

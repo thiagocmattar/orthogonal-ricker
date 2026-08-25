@@ -49,7 +49,7 @@ case_groups:
     stage: A1
     owner: phases/a-pressure.md#a1-learning-rate
     model: pythia-14m
-    budget: full-pass-wrap
+    budget: lr-400m
     seeds: screen
     factors:
       topology: A0

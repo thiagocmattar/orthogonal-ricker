@@ -168,8 +168,8 @@ def test_a1_preflight_enforces_exact_physical_cell_and_duplicate_reuse(
     )
 
     wrong = deepcopy(config)
-    wrong["training"]["max_steps"] = 1526
-    wrong["training"]["warmup_steps"] = 16
+    wrong["training"]["max_steps"] = 5691
+    wrong["training"]["warmup_steps"] = 57
     wrong["identity"]["condition_fingerprint"] = condition_fingerprint(
         wrong, exclude_paths=excludes
     )
@@ -282,14 +282,14 @@ def _a1_config() -> dict[str, object]:
             "training_schedule_scheme": TRAINING_SCHEDULE_SCHEME,
             "model_initialization_seed": 0,
             "data_order_seed": 0,
-            "training_schedule_hash": "35da3f6aa891a2248407344715e4c75e99cb518b17119a8e66004466a823a21c",
+            "training_schedule_hash": "5feffe55fe37c764e86c6709500f1b0afad85be652de127f5fc7c958a7eb481c",
         },
         "training": {
             "device": "cuda",
             "precision": "bfloat16",
-            "max_steps": 5691,
+            "max_steps": 1526,
             "learning_rate": 1.0e-3,
-            "warmup_steps": 57,
+            "warmup_steps": 16,
             "gradient_accumulation_steps": 8,
             "micro_batch_size": 16,
             "log_every": 10,
