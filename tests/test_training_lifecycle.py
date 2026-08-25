@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import json
+import math
 from pathlib import Path
 
+import numpy as np
 import pytest
+import torch
 import yaml
 
 import paper_exp.training as training
@@ -96,12 +99,159 @@ def test_checkpoint_manifest_path_is_run_relative(tmp_path: Path) -> None:
     assert metadata["path"] == "checkpoints/final"
 
 
+def test_saved_checkpoint_confirmation_records_identity_coverage_and_provenance(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    checkpoint = tmp_path / "source" / "checkpoints" / "final"
+    checkpoint.mkdir(parents=True)
+    (checkpoint / "model.safetensors").write_bytes(b"checkpoint")
+    tokens = np.arange(23, dtype=np.int32)
+
+    class Model(torch.nn.Module):
+        def __init__(self) -> None:
+            super().__init__()
+            self.weight = torch.nn.Parameter(torch.tensor(1.0))
+            self.inputs: list[np.ndarray] = []
+
+        def forward(self, *, input_ids: torch.Tensor, labels: torch.Tensor) -> object:
+            del labels
+            self.inputs.append(input_ids.detach().cpu().numpy().copy())
+            loss = self.weight * 0.0 + math.log(4.0)
+            return type("Output", (), {"loss": loss})()
+
+    model = Model()
+
+    def load_model(auto_model: object, checkpoint_path: Path, *, torch: object) -> Model:
+        del auto_model, torch
+        assert checkpoint_path == checkpoint.resolve()
+        return model
+
+    monkeypatch.setattr(training, "load_checkpoint_model", load_model)
+    metadata = _confirmation_metadata(tmp_path, token_count=len(tokens), block_size=4)
+    result = training.evaluate_saved_checkpoint_confirmation(
+        checkpoint_path=checkpoint,
+        source_identity={
+            "tranche_id": "01-a1-lr-screen",
+            "config_id": "001-a1-lr-5e-4",
+            "run_id": "001-test",
+        },
+        provenance={"git_commit": "a" * 40, "config_sha256": "b" * 64},
+        validation_metadata=metadata,
+        tokens=tokens,
+        batch_size=4,
+        torch=torch,
+        np=np,
+        auto_model=object(),
+        device=torch.device("cpu"),
+        dtype=None,
+    )
+
+    assert result["kind"] == "saved_checkpoint_confirmation_validation"
+    assert result["source"] == {
+        "tranche_id": "01-a1-lr-screen",
+        "config_id": "001-a1-lr-5e-4",
+        "run_id": "001-test",
+    }
+    assert result["checkpoint"]["path"] == str(checkpoint.resolve())
+    assert len(result["checkpoint"]["content_sha256"]) == 64
+    assert len(result["checkpoint"]["parameter_sha256"]) == 64
+    assert result["validation_cache"] == {
+        field: metadata[field] for field in training.VALIDATION_CACHE_IDENTITY_FIELDS
+    }
+    assert result["coverage"] == {
+        "fixed_order": True,
+        "expected_complete_sequences": 5,
+        "evaluated_sequences": 5,
+        "sequence_length": 4,
+        "evaluated_tokens": 20,
+        "evaluated_batches": 2,
+        "excluded_tail_tokens": 3,
+        "complete": True,
+    }
+    assert result["metrics"]["validation_loss"] == pytest.approx(math.log(4.0))
+    assert result["metrics"]["perplexity"] == pytest.approx(4.0)
+    assert all(result["completeness"].values())
+    assert result["provenance"] == {
+        "git_commit": "a" * 40,
+        "config_sha256": "b" * 64,
+    }
+    assert np.array_equal(
+        np.concatenate(model.inputs),
+        np.stack([tokens[start : start + 4] for start in (0, 4, 8, 12, 16)]),
+    )
+
+
+def test_saved_checkpoint_confirmation_requires_exact_source_and_confirmation_cache(
+    tmp_path: Path,
+) -> None:
+    metadata = _confirmation_metadata(tmp_path, token_count=8, block_size=4)
+    with pytest.raises(ValueError, match="exact source identity"):
+        training._exact_source_identity(
+            {"tranche_id": "01-a1-lr-screen", "config_id": "001-a1-lr-5e-4"}
+        )
+
+    metadata["partition"] = "selection"
+    with pytest.raises(ValueError, match="requires partition confirmation"):
+        training._confirmation_cache_identity(metadata, token_count=8)
+
+
+def test_saved_checkpoint_confirmation_rejects_cache_token_count_mismatch(
+    tmp_path: Path,
+) -> None:
+    metadata = _confirmation_metadata(tmp_path, token_count=8, block_size=4)
+    with pytest.raises(ValueError, match="token count does not match"):
+        training._confirmation_cache_identity(metadata, token_count=9)
+
+
+def test_training_cache_hash_must_match_explicit_config_pin() -> None:
+    digest = "a" * 64
+    training._require_expected_cache_hash(
+        {"tokens_sha256": digest},
+        digest,
+        context="Training token cache",
+    )
+
+    with pytest.raises(ValueError, match="hash does not match config"):
+        training._require_expected_cache_hash(
+            {"tokens_sha256": "b" * 64},
+            digest,
+            context="Training token cache",
+        )
+
+
+def _confirmation_metadata(
+    tmp_path: Path,
+    *,
+    token_count: int,
+    block_size: int,
+) -> dict[str, object]:
+    return {
+        "tokens_path": str(tmp_path / "confirmation.bin"),
+        "dtype": "int32",
+        "block_size": block_size,
+        "tokens": token_count,
+        "tokens_bytes": token_count * 4,
+        "tokens_sha256": "c" * 64,
+        "partition": "confirmation",
+        "partition_scheme": "shuffled_source_documents_half_v1",
+        "partition_seed": 20260718,
+        "source_documents": 500,
+        "source_document_indices_sha256": "d" * 64,
+    }
+
+
 def test_training_dependency_failure_preserves_launch_record(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     config = {
         "experiment_name": "calibration_lifecycle_test",
+        "identity": {
+            "group_id": "A1-lr-screen",
+            "condition_fingerprint": "d" * 64,
+            "training_implementation_id": "a1_pretraining_v1",
+        },
         "model": {
             "provider": "huggingface",
             "name": "pythia-test-random",
@@ -130,17 +280,17 @@ def test_training_dependency_failure_preserves_launch_record(
         "run": {
             "seed": 0,
             "max_examples": 8,
-            "training_schedule_scheme": "random_contiguous_blocks_with_replacement_v1",
+            "training_schedule_scheme": training.TRAINING_SCHEDULE_SCHEME,
             "model_initialization_seed": 0,
             "data_order_seed": 1,
-            "training_schedule_hash": None,
+            "training_schedule_hash": "e" * 64,
         },
         "training": {
             "device": "cpu",
             "precision": "float32",
             "max_steps": 1,
             "learning_rate": 0.001,
-            "warmup_steps": 0,
+            "warmup_steps": 1,
             "gradient_accumulation_steps": 1,
             "micro_batch_size": 1,
             "log_every": 1,

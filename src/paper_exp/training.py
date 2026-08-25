@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from contextlib import nullcontext
 import hashlib
+import math
 import time
 from pathlib import Path
 from typing import Any
@@ -16,6 +17,7 @@ from paper_exp.data import (
     verify_token_cache,
 )
 from paper_exp.modeling import _build_random_model
+from paper_exp.modeling import load_checkpoint_model
 from paper_exp.modeling import model_topology_metadata
 from paper_exp.optimization import (
     GLOBAL_GRADIENT_CLIP_MAX_NORM,
@@ -27,14 +29,49 @@ from paper_exp.optimization import (
     _run_training_step,
     _sample_batch,
     _set_optimizer_lr,
+    _warmup_steps_for_budget,
 )
 from paper_exp.reproducibility import TRAINING_SCHEDULE_SCHEME
+from paper_exp.reproducibility import VALIDATION_PARTITION_SCHEME
 from paper_exp.reproducibility import build_training_schedule
+from paper_exp.reproducibility import training_schedule_metadata
 from paper_exp.run import RunHandle, complete_run, run_lifecycle
 from paper_exp.utils import read_json, write_jsonl
 
 
 CALIBRATION_TRAINING_WALL_SECONDS = 600.0
+VALIDATION_INTERVAL_STEPS = 191
+VALIDATION_CACHE_IDENTITY_FIELDS = (
+    "tokens_path",
+    "dtype",
+    "block_size",
+    "tokens",
+    "tokens_bytes",
+    "tokens_sha256",
+    "partition",
+    "partition_scheme",
+    "partition_seed",
+    "source_documents",
+    "source_document_indices_sha256",
+)
+
+
+def validation_update_steps(
+    max_steps: int,
+    *,
+    interval: int = VALIDATION_INTERVAL_STEPS,
+) -> tuple[int, ...]:
+    """Return update 1, every interval boundary, and the final update."""
+
+    if isinstance(max_steps, bool) or int(max_steps) <= 0:
+        raise ValueError("max_steps must be a positive integer.")
+    if isinstance(interval, bool) or int(interval) <= 0:
+        raise ValueError("validation interval must be a positive integer.")
+    max_steps = int(max_steps)
+    interval = int(interval)
+    steps = {1, max_steps}
+    steps.update(range(interval, max_steps + 1, interval))
+    return tuple(sorted(steps))
 
 
 def run_training(
@@ -90,6 +127,11 @@ def _run_started_training(
         max_documents=config["data"].get("max_documents"),
     ):
         raise ValueError(f"Token cache metadata does not match config: {metadata_path}")
+    _require_expected_cache_hash(
+        train_metadata,
+        config.get("preprocessing", {}).get("tokens_sha256"),
+        context="Training token cache",
+    )
     train_tokens_path = verify_token_cache(train_metadata, context="Training token cache")
     train_tokens = np.memmap(train_tokens_path, dtype=np.int32, mode="r")
     block_size = int(train_metadata["block_size"])
@@ -120,6 +162,11 @@ def _run_started_training(
                 "Validation partition hash does not match config: "
                 f"expected {expected_partition_hash}, got {actual_partition_hash}."
             )
+        _require_expected_cache_hash(
+            validation_metadata,
+            validation_config.get("tokens_sha256"),
+            context="Validation token cache",
+        )
         validation_tokens_path = verify_token_cache(
             validation_metadata,
             context="Validation token cache",
@@ -152,6 +199,12 @@ def _run_started_training(
     pressure_config = activation_pressure_config(config)
     max_steps = int(training["max_steps"])
     warmup_steps = int(training["warmup_steps"])
+    expected_warmup_steps = _warmup_steps_for_budget(max_steps)
+    if warmup_steps != expected_warmup_steps:
+        raise ValueError(
+            "training.warmup_steps must equal ceil(0.01 * training.max_steps): "
+            f"expected {expected_warmup_steps}, got {warmup_steps}."
+        )
     grad_accum = int(training["gradient_accumulation_steps"])
     micro_batch_size = int(training["micro_batch_size"])
     log_every = int(training["log_every"])
@@ -159,7 +212,16 @@ def _run_started_training(
     training_schedule_scheme = run_config.get("training_schedule_scheme")
     training_schedule = None
     training_schedule_hash = None
+    training_schedule_details = None
     if training_schedule_scheme == TRAINING_SCHEDULE_SCHEME:
+        training_schedule_details = training_schedule_metadata(
+            token_count=len(train_tokens),
+            block_size=block_size,
+            max_steps=max_steps,
+            gradient_accumulation_steps=grad_accum,
+            micro_batch_size=micro_batch_size,
+            seed=data_order_seed,
+        )
         training_schedule, training_schedule_hash = build_training_schedule(
             np,
             token_count=len(train_tokens),
@@ -189,7 +251,11 @@ def _run_started_training(
     validation_losses: list[tuple[int, float]] = []
     validation_wall_seconds: list[float] = []
     final_validation_batches = None
+    final_validation_sequences = None
     final_validation_tokens = None
+    final_validation_complete_blocks = None
+    final_validation_excluded_tail_tokens = None
+    final_validation_complete = None
     final_grad_norm = None
     final_weight_norm = None
     final_mlp_weight_norm = None
@@ -197,6 +263,14 @@ def _run_started_training(
     final_pressure_metrics: dict[str, Any] = {}
     completed_steps = 0
     stopped_by_wall_limit = False
+    validation_steps: frozenset[int] = frozenset()
+    if validation_tokens is not None:
+        validation_interval = int(validation_config["eval_every_steps"])
+        if validation_interval != VALIDATION_INTERVAL_STEPS:
+            raise ValueError(
+                f"validation.eval_every_steps must equal {VALIDATION_INTERVAL_STEPS}."
+            )
+        validation_steps = frozenset(validation_update_steps(max_steps))
 
     capture_sites = pressure_config.sites if pressure_config.enabled else []
     capture_context = (
@@ -208,13 +282,18 @@ def _run_started_training(
     with capture_context as activation_capture:
         for step in range(1, max_steps + 1):
             step_training_start = time.perf_counter()
-            learning_rate = _learning_rate_for_step(step, base_learning_rate, warmup_steps)
+            learning_rate = _learning_rate_for_step(
+                step,
+                base_learning_rate,
+                warmup_steps,
+                max_steps,
+            )
             _set_optimizer_lr(optimizer, learning_rate)
 
             should_log = step == 1 or step % log_every == 0 or step == max_steps
             should_eval = (
                 validation_tokens is not None
-                and (step == 1 or step % int(validation_config["eval_every_steps"]) == 0 or step == max_steps)
+                and step in validation_steps
             )
 
             step_result = _run_training_step(
@@ -300,7 +379,13 @@ def _run_started_training(
                 validation_losses.append((step, validation_result["loss"]))
                 validation_wall_seconds.append(validation_elapsed)
                 final_validation_batches = validation_result["batches"]
+                final_validation_sequences = validation_result["sequences"]
                 final_validation_tokens = validation_result["tokens"]
+                final_validation_complete_blocks = validation_result["available_complete_blocks"]
+                final_validation_excluded_tail_tokens = validation_result[
+                    "excluded_tail_tokens"
+                ]
+                final_validation_complete = validation_result["complete_block_coverage"]
                 diagnostic_start = time.perf_counter()
                 events.append(
                     {
@@ -310,7 +395,17 @@ def _run_started_training(
                         "tokens_seen": tokens_seen,
                         "validation_loss": validation_result["loss"],
                         "validation_batches": validation_result["batches"],
+                        "validation_sequences": validation_result["sequences"],
                         "validation_tokens": validation_result["tokens"],
+                        "validation_available_complete_blocks": validation_result[
+                            "available_complete_blocks"
+                        ],
+                        "validation_excluded_tail_tokens": validation_result[
+                            "excluded_tail_tokens"
+                        ],
+                        "validation_complete_block_coverage": validation_result[
+                            "complete_block_coverage"
+                        ],
                         "validation_wall_seconds": validation_elapsed,
                     }
                 )
@@ -351,7 +446,11 @@ def _run_started_training(
         validation_losses.append((completed_steps, validation_result["loss"]))
         validation_wall_seconds.append(validation_elapsed)
         final_validation_batches = validation_result["batches"]
+        final_validation_sequences = validation_result["sequences"]
         final_validation_tokens = validation_result["tokens"]
+        final_validation_complete_blocks = validation_result["available_complete_blocks"]
+        final_validation_excluded_tail_tokens = validation_result["excluded_tail_tokens"]
+        final_validation_complete = validation_result["complete_block_coverage"]
         diagnostic_start = time.perf_counter()
         events.append(
             {
@@ -361,7 +460,17 @@ def _run_started_training(
                 "tokens_seen": tokens_seen,
                 "validation_loss": validation_result["loss"],
                 "validation_batches": validation_result["batches"],
+                "validation_sequences": validation_result["sequences"],
                 "validation_tokens": validation_result["tokens"],
+                "validation_available_complete_blocks": validation_result[
+                    "available_complete_blocks"
+                ],
+                "validation_excluded_tail_tokens": validation_result[
+                    "excluded_tail_tokens"
+                ],
+                "validation_complete_block_coverage": validation_result[
+                    "complete_block_coverage"
+                ],
                 "validation_wall_seconds": validation_elapsed,
             }
         )
@@ -399,7 +508,11 @@ def _run_started_training(
             validation_wall_seconds[-1] if validation_wall_seconds else None
         ),
         "validation_batches_final": final_validation_batches,
+        "validation_sequences_final": final_validation_sequences,
         "validation_tokens_final": final_validation_tokens,
+        "validation_available_complete_blocks": final_validation_complete_blocks,
+        "validation_excluded_tail_tokens": final_validation_excluded_tail_tokens,
+        "validation_complete_block_coverage": final_validation_complete,
         "loss_final": train_losses[-1] if train_losses else None,
         "optimizer_steps": completed_steps,
         "planned_optimizer_steps": max_steps,
@@ -453,14 +566,16 @@ def _run_started_training(
             "stopped_by_operational_wall_time_limit": stopped_by_wall_limit,
             "tokens_per_step": tokens_per_step,
             "loss_logged_as": "mean_micro_batch_loss_over_gradient_accumulation",
-            "sampling": "random_contiguous_blocks_with_replacement",
+            "sampling": "seeded_complete_block_permutation_with_prefix_wrap",
             "sampling_scheme": training_schedule_scheme,
+            "schedule": training_schedule_details,
             "model_initialization_seed": model_initialization_seed,
             "data_order_seed": data_order_seed,
             "training_schedule_hash": training_schedule_hash,
             "learning_rate": base_learning_rate,
             "warmup_steps": warmup_steps,
-            "learning_rate_schedule": "linear_warmup_then_constant",
+            "learning_rate_schedule": "linear_warmup_then_cosine_decay",
+            "minimum_learning_rate_ratio": 0.1,
             "optimizer": optimizer_config["name"],
             "adamw_betas": list(optimizer_config["betas"]),
             "adamw_eps": optimizer_config["eps"],
@@ -570,6 +685,186 @@ def _reached_training_wall_limit(
     )
 
 
+def evaluate_saved_checkpoint_confirmation(
+    *,
+    checkpoint_path: str | Path,
+    source_identity: dict[str, Any],
+    provenance: dict[str, Any],
+    validation_metadata: dict[str, Any],
+    tokens: Any,
+    batch_size: int,
+    torch: Any,
+    np: Any,
+    auto_model: Any,
+    device: Any,
+    dtype: Any,
+) -> dict[str, Any]:
+    """Evaluate one saved checkpoint over every complete confirmation block.
+
+    Source-run resolution and durable publication remain caller responsibilities.
+    This helper owns checkpoint loading, fixed-order complete-block coverage, and
+    the self-contained result record needed by that outer workflow.
+    """
+
+    source = _exact_source_identity(source_identity)
+    if not isinstance(provenance, dict) or not provenance:
+        raise ValueError("Confirmation validation requires non-empty provenance.")
+    checkpoint_dir = Path(checkpoint_path).resolve()
+    if not checkpoint_dir.is_dir():
+        raise FileNotFoundError(f"Saved checkpoint directory not found: {checkpoint_dir}")
+
+    cache_identity = _confirmation_cache_identity(validation_metadata, token_count=len(tokens))
+    block_size = int(cache_identity["block_size"])
+    if batch_size != 4:
+        raise ValueError("Confirmation validation batch_size must equal 4.")
+
+    model = load_checkpoint_model(auto_model, checkpoint_dir, torch=torch)
+    model = model.to(device=device, dtype=torch.float32)
+    checkpoint_identity = {
+        "path": str(checkpoint_dir),
+        "content_sha256": _directory_content_sha256(checkpoint_dir),
+        "parameter_sha256": _model_parameter_sha256(model),
+    }
+    result = _evaluate_loss(
+        model=model,
+        torch=torch,
+        np=np,
+        tokens=tokens,
+        block_size=block_size,
+        batch_size=int(batch_size),
+        eval_batches=None,
+        device=device,
+        dtype=dtype,
+        deterministic_batches=True,
+    )
+    expected_sequences, excluded_tail_tokens = divmod(len(tokens), block_size)
+    complete = result["sequences"] == expected_sequences
+    if not complete:
+        raise RuntimeError(
+            "Confirmation validation did not cover every complete block: "
+            f"expected {expected_sequences}, evaluated {result['sequences']}."
+        )
+    validation_loss = float(result["loss"])
+    try:
+        perplexity = math.exp(validation_loss)
+    except OverflowError as exc:
+        raise RuntimeError("Confirmation validation perplexity is non-finite.") from exc
+    if not math.isfinite(perplexity):
+        raise RuntimeError("Confirmation validation perplexity is non-finite.")
+
+    return {
+        "schema_version": 1,
+        "kind": "saved_checkpoint_confirmation_validation",
+        "source": source,
+        "checkpoint": checkpoint_identity,
+        "validation_cache": cache_identity,
+        "coverage": {
+            "fixed_order": True,
+            "expected_complete_sequences": expected_sequences,
+            "evaluated_sequences": result["sequences"],
+            "sequence_length": block_size,
+            "evaluated_tokens": result["tokens"],
+            "evaluated_batches": result["batches"],
+            "excluded_tail_tokens": excluded_tail_tokens,
+            "complete": complete,
+        },
+        "metrics": {
+            "validation_loss": validation_loss,
+            "perplexity": perplexity,
+        },
+        "completeness": {
+            "partition_is_confirmation": True,
+            "all_complete_blocks_evaluated": complete,
+            "excluded_tail_not_evaluated": True,
+            "finite_loss_and_perplexity": True,
+        },
+        "provenance": dict(provenance),
+    }
+
+
+def _exact_source_identity(source_identity: dict[str, Any]) -> dict[str, str]:
+    if not isinstance(source_identity, dict):
+        raise ValueError("Confirmation validation source identity must be an object.")
+    fields = ("tranche_id", "config_id", "run_id")
+    source = {field: str(source_identity.get(field) or "").strip() for field in fields}
+    missing = [field for field, value in source.items() if not value]
+    if missing:
+        raise ValueError(
+            "Confirmation validation requires exact source identity fields: "
+            + ", ".join(fields)
+            + "."
+        )
+    return source
+
+
+def _require_expected_cache_hash(
+    metadata: dict[str, Any],
+    expected_sha256: Any,
+    *,
+    context: str,
+) -> None:
+    """Bind a scientific config to an expected cache digest when supplied."""
+
+    if expected_sha256 is None:
+        return
+    if not isinstance(expected_sha256, str) or len(expected_sha256) != 64 or any(
+        character not in "0123456789abcdef" for character in expected_sha256
+    ):
+        raise ValueError(f"{context} expected SHA-256 is invalid.")
+    actual = metadata.get("tokens_sha256")
+    if actual != expected_sha256:
+        raise ValueError(
+            f"{context} hash does not match config: expected {expected_sha256}, got {actual}."
+        )
+
+
+def _confirmation_cache_identity(
+    metadata: dict[str, Any],
+    *,
+    token_count: int,
+) -> dict[str, Any]:
+    if not isinstance(metadata, dict):
+        raise ValueError("Confirmation validation cache metadata must be an object.")
+    missing = [field for field in VALIDATION_CACHE_IDENTITY_FIELDS if metadata.get(field) is None]
+    if missing:
+        raise ValueError(
+            "Confirmation validation cache is missing identity fields: "
+            + ", ".join(missing)
+            + "."
+        )
+    if metadata["partition"] != "confirmation":
+        raise ValueError("Saved-checkpoint confirmation validation requires partition confirmation.")
+    if metadata["partition_scheme"] != VALIDATION_PARTITION_SCHEME:
+        raise ValueError(
+            "Confirmation validation partition scheme does not match the repository contract."
+        )
+    if int(metadata["tokens"]) != int(token_count):
+        raise ValueError(
+            "Confirmation validation token count does not match cache metadata: "
+            f"expected {metadata['tokens']}, got {token_count}."
+        )
+    block_size = int(metadata["block_size"])
+    if block_size <= 0 or token_count < block_size:
+        raise ValueError("Confirmation validation cache has no complete block.")
+    return {field: metadata[field] for field in VALIDATION_CACHE_IDENTITY_FIELDS}
+
+
+def _directory_content_sha256(path: Path) -> str:
+    files = sorted(item for item in path.rglob("*") if item.is_file())
+    if not files:
+        raise FileNotFoundError(f"Saved checkpoint contains no files: {path}")
+    digest = hashlib.sha256()
+    for item in files:
+        relative = item.relative_to(path).as_posix()
+        digest.update(relative.encode("utf-8"))
+        digest.update(b"\0")
+        with item.open("rb") as handle:
+            for chunk in iter(lambda: handle.read(8 * 1024 * 1024), b""):
+                digest.update(chunk)
+        digest.update(b"\0")
+    return digest.hexdigest()
+
+
 def _evaluate_loss(
     *,
     model: Any,
@@ -584,14 +879,14 @@ def _evaluate_loss(
     deterministic_batches: bool = False,
 ) -> dict[str, Any]:
     model.eval()
+    available_complete_blocks, excluded_tail_tokens = divmod(len(tokens), block_size)
     weighted_loss = 0.0
     total_sequences = 0
     total_tokens = 0
     batches = 0
     with torch.no_grad():
         if eval_batches is None:
-            total_blocks = max(1, (len(tokens) - 1) // block_size)
-            starts = [index * block_size for index in range(total_blocks)]
+            starts = [index * block_size for index in range(available_complete_blocks)]
             for offset in range(0, len(starts), batch_size):
                 batch_starts = starts[offset : offset + batch_size]
                 batch = np.stack([tokens[start : start + block_size] for start in batch_starts])
@@ -607,8 +902,7 @@ def _evaluate_loss(
                 total_tokens += batch_sequences * block_size
                 batches += 1
         elif deterministic_batches:
-            total_blocks = max(1, (len(tokens) - 1) // block_size)
-            starts = [index * block_size for index in range(total_blocks)]
+            starts = [index * block_size for index in range(available_complete_blocks)]
             starts = starts[: int(eval_batches) * batch_size]
             for offset in range(0, len(starts), batch_size):
                 batch_starts = starts[offset : offset + batch_size]
@@ -640,7 +934,14 @@ def _evaluate_loss(
     return {
         "loss": weighted_loss / total_sequences,
         "batches": batches,
+        "sequences": total_sequences,
         "tokens": total_tokens,
+        "available_complete_blocks": available_complete_blocks,
+        "excluded_tail_tokens": excluded_tail_tokens,
+        "complete_block_coverage": (
+            (eval_batches is None or deterministic_batches)
+            and total_sequences == available_complete_blocks
+        ),
     }
 
 

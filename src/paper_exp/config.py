@@ -205,6 +205,13 @@ def validate_training_config(config: Mapping[str, Any]) -> None:
             "training_schedule_hash",
         ),
     )
+    if not isinstance(run["training_schedule_hash"], str) or re.fullmatch(
+        r"[0-9a-f]{64}", run["training_schedule_hash"]
+    ) is None:
+        raise ConfigError(
+            "Config field run.training_schedule_hash must contain the realized "
+            "lowercase SHA-256 digest for definitive training."
+        )
     training = _required_mapping(config, "training")
     required_training_fields = (
         "device",
@@ -236,8 +243,12 @@ def validate_training_config(config: Mapping[str, Any]) -> None:
         )
     _positive_number(training["learning_rate"], "training.learning_rate")
     warmup_steps = _nonnegative_integer(training["warmup_steps"], "training.warmup_steps")
-    if warmup_steps > max_steps:
-        raise ConfigError("Config field training.warmup_steps must not exceed max_steps.")
+    expected_warmup_steps = math.ceil(0.01 * max_steps)
+    if warmup_steps != expected_warmup_steps:
+        raise ConfigError(
+            "Config field training.warmup_steps must equal ceil(0.01 * training.max_steps): "
+            f"expected {expected_warmup_steps}."
+        )
     _positive_integer(
         training["gradient_accumulation_steps"],
         "training.gradient_accumulation_steps",
@@ -266,13 +277,21 @@ def validate_training_config(config: Mapping[str, Any]) -> None:
         )
         if not isinstance(validation["split"], str) or not validation["split"].strip():
             raise ConfigError("Config field validation.split must be a non-empty string.")
-        _positive_integer(validation["batch_size"], "validation.batch_size")
-        _positive_integer(
+        validation_batch_size = _positive_integer(
+            validation["batch_size"], "validation.batch_size"
+        )
+        if validation_batch_size != 4:
+            raise ConfigError("Config field validation.batch_size must equal 4.")
+        eval_every_steps = _positive_integer(
             validation["eval_every_steps"],
             "validation.eval_every_steps",
         )
+        if eval_every_steps != 191:
+            raise ConfigError("Config field validation.eval_every_steps must equal 191.")
         if validation["eval_batches"] is not None:
-            _positive_integer(validation["eval_batches"], "validation.eval_batches")
+            raise ConfigError(
+                "Config field validation.eval_batches must be null so every complete block is evaluated."
+            )
 
     checkpoint = _required_mapping(config, "checkpoint")
     _require_explicit_fields(

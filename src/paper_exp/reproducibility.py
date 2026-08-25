@@ -6,7 +6,7 @@ import struct
 from typing import Any
 
 
-TRAINING_SCHEDULE_SCHEME = "random_contiguous_blocks_with_replacement_v1"
+TRAINING_SCHEDULE_SCHEME = "seeded_complete_block_permutation_wrap_v1"
 VALIDATION_PARTITION_SCHEME = "shuffled_source_documents_half_v1"
 
 
@@ -20,33 +20,71 @@ def build_training_schedule(
     micro_batch_size: int,
     seed: int,
 ) -> tuple[Any, str]:
-    max_start = int(token_count) - int(block_size) - 1
-    if max_start <= 0:
-        raise ValueError("Token cache is too small for the configured block size.")
-    shape = (
-        int(max_steps),
-        int(gradient_accumulation_steps),
-        int(micro_batch_size),
+    metadata = training_schedule_metadata(
+        token_count=token_count,
+        block_size=block_size,
+        max_steps=max_steps,
+        gradient_accumulation_steps=gradient_accumulation_steps,
+        micro_batch_size=micro_batch_size,
+        seed=seed,
     )
-    if any(value <= 0 for value in shape):
+    complete_blocks = metadata["complete_blocks"]
+    scheduled_blocks = metadata["scheduled_blocks"]
+    permutation = np.random.default_rng(int(seed)).permutation(complete_blocks).astype(
+        np.int64,
+        copy=False,
+    )
+    order = np.resize(permutation, scheduled_blocks)
+    starts = order * int(block_size)
+    shape = (
+        metadata["max_steps"],
+        metadata["gradient_accumulation_steps"],
+        metadata["micro_batch_size"],
+    )
+    schedule = starts.reshape(shape)
+    return schedule, _hash_integer_array(np, schedule, metadata)
+
+
+def training_schedule_metadata(
+    *,
+    token_count: int,
+    block_size: int,
+    max_steps: int,
+    gradient_accumulation_steps: int,
+    micro_batch_size: int,
+    seed: int,
+) -> dict[str, int | str]:
+    """Describe the exact complete-block schedule inputs and wrap coverage."""
+
+    token_count = int(token_count)
+    block_size = int(block_size)
+    max_steps = int(max_steps)
+    gradient_accumulation_steps = int(gradient_accumulation_steps)
+    micro_batch_size = int(micro_batch_size)
+    if token_count <= 0 or block_size <= 0:
+        raise ValueError("Training token count and block size must be positive.")
+    if max_steps <= 0 or gradient_accumulation_steps <= 0 or micro_batch_size <= 0:
         raise ValueError("Training schedule dimensions must be positive.")
 
-    schedule = np.random.default_rng(int(seed)).integers(
-        0,
-        max_start,
-        size=shape,
-        dtype=np.int64,
-    )
-    metadata = {
+    complete_blocks, excluded_tail_tokens = divmod(token_count, block_size)
+    if complete_blocks <= 0:
+        raise ValueError("Token cache has no complete block for the configured block size.")
+    sequences_per_update = gradient_accumulation_steps * micro_batch_size
+    scheduled_blocks = max_steps * sequences_per_update
+    return {
         "scheme": TRAINING_SCHEDULE_SCHEME,
         "seed": int(seed),
-        "token_count": int(token_count),
-        "block_size": int(block_size),
-        "max_steps": shape[0],
-        "gradient_accumulation_steps": shape[1],
-        "micro_batch_size": shape[2],
+        "token_count": token_count,
+        "block_size": block_size,
+        "complete_blocks": complete_blocks,
+        "excluded_tail_tokens": excluded_tail_tokens,
+        "max_steps": max_steps,
+        "gradient_accumulation_steps": gradient_accumulation_steps,
+        "micro_batch_size": micro_batch_size,
+        "sequences_per_update": sequences_per_update,
+        "scheduled_blocks": scheduled_blocks,
+        "wrapped_blocks": max(0, scheduled_blocks - complete_blocks),
     }
-    return schedule, _hash_integer_array(np, schedule, metadata)
 
 
 def validation_document_indices(

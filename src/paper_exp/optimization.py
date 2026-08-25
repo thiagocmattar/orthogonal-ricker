@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from contextlib import nullcontext
+import math
 from typing import Any
 
 from paper_exp.activation_pressure import accumulate_grads
@@ -287,10 +288,40 @@ def _require_finite_loss(torch: Any, loss: Any, label: str) -> None:
         raise RuntimeError(f"Non-finite {label}.")
 
 
-def _learning_rate_for_step(step: int, base_learning_rate: float, warmup_steps: int) -> float:
-    if warmup_steps <= 0:
-        return base_learning_rate
-    return base_learning_rate * min(1.0, step / warmup_steps)
+def _warmup_steps_for_budget(max_steps: int) -> int:
+    if isinstance(max_steps, bool) or int(max_steps) <= 0:
+        raise ValueError("max_steps must be a positive integer.")
+    return math.ceil(0.01 * int(max_steps))
+
+
+def _learning_rate_for_step(
+    step: int,
+    base_learning_rate: float,
+    warmup_steps: int,
+    max_steps: int,
+    *,
+    minimum_ratio: float = 0.1,
+) -> float:
+    """Return linear-warmup then cosine-decay LR for a one-indexed update."""
+
+    step = int(step)
+    warmup_steps = int(warmup_steps)
+    max_steps = int(max_steps)
+    if not 1 <= step <= max_steps:
+        raise ValueError("step must be between 1 and max_steps, inclusive.")
+    if not 1 <= warmup_steps <= max_steps:
+        raise ValueError("warmup_steps must be positive and no greater than max_steps.")
+    if not 0.0 <= float(minimum_ratio) <= 1.0:
+        raise ValueError("minimum_ratio must be in [0, 1].")
+    if step <= warmup_steps:
+        return float(base_learning_rate) * (step / warmup_steps)
+    if step == max_steps:
+        return float(base_learning_rate) * float(minimum_ratio)
+
+    decay_progress = (step - warmup_steps) / (max_steps - warmup_steps)
+    cosine = 0.5 * (1.0 + math.cos(math.pi * decay_progress))
+    ratio = float(minimum_ratio) + (1.0 - float(minimum_ratio)) * cosine
+    return float(base_learning_rate) * ratio
 
 
 def _optimizer_config(training: dict[str, Any]) -> dict[str, Any]:

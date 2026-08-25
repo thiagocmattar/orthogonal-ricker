@@ -9,6 +9,7 @@ import torch
 from paper_exp.activation_pressure import ActivationPressureConfig
 import paper_exp.optimization as optimization
 from paper_exp.reproducibility import build_training_schedule
+from paper_exp.reproducibility import training_schedule_metadata
 from paper_exp.reproducibility import validation_document_indices
 import paper_exp.training as training
 
@@ -29,6 +30,87 @@ def test_training_schedule_is_stable_and_seed_specific() -> None:
     assert first_hash == repeated_hash
     assert not np.array_equal(first, different)
     assert first_hash != different_hash
+
+
+def test_training_schedule_is_complete_block_permutation_then_prefix_wrap() -> None:
+    schedule, schedule_hash = build_training_schedule(
+        np,
+        token_count=43,
+        block_size=4,
+        max_steps=3,
+        gradient_accumulation_steps=1,
+        micro_batch_size=4,
+        seed=7,
+    )
+    starts = schedule.reshape(-1)
+
+    assert schedule.shape == (3, 1, 4)
+    assert set(starts[:10]) == set(range(0, 40, 4))
+    assert np.array_equal(starts[10:], starts[:2])
+    assert np.all(starts % 4 == 0)
+    assert np.all(starts + 4 <= 40)
+    assert schedule_hash == "016dbeb3bff295346c45c45d75b771debf6b62afc9904c10a058cdcc068dfaba"
+
+
+@pytest.mark.parametrize(
+    ("max_steps", "expected_scheduled", "expected_wrap"),
+    [(1_526, 195_328, 0), (5_691, 728_448, 74)],
+)
+def test_training_schedule_metadata_matches_reviewed_budgets(
+    max_steps: int,
+    expected_scheduled: int,
+    expected_wrap: int,
+) -> None:
+    metadata = training_schedule_metadata(
+        token_count=728_374 * 2_048 + 1_464,
+        block_size=2_048,
+        max_steps=max_steps,
+        gradient_accumulation_steps=8,
+        micro_batch_size=16,
+        seed=0,
+    )
+
+    assert metadata["complete_blocks"] == 728_374
+    assert metadata["excluded_tail_tokens"] == 1_464
+    assert metadata["sequences_per_update"] == 128
+    assert metadata["scheduled_blocks"] == expected_scheduled
+    assert metadata["wrapped_blocks"] == expected_wrap
+
+
+@pytest.mark.parametrize(
+    ("max_steps", "warmup_steps"),
+    [(1_526, 16), (5_691, 57)],
+)
+def test_learning_rate_schedule_has_exact_reviewed_endpoints(
+    max_steps: int,
+    warmup_steps: int,
+) -> None:
+    peak = 2.0e-3
+    learning_rate = lambda step: optimization._learning_rate_for_step(
+        step,
+        peak,
+        warmup_steps,
+        max_steps,
+    )
+
+    assert optimization._warmup_steps_for_budget(max_steps) == warmup_steps
+    assert learning_rate(1) == peak / warmup_steps
+    assert learning_rate(warmup_steps) == peak
+    assert learning_rate(max_steps) == 0.1 * peak
+    assert learning_rate(warmup_steps - 1) < learning_rate(warmup_steps)
+    assert learning_rate(warmup_steps + 1) < learning_rate(warmup_steps)
+    assert learning_rate(max_steps - 1) > learning_rate(max_steps)
+
+
+def test_validation_cadence_matches_both_reviewed_budgets() -> None:
+    short = training.validation_update_steps(1_526)
+    full = training.validation_update_steps(5_691)
+
+    assert short == (1, 191, 382, 573, 764, 955, 1_146, 1_337, 1_526)
+    assert len(short) == 9
+    assert full[0] == 1
+    assert full[-2:] == (5_539, 5_691)
+    assert len(full) == 31
 
 
 def test_validation_document_partitions_are_stable_disjoint_halves() -> None:
