@@ -44,6 +44,7 @@ def test_start_run_writes_launch_envelope_immediately(
     assert manifest["condition_fingerprint"] == "d" * 64
     assert manifest["training_implementation_id"] == TRAINING_IMPLEMENTATION_ID
     assert manifest["config_sha256"] == complete_config_sha256(config)
+    assert manifest["runpod_pod_id"] is None
     assert not (run.run_dir / "metrics.json").exists()
     assert not (run.run_dir / "predictions.jsonl").exists()
     assert not list(run.run_dir.glob(".*.tmp"))
@@ -83,7 +84,9 @@ def test_start_run_records_explicit_parallel_worker_assignment(
         run_id="parallel",
     )
 
-    assert _read_manifest(run.run_dir)["worker_assignment"] == {
+    manifest = _read_manifest(run.run_dir)
+    assert manifest["runpod_pod_id"] == "pod-test"
+    assert manifest["worker_assignment"] == {
         "launch_id": "launch-123",
         "slot_id": "gpu-1",
         "config_id": "001-lifecycle",
@@ -101,6 +104,26 @@ def test_start_run_records_explicit_parallel_worker_assignment(
         "cuda_runtime_version": "12.8",
         "runpod_pod_id": "pod-test",
     }
+
+
+def test_start_run_records_runpod_pod_id_without_worker_assignment(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _stabilize_provenance(monkeypatch)
+    monkeypatch.setenv("RUNPOD_POD_ID", "pod-serial")
+    config, config_path = _write_config(tmp_path)
+
+    run = start_run(
+        config,
+        config_path=config_path,
+        command="pytest serial provenance",
+        mode="pretrain",
+        run_id="serial",
+    )
+
+    manifest = _read_manifest(run.run_dir)
+    assert manifest["runpod_pod_id"] == "pod-serial"
+    assert "worker_assignment" not in manifest
 
 
 def test_parallel_worker_assignment_requires_cuda_selector(

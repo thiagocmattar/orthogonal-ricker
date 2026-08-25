@@ -154,6 +154,7 @@ def build_manifest(
         "platform": platform.platform(),
         "gpu_info": collect_gpu_info(),
         "package_versions": collect_package_versions(),
+        "runpod_pod_id": os.environ.get("RUNPOD_POD_ID"),
     }
     identity = config.get("identity")
     if identity is not None:
