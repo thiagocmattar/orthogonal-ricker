@@ -1,24 +1,23 @@
 # Definitive Experiment Plan Manifest
 
-Plan status: placeholder
-Reviewed design commit: none
-Reviewed case groups: []
+Plan status: reviewed
+Reviewed design commit: e8214a411afebf0cec5658f0f1ccdd3e6bcd5585
+Reviewed case groups: [A1-lr-screen]
 
-> **Launch scope:** none. The original three `A1-lr-screen` cells completed at
-> execution commit `276da7cd8e9142da48b95e12b46a99d61367ca8f`. Because `2e-3`
-> had the lowest final selection loss at the original grid's upper boundary,
-> the proposed design adds exactly one `4e-3` cell and reopens `lr_14m` until
-> all four cells receive terminal classifications. See the
-> [`A1 boundary-extension review packet`](experimental-design/a1-boundary-extension-review-packet.md).
-> The proposal is not reviewed launch scope: do not materialize config `004`
-> or launch scientific work until this exact amendment is approved at a
-> committed design SHA.
+> **Reviewed scope:** `[A1-lr-screen]`. The user approved the exact
+> [`A1 boundary-extension design`](experimental-design/a1-boundary-extension-review-packet.md)
+> at commit `e8214a411afebf0cec5658f0f1ccdd3e6bcd5585` on 2026-08-25. Reuse
+> the three accepted original cells and materialize exactly one new `4e-3`
+> cell in `experiments/01-a1-lr-screen/`. `lr_14m` remains unresolved until
+> all four cells receive terminal classifications. This review does not by
+> itself authorize definitive launch or RunPod spending; both remain subject
+> to the explicit approvals required below and in the runbook.
 
 The [`A1 formal review packet`](experimental-design/a1-review-packet.md) was
 approved at design commit `54be534f383001b4af3d3b43597e135d4ca6653d`.
 That historical approval permitted its three immutable configs and the now
-completed original tranche only; it does not authorize the proposed fourth
-cell or any current launch.
+completed original tranche only; the separately approved boundary-extension
+design above governs the fourth cell.
 
 This file remains the sole launch-status authority. The proposed scientific
 design is split into focused components under
