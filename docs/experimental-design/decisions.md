@@ -7,7 +7,7 @@ configs/runs/diagnostics in [`../experiment_log.md`](../experiment_log.md).
 | Decision ID | State | Value | Exact evidence pointer | Rule required before freezing |
 | --- | --- | --- | --- | --- |
 | `ol1_step_budget` | unresolved | `TODO:` | `TODO:` reviewed design record | Independent scientific review before A3; not selected by smoke calibration |
-| `lr_14m` | unresolved | `TODO:` | `TODO:` selected config and accepted attempt | A1 rule and exact terminal case set |
+| `lr_14m` | frozen | `0.002` | [`experiments/01-a1-lr-screen`](../../experiments/01-a1-lr-screen/), config `003-a1-lr-2e-3`, run `001-20260825-195141-f842c400`, `checkpoints/final`; indexed in the [experiment log](../experiment_log.md) | A1 rule and exact terminal case set |
 | `lambda_B2` | unresolved | `TODO:` | `TODO:` experiment-log cohort | A3 matched L1/OL1 Pareto rule |
 | `b1_family` | unresolved | `TODO:` | `TODO:` experiment-log cohort | B1 positive-kappa family rule |
 | `b2_frontier` | unresolved | `TODO:` | `TODO:` exact case/attempt set | All valid nondominated B2 combined points |

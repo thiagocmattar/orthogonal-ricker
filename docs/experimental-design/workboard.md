@@ -26,6 +26,7 @@ copied into this table.
 | `VAL-02` | open | headline confirmation/paper release | Publish a durable confirmation-validation workflow around the reusable evaluator | Exact source-run resolution, cache-byte verification, lifecycle publication, and CLI tests; not required by the A1 screen |
 | `OPS-01` | resolved | A1 config allocation | Validate catalog counts, reviewed design SHA/blobs, exact A1 group membership, config/manifest identity, and duplicate fingerprints | Commit `99c2d03`; all 18 catalog expressions checked; A1-only materialization, strict check, launch preflight, canonical fingerprints, and manifest SHA tests |
 | `OPS-08` | open | A2+ config allocation | Add exact physical-cell materialization contracts for non-A1 groups | Per-group field/grid/decision/reuse tests; current implementation fails closed for every non-A1 group |
+| `DESIGN-01` | open | B1/B2 | Resolve the Phase B baseline contradiction: B1/B2 use `full-pass-wrap`, but their catalogued A0 control reuses the selected 400M-token A1 run even though the fingerprint contract forbids reuse across budgets | Reviewed catalog/phase amendment that either allocates a matching full-pass A0 control or changes the relevant Phase B budget, with corrected run counts and reuse tests |
 | `OPS-02` | resolved | recovery | Scope resume to pretraining, skip completed configs, require explicit failed-retry authorization, and stop on unsafe state | Commits `8de8324`, `5263dba`, `be0c9a4`; 301 tests, strict check, and infrastructure smoke passed |
 | `OPS-03` | resolved | calibration/launch | Add a 600-second calibration-only limit that cannot truncate definitive pretraining; record setup, train, validation, diagnostic, and checkpoint timing separately | Commit `242c439`, local lifecycle tests, and the accepted [A1 same-hardware calibration](a1-calibration-packet.md); acceptance digest `d6b12d230e1b82a5b57f75857283b1b84690cadfe8264742e4e2b7456a051216` |
 | `OPS-04` | resolved | A1+ | Freeze the Pythia-14M physical microbatch and gradient-accumulation decomposition on A40 48GB while preserving 128 sequences per optimizer update | Commits `0852a2e`, `037a705`, `131a142`; live idle-GPU profile selected microbatch 16 / accumulation 8; value explicitly approved on 2026-08-25 |
@@ -45,11 +46,11 @@ Readiness is derived from this table, the reviewed case-group scope, and
 
 | Stage | State | Required closure/decision |
 | --- | --- | --- |
-| A1 | ready | Group `A1-lr-screen` reviewed at design commit `54be534f383001b4af3d3b43597e135d4ca6653d`; exact configs `001`–`003` materialized; same-hardware calibration accepted; `OPS-09` resolved; definitive launch approval and its live resource envelope remain pending |
-| A2 | blocked | Reviewed A2 groups; A1 decision `lr_14m`; `DIAG-02`, `OPS-08` |
+| A1 | complete | All three exact configs completed as eligible, valid evidence at execution commit `276da7cd8e9142da48b95e12b46a99d61367ca8f`; `lr_14m = 0.002` is frozen from config `003-a1-lr-2e-3` under the reviewed rule |
+| A2 | blocked | Review the A2 groups at a new design commit; `DIAG-02`, `OPS-08` |
 | A3 | blocked | Reviewed group `A3-ol1-screen`; A2 complete; `METHOD-02`, `DIAG-03`, `OPS-08` |
-| B1 | blocked | Reviewed group `B1-threshold-screen`; A2 terminal interpretation; `METHOD-01`, `DIAG-01`, `OPS-08` |
-| B2 | blocked | Reviewed B2 groups; decisions `lambda_B2`, `b1_family`; valid prerequisites; `OPS-08` |
+| B1 | blocked | Review `B1-threshold-screen`; A2 terminal interpretation; resolve `DESIGN-01`, `METHOD-01`, `DIAG-01`, `OPS-08` |
+| B2 | blocked | Review the B2 groups; resolve `DESIGN-01`; decisions `lambda_B2`, `b1_family`; valid prerequisites; `OPS-08` |
 | C1 | blocked | Reviewed group `C1-lr-screens`; `ID-02`, `OPS-07`, `OPS-08`, plus shared training/validation blockers |
 | C2 | blocked | Reviewed C2 groups; C1 per-model LRs and A2 design |
 | C3 | blocked | Reviewed C3 groups; C2 plus decisions `b2_frontier` and `b2_winner` |
@@ -67,11 +68,8 @@ sample, first-run/full-tranche ETCs, and explicit launch approval. These are
 launch checks, not plan-review blockers. A1 has completed its timing sample;
 later tranches must supply their own.
 
-`CLOUD-01`, `OPS-04`, `OPS-05`, and `OPS-06` support the accepted A1
-calibration shape, but their resolution is not scientific-launch or spending
-authorization. `OPS-09` owns the selected definitive A1 exception: its three
-committed configs may run under one coordinator and lock on one Pod with
-exactly two worker slots mapped one-to-one to distinct homogeneous A40 GPUs.
-All other definitive tranches remain serial by default. Multiple runners,
-same-GPU packing, heterogeneous slots, and multi-Pod execution remain
-forbidden.
+`CLOUD-01`, `OPS-04`, `OPS-05`, `OPS-06`, and `OPS-09` preserve the operational
+record for the completed A1 launch; they do not authorize another launch.
+Future definitive tranches remain serial by default unless a newly reviewed
+bounded exception says otherwise. Multiple runners, same-GPU packing,
+heterogeneous slots, and multi-Pod execution remain forbidden.

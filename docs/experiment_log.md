@@ -10,6 +10,9 @@ well as successful ones.
 
 | Date | Scaffold | Config | Run | Terminal status | Case class | Evidence status | Purpose | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 2026-08-25 | [`experiments/01-a1-lr-screen`](../experiments/01-a1-lr-screen/) | [`001-a1-lr-5e-4`](../experiments/01-a1-lr-screen/run/001-a1-lr-5e-4.yaml) | [`001-20260825-191155-6b7376de`](../experiments/01-a1-lr-screen/raw/001-a1-lr-5e-4/001-20260825-191155-6b7376de/) | completed | eligible | valid | A1 peak-learning-rate screen | Completed the exact reviewed budget and artifact contract; retained as an eligible nonselected cell. |
+| 2026-08-25 | [`experiments/01-a1-lr-screen`](../experiments/01-a1-lr-screen/) | [`002-a1-lr-1e-3`](../experiments/01-a1-lr-screen/run/002-a1-lr-1e-3.yaml) | [`001-20260825-191154-b9299c46`](../experiments/01-a1-lr-screen/raw/002-a1-lr-1e-3/001-20260825-191154-b9299c46/) | completed | eligible | valid | A1 peak-learning-rate screen | Completed the exact reviewed budget and artifact contract; retained as an eligible nonselected cell. |
+| 2026-08-25 | [`experiments/01-a1-lr-screen`](../experiments/01-a1-lr-screen/) | [`003-a1-lr-2e-3`](../experiments/01-a1-lr-screen/run/003-a1-lr-2e-3.yaml) | [`001-20260825-195141-f842c400`](../experiments/01-a1-lr-screen/raw/003-a1-lr-2e-3/001-20260825-195141-f842c400/) | completed | eligible | valid | A1 peak-learning-rate screen | Selected by the reviewed A1 rule; freezes `lr_14m` at `0.002` for downstream review. |
 
 Status rules:
 
@@ -27,5 +30,5 @@ Status rules:
 - Do not copy scalar results into this log when the saved artifact is the
   authority. Summarize only the decision and interpretation boundary.
 
-`TODO:` Populate this table after the definitive experiment plan is supplied,
-reviewed, and launched.
+The registry currently contains the completed A1 tranche. Later scientific
+rows require newly reviewed plan scope.

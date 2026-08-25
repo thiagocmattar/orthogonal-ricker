@@ -26,9 +26,11 @@ Then read the document that owns the task:
 
 The reviewed `docs/experiment_plan.md` and the exact normative components it
 lists are the authority for datasets, models, budgets, seeds, comparisons,
-promotion rules, diagnostics, and paper outputs. Its current reviewed scope is
-limited to `A1-lr-screen`; do not materialize or launch any other scientific
-case group until the user reviews an expanded definitive plan. Use
+promotion rules, diagnostics, and paper outputs. Its current status is
+`placeholder` with no reviewed case group after recording the completed A1
+decision. Do not materialize or launch another scientific case group until the
+user reviews an expanded definitive plan. The completed A1 configs and evidence
+remain historical inputs and must not be rerun merely because scope reset. Use
 `docs/experimental-design/cases.yaml` and
 `docs/experimental-design/run-reuse.md` to ensure one physical config per
 scientific condition and seed.

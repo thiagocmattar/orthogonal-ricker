@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -342,6 +343,147 @@ def test_run_directories_are_classified_from_scaffold_raw_artifacts(
     assert _finding(
         findings, "run.inconsistent", f"{prefix}/009-wrong-tranche"
     ).severity == "error"
+
+
+def test_placeholder_preserves_only_exact_indexed_completed_config(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _make_repository_skeleton(tmp_path)
+    scaffold = _make_scientific_scaffold(tmp_path, "01-a1-history")
+    config_path = scaffold / "run" / "001-case.yaml"
+    _write_config(config_path, scaffold)
+    run_dir = scaffold / "raw" / "001-case" / "001-completed"
+    _write_lifecycle_run(run_dir, scaffold, status="completed", core=True)
+    manifest = json.loads((run_dir / "manifest.json").read_text(encoding="utf-8"))
+    manifest["mode"] = "pretrain"
+    (run_dir / "manifest.json").write_text(
+        json.dumps(manifest) + "\n", encoding="utf-8"
+    )
+
+    plan = tmp_path / integrity.PLAN_PATH
+    catalog = tmp_path / integrity.CATALOG_PATH
+    plan.parent.mkdir(parents=True, exist_ok=True)
+    catalog.parent.mkdir(parents=True, exist_ok=True)
+    plan.write_text("Plan status: placeholder\n", encoding="utf-8")
+    catalog.write_text("case_groups: []\n", encoding="utf-8")
+    monkeypatch.setattr(
+        integrity,
+        "validate_catalog",
+        lambda _repository: SimpleNamespace(groups={"history": {}}),
+    )
+    monkeypatch.setattr(
+        integrity,
+        "validate_reviewed_design",
+        lambda _repository, require_reviewed=False: SimpleNamespace(
+            status="placeholder", reviewed_groups=()
+        ),
+    )
+    monkeypatch.setattr(
+        integrity,
+        "tracked_training_identities",
+        lambda _repository: [(config_path, "history", "a" * 64)],
+    )
+    monkeypatch.setattr(
+        integrity, "classify_run_directory", lambda _run_dir: "complete"
+    )
+    (tmp_path / "docs" / "experiment_log.md").write_text(
+        "[completed](../experiments/01-a1-history/raw/001-case/001-completed/)\n",
+        encoding="utf-8",
+    )
+    monkeypatch.chdir(tmp_path)
+    assert main(["check", "--root", ".", "--strict"]) == 0
+    findings = integrity._check_design(Path("."))
+    assert not any(
+        finding.code == "design.config_while_placeholder" for finding in findings
+    )
+
+    (tmp_path / "docs" / "experiment_log.md").write_text(
+        "No accepted run is indexed.\n", encoding="utf-8"
+    )
+    findings = integrity._check_design(Path("."))
+    finding = _finding(
+        findings,
+        "design.config_while_placeholder",
+        "experiments/01-a1-history/run/001-case.yaml",
+    )
+    assert "exact coherent completed run" in finding.message
+
+
+def test_placeholder_rejects_indexed_nonterminal_or_changed_snapshot(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _make_repository_skeleton(tmp_path)
+    scaffold = _make_scientific_scaffold(tmp_path, "01-a1-history")
+    config_path = scaffold / "run" / "001-case.yaml"
+    _write_config(config_path, scaffold)
+    run_dir = scaffold / "raw" / "001-case" / "001-run"
+    _write_lifecycle_run(run_dir, scaffold, status="failed", core=False)
+    manifest = json.loads((run_dir / "manifest.json").read_text(encoding="utf-8"))
+    manifest["mode"] = "pretrain"
+    (run_dir / "manifest.json").write_text(
+        json.dumps(manifest) + "\n", encoding="utf-8"
+    )
+    monkeypatch.setattr(
+        integrity, "classify_run_directory", lambda _run_dir: "complete"
+    )
+    (tmp_path / "docs" / "experiment_log.md").write_text(
+        "`experiments/01-a1-history/raw/001-case/001-run/`\n",
+        encoding="utf-8",
+    )
+
+    assert not integrity._placeholder_config_has_indexed_completed_evidence(
+        tmp_path, config_path
+    )
+
+    completed_dir = scaffold / "raw" / "001-case" / "002-completed"
+    _write_lifecycle_run(completed_dir, scaffold, status="completed", core=True)
+    manifest = json.loads(
+        (completed_dir / "manifest.json").read_text(encoding="utf-8")
+    )
+    manifest["mode"] = "pretrain"
+    (completed_dir / "manifest.json").write_text(
+        json.dumps(manifest) + "\n", encoding="utf-8"
+    )
+    (completed_dir / "config.yaml").write_text(
+        _valid_config(scaffold).replace("max_examples: 1", "max_examples: 2"),
+        encoding="utf-8",
+    )
+    (tmp_path / "docs" / "experiment_log.md").write_text(
+        "`experiments/01-a1-history/raw/001-case/002-completed/`\n",
+        encoding="utf-8",
+    )
+    assert not integrity._placeholder_config_has_indexed_completed_evidence(
+        tmp_path, config_path
+    )
+
+
+def test_placeholder_rejects_completed_calibration(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _make_repository_skeleton(tmp_path)
+    scaffold = _make_scientific_scaffold(tmp_path, "01-a1-history")
+    config_path = scaffold / "run" / "001-case.yaml"
+    _write_config(config_path, scaffold)
+    run_dir = scaffold / "raw" / "001-case" / "001-calibration"
+    _write_lifecycle_run(run_dir, scaffold, status="completed", core=True)
+    manifest = json.loads((run_dir / "manifest.json").read_text(encoding="utf-8"))
+    manifest["mode"] = "calibrate"
+    (run_dir / "manifest.json").write_text(
+        json.dumps(manifest) + "\n", encoding="utf-8"
+    )
+    (tmp_path / "docs" / "experiment_log.md").write_text(
+        "`experiments/01-a1-history/raw/001-case/001-calibration/`\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(
+        integrity, "classify_run_directory", lambda _run_dir: "complete"
+    )
+    assert not integrity._placeholder_config_has_indexed_completed_evidence(
+        tmp_path, config_path
+    )
 
 
 def test_literal_scaffold_references_and_paper_outputs_are_checked(

@@ -1,11 +1,12 @@
 # A1 Learning-Rate Screen — Formal Review Packet
 
-**Status:** formally approved at design commit
-`54be534f383001b4af3d3b43597e135d4ca6653d`; the manifest reviews only
-`A1-lr-screen`. Its three immutable configs are materialized under
-`experiments/01-a1-lr-screen/`. The separately approved calibration is now
-accepted in [`a1-calibration-packet.md`](a1-calibration-packet.md); definitive
-pretraining and any new RunPod spending remain unapproved.
+> **Historical packet; no current launch authority.** Formally approved at
+> design commit `54be534f383001b4af3d3b43597e135d4ca6653d`, this packet governed the
+> now-completed `A1-lr-screen` tranche. All three definitive cells completed as
+> eligible, valid evidence at execution commit
+> `276da7cd8e9142da48b95e12b46a99d61367ca8f`; the reviewed rule selected
+> config `003-a1-lr-2e-3` and froze `lr_14m = 0.002`. Launch recommendations
+> below are preserved as contemporaneous history and are superseded.
 
 This packet summarizes the exact `A1-lr-screen` scope for review at one Git
 commit. If any summary conflicts with a normative component listed in

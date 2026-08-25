@@ -1,25 +1,21 @@
 # Definitive Experiment Plan Manifest
 
-Plan status: reviewed
-Reviewed design commit: 54be534f383001b4af3d3b43597e135d4ca6653d
-Reviewed case groups: [A1-lr-screen]
+Plan status: placeholder
+Reviewed design commit: none
+Reviewed case groups: []
 
-> **Launch scope:** only `A1-lr-screen` is reviewed. Its configs are
-> materialized and its separately approved calibration is accepted in
-> [`a1-calibration-packet.md`](experimental-design/a1-calibration-packet.md).
-> Its selected operational execution shape is one case-runner coordinator and
-> one repository lock on one Pod, using exactly two worker slots mapped
-> one-to-one to distinct homogeneous A40 GPUs. The coordinator admits at most
-> two of the three committed configs in order, stops new admission on the first
-> failure, and drains admitted workers. This changes scheduling only: the
-> scientific contract, immutable configs, condition fingerprints, and reviewed
-> design commit remain unchanged. Definitive launch at the resulting execution
-> SHA and any new RunPod spending still require separate explicit approvals.
+> **Launch scope:** none. `A1-lr-screen` completed at execution commit
+> `276da7cd8e9142da48b95e12b46a99d61367ca8f`, and its predeclared selection is
+> frozen as `lr_14m = 0.002` in
+> [`decisions.md`](experimental-design/decisions.md). Recording that normative
+> upstream decision resets this manifest under the review rule below. No
+> scientific case group may now be materialized or launched until an exact new
+> scope is reviewed at a committed design SHA.
 
 The [`A1 formal review packet`](experimental-design/a1-review-packet.md) was
-approved at the exact reviewed design commit above. This permits materializing
-its three immutable configs and no other case group. Formal plan approval is not
-RunPod spending or definitive-launch approval.
+approved at design commit `54be534f383001b4af3d3b43597e135d4ca6653d`.
+That historical approval permitted its three immutable configs and the now
+completed A1 tranche only; it is not current launch authority.
 
 This file remains the sole launch-status authority. The proposed scientific
 design is split into focused components under

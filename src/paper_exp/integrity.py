@@ -378,6 +378,7 @@ def _check_experiments(repository: Path) -> list[IntegrityFinding]:
 def _check_design(repository: Path) -> list[IntegrityFinding]:
     """Validate machine-readable design and tracked training identities."""
 
+    repository = repository.resolve()
     plan_exists = (repository / PLAN_PATH).is_file()
     catalog_exists = (repository / CATALOG_PATH).is_file()
     if not plan_exists and not catalog_exists:
@@ -458,16 +459,101 @@ def _check_design(repository: Path) -> list[IntegrityFinding]:
                         path=_relative_path(repository, path),
                     )
                 )
-    elif identities:
-        findings.append(
-            IntegrityFinding(
-                severity="error",
-                code="design.config_while_placeholder",
-                message="Scientific training configs cannot exist while the plan is a placeholder.",
-                path=EXPERIMENTS_DIR_NAME,
+    else:
+        for path, _group_id, _fingerprint in identities:
+            if _placeholder_config_has_indexed_completed_evidence(repository, path):
+                continue
+            findings.append(
+                IntegrityFinding(
+                    severity="error",
+                    code="design.config_while_placeholder",
+                    message=(
+                        "A placeholder plan may preserve a scientific training config "
+                        "only when the experiment log indexes an exact coherent "
+                        "completed run with the same immutable config snapshot."
+                    ),
+                    path=_relative_path(repository, path),
+                )
             )
-        )
     return findings
+
+
+def _placeholder_config_has_indexed_completed_evidence(
+    repository: Path, config_path: Path
+) -> bool:
+    """Recognize a historical recipe without authorizing new materialization."""
+
+    root = repository.resolve()
+    resolved_config = config_path.resolve()
+    try:
+        relative_config = resolved_config.relative_to(root).as_posix()
+    except ValueError:
+        return False
+    config_parts = relative_config.split("/")
+    if (
+        len(config_parts) != 4
+        or config_parts[0] != EXPERIMENTS_DIR_NAME
+        or config_parts[2] != "run"
+        or not config_parts[3].endswith(".yaml")
+    ):
+        return False
+
+    try:
+        with resolved_config.open("r", encoding="utf-8-sig") as handle:
+            tracked_config = safe_load(handle) or {}
+    except (OSError, UnicodeError, YAMLError):
+        return False
+    if not isinstance(tracked_config, dict):
+        return False
+    tracked_sha = complete_config_sha256(tracked_config)
+    scaffold_id = config_parts[1]
+    config_id = Path(config_parts[3]).stem
+
+    experiment_log = root / "docs" / "experiment_log.md"
+    if not experiment_log.is_file():
+        return False
+    try:
+        log_text = experiment_log.read_text(encoding="utf-8-sig")
+    except (OSError, UnicodeError):
+        return False
+
+    for match in _REFERENCE_RE.finditer(log_text):
+        reference = match.group(1).rstrip(".,;").rstrip("/")
+        if any(character in reference for character in _GLOB_CHARS):
+            continue
+        parts = reference.split("/")
+        if (
+            len(parts) != 5
+            or parts[:3] != [EXPERIMENTS_DIR_NAME, scaffold_id, "raw"]
+            or parts[3] != config_id
+        ):
+            continue
+        run_dir = root / Path(reference)
+        try:
+            manifest = read_json(run_dir / "manifest.json")
+        except (OSError, UnicodeError, ValueError):
+            continue
+        if (
+            not isinstance(manifest, dict)
+            or manifest.get("status") != "completed"
+            or manifest.get("mode") != "pretrain"
+        ):
+            continue
+        if classify_run_directory(run_dir) != "complete":
+            continue
+        try:
+            with (run_dir / "config.yaml").open(
+                "r", encoding="utf-8-sig"
+            ) as handle:
+                run_config = safe_load(handle) or {}
+        except (OSError, UnicodeError, YAMLError):
+            continue
+        if (
+            isinstance(run_config, dict)
+            and complete_config_sha256(run_config) == tracked_sha
+        ):
+            return True
+    return False
 
 
 def _check_scaffold_shape(repository: Path, scaffold: Path) -> list[IntegrityFinding]:

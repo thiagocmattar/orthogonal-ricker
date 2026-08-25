@@ -1,8 +1,11 @@
 # A1 RunPod Calibration Packet
 
-**Status:** accepted operational evidence. **Scientific evidence:** no.
-Definitive A1 pretraining has not been launched and still requires explicit
-approval.
+> **Historical packet; no current launch authority.** This remains accepted
+> operational timing evidence, not scientific evidence. Definitive A1 later
+> completed at execution commit
+> `276da7cd8e9142da48b95e12b46a99d61367ca8f`; all three cells were eligible
+> and valid, and config `003-a1-lr-2e-3` froze `lr_14m = 0.002` under the
+> reviewed rule. The launch recommendation below is retained only as history.
 
 This packet closes the production-shaped A1 timing check for the three
 immutable configs approved at design commit

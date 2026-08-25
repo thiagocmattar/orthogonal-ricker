@@ -11,14 +11,17 @@ plotting utilities.
 modular proposal for the lean 14M discovery and 70M/410M replication program;
 its [executive brief](docs/experimental-design/executive.md) is advisor-facing.
 The sole scientific-scope authority is
-[`docs/experiment_plan.md`](docs/experiment_plan.md). It currently reviews only
-`A1-lr-screen`; every definitive launch and cloud resource envelope still
-requires its own explicit approval.
+[`docs/experiment_plan.md`](docs/experiment_plan.md). It currently reviews no
+case group: recording the completed A1 selection reset the plan to placeholder
+status. `A1-lr-screen` is complete and `lr_14m = 0.002` is frozen; any
+downstream scope requires a new committed review, and every definitive launch
+and cloud resource envelope still requires its own explicit approval.
 
-The tracked release tree intentionally contains no earlier campaign configs, reports, or
-results. Those remain available through Git history on the branches and commits
-where they were produced. Nothing in the current branch should be interpreted
-as a paper result.
+The tracked tree contains the definitive A1 recipes and their evidence index;
+raw attempts remain ignored and are addressed by exact identities from
+[`docs/experiment_log.md`](docs/experiment_log.md). A1 selects an optimization
+setting at its fixed 400M-token horizon and makes no sparsity or
+horizon-independent optimum claim.
 
 ## Scientific Invariants
 
@@ -111,12 +114,11 @@ make prepare-data CONFIG=experiments/NN-phase-tranche/run/CCC-case.yaml
 make calibrate CONFIG=experiments/NN-phase-tranche/run/CCC-case.yaml
 ```
 
-The reviewed A1 calibration can instead pass its three distinct configs and
-two explicit GPU slots to one CLI coordinator; see the runbook. This is an
-operational timing workflow and is never reused as pretraining evidence. The
-separately selected definitive A1 shape uses the same bounded two-GPU
-decomposition through its case runner; it remains a distinct launch requiring
-the committed execution policy plus explicit launch and spending approvals.
+The historical A1 calibration passed its three distinct configs and two
+explicit GPU slots to one CLI coordinator; see the runbook. That operational
+timing workflow was not reused as pretraining evidence. The separately
+approved definitive A1 launch later used the same bounded two-GPU decomposition
+through its case runner and is now complete; neither record authorizes a rerun.
 
 Every definitive training tranche, even one containing a single config, uses
 its committed case runner:

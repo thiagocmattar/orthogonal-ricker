@@ -28,9 +28,10 @@ per-group realization is not supported by the current single-form
 ## A1 Reproducibility Pins
 
 The A1 packet fixes realized immutable revisions rather than the moving
-`main` references originally used to create the local cache. The scientific
-group remains unreviewed until the manifest records the packet's committed
-design SHA.
+`main` references originally used to create the local cache. The group was
+reviewed at design commit `54be534f383001b4af3d3b43597e135d4ca6653d` and
+completed at execution commit `276da7cd8e9142da48b95e12b46a99d61367ca8f`;
+these pins are now a reproducibility record, not launch authority.
 
 | Item | A1 identity |
 | --- | --- |
