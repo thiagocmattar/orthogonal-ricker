@@ -5,11 +5,12 @@ from __future__ import annotations
 import json
 import multiprocessing
 import os
+from dataclasses import dataclass
 from pathlib import Path
 import re
 import shlex
 import sys
-from typing import Any, Sequence
+from typing import Any, Literal, Sequence
 from uuid import uuid4
 
 from yaml import YAMLError, safe_load
@@ -51,11 +52,48 @@ _NON_PRETRAIN_MODES = frozenset(
 )
 _WORKER_SLOT_ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 _CUDA_DEVICE_RE = re.compile(r"^(0|[1-9][0-9]*)$")
-_PARALLEL_READY_ITEMS = ("CLOUD-01", "OPS-04", "OPS-05", "OPS-06")
+_CALIBRATION_PARALLEL_READY_ITEMS = ("CLOUD-01", "OPS-04", "OPS-05", "OPS-06")
+_DEFINITIVE_PARALLEL_READY_ITEMS = (
+    *_CALIBRATION_PARALLEL_READY_ITEMS,
+    "OPS-09",
+)
 
 
 class WorkerProcessError(RuntimeError):
     """Raised when one isolated training worker does not complete."""
+
+
+@dataclass(frozen=True)
+class ParallelLaunchAuthorization:
+    """Tracked case-runner authorization for one exact parallel GPU shape."""
+
+    worker_count: int
+    required_gpu_name: str
+    config_ids: tuple[str, ...]
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.worker_count, int) or self.worker_count < 2:
+            raise ValueError("Parallel authorization worker_count must be at least two.")
+        if (
+            not isinstance(self.required_gpu_name, str)
+            or not self.required_gpu_name.strip()
+        ):
+            raise ValueError(
+                "Parallel authorization required_gpu_name must be a nonempty string."
+            )
+        if (
+            not isinstance(self.config_ids, tuple)
+            or not self.config_ids
+            or any(
+                not isinstance(config_id, str) or not config_id.strip()
+                for config_id in self.config_ids
+            )
+            or len(set(self.config_ids)) != len(self.config_ids)
+        ):
+            raise ValueError(
+                "Parallel authorization config_ids must be a nonempty tuple of "
+                "distinct nonempty config IDs."
+            )
 
 
 def run_launch(
@@ -65,14 +103,15 @@ def run_launch(
     repository: str | Path | None = None,
     retry_failed: bool | None = None,
     worker_slots: Sequence[WorkerSlot[str]] | None = None,
+    parallel_authorization: ParallelLaunchAuthorization | None = None,
 ) -> list[Path]:
     """Run one plan-defined config list under a single launch lock.
 
     A case-runner invocation containing ``--retry-failed`` explicitly opts in
     to retrying coherent failed attempts. Direct callers may pass the keyword
-    instead. Definitive pretraining remains serial; the retained worker-slot
-    parser fails closed until a future reviewed policy enables that dormant
-    path.
+    instead. Without worker slots, configs run serially. With at least two
+    explicit worker slots, pending configs run under one bounded coordinator
+    with one isolated process per distinct homogeneous GPU.
     """
 
     root = repository_path(repository)
@@ -82,11 +121,6 @@ def run_launch(
         requested_retry=retry_failed,
         requested_slots=worker_slots,
     )
-    if resolved_slots:
-        raise RunnerError(
-            "Definitive pretraining must run serially. Worker slots are "
-            "authorized only for the calibration command, not case runners."
-        )
     if not config_paths:
         raise RunnerError(f"Runner has no configs: {runner}")
 
@@ -97,6 +131,37 @@ def run_launch(
         ]
     except LaunchError as error:
         raise RunnerError(str(error)) from error
+    if resolved_slots and parallel_authorization is None:
+        raise RunnerError(
+            "Concurrent definitive pretraining requires an explicit tracked "
+            "parallel launch authorization from the case runner."
+        )
+    if (
+        resolved_slots
+        and parallel_authorization is not None
+        and len(resolved_slots) != parallel_authorization.worker_count
+    ):
+        raise RunnerError(
+            "Concurrent definitive pretraining requires exactly "
+            f"{parallel_authorization.worker_count} authorized worker slots; "
+            f"received {len(resolved_slots)}."
+        )
+    config_ids = tuple(path.stem for path in configs)
+    if (
+        resolved_slots
+        and parallel_authorization is not None
+        and config_ids != parallel_authorization.config_ids
+    ):
+        raise RunnerError(
+            "Concurrent definitive pretraining config IDs do not match the "
+            "tracked parallel launch authorization: expected "
+            f"{parallel_authorization.config_ids!r}, received {config_ids!r}."
+        )
+    if len(resolved_slots) > len(configs):
+        raise RunnerError(
+            "Concurrent definitive pretraining cannot allocate more worker "
+            "slots than tranche configs."
+        )
     expected_config_root = runner.parent
     misplaced = [path for path in configs if path.parent != expected_config_root]
     if misplaced:
@@ -130,9 +195,13 @@ def run_launch(
         )
 
     loaded: list[tuple[Path, dict[str, Any]]] = []
+    if resolved_slots:
+        _require_parallel_launch_ready(root, mode="pretrain")
     for path in configs:
         config = load_config(path, allow_todos=False)
         validate_training_config(config)
+        if resolved_slots:
+            _require_worker_mappable_device(config, config_path=path)
         require_raw_output(config, repository=root, config_path=path)
         require_token_cache_output(config, repository=root, source=path)
         loaded.append((path, config))
@@ -143,6 +212,10 @@ def run_launch(
     ]
     if retry_failed:
         command_parts.append("--retry-failed")
+    for slot in resolved_slots:
+        command_parts.extend(
+            ("--worker-slot", f"{slot.slot_id}={slot.payload}")
+        )
     command = shlex.join(command_parts)
     prior_completed = [
         _completed_attempt_for_config(path, config, allow_failed_retry=retry_failed)
@@ -175,14 +248,59 @@ def run_launch(
                 )
             )
 
-        for item in pending:
-            index, path, config = item.payload
-            display = path.relative_to(root).as_posix()
-            print(f"[{index}/{len(loaded)}] pretrain {display}", flush=True)
-            completed_by_config[item.config_id] = _run_one(
-                config,
-                config_path=path,
-                command=command,
+        if not resolved_slots:
+            for item in pending:
+                index, path, config = item.payload
+                display = path.relative_to(root).as_posix()
+                print(f"[{index}/{len(loaded)}] pretrain {display}", flush=True)
+                completed_by_config[item.config_id] = _run_one(
+                    config,
+                    config_path=path,
+                    command=command,
+                )
+        elif pending:
+            assert parallel_authorization is not None
+            launch_id = uuid4().hex
+            slot_identities = _probe_worker_slots(resolved_slots)
+            _require_authorized_worker_identities(
+                slot_identities,
+                authorization=parallel_authorization,
+            )
+
+            def worker(
+                item: WorkItem[tuple[int, Path, dict[str, Any]]],
+                slot: WorkerSlot[str],
+            ) -> Path:
+                index, path, config = item.payload
+                display = path.relative_to(root).as_posix()
+                print(
+                    f"[{index}/{len(loaded)}] pretrain {display} "
+                    f"on {slot.slot_id} (CUDA_VISIBLE_DEVICES={slot.payload})",
+                    flush=True,
+                )
+                return _run_one_isolated(
+                    config,
+                    config_path=path,
+                    command=command,
+                    repository=root,
+                    launch_id=launch_id,
+                    launch_position=index,
+                    launch_size=len(loaded),
+                    slot=slot,
+                    expected_identity=slot_identities[slot.slot_id],
+                    mode="pretrain",
+                )
+
+            try:
+                report = run_bounded(pending, resolved_slots, worker)
+            except ParallelRunError as error:
+                raise RunnerError(str(error)) from error
+            completed_by_config.update(
+                {
+                    result.assignment.config_id: result.value
+                    for result in report.completed
+                    if result.value is not None
+                }
             )
 
         completed = [completed_by_config[path.stem] for path, _config in loaded]
@@ -234,7 +352,7 @@ def run_calibrations(
             raise RunnerError(
                 "Concurrent calibration cannot allocate more worker slots than configs."
             )
-        _require_parallel_launch_ready(root)
+        _require_parallel_launch_ready(root, mode="calibrate")
     elif len(configs) != 1:
         raise RunnerError(
             "A calibration without worker slots accepts exactly one config."
@@ -294,6 +412,7 @@ def run_calibrations(
                 launch_size=len(loaded),
                 slot=slot,
                 expected_identity=slot_identities[slot.slot_id],
+                mode="calibrate",
             )
 
         try:
@@ -505,15 +624,24 @@ def _require_worker_mappable_device(
         )
 
 
-def _require_parallel_launch_ready(repository: Path) -> None:
+def _require_parallel_launch_ready(
+    repository: Path,
+    *,
+    mode: Literal["pretrain", "calibrate"] = "calibrate",
+) -> None:
     workboard = repository / "docs" / "experimental-design" / "workboard.md"
     try:
         text = workboard.read_text(encoding="utf-8-sig")
     except (OSError, UnicodeError) as error:
         raise RunnerError(f"Cannot read parallel-launch workboard: {workboard}") from error
+    items = (
+        _DEFINITIVE_PARALLEL_READY_ITEMS
+        if mode == "pretrain"
+        else _CALIBRATION_PARALLEL_READY_ITEMS
+    )
     unresolved = [
         item
-        for item in _PARALLEL_READY_ITEMS
+        for item in items
         if re.search(
             rf"^\|\s*`{re.escape(item)}`\s*\|\s*resolved\s*\|",
             text,
@@ -522,9 +650,29 @@ def _require_parallel_launch_ready(repository: Path) -> None:
         is None
     ]
     if unresolved:
+        workflow = "Definitive pretraining" if mode == "pretrain" else "Calibration"
         raise RunnerError(
-            "Concurrent calibration remains blocked until these workboard "
+            f"Concurrent {workflow.lower()} remains blocked until these workboard "
             f"items are resolved: {', '.join(unresolved)}."
+        )
+
+
+def _require_authorized_worker_identities(
+    identities: dict[str, dict[str, Any]],
+    *,
+    authorization: ParallelLaunchAuthorization,
+) -> None:
+    mismatches = [
+        f"{slot_id}={identity.get('name')!r}"
+        for slot_id, identity in identities.items()
+        if identity.get("name") != authorization.required_gpu_name
+    ]
+    if mismatches:
+        raise RunnerError(
+            "Definitive worker GPU identity does not match the tracked parallel "
+            f"authorization ({authorization.required_gpu_name!r} required): "
+            + ", ".join(mismatches)
+            + "."
         )
 
 
@@ -539,8 +687,12 @@ def _run_one_isolated(
     launch_size: int,
     slot: WorkerSlot[str],
     expected_identity: dict[str, Any],
+    mode: Literal["pretrain", "calibrate"] = "calibrate",
 ) -> Path:
-    """Run one calibration in a fresh process with one explicit visible GPU."""
+    """Run one training mode in a fresh process on one explicit visible GPU."""
+
+    if mode not in {"pretrain", "calibrate"}:
+        raise RunnerError(f"Unsupported isolated training mode: {mode}")
 
     context = multiprocessing.get_context("spawn")
     receiver, sender = context.Pipe(duplex=False)
@@ -559,6 +711,7 @@ def _run_one_isolated(
             expected_identity,
             os.getpid(),
             sender,
+            mode,
         ),
         name=f"paper-exp-{slot.slot_id}-{config_path.stem}",
     )
@@ -583,7 +736,7 @@ def _run_one_isolated(
     else:
         detail = "worker exited without a terminal result"
     raise WorkerProcessError(
-        f"Isolated calibration worker for {config_path.name} on {slot.slot_id} failed "
+        f"Isolated {mode} worker for {config_path.name} on {slot.slot_id} failed "
         f"(exit code {exit_code}): {detail}."
     )
 
@@ -654,8 +807,9 @@ def _worker_process_entry(
     expected_identity: dict[str, Any],
     coordinator_pid: int,
     sender: Any,
+    mode: Literal["pretrain", "calibrate"] = "calibrate",
 ) -> None:
-    """Calibration child entrypoint; the parent remains the sole coordinator."""
+    """Training child entrypoint; the parent remains the sole coordinator."""
 
     os.chdir(repository)
     os.environ["CUDA_VISIBLE_DEVICES"] = cuda_visible_device
@@ -684,7 +838,8 @@ def _worker_process_entry(
         os.environ["PAPER_EXP_WORKER_CUDA_RUNTIME_VERSION"] = gpu[
             "cuda_runtime_version"
         ]
-        run_dir = _run_one_calibration(
+        run_one = _run_one if mode == "pretrain" else _run_one_calibration
+        run_dir = run_one(
             config,
             config_path=Path(config_path),
             command=command,
