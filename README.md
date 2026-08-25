@@ -11,12 +11,12 @@ plotting utilities.
 modular proposal for the lean 14M discovery and 70M/410M replication program;
 its [executive brief](docs/experimental-design/executive.md) is advisor-facing.
 The sole scientific-scope authority is
-[`docs/experiment_plan.md`](docs/experiment_plan.md). It currently reviews no
-case group. The original three A1 cells are complete, but the proposed single
-`4e-3` upper-boundary extension reopens `lr_14m`; config `004` remains
-unmaterialized pending exact-SHA review. Any downstream scope requires a new
-committed review, and every definitive launch and cloud resource envelope
-still requires its own explicit approval.
+[`docs/experiment_plan.md`](docs/experiment_plan.md). It currently reviews only
+`[A1-lr-screen]`. The original three A1 cells are complete,
+and the reviewed single `4e-3` upper-boundary cell is materialized in the same
+scaffold. `lr_14m` remains unresolved until config `004` reaches a reviewed
+terminal classification. Definitive launch and every cloud resource envelope
+still require their own explicit approval.
 
 The tracked tree contains the definitive A1 recipes and their evidence index;
 raw attempts remain ignored and are addressed by exact identities from

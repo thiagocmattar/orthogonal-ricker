@@ -15,6 +15,7 @@ Pythia-14M discovery and Pythia-70M/410M replication program.
 | Advisor review | [`executive.md`](executive.md) |
 | Original three-cell A1 review | [`a1-review-packet.md`](a1-review-packet.md) |
 | Proposed `4e-3` A1 boundary extension | [`a1-boundary-extension-review-packet.md`](a1-boundary-extension-review-packet.md) |
+| `4e-3` definitive launch review | [`a1-boundary-extension-launch-packet.md`](a1-boundary-extension-launch-packet.md) |
 | A1 calibration and ETC | [`a1-calibration-packet.md`](a1-calibration-packet.md) |
 | Shared scientific configuration | [`protocol.md`](protocol.md) |
 | Stage design or selection | [Phase A](phases/a-pressure.md), [B](phases/b-threshold.md), or [C](phases/c-scale.md), plus [`cases.yaml`](cases.yaml) |

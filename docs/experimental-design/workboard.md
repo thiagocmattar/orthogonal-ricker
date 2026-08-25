@@ -36,6 +36,7 @@ copied into this table.
 | `OPS-05` | resolved | concurrent calibration | Implement bounded execution under one authoritative one-host coordinator and lock; definitive pretraining was serial at this calibration milestone | Prior infrastructure commits through `b62f03b` plus commit `99c2d03`; live two-GPU isolation proof; calibration accepts distinct configs on distinct homogeneous GPUs. The later exact-A1 exception is owned by `OPS-09`; same-GPU packing and multi-Pod mode still fail closed |
 | `OPS-06` | resolved | concurrency infrastructure | Validate the bounded RunPod worker workflow with infrastructure-only smoke tests before any scientific use | Commit `b62f03b`; live report SHA-256 `2c356f51bd0068c7fd2d39ac5bbd70c3c4b3a43e53d101e7a3595f08c16bde17` proves overlap, injected failure/drain, same-coordinator-invocation recovery, completed reuse, BF16, and distinct GPUs; artifact retrieved and both RunPod inventories verified empty |
 | `OPS-09` | resolved | definitive A1 launch | Expose bounded config-level concurrency only to the exact `A1-lr-screen` case runner: one coordinator and lock, one Pod, exactly two distinct homogeneous A40 slots, stable admission, failure stop-and-drain, and unchanged per-config reuse/retry semantics | Commit `a23c56d`; authorization is bound to the ordered A1 config IDs, two workers, and `NVIDIA A40`; 74 focused runner/scheduler tests and the full 480-pass suite passed, with strict check at 0 errors/warnings and infrastructure smoke completed |
+| `OPS-10` | resolved | A1 boundary-cell launch | Preserve cross-revision A1 training semantics and make reuse of configs `001`–`003` fail closed before config `004` can run | Materialization commit `e7e63a4`; exact evidence below; 81 focused tests and full suite of 491 passed / 3 skipped; strict check 0 errors/warnings; local reuse classification `001`–`003` completed and `004` pending |
 | `PLOT-01` | open | paper release | Implement the three declared figure families from pinned artifacts | Deterministic plot tests, PDF/PNG, provenance sidecars |
 | `MAN-01` | open | manuscript release | Remove or separately validate out-of-scope 12B/long-context claims and enforce claim wording | Reviewed introduction consistent with `outputs.md` |
 
@@ -74,3 +75,50 @@ record for the completed A1 launch; they do not authorize another launch.
 Future definitive tranches remain serial by default unless a newly reviewed
 bounded exception says otherwise. Multiple runners, same-GPU packing,
 heterogeneous slots, and multi-Pod execution remain forbidden.
+
+## A1 Boundary-Extension Compatibility Evidence
+
+Baseline execution commit
+`276da7cd8e9142da48b95e12b46a99d61367ca8f` and materialization commit
+`e7e63a4ae7f7def56d344b69adc426636dd7e0fb` retain identical Git blobs for
+`training.py`, `modeling.py`, `optimization.py`, `data.py`,
+`reproducibility.py`, `config.py`, `design.py`, `activation_pressure.py`,
+`activations.py`, `topology.py`, `run.py`, `utils.py`, `launch.py`,
+`parallel.py`, `pyproject.toml`, and `constraints/requirements-ci.txt`.
+
+The only changed library files are:
+
+- `integrity.py`: recognizes exact indexed historical evidence while a plan is
+  placeholder; `classify_run_directory` is unchanged.
+- `runner.py`: adds `required_completed_config_ids` checks before and under the
+  launch lock. `_run_one` and the training call are unchanged. This affects
+  admission/reuse only and refuses to rerun a required historical config.
+
+Normalized-LF source-block SHA-256 values match across both commits:
+
+| Function | SHA-256 |
+| --- | --- |
+| `classify_run_directory` | `9597d2ee32c4a4bb2101a25e25d51db82f4c70ee859d9cb50630df359560fb16` |
+| `_run_one` | `f929344adafd0000b978add058532d7a09e59eb8974b5eb1c166f6e86ff6b2c8` |
+| `run_training` | `9d4efbcc602426119514420f11b6a1513b8409129accc57c0008f16f1c5f9137` |
+
+Configs `001`–`003` retain Git blobs
+`5da71c95ce2c291708286432abb4b889da00508a`,
+`be850d7405d3b81366762740fa367263b25657d6`, and
+`79870c132d3d4a4a9301f13ef8fcbfce3c43ad6`.
+Config `004` differs from `003` only in experiment label, derived fingerprint,
+and peak LR; its fingerprint is
+`7742e7219fb40ee55adc4a42d87c00de6790eb7a5b3f5ff9643f85a137b9dd01`
+and normalized complete-config SHA-256 is
+`701afdbdcade83bdd878a30b65683825fb27c15038e24e4f6426f30658f1680d`.
+The local runner-state classifier resolves exactly one accepted completion for
+each of `001`–`003` and no attempt for `004`.
+
+Verification at materialization: 81 focused runner/design tests passed; the
+full suite passed 491 with 3 expected platform skips; strict integrity reported
+0 errors and 0 warnings; infrastructure smoke attempt
+`018-20260825-233716-c9e29f60` passed. Therefore
+`a1_pretraining_v1` remains the correct active training identity. Runtime
+acceptance still requires config `004` to reproduce the frozen initial-
+parameter hash, schedule hash, cache identities, validation coverage, budget,
+physical batch, precision, and checkpoint contract.

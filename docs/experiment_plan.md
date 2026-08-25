@@ -9,9 +9,13 @@ Reviewed case groups: [A1-lr-screen]
 > at commit `e8214a411afebf0cec5658f0f1ccdd3e6bcd5585` on 2026-08-25. Reuse
 > the three accepted original cells and materialize exactly one new `4e-3`
 > cell in `experiments/01-a1-lr-screen/`. `lr_14m` remains unresolved until
-> all four cells receive terminal classifications. This review does not by
-> itself authorize definitive launch or RunPod spending; both remain subject
-> to the explicit approvals required below and in the runbook.
+> all four cells receive terminal classifications. Config `004` and the
+> fail-closed serial runner were materialized at commit
+> `e7e63a4ae7f7def56d344b69adc426636dd7e0fb`; see the
+> [`definitive launch packet`](experimental-design/a1-boundary-extension-launch-packet.md).
+> This review does not by itself authorize definitive launch or RunPod
+> spending; both remain subject to the explicit approvals required below and
+> in the runbook.
 
 The [`A1 formal review packet`](experimental-design/a1-review-packet.md) was
 approved at design commit `54be534f383001b4af3d3b43597e135d4ca6653d`.

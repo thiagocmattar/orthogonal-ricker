@@ -27,11 +27,11 @@ Then read the document that owns the task:
 The reviewed `docs/experiment_plan.md` and the exact normative components it
 lists are the authority for datasets, models, budgets, seeds, comparisons,
 promotion rules, diagnostics, and paper outputs. Its current status is
-`placeholder` with no reviewed case group while the proposed `4e-3` A1
-boundary extension awaits exact-SHA review. Do not materialize config `004` or
-launch another scientific case group until the user reviews the amended
-definitive plan. The completed A1 configs and evidence remain exact reusable
-inputs and must not be rerun merely because scope reset. Use
+`reviewed` for `[A1-lr-screen]` at design commit
+`e8214a411afebf0cec5658f0f1ccdd3e6bcd5585`. Config `004` is materialized in
+the existing scaffold but is not launch-authorized. Configs/runs `001`–`003`
+remain exact required reuse inputs and must never be rerun; the tracked runner
+fails closed if any is unavailable. Use
 `docs/experimental-design/cases.yaml` and
 `docs/experimental-design/run-reuse.md` to ensure one physical config per
 scientific condition and seed.
