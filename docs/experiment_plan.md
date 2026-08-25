@@ -1,17 +1,17 @@
 # Definitive Experiment Plan Manifest
 
-Plan status: placeholder
-Reviewed design commit: none
-Reviewed case groups: []
+Plan status: reviewed
+Reviewed design commit: 54be534f383001b4af3d3b43597e135d4ca6653d
+Reviewed case groups: [A1-lr-screen]
 
-> **Launch gate:** scientific configuration allocation, calibration, and
-> launches are blocked.
+> **Launch scope:** only `A1-lr-screen` configuration materialization is
+> authorized. Calibration still requires committed configs; RunPod spending and
+> definitive pretraining still require their separate explicit approvals.
 
-The committed [`A1 formal review packet`](experimental-design/a1-review-packet.md)
-is ready for review. Approval must name its exact Git SHA; only then may this
-manifest list `A1-lr-screen` as reviewed and permit materialization of its
-three configs. Formal plan approval is not RunPod spending or definitive-launch
-approval.
+The [`A1 formal review packet`](experimental-design/a1-review-packet.md) was
+approved at the exact reviewed design commit above. This permits materializing
+its three immutable configs and no other case group. Formal plan approval is not
+RunPod spending or definitive-launch approval.
 
 This file remains the sole launch-status authority. The proposed scientific
 design is split into focused components under

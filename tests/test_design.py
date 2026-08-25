@@ -212,6 +212,19 @@ def _design_repository(tmp_path: Path) -> Path:
         target = repository / relative
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(source, target)
+    plan = repository / PLAN_PATH
+    plan_lines = plan.read_text(encoding="utf-8").splitlines()
+    plan_lines = [
+        "Plan status: placeholder"
+        if line.startswith("Plan status:")
+        else "Reviewed design commit: none"
+        if line.startswith("Reviewed design commit:")
+        else "Reviewed case groups: []"
+        if line.startswith("Reviewed case groups:")
+        else line
+        for line in plan_lines
+    ]
+    plan.write_text("\n".join(plan_lines) + "\n", encoding="utf-8")
     protocol = repository / PROTOCOL_PATH
     protocol.write_text(
         protocol.read_text(encoding="utf-8").replace(
