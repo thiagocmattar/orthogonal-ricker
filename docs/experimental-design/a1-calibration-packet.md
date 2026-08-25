@@ -99,9 +99,11 @@ spending approval and creating the Pod.
 RunPod did not inject `RUNPOD_POD_ID`, so the concurrent calibration manifests
 record `worker_assignment.runpod_pod_id: null`. The immutable artifacts were
 not rewritten; the independently saved control-plane record binds them to Pod
-`rdd7d5acfl9au3`. Before definitive launch, export the exact control-plane Pod
-ID into `RUNPOD_POD_ID` and verify that the running manifest records it. This
-is an operational provenance fix, not a scientific failure of the calibration.
+`rdd7d5acfl9au3`. Commit
+`86f805749f5664da46ba44930727b4c7de683c83` adds top-level Pod identity to all
+new manifests. Before definitive launch, export the exact control-plane Pod ID
+into `RUNPOD_POD_ID` and verify that the running manifest records it. This is
+an operational provenance fix, not a scientific failure of the calibration.
 
 ## Next Sequence
 

@@ -4,9 +4,11 @@ Plan status: reviewed
 Reviewed design commit: 54be534f383001b4af3d3b43597e135d4ca6653d
 Reviewed case groups: [A1-lr-screen]
 
-> **Launch scope:** only `A1-lr-screen` configuration materialization is
-> authorized. Calibration still requires committed configs; RunPod spending and
-> definitive pretraining still require their separate explicit approvals.
+> **Launch scope:** only `A1-lr-screen` is reviewed. Its configs are
+> materialized and its separately approved calibration is accepted in
+> [`a1-calibration-packet.md`](experimental-design/a1-calibration-packet.md).
+> Definitive pretraining and any new RunPod spending still require separate
+> explicit approvals.
 
 The [`A1 formal review packet`](experimental-design/a1-review-packet.md) was
 approved at the exact reviewed design commit above. This permits materializing
