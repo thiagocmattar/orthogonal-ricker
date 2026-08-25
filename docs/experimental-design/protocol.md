@@ -25,15 +25,18 @@ per-group realization is not supported by the current single-form
 `model.site_gate` contract and remains blocked in
 [`workboard.md`](workboard.md).
 
-## Proposed Reproducibility Pins
+## A1 Reproducibility Pins
 
-The locally verified 14M inputs are proposed, not approved, until the remaining
-identity and license TODOs close.
+The A1 packet fixes realized immutable revisions rather than the moving
+`main` references originally used to create the local cache. The scientific
+group remains unreviewed until the manifest records the packet's committed
+design SHA.
 
-| Item | Proposed identity |
+| Item | A1 identity |
 | --- | --- |
 | Dataset | `JeanKaddour/minipile` at revision `18ad1b0c701eaa0de03d3cecfdd769cbc70ffbd0` |
-| Training scope | 1,000,000 source documents; 1,491,711,416 cached tokens |
+| Dataset fields | Loader default configuration; `train` split; `text` column |
+| Training scope | All 1,000,000 training documents; 1,491,711,416 cached tokens |
 | 14M architecture | `EleutherAI/pythia-14m-deduped` at revision `7386d9a4ae45aef494a6e704910394def3037fc5` |
 | 14M tokenizer | `EleutherAI/pythia-14m-deduped` at the same revision |
 | Training-implementation identity | `TODO:` freeze after the training and method blockers close |
@@ -42,6 +45,23 @@ identity and license TODOs close.
 | Validation source | First 500 validation documents; `shuffled_source_documents_half_v1`; partition seed `20260718` |
 | Selection partition | 152 complete sequences; ordered-index SHA-256 `ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47`; token SHA-256 `22bb7c27864f0e5941548c572d6c75b1b5ba6a4c13e4cd26f40f4de546c5cc19` |
 | Confirmation partition | 186 complete sequences; ordered-index SHA-256 `8953a93f85c80a48d25fcacb7a0fbf44f6d9fd5b54037f92e01c5250f045ad99`; token SHA-256 `ee777ebdb8672b676ecfc05b2e7024c2f9446f8a9e46ac22b78e8a6c36f0890b` |
+
+Integrity was recomputed locally on 2026-08-25 for the training, selection,
+and confirmation `tokens.int32.bin` files; all three digests match the table.
+The cache metadata also fixes `append_eos: true`, block size 2,048, `int32`
+storage, the validation split and `text` column, 250 disjoint source documents
+per validation partition, and partition seed `20260718`.
+
+License review on 2026-08-25 found that the
+[MiniPile dataset card](https://huggingface.co/datasets/JeanKaddour/minipile)
+states that the Pile-derived subset is MIT-licensed, although its Hub metadata
+uses the label `other`; retain the MiniPile and Pile citations and do not treat
+that dataset license as a license grant over every third-party source
+document. The
+[Pythia-14M repository](https://huggingface.co/EleutherAI/pythia-14m-deduped)
+declares Apache-2.0. These experiments consume its architecture configuration
+and tokenizer only; model parameters are initialized randomly and released
+checkpoint weights are not loaded.
 
 The training-implementation identity is part of every condition fingerprint
 and immutable config. Increment it whenever model construction, sampling,
@@ -66,11 +86,11 @@ single-device harness:
 micro_batch_size * gradient_accumulation_steps = 128
 ```
 
-| Model | Proposed microbatch | Proposed accumulation | Median core tokens/s | Peak reserved VRAM (% of total) |
-| --- | ---: | ---: | ---: | ---: |
-| Pythia-14M | 16 | 8 | 141,871 | 64.5% |
-| Pythia-70M | 16 | 8 | 71,513 | 71.0% |
-| Pythia-410M | 4 | 32 | 10,853 | 61.5% |
+| Model | Microbatch | Accumulation | Median core tokens/s | Peak reserved VRAM | Status |
+| --- | ---: | ---: | ---: | ---: | --- |
+| Pythia-14M | 16 | 8 | 141,871 | 64.5% | Frozen for A1 on A40 48GB |
+| Pythia-70M | 16 | 8 | 71,513 | 71.0% | Operational proposal; not reviewed |
+| Pythia-410M | 4 | 32 | 10,853 | 61.5% | Operational proposal; not reviewed |
 
 These proposed values came from the 2026-08-25 idle-GPU profile on one Secure
 Cloud NVIDIA A40 48GB, with two repeats over every listed microbatch and the
@@ -85,12 +105,13 @@ The locally retrieved pack is at
 `runpod-artifacts-b62f03b-20260825T1104Z.tar.gz` has SHA-256
 `65ac472668b347ff74aab7886160cbc4674a8bd533cc037d92e171635e81623c`.
 
-Freeze these values only after explicit review under workboard item `OPS-04`.
-The measurements are operational, not scientific evidence or end-to-end ETCs;
-they preserve 128 sequences per update and matched data grouping. The
-post-review ETC calibration verifies the frozen decomposition and measures
-production throughput; it never tunes it. Until review, keep the corresponding
-case groups unreviewed and do not copy the proposals into scientific configs.
+The Pythia-14M decomposition was explicitly approved on 2026-08-25 and closes
+`OPS-04` for A1. The scale-up rows remain proposals under `OPS-07`. All three
+measurements are operational, not scientific evidence or end-to-end ETCs; they
+preserve 128 sequences per update and matched data grouping. Post-review ETC
+calibration verifies a frozen decomposition and measures production
+throughput; it never tunes it. Until the applicable case group is formally
+reviewed, do not copy any row into scientific configs.
 
 ## Fixed Optimization Recipe
 
