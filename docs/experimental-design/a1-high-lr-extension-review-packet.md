@@ -1,7 +1,8 @@
 # A1 Three-Cell High-LR Extension Review Packet
 
-> **Status:** directed by the user on 2026-08-26; awaiting exact-design-SHA
-> activation in `docs/experiment_plan.md` before config allocation.
+> **Status:** reviewed by direct user instruction on 2026-08-26 at exact
+> design commit `d80f6a9b6c99bcaec7ddc52e73c1a407a5020a8e`; activated for
+> `[A1-lr-screen]` in `docs/experiment_plan.md`.
 
 ## Why These Cells Exist
 
