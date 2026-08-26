@@ -21,6 +21,7 @@ Pythia-14M discovery and Pythia-70M/410M replication program.
 | Completed three-cell high-LR extension | [`a1-high-lr-extension-review-packet.md`](a1-high-lr-extension-review-packet.md) |
 | Historical high-LR launch record | [`a1-high-lr-launch-packet.md`](a1-high-lr-launch-packet.md) |
 | Reviewed very-high-LR extension | [`a1-very-high-lr-extension-review-packet.md`](a1-very-high-lr-extension-review-packet.md) |
+| Prepared very-high-LR launch | [`a1-very-high-lr-launch-packet.md`](a1-very-high-lr-launch-packet.md) |
 | Historical A1 calibration and ETC | [`a1-calibration-packet.md`](a1-calibration-packet.md) |
 | Shared scientific configuration | [`protocol.md`](protocol.md) |
 | Stage design or selection | [Phase A](phases/a-pressure.md), [B](phases/b-threshold.md), or [C](phases/c-scale.md), plus [`cases.yaml`](cases.yaml) |

@@ -11,8 +11,10 @@ Reviewed case groups: [A1-lr-screen]
 > `2320d542b14926315a17e873afac2d41a40d6814` and reopens the `lr_14m`
 > decision. Only `A1-lr-screen` is in scope. Configs `009`–`011` were
 > materialized at commit `1fd0914068531d1c05e047f95352fabee3e3b04a` and are
-> pending definitive launch. Scientific launch still requires a committed
-> recipe, calibrated ETC/cost envelope, and explicit launch approval.
+> pending definitive launch. The committed recipe and calibrated ETC/cost
+> envelope are frozen in
+> [`a1-very-high-lr-launch-packet.md`](experimental-design/a1-very-high-lr-launch-packet.md);
+> explicit definitive-launch and RunPod-spending approval remain required.
 
 The [`A1 formal review packet`](experimental-design/a1-review-packet.md) was
 approved at design commit `54be534f383001b4af3d3b43597e135d4ca6653d`.
