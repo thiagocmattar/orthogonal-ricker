@@ -27,9 +27,10 @@ Then read the document that owns the task:
 The reviewed `docs/experiment_plan.md` and the exact normative components it
 lists are the authority for datasets, models, budgets, seeds, comparisons,
 promotion rules, diagnostics, and paper outputs. Its current status is
-`placeholder` with no reviewed case groups. The five-cell A1 screen is
-complete and `lr_14m` is frozen at `8e-3`; configs/runs `001`–`005` are
-historical evidence and must never be rerun. Use
+`placeholder` with no reviewed case groups. A1 configs/runs `001`–`005` are
+accepted historical evidence and must never be rerun. The user directed new
+factor-two cells at `1.6e-2`, `3.2e-2`, and `6.4e-2`; `lr_14m` is reopened
+until their terminal classifications complete the eight-cell cohort. Use
 `docs/experimental-design/cases.yaml` and
 `docs/experimental-design/run-reuse.md` to ensure one physical config per
 scientific condition and seed.
@@ -77,8 +78,10 @@ scientific condition and seed.
 - The parent validates the complete tranche and holds one lock. It executes
   configs serially by default. The completed original three-cell A1 launch
   historically used one coordinator and two distinct homogeneous A40 slots;
-  that exact authorization cannot be widened. Both A1 boundary cells ran
-  serially. Multiple case runners,
+  that exact authorization cannot be reused for appended cells. A separate
+  exact three-A40 authorization may cover only the directed configs
+  `006`–`008` after review and materialization. Both earlier A1 boundary cells
+  ran serially. Multiple case runners,
   same-GPU packing, heterogeneous slots, and multi-Pod dispatch remain
   forbidden. Keep scientific selection and phase-specific behavior out of the
   parent.

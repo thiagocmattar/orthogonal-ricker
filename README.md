@@ -11,12 +11,12 @@ plotting utilities.
 modular proposal for the lean 14M discovery and 70M/410M replication program;
 its [executive brief](docs/experimental-design/executive.md) is advisor-facing.
 The sole scientific-scope authority is
-[`docs/experiment_plan.md`](docs/experiment_plan.md). The five-cell A1
-learning-rate screen is complete and `lr_14m` is frozen at `8e-3` by the
-predeclared fixed-horizon rule. It remains the upper tested boundary, so this
-is the best tested setting at 400M training tokens, not a global or
-horizon-independent optimum. The plan is now a placeholder pending review of
-the next case groups.
+[`docs/experiment_plan.md`](docs/experiment_plan.md). Five A1 learning-rate
+cells are accepted; because `8e-3` remained the best upper boundary, the user
+directed three further factor-two cells at `1.6e-2`, `3.2e-2`, and `6.4e-2`.
+`lr_14m` is reopened until all three new cells receive terminal
+classifications. The decision remains specific to the fixed 400M-token
+horizon, not a global or horizon-independent optimum.
 
 The tracked tree contains the definitive A1 recipes and their evidence index;
 raw attempts remain ignored and are addressed by exact identities from

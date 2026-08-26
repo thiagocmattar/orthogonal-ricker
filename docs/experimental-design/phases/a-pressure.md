@@ -13,7 +13,7 @@ A3 retain `full-pass-wrap`.
 
 **Cases:** `A1-lr-screen`.
 
-**Decision rule:** after all five cases have a reviewed terminal
+**Decision rule:** after all eight cases have a reviewed terminal
 classification, select the eligible case with the lowest final selection loss;
 an exact tie favors the lower LR. If no LR is eligible, stop A2, A3, B1, and
 B2 for review.
@@ -21,9 +21,10 @@ B2 for review.
 **Produces:** decision `lr_14m`. Report the complete tuning table and make no
 sparsity claim from A1. The decision selects the best tested LR for Pythia-14M
 at this fixed horizon; it does not establish a horizon-independent optimum.
-The `8e-3` cell is the single factor-two upper-boundary extension prompted by
-the completed four-cell result. It does not authorize an automatic `1.6e-2`
-cell. If `8e-3` is selected, report that it remains the upper tested boundary.
+The final extension contains exactly three factor-two cells above `8e-3`:
+`1.6e-2`, `3.2e-2`, and `6.4e-2`. It was prompted by the completed five-cell
+result and does not authorize any further automatic extension. If `6.4e-2` is
+selected, report that it remains the upper tested boundary.
 
 ## A2 L1 Spillover
 

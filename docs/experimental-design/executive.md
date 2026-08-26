@@ -25,7 +25,7 @@ checkpoint weights are not loaded.
 
 | Model | Global batch | Peak-LR grid |
 | --- | ---: | ---: |
-| Pythia-14M | 262,144 tokens/update | `{5e-4, 1e-3, 2e-3, 4e-3, 8e-3}` |
+| Pythia-14M | 262,144 tokens/update | `{5e-4, 1e-3, 2e-3, 4e-3, 8e-3, 1.6e-2, 3.2e-2, 6.4e-2}` |
 | Pythia-70M | 262,144 tokens/update | `{5e-4, 1e-3, 2e-3}` |
 | Pythia-410M | 262,144 tokens/update | `{1.5e-4, 3e-4, 6e-4}` |
 
@@ -64,7 +64,7 @@ anchor.
 
 | Stage | Experiment | Question/decision | New physical runs* |
 | --- | --- | --- | ---: |
-| A1 | 14M `A0`, five peak LRs, seed 0 | Freeze the lowest final selection-loss LR; `8e-3` is the single factor-two upper-boundary extension. | 5 |
+| A1 | 14M `A0`, eight peak LRs, seed 0 | Freeze the lowest final selection-loss LR after the directed three-cell upper extension. | 8 |
 | A2 | ReLU `A1-H`, h-only L1 lambda grid | Map targeted and untargeted responses; confirm the fixed ReLU-only versus L1 contrast with three seeds. | 10 |
 | A3 | Same grid with OL1 | Compare loss versus achieved near-zero mass and projection behavior; freeze one matched nonzero lambda for B2. | 5 |
 | B1 | Placement × kappa × attention-threshold form, no pressure | Map and select the validation-loss/`R_model` family frontier. | 50 |
@@ -77,7 +77,7 @@ anchor.
 50-run B1 count assumes the predeclared kappa-zero equivalence passes its
 required numerical/diagnostic review. The lower B2/C3 count applies when
 `lambda_B2 = 1`; `K` is the number of frozen B2 frontier kappas. If all stages
-proceed, the catalog contains 132–150 new pretraining runs (`K` from 1 to 4).
+proceed, the catalog contains 135–153 new pretraining runs (`K` from 1 to 4).
 
 Full grids are exploratory seed-0 evidence. The fixed spillover contrast and
 the selected six-component winner comparison use seeds 0, 1, and 2. A later

@@ -4,19 +4,19 @@ Plan status: placeholder
 Reviewed design commit: none
 Reviewed case groups: []
 
-> **Current state:** The exact five-cell A1 screen is complete. Its
-> predeclared selection rule freezes `lr_14m` at `8e-3`, using config
-> `005-a1-lr-8e-3`, run `001-20260826-135546-928279bb`. This selected point is
-> the upper tested boundary at the fixed 400M-token horizon; no automatic
-> `1.6e-2` extension is authorized. No scientific case group is currently in
-> reviewed launch scope.
+> **Current state:** Five A1 cells are accepted. Because `8e-3` remained the
+> best upper boundary, the user directed exactly three further factor-two
+> cells at `1.6e-2`, `3.2e-2`, and `6.4e-2`. `lr_14m` is reopened until those
+> cells receive reviewed terminal classifications. No scientific case group
+> is currently in reviewed launch scope pending exact-design-SHA activation.
 
 The [`A1 formal review packet`](experimental-design/a1-review-packet.md) was
 approved at design commit `54be534f383001b4af3d3b43597e135d4ca6653d`.
 That historical approval permitted its three immutable configs and the now
-completed original tranche only. The two separately reviewed boundary
-extensions are also complete; their immutable review and launch packets remain
-historical provenance.
+completed original tranche only. The two separately reviewed single-cell
+boundary extensions are also complete; their immutable review and launch
+packets remain historical provenance. The new three-cell extension is a
+separate review and launch contract.
 
 This file remains the sole launch-status authority. The proposed scientific
 design is split into focused components under
