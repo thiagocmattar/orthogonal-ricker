@@ -17,6 +17,7 @@ Pythia-14M discovery and Pythia-70M/410M replication program.
 | Proposed `4e-3` A1 boundary extension | [`a1-boundary-extension-review-packet.md`](a1-boundary-extension-review-packet.md) |
 | `4e-3` definitive launch review | [`a1-boundary-extension-launch-packet.md`](a1-boundary-extension-launch-packet.md) |
 | Proposed `8e-3` A1 boundary extension | [`a1-8e-3-boundary-extension-review-packet.md`](a1-8e-3-boundary-extension-review-packet.md) |
+| `8e-3` definitive launch review | [`a1-8e-3-launch-packet.md`](a1-8e-3-launch-packet.md) |
 | A1 calibration and ETC | [`a1-calibration-packet.md`](a1-calibration-packet.md) |
 | Shared scientific configuration | [`protocol.md`](protocol.md) |
 | Stage design or selection | [Phase A](phases/a-pressure.md), [B](phases/b-threshold.md), or [C](phases/c-scale.md), plus [`cases.yaml`](cases.yaml) |

@@ -10,7 +10,9 @@ Reviewed case groups: [A1-lr-screen]
 > `3710dfdd416ac3484516c4d8c2162692346fe7e9`; reuse accepted configs/runs
 > `001`–`004` and materialize only `005-a1-lr-8e-3`. `lr_14m` remains
 > unresolved until all five cells receive terminal classifications. No
-> automatic `1.6e-2` extension is authorized.
+> automatic `1.6e-2` extension is authorized. Config `005` and the amended
+> fail-closed serial runner were materialized at commit
+> `6df2206a215579853436d43c5fe0b5b6aa7620a9`.
 
 The [`A1 formal review packet`](experimental-design/a1-review-packet.md) was
 approved at design commit `54be534f383001b4af3d3b43597e135d4ca6653d`.
