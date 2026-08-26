@@ -1,11 +1,11 @@
 # Paper Evidence Map
 
 This is the authoritative index from paper items to pinned saved evidence and
-regenerable outputs. It is intentionally empty until the definitive experiment
-plan is supplied and paper evidence exists.
+regenerable outputs.
 
 | Paper item | Claim or purpose | Scaffold and configs | Pinned runs and artifacts | Scaffold output | Regeneration command |
 | --- | --- | --- | --- | --- | --- |
+| Appendix A1 learning-rate screen | Complete seed-0 screen and best tested Pythia-14M peak LR at the fixed 400M-token horizon; the selected `6.4e-2` point is the upper tested boundary, not a global or horizon-independent optimum | `experiments/01-a1-lr-screen`; configs `001`–`008` | Runs `001-20260825-191155-6b7376de`, `001-20260825-191154-b9299c46`, `001-20260825-195141-f842c400`, `001-20260826-123606-46e7454f`, `001-20260826-135546-928279bb`, `001-20260826-174611-04b42898`, `001-20260826-182559-bb05a50c`, and `001-20260826-190546-4df1c441`; each run's `config.yaml`, `manifest.json`, and `metrics.json`, plus its tracked recipe | `experiments/01-a1-lr-screen/figs/01-a1-learning-rate-screen.pdf`; companion `.png`, `.md`, and `.provenance.json` files with the same stem | `python -m paper_exp.plots.a1_lr_screen` |
 
 Each populated row must:
 
@@ -19,6 +19,3 @@ Each populated row must:
 Do not use wildcard paths, latest-run discovery, notebook-only state, or an
 internal report as the sole evidence locator. A cross-tranche figure belongs
 to the later plan-defined scaffold whose tracked recipe pins every source.
-
-`TODO:` Populate this map after the definitive experiment plan is supplied and
-reviewed.

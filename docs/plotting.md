@@ -4,9 +4,10 @@ Plots are scientific artifacts. The plotting layer reads saved evidence and
 presents it; it does not train a model, rerun validation, choose a scientific
 cohort, or repair missing inputs.
 
-The current `paper-exp plot` command renders one explicitly named saved run
-artifact. Definitive multi-run paper figure families will be added only after
-the reviewed experiment plan names their cohorts, estimands, and outputs.
+The `paper-exp plot` command renders one explicitly named saved run artifact.
+The A1 learning-rate screen has a separate tracked fixed-cohort recipe because
+the reviewed plan names its exact eight runs, estimand, selection rule, and
+output suite.
 
 ## Four Boundaries
 
@@ -81,6 +82,27 @@ PDF metadata must be deterministic where supported. Publication profiles check
 the authored canvas, maximum height, minimum text size, and text containment.
 Do not use a tight bounding box for a final-size publication profile because it
 changes the validated canvas and PDF MediaBox.
+
+## A1 Fixed-Cohort Output
+
+Regenerate the complete A1 table, curve, and provenance with:
+
+```bash
+python -m paper_exp.plots.a1_lr_screen
+```
+
+The recipe pins configs `001`–`008` and their exact accepted run IDs. It
+validates tracked/saved config identity, launch provenance, terminal status,
+the fixed 1,526-update / 400,031,744-token budget, selection-partition
+coverage, and finite final selection loss before applying the predeclared
+lowest-loss rule. An exact tie favors the lower peak learning rate.
+
+The all-or-nothing output suite is owned by
+`experiments/01-a1-lr-screen/figs/01-a1-learning-rate-screen` and contains
+vector PDF, inspection PNG, a complete Markdown table, and deterministic
+provenance. It is seed-0 exploratory evidence (`n = 1` per learning rate) at
+the fixed 400M-token horizon. If the selected rate is the upper tested
+boundary, both table and curve state that limitation directly.
 
 ## Current Explicit Diagnostic Plots
 
