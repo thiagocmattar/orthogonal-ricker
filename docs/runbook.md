@@ -128,24 +128,26 @@ python experiments/NN-phase-tranche/run/runner.py
 ```
 
 Serial execution is the default. The completed original three-cell A1 launch
-historically used the same runner with two explicit A40 worker slots. That
-authorization was bound to exactly configs `001`–`003` and is not active for
-either later boundary extension.
-
-The completed A1 boundary extensions used the serial runner without
-worker-slot arguments:
+historically used the same runner with two explicit A40 worker slots, and
+configs `004` and `005` later completed serially. The reviewed high-LR
+extension has a separate authorization for the exact eight-config runner and
+three explicit A40 worker slots:
 
 ```bash
-python experiments/01-a1-lr-screen/run/runner.py
+python experiments/01-a1-lr-screen/run/runner.py \
+  --worker-slot gpu-0=0 \
+  --worker-slot gpu-1=1 \
+  --worker-slot gpu-2=2
 ```
 
-This is one coordinator, one repository lock, and one writable checkout. At
-the fifth-cell launch, the runner reused configs `001`–`004` and executed only
-config `005` on one A40. All five cells are now complete, so the same runner
-would reuse every condition and create no new attempt. Its tracked
+This is one coordinator, one repository lock, one writable checkout, and one
+process per distinct A40. The runner requires exact completed reuse of configs
+`001`–`005`, then admits pending configs `006`–`008` together. Its tracked
 `required_completed_config_ids` contract fails closed before mutation if an
 earlier completion is missing, ambiguous, or inconsistent; it never
-substitutes a rerun. Any new A1 condition requires a newly reviewed plan.
+substitutes a rerun. Because all three pending cells are initially admitted,
+an escaping failure drains the other two to terminal state rather than
+suppressing a later high-LR cell.
 
 The parent runner:
 
@@ -164,9 +166,9 @@ The parent runner:
 - aborts before mutation on running, statusless, inconsistent, or ambiguous
   pretraining state;
 - executes one config at a time by default;
-- for the historical exact three-config `A1-lr-screen` recipe only, accepted
-  two worker slots mapped one-to-one to distinct homogeneous A40 GPUs on one
-  Pod; that authorization does not cover an appended config;
+- for the reviewed exact eight-config `A1-lr-screen` recipe, accepts exactly
+  three worker slots mapped one-to-one to distinct homogeneous A40 GPUs on one
+  Pod, while required reuse prevents admission of configs `001`–`005`;
 - stops admitting new configs on the first escaping failure and drains every
   already-admitted worker to terminal state.
 
@@ -175,11 +177,11 @@ one config at a time unless the final plan explicitly adds a serial runner for
 that workflow.
 
 The isolated worker engine is implemented and live-validated for
-infrastructure smoke and bounded calibration. The selected A1 operational
-amendment exposed it to that exact original tranche through the config-bound
-authorization committed in `a23c56d`. Both later A1 boundary cells and other
-definitive work remain serial by default. Multiple case runners, same-GPU
-packing, heterogeneous worker slots, and multi-Pod dispatch remain unsupported.
+infrastructure smoke, bounded calibration, and the completed original A1
+launch. The current high-LR amendment exposes it through a new config-bound
+three-A40 authorization. Other definitive work remains serial by default.
+Multiple case runners, same-GPU packing, heterogeneous worker slots, and
+multi-Pod dispatch remain unsupported.
 
 ### RunPod Operations
 
@@ -320,10 +322,10 @@ and clean Git SHA. Long-running commands must survive SSH loss and write their
 log to `/workspace`.
 
 One multi-GPU Pod with one authoritative coordinator and one writable checkout
-is the supported parallel shape. For definitive pretraining, it was authorized
-only for the completed exact three-config A1 launch; the authorization cannot
-be extended to an appended cell. Current tranches remain serial. Do not run
-independent case runners or allow
+is the supported parallel shape. For definitive pretraining, the current
+authorization is bound to the exact eight-config A1 runner, three A40 workers,
+and required completed reuse of configs `001`–`005`; only configs `006`–`008`
+may run. Other tranches remain serial. Do not run independent case runners or allow
 concurrent writable checkouts on one volume. Multi-Pod scientific execution is
 outside this implementation and requires a future reviewed contract rather
 than an ad hoc extension of the local lock.

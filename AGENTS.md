@@ -27,7 +27,8 @@ Then read the document that owns the task:
 The reviewed `docs/experiment_plan.md` and the exact normative components it
 lists are the authority for datasets, models, budgets, seeds, comparisons,
 promotion rules, diagnostics, and paper outputs. Its current status is
-`placeholder` with no reviewed case groups. A1 configs/runs `001`–`005` are
+`reviewed` for `[A1-lr-screen]` at the exact design SHA recorded there. A1
+configs/runs `001`–`005` are
 accepted historical evidence and must never be rerun. The user directed new
 factor-two cells at `1.6e-2`, `3.2e-2`, and `6.4e-2`; `lr_14m` is reopened
 until their terminal classifications complete the eight-cell cohort. Use

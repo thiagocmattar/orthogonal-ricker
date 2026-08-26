@@ -1,0 +1,75 @@
+experiment_name: pythia_14m_a1_lr_1p6e_2_seed_0
+identity:
+  group_id: A1-lr-screen
+  condition_fingerprint: 088d78d630a4c292211ae4038a9f7ea8be8a824778758c15a161149e4b9891dc
+  training_implementation_id: a1_pretraining_v1
+model:
+  provider: huggingface
+  name: pythia-14m-random
+  architecture: EleutherAI/pythia-14m-deduped
+  revision: 7386d9a4ae45aef494a6e704910394def3037fc5
+  initialization: random
+  topology_id: A0
+  site_gate: null
+data:
+  name: JeanKaddour/minipile
+  revision: 18ad1b0c701eaa0de03d3cecfdd769cbc70ffbd0
+  split: train
+  text_column: text
+  max_documents: null
+tokenizer:
+  name: EleutherAI/pythia-14m-deduped
+  revision: 7386d9a4ae45aef494a6e704910394def3037fc5
+preprocessing:
+  output_dir: data/tokenized
+  cache_id: 03-pythia-14m-minipile-random-full-10min
+  tokens_sha256: da82a2ea2e0080c7fd681c7a93b07d3d9ff3d5357a8640895a82d536a1eaf97c
+  block_size: 2048
+  append_eos: true
+  overwrite: false
+evaluation:
+  metric: validation_loss
+run:
+  seed: 0
+  training_schedule_scheme: seeded_complete_block_permutation_wrap_v1
+  model_initialization_seed: 0
+  data_order_seed: 0
+  training_schedule_hash: 5feffe55fe37c764e86c6709500f1b0afad85be652de127f5fc7c958a7eb481c
+training:
+  device: cuda
+  precision: bfloat16
+  max_steps: 1526
+  learning_rate: 1.6e-2
+  warmup_steps: 16
+  gradient_accumulation_steps: 8
+  micro_batch_size: 16
+  log_every: 10
+  optimizer: adamw
+  adamw_betas: [0.9, 0.95]
+  adamw_eps: 1.0e-8
+  weight_decay: 0.1
+validation:
+  enabled: true
+  split: validation
+  max_documents: 500
+  partition: selection
+  partition_scheme: shuffled_source_documents_half_v1
+  partition_seed: 20260718
+  partition_hash: ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47
+  tokens_sha256: 22bb7c27864f0e5941548c572d6c75b1b5ba6a4c13e4cd26f40f4de546c5cc19
+  batch_size: 4
+  eval_every_steps: 191
+  eval_batches: null
+checkpoint:
+  save_final: true
+  save_optimizer: false
+activation_pressure:
+  enabled: false
+  method: none
+  sites: [h]
+  weight: 0.0
+  step_budget: null
+  eps: 1.0e-12
+  log_thresholds: [0.0, 0.001, 0.01]
+output:
+  dir: experiments/01-a1-lr-screen/raw

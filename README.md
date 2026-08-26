@@ -99,10 +99,11 @@ After the relevant case groups enter the definitive plan's reviewed scope:
    A1 historically calibrated distinct configs concurrently under one
    coordinator and lock, with one process per distinct homogeneous GPU.
 7. Execute the case runner; it reuses coherent completed configs and runs new
-   cases serially by default under one lock. The historical A1 two-worker
-   authorization was bound to exactly configs `001`–`003`; configs `004` and
-   `005` later completed through serial boundary-extension launches. A
-   reviewed infrastructure retry requires the explicit `--retry-failed` flag.
+   cases serially by default under one lock. A1 has a separate reviewed
+   three-A40 exception for exactly the eight-config runner: configs `001`–`005`
+   are required completed reuse and only pending configs `006`–`008` are
+   admitted. A reviewed infrastructure retry requires the explicit
+   `--retry-failed` flag.
 8. Verify terminal artifacts before running diagnostics or plotting.
 9. Record accepted evidence in the experiment and paper maps.
 
@@ -130,11 +131,13 @@ python experiments/NN-phase-tranche/run/runner.py
 
 The case runner contains the ordered config paths and delegates to
 `paper_exp.runner.run_launch`. A reviewed bounded exception may also carry
-tracked operational authorization. The historical A1 exception was bound to
-the exact original three config IDs, two workers, and A40 identity; it does not
-cover configs `004` or `005`. Its scaffold prefix and lock serialize coordinator
-invocations. The parent validates the complete tranche, requires every config
-to be a direct sibling of the runner, and stops admission on the first failure.
+tracked operational authorization. The current A1 high-LR exception is bound
+to the exact eight config IDs, three workers, and A40 identity, while its
+required-completion prefix prevents any rerun of configs `001`–`005`. Its
+scaffold prefix and lock serialize coordinator invocations. The parent
+validates the complete tranche, requires every config to be a direct sibling
+of the runner, and stops admission on the first failure while draining work
+already admitted.
 See
 [`experiments/README.md`](experiments/README.md).
 

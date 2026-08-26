@@ -1171,7 +1171,7 @@ def test_case_runner_rejects_configs_outside_tracked_authorization(
         )
 
 
-def test_a1_boundary_extension_runner_is_exactly_five_configs_and_serial() -> None:
+def test_a1_high_lr_extension_runner_is_exactly_eight_configs_and_three_a40s() -> None:
     repository = Path(__file__).resolve().parents[1]
     namespace = runpy.run_path(
         str(repository / "experiments" / "01-a1-lr-screen" / "run" / "runner.py")
@@ -1183,14 +1183,31 @@ def test_a1_boundary_extension_runner_is_exactly_five_configs_and_serial() -> No
         "experiments/01-a1-lr-screen/run/003-a1-lr-2e-3.yaml",
         "experiments/01-a1-lr-screen/run/004-a1-lr-4e-3.yaml",
         "experiments/01-a1-lr-screen/run/005-a1-lr-8e-3.yaml",
+        "experiments/01-a1-lr-screen/run/006-a1-lr-1p6e-2.yaml",
+        "experiments/01-a1-lr-screen/run/007-a1-lr-3p2e-2.yaml",
+        "experiments/01-a1-lr-screen/run/008-a1-lr-6p4e-2.yaml",
     )
     assert namespace["REQUIRED_COMPLETED_CONFIG_IDS"] == (
         "001-a1-lr-5e-4",
         "002-a1-lr-1e-3",
         "003-a1-lr-2e-3",
         "004-a1-lr-4e-3",
+        "005-a1-lr-8e-3",
     )
-    assert "PARALLEL_AUTHORIZATION" not in namespace
+    assert namespace["PARALLEL_AUTHORIZATION"] == runner.ParallelLaunchAuthorization(
+        worker_count=3,
+        required_gpu_name="NVIDIA A40",
+        config_ids=(
+            "001-a1-lr-5e-4",
+            "002-a1-lr-1e-3",
+            "003-a1-lr-2e-3",
+            "004-a1-lr-4e-3",
+            "005-a1-lr-8e-3",
+            "006-a1-lr-1p6e-2",
+            "007-a1-lr-3p2e-2",
+            "008-a1-lr-6p4e-2",
+        ),
+    )
 
 
 def test_required_completed_reuse_fails_closed_before_rerun(
