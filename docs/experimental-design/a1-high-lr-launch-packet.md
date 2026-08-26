@@ -1,14 +1,19 @@
-# A1 Three-Cell High-LR Definitive Launch Packet
+# A1 Three-Cell High-LR Definitive Launch Record
+
+> **Status:** completed under the user-approved one-A40 serial amendment on
+> 2026-08-26. Configs `006`–`008` are completed, eligible, and valid; their
+> artifacts were retrieved and verified before teardown. The eight-cell
+> `lr_14m` plot and selection remain pending and are not decided here.
 
 ## Authority and Identity
 
 The user's 2026-08-26 instruction to run three additional learning rates above
-`8e-3` is treated as authorization for the exact reviewed cells `1.6e-2`,
-`3.2e-2`, and `6.4e-2`, their one definitive execution, and the bounded
-RunPod envelope below. The reviewed design commit is
+`8e-3` authorized the exact reviewed cells `1.6e-2`, `3.2e-2`, and `6.4e-2`
+and their one definitive execution. The reviewed design commit is
 `d80f6a9b6c99bcaec7ddc52e73c1a407a5020a8e`, activated at
 `b4ec541a9bfb5dc7e1e22b3ff137fc4facf4b0f9`. The materialized execution recipe
-is commit `b586500d28bd9ee6e15319ceb4180008a0b63082`.
+is commit `b586500d28bd9ee6e15319ceb4180008a0b63082`; the definitive runs used the
+clean execution commit `d4105722516958df6e9c3cc43b20d6bfd4619d0f`.
 
 | Config | Peak LR | Condition fingerprint | Complete-config SHA-256 |
 | --- | ---: | --- | --- |
@@ -24,10 +29,10 @@ initialization, forward/loss, task gradients, optimizer/schedule, data order,
 validation, checkpoint semantics, and `a1_pretraining_v1` therefore remain on
 the accepted active path.
 
-## Required Reuse and Admission
+## Required Reuse
 
-The runner must classify exactly these accepted attempts as complete before
-creating any new attempt:
+The runner classified exactly these accepted attempts as complete before it
+created a new attempt:
 
 | Config | Accepted run |
 | --- | --- |
@@ -37,57 +42,88 @@ creating any new attempt:
 | `004-a1-lr-4e-3` | `001-20260826-123606-46e7454f` |
 | `005-a1-lr-8e-3` | `001-20260826-135546-928279bb` |
 
-Configs `006`–`008` must be pending. Use one coordinator, one repository lock,
-one writable checkout, and exactly three worker slots mapped one-to-one to
-three distinct homogeneous `NVIDIA A40` GPUs on one machine. All three pending
-configs are initially admitted, so an escaping failure drains the other
-workers to terminal state and leaves no planned cell unadmitted. Do not rerun
-configs `001`–`005`, start another runner, pack workers on one GPU, mix GPU
-types, or dispatch across Pods.
+No accepted cell was rerun. Before launch, configs `006`–`008` were pending;
+the runner used one coordinator, one repository lock, and its existing serial
+default path.
 
-## RunPod Envelope and ETC
+## Historical Three-A40 Preparation (Superseded)
 
-Provision at most one live Secure Cloud Pod named `osp-a1-hi-lr-<short-sha>`
-with exactly 3× NVIDIA A40 48GB on one machine. Permit `CA-MTL-1` and
-`EU-SE-1`, use image
+The original launch contract prepared one Secure Cloud Pod with exactly three
+distinct homogeneous NVIDIA A40 48GB GPUs, one isolated worker per pending
+config, and concurrent admission of configs `006`–`008`. It permitted
+`CA-MTL-1` or `EU-SE-1`, pinned image
 `runpod/pytorch@sha256:4d1721e62b56d345c83b4fd6090664be6daf9312caab5b2e76f23d8231941851`,
-50GB container disk, no Pod volume, no network volume, and SSH with the
-validated RunPod public key. Failed allocation calls before any Pod exists may
-be repeated at most three times within 30 minutes; after one Pod is created,
-no replacement Pod is authorized.
+a 50GB container disk, no Pod volume, no network volume, a `$2.25` cost cap,
+and termination 100 minutes after creation. The point ETC was 57–65 minutes
+from creation for the first result and full concurrent tranche.
 
-The current Secure A40 price is `$0.44/GPU-hour`; prior 50GB container-disk
-billing adds approximately `$0.007/hour` per Pod. Accepted A1 runs took
-39m45s–41m45s end to end, and config `005` took 56m57s from Pod creation
-through teardown. With shared setup and three concurrent workers, the first
-result and full tranche are both expected 57–65 minutes after creation, with
-approximately ±15 minutes uncertainty for allocation, setup, transfer, and
-retrieval. Expected spend is approximately `$1.27`; maximum total spend is
-`$2.25`. Set backend termination exactly 100 minutes after successful Pod
-creation.
+Pod `9l8jns1uwarkfp` (`osp-a1-hi-lr-d410572`) was allocated under that
+contract and passed the base GPU/runtime preflight, then was stopped before Git
+or cache transfer and before scientific training. Resume did not reacquire
+three co-resident A40s, so the Pod was deleted. Permitted replacement creation
+calls allocated no Pod, and inventories were reconciled. This is operational
+history, not a scientific attempt or scientific failure. The three-A40 path
+was then superseded; its tracked authorization does not authorize another
+launch.
 
-## Runtime, Transfer, and Failure Contract
+## Executed One-A40 Serial Amendment
 
-Before transferring the large cache, require all of the following on the
-allocated host:
+The user amended only the execution shape: exactly one Secure A40 48GB Pod,
+configs `006`–`008` executed serially under one coordinator and lock, maximum
+cost `$1.35`, and termination 150 minutes after creation. All scientific,
+runtime, transfer, failure, and teardown terms remained unchanged. The
+existing runner was invoked without worker-slot arguments, so no concurrent
+scientific path was used.
 
-- three `NVIDIA A40` GPUs with distinct UUIDs, 48GB each, compute capability
-  8.6, native BF16 support, and no competing GPU process;
-- Python 3.12.3, Torch 2.11.0+cu128, CUDA runtime 12.8, Transformers 5.12.1,
-  and a compatible host driver;
-- a bounded CUDA BF16 forward/backward smoke on every worker GPU.
+| Field | Executed value |
+| --- | --- |
+| Pod | `bq45s1hj2262ak` |
+| Region and hardware | `CA-MTL-1`; 1× NVIDIA A40 48GB |
+| Execution commit | `d4105722516958df6e9c3cc43b20d6bfd4619d0f` |
+| Pod created | `2026-08-26T17:27:39.972Z` |
+| Scientific launch | `2026-08-26T17:46:11Z` |
+| Final completion | `2026-08-26T19:45:33.876Z` |
+| Teardown | Pod deleted after verified retrieval; zero Pods and zero network volumes confirmed |
 
-Transfer only a verified clean Git bundle for the execution commit, the five
-accepted reuse attempts, and the frozen MiniPile cache. Exclude credentials,
-`docs/humans/main.pdf`, calibration attempts, nonaccepted attempts, and
-unrelated untracked files. POSIX path normalization is permitted only in the
-copied cache metadata. Run from container-local `/root` to avoid the prior
-mounted-filesystem stalls; the backend deadline compensates for ephemeral
-storage.
+The pinned runtime was Python 3.12.3, Torch 2.11.0+cu128, CUDA 12.8,
+Transformers 5.12.1, and a compatible host driver. The transfer used only the
+verified clean Git bundle, the five accepted reuse attempts, and the frozen
+MiniPile cache; credentials, `docs/humans/main.pdf`, calibration attempts,
+nonaccepted attempts, and unrelated untracked files remained excluded. POSIX
+path normalization was confined to copied cache metadata.
 
-Scientific divergence or another nonfinite outcome from the frozen recipe is
-a resolved ineligible cell and is not retried. An infrastructure interruption
-preserves the exact failed attempt and stops for classification; no automatic
-scientific or infrastructure retry is authorized. Retrieve all terminal
-attempts, logs, control-plane records, and checksums before deleting the Pod.
-Finally verify zero Pods, zero network volumes, and `$0/hour`.
+The unchanged failure contract made a nonfinite scientific outcome terminal
+and ineligible without retry, and required an infrastructure interruption to
+preserve its attempt and stop for classification. No retry or replacement was
+used. Terminal attempts, the coordinator log, and control-plane evidence were
+retrieved before Pod deletion.
+
+## Results and Artifact Acceptance
+
+| Config | Run | Final selection loss | Classification |
+| --- | --- | ---: | --- |
+| `006-a1-lr-1p6e-2` | `001-20260826-174611-04b42898` | `4.112285005418878` | completed; eligible; valid |
+| `007-a1-lr-3p2e-2` | `001-20260826-182559-bb05a50c` | `4.082745991255107` | completed; eligible; valid |
+| `008-a1-lr-6p4e-2` | `001-20260826-190546-4df1c441` | `4.0587728086270785` | completed; eligible; valid |
+
+All three attempts completed 1,526 optimizer updates / 400,031,744 training
+tokens, produced the required eight files, and remained finite. Config `008`
+logged exactly two clipped optimizer steps, at steps 1 and 10; this did not
+trigger a failure rule.
+
+| Config | Retrieved files | Retrieved bytes | Final checkpoint SHA-256 |
+| --- | ---: | ---: | --- |
+| `006-a1-lr-1p6e-2` | 8 | 56,502,513 | `2aab9dcb7b9f22a4bf6a808ca15fda9cb2d65800710cb0b640bd061fe7f3692a` |
+| `007-a1-lr-3p2e-2` | 8 | 56,502,491 | `73026efc16a27ffa58fab667ae60e13fc11df916a6a24b8999fa2ebe12db91d7` |
+| `008-a1-lr-6p4e-2` | 8 | 56,502,344 | `5205d7cfa3c8bf47a481d8ede10df6585aaaecb75498e755734a856cdc307849` |
+
+All remote/local per-file hashes matched. The retrieved coordinator log is
+`tmp/a1-hi-lr-runner-bq45s1hj2262ak.log` (1,617 bytes; SHA-256
+`01f23203e8995b8b60818dc1bb3353b4319211018b2586d551fc6b43ab08beea`).
+RunPod billing had posted `$0.5880` only through `19:00Z` when checked; the
+final partial hour was still pending, so this record does not claim an exact
+final cost.
+
+The eight-cell curve and the preregistered lowest-final-selection-loss rule
+must be applied in a separate checkpoint. No further LR cell is authorized by
+this launch record.

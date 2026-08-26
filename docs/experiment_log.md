@@ -15,6 +15,9 @@ well as successful ones.
 | 2026-08-25 | [`experiments/01-a1-lr-screen`](../experiments/01-a1-lr-screen/) | [`003-a1-lr-2e-3`](../experiments/01-a1-lr-screen/run/003-a1-lr-2e-3.yaml) | [`001-20260825-195141-f842c400`](../experiments/01-a1-lr-screen/raw/003-a1-lr-2e-3/001-20260825-195141-f842c400/) | completed | eligible | valid | A1 peak-learning-rate screen | Selected under the original three-cell rule; retained as an eligible nonselected cell after the reviewed `4e-3` boundary extension. |
 | 2026-08-26 | [`experiments/01-a1-lr-screen`](../experiments/01-a1-lr-screen/) | [`004-a1-lr-4e-3`](../experiments/01-a1-lr-screen/run/004-a1-lr-4e-3.yaml) | [`001-20260826-123606-46e7454f`](../experiments/01-a1-lr-screen/raw/004-a1-lr-4e-3/001-20260826-123606-46e7454f/) | completed | eligible | valid | A1 peak-learning-rate screen | Selected under the four-cell rule; retained as an eligible nonselected cell after the reviewed `8e-3` boundary extension. |
 | 2026-08-26 | [`experiments/01-a1-lr-screen`](../experiments/01-a1-lr-screen/) | [`005-a1-lr-8e-3`](../experiments/01-a1-lr-screen/run/005-a1-lr-8e-3.yaml) | [`001-20260826-135546-928279bb`](../experiments/01-a1-lr-screen/raw/005-a1-lr-8e-3/001-20260826-135546-928279bb/) | completed | eligible | valid | A1 peak-learning-rate screen | Selected under the five-cell rule; retained as eligible evidence while the reviewed three-cell high-LR extension reopens `lr_14m`. |
+| 2026-08-26 | [`experiments/01-a1-lr-screen`](../experiments/01-a1-lr-screen/) | [`006-a1-lr-1p6e-2`](../experiments/01-a1-lr-screen/run/006-a1-lr-1p6e-2.yaml) | [`001-20260826-174611-04b42898`](../experiments/01-a1-lr-screen/raw/006-a1-lr-1p6e-2/001-20260826-174611-04b42898/) | completed | eligible | valid | A1 peak-learning-rate screen | Completed the exact reviewed budget and artifact contract in the one-A40 serial launch; retained as eligible evidence pending the eight-cell plot and selection. |
+| 2026-08-26 | [`experiments/01-a1-lr-screen`](../experiments/01-a1-lr-screen/) | [`007-a1-lr-3p2e-2`](../experiments/01-a1-lr-screen/run/007-a1-lr-3p2e-2.yaml) | [`001-20260826-182559-bb05a50c`](../experiments/01-a1-lr-screen/raw/007-a1-lr-3p2e-2/001-20260826-182559-bb05a50c/) | completed | eligible | valid | A1 peak-learning-rate screen | Completed the exact reviewed budget and artifact contract in the one-A40 serial launch; retained as eligible evidence pending the eight-cell plot and selection. |
+| 2026-08-26 | [`experiments/01-a1-lr-screen`](../experiments/01-a1-lr-screen/) | [`008-a1-lr-6p4e-2`](../experiments/01-a1-lr-screen/run/008-a1-lr-6p4e-2.yaml) | [`001-20260826-190546-4df1c441`](../experiments/01-a1-lr-screen/raw/008-a1-lr-6p4e-2/001-20260826-190546-4df1c441/) | completed | eligible | valid | A1 peak-learning-rate screen | Completed the exact reviewed budget and artifact contract in the one-A40 serial launch; retained as eligible evidence pending the eight-cell plot and selection. |
 
 Status rules:
 
@@ -32,5 +35,6 @@ Status rules:
 - Do not copy scalar results into this log when the saved artifact is the
   authority. Summarize only the decision and interpretation boundary.
 
-The registry currently contains the completed A1 tranche. Later scientific
+The registry currently contains eight completed, eligible, valid A1 cells.
+The eight-cell plot and `lr_14m` selection remain pending; later scientific
 rows require newly reviewed plan scope.
