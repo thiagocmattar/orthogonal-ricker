@@ -1,16 +1,17 @@
 # Definitive Experiment Plan Manifest
 
-Plan status: placeholder
-Reviewed design commit: none
-Reviewed case groups: []
+Plan status: reviewed
+Reviewed design commit: 2320d542b14926315a17e873afac2d41a40d6814
+Reviewed case groups: [A1-lr-screen]
 
 > **Current state:** A1 configs `001`–`008` are completed, eligible, valid, and
 > immutable. Because validation loss still decreased at `6.4e-2`, the user
-> directed a proposed factor-two extension at `1.28e-1`, `2.56e-1`, and
-> `5.12e-1`. That direction reopens the `lr_14m` decision but does not bypass
-> exact-SHA design review. The plan remains `placeholder`; configs `009`–`011`
-> do not exist and no scientific launch is authorized until the proposed
-> eleven-cell `A1-lr-screen` design is reviewed at one committed SHA.
+> directed a factor-two extension at `1.28e-1`, `2.56e-1`, and `5.12e-1`.
+> That direction reviewed the exact eleven-cell design at commit
+> `2320d542b14926315a17e873afac2d41a40d6814` and reopens the `lr_14m`
+> decision. Only `A1-lr-screen` is in scope. Configs `009`–`011` may now be
+> materialized, but scientific launch still requires a committed recipe,
+> calibrated ETC/cost envelope, and explicit launch approval.
 
 The [`A1 formal review packet`](experimental-design/a1-review-packet.md) was
 approved at design commit `54be534f383001b4af3d3b43597e135d4ca6653d`.
@@ -21,7 +22,8 @@ complete; their immutable review and launch packets remain historical
 provenance and authorize no rerun. The proposed second three-cell extension is
 owned by
 [`a1-very-high-lr-extension-review-packet.md`](experimental-design/a1-very-high-lr-extension-review-packet.md)
-and requires a new exact-SHA review before materialization.
+and was reviewed at exact design commit
+`2320d542b14926315a17e873afac2d41a40d6814` before materialization.
 
 This file remains the sole launch-status authority. The proposed scientific
 design is split into focused components under

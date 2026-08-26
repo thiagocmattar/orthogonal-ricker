@@ -1,8 +1,9 @@
 # A1 Three-Cell Very-High-LR Extension Review Packet
 
-> **Status:** proposed; awaiting exact-SHA design review. This packet does not
-> authorize config allocation, RunPod provisioning, spending, transfer, or a
-> scientific launch.
+> **Status:** reviewed by direct user instruction on 2026-08-26 at exact design
+> commit `2320d542b14926315a17e873afac2d41a40d6814`. This approval permits
+> activation and config allocation only; it does not authorize RunPod
+> provisioning, spending, transfer, or a scientific launch.
 
 ## Question and Evidence
 

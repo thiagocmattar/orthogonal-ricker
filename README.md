@@ -15,16 +15,17 @@ The sole scientific-scope authority is
 are completed, eligible, valid evidence and must never be rerun. Their interim
 eight-cell rule selected `6.4e-2` at the upper tested boundary. Because loss
 still decreased there, the proposed design adds exactly `1.28e-1`, `2.56e-1`,
-and `5.12e-1`; `lr_14m` is therefore reopened pending exact-SHA review and
-execution of those cells. The fixed horizon remains 400M tokens, so A1 cannot
+and `5.12e-1`; `lr_14m` is therefore reopened pending execution of those
+reviewed cells. The fixed horizon remains 400M tokens, so A1 cannot
 support a global or horizon-independent optimum claim.
 
 The tracked tree contains the definitive A1 recipes and their evidence index;
 raw attempts remain ignored and are addressed by exact identities from
 [`docs/experiment_log.md`](docs/experiment_log.md). A1 selects an optimization
 setting at its fixed 400M-token horizon and makes no sparsity or
-horizon-independent optimum claim. The plan is at placeholder status; the
-proposed eleven-cell A1 scope must be reviewed before any new config or run.
+horizon-independent optimum claim. The eleven-cell A1 scope is reviewed for
+config allocation; every launch still requires its committed ETC/cost packet
+and explicit approval.
 
 ## Scientific Invariants
 
