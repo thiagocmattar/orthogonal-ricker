@@ -26,13 +26,14 @@ Then read the document that owns the task:
 
 The reviewed `docs/experiment_plan.md` and the exact normative components it
 lists are the authority for datasets, models, budgets, seeds, comparisons,
-promotion rules, diagnostics, and paper outputs. A1 is complete: configs/runs
-`001`–`008` are accepted historical evidence and must never be rerun.
-`lr_14m` is frozen to `6.4e-2` at the upper tested boundary, selected from
-config `008-a1-lr-6p4e-2`, run `001-20260826-190546-4df1c441`, under the
-reviewed fixed-400M-token rule. The tracked output recipe is commit `56d7771`.
-The plan is now at placeholder status; any next scientific config or run
-requires newly reviewed scope. Use
+promotion rules, diagnostics, and paper outputs. A1 configs/runs `001`–`008`
+are accepted historical evidence and must never be rerun. Their interim
+fixed-400M-token selection of `6.4e-2` is reopened because validation loss
+still decreased at the tested boundary. The exact eleven-cell A1 design was
+reviewed at commit `2320d542b14926315a17e873afac2d41a40d6814`; configs
+`009`–`011` were materialized at commit
+`1fd0914068531d1c05e047f95352fabee3e3b04a` and remain pending a separately
+approved definitive launch. Only `A1-lr-screen` is in reviewed scope. Use
 `docs/experimental-design/cases.yaml` and
 `docs/experimental-design/run-reuse.md` to ensure one physical config per
 scientific condition and seed.
@@ -70,7 +71,8 @@ scientific condition and seed.
 - A case runner contains the ordered config paths and calls the single parent,
   `paper_exp.runner.run_launch`. Only a reviewed bounded execution exception
   may add explicit tracked operational authorization metadata. A1's dormant
-  worker authorization is historical and authorizes no rerun or new work.
+  worker authorization covers only a superseded `001`–`008` launch shape; it
+  does not cover configs `009`–`011` or authorize worker-slot execution.
 - Definitive configs are named `CCC-<case>.yaml`; prefixes are globally unique
   and sequential. Raw attempts use
   `raw/CCC-<case>/001-<timestamp>-<id>/` inside the owning scaffold.
@@ -80,8 +82,10 @@ scientific condition and seed.
   configs serially by default. The completed original three-cell A1 launch
   historically used one coordinator and two distinct homogeneous A40 slots;
   configs `004`–`008` ran serially, with `006`–`008` completing on one A40
-  from clean commit `d410572`. Multiple case runners, same-GPU packing,
-  heterogeneous slots, and multi-Pod dispatch remain forbidden. Keep
+  from clean commit `d410572`. If approved, pending configs `009`–`011` run
+  serially through the plain case-runner invocation with no worker slots.
+  Multiple case runners, same-GPU packing, heterogeneous slots, and multi-Pod
+  dispatch remain forbidden. Keep
   scientific selection and phase-specific behavior out of the parent.
 - Before a launch, report first-run and full-tranche ETCs, projected completion
   time, evidence, assumptions, and uncertainty. Follow `docs/runbook.md` for

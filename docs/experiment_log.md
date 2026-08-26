@@ -38,5 +38,6 @@ Status rules:
 The registry contains the eight completed A1 cells. Their interim curve,
 table, and provenance are owned by
 [`experiments/01-a1-lr-screen/figs`](../experiments/01-a1-lr-screen/figs/).
-The proposed eleven-cell design reopens `lr_14m`; configs `009`–`011` require
-exact-SHA review before allocation, and no new attempt row exists yet.
+The reviewed eleven-cell design reopens `lr_14m`; configs `009`–`011` were
+materialized at commit `1fd0914068531d1c05e047f95352fabee3e3b04a`, remain
+pending definitive launch, and have no attempt rows yet.

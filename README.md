@@ -14,9 +14,10 @@ The sole scientific-scope authority is
 [`docs/experiment_plan.md`](docs/experiment_plan.md). A1 configs `001`–`008`
 are completed, eligible, valid evidence and must never be rerun. Their interim
 eight-cell rule selected `6.4e-2` at the upper tested boundary. Because loss
-still decreased there, the proposed design adds exactly `1.28e-1`, `2.56e-1`,
-and `5.12e-1`; `lr_14m` is therefore reopened pending execution of those
-reviewed cells. The fixed horizon remains 400M tokens, so A1 cannot
+still decreased there, the reviewed design adds exactly `1.28e-1`, `2.56e-1`,
+and `5.12e-1`. Those cells are materialized as configs `009`–`011` and remain
+pending definitive launch, so `lr_14m` is reopened. The fixed horizon remains
+400M tokens, so A1 cannot
 support a global or horizon-independent optimum claim.
 
 The tracked tree contains the definitive A1 recipes and their evidence index;
@@ -139,8 +140,9 @@ python experiments/NN-phase-tranche/run/runner.py
 The case runner contains the ordered config paths and delegates to
 `paper_exp.runner.run_launch`. A reviewed bounded exception may also carry
 tracked operational authorization. The A1 runner's dormant worker
-authorization records a superseded launch shape; it is historical, was inert
-for the serial high-LR run, and authorizes neither an A1 rerun nor new work.
+authorization records a superseded `001`–`008` launch shape; it was inert for
+the serial high-LR run and does not cover configs `009`–`011` or authorize
+worker-slot execution for them. Their reviewed launch shape is serial.
 The parent validates the complete tranche, requires every config to be a
 direct sibling of the runner, and stops admission on the first failure while
 draining work already admitted.

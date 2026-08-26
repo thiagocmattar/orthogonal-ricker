@@ -36,8 +36,9 @@ factor-two cells `1.28e-1`, `2.56e-1`, and `5.12e-1`. The completed evidence
 cohort is indexed by [`../experiment_log.md`](../experiment_log.md); the
 existing eight-cell output recipe is commit `56d7771`. The eleven-cell scope
 was reviewed at design commit
-`2320d542b14926315a17e873afac2d41a40d6814`; only configs `009`–`011` may now
-be allocated, and launch remains separately gated.
+`2320d542b14926315a17e873afac2d41a40d6814`; configs `009`–`011` were
+materialized at commit `1fd0914068531d1c05e047f95352fabee3e3b04a` and remain
+pending a separately approved definitive launch.
 
 ## One Fact, One Owner
 

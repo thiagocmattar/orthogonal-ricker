@@ -18,8 +18,9 @@ The infrastructure-only
 scientific config requires its case group in the reviewed scope. A launch also
 requires a committed scaffold recipe, clean checkout, calibrated ETC, and
 explicit launch approval.
-After A1 closeout, the plan is at placeholder status; the next scientific
-config or run requires newly reviewed scope.
+The current reviewed scope contains only `A1-lr-screen`. Its configs
+`009`–`011` are materialized but remain blocked until their exact execution
+commit, ETC/cost envelope, and definitive launch are explicitly approved.
 Once attempted, a config is immutable. A scientific change gets a new config;
 an infrastructure retry gets a new run attempt under the same config.
 
@@ -54,8 +55,9 @@ recipes before their inputs and promotion rules are known.
 Each case runner contains an ordered `CONFIGS` tuple and a call to
 `paper_exp.runner.run_launch`. A reviewed bounded execution exception may add
 tracked operational authorization bound to exact config IDs, worker count,
-and GPU identity. A1's dormant authorization metadata is historical and
-authorizes no rerun or new work. Shared mechanics belong in the parent;
+and GPU identity. A1's dormant authorization metadata covers only a
+superseded `001`–`008` launch shape and cannot authorize worker-slot execution
+for pending configs `009`–`011`. Shared mechanics belong in the parent;
 science belongs in configs and the reviewed plan.
 
 ## 3. Preflight and ETC
@@ -141,7 +143,11 @@ CUDA_VISIBLE_DEVICES=0 python3 experiments/01-a1-lr-screen/run/runner.py
 No `--worker-slot` argument was passed, so the runner used its serial-default
 path under one coordinator and lock. The superseded three-A40 authorization
 remains dormant historical metadata only. All exact A1 configs `001`–`008` are
-completed evidence and must never be rerun.
+completed evidence and must never be rerun. The reviewed runner now requires
+those eight completed configs as reuse and then admits pending configs
+`009`–`011` serially. Their definitive launch must use the same plain
+invocation above; passing a worker slot fails closed because the historical
+authorization does not match the eleven-cell runner.
 
 The parent runner:
 
@@ -170,7 +176,8 @@ that workflow.
 The isolated worker engine is implemented and live-validated for
 infrastructure smoke, bounded calibration, and the completed original A1
 launch. No current scientific scope authorizes bounded-worker execution; new
-work remains serial by default unless a newly reviewed plan says otherwise.
+work, including A1 configs `009`–`011`, remains serial by default unless a
+newly reviewed plan says otherwise.
 Multiple case runners, same-GPU packing, heterogeneous worker slots, and
 multi-Pod dispatch remain unsupported.
 
@@ -314,12 +321,13 @@ log to `/workspace`.
 
 One multi-GPU Pod with one authoritative coordinator and one writable checkout
 is the supported parallel shape when a reviewed scope explicitly authorizes
-it. A1's bounded-worker metadata is completed history and authorizes no rerun;
-the actual high-LR cells ran serially on one A40. No current scientific scope
-authorizes parallel execution. Do not run independent case runners or allow
-concurrent writable checkouts on one volume. Multi-Pod scientific execution
-requires a future reviewed contract rather than an ad hoc extension of the
-local lock.
+it. A1's bounded-worker metadata covers only completed configs `001`–`008`;
+the actual high-LR cells ran serially on one A40. Pending configs `009`–`011`
+must also run serially after explicit launch approval. No current scientific
+scope authorizes parallel execution. Do not run independent case runners or
+allow concurrent writable checkouts on one volume. Multi-Pod scientific
+execution requires a future reviewed contract rather than an ad hoc extension
+of the local lock.
 
 #### Combined GPU smoke and hardware profile
 

@@ -45,8 +45,9 @@ if __name__ == "__main__":
 
 A reviewed bounded execution exception may additionally declare tracked
 operational authorization in that runner. The A1 runner retains dormant
-worker-authorization metadata from a superseded launch shape. It is historical
-and authorizes neither a rerun nor new work.
+worker-authorization metadata from a superseded `001`–`008` launch shape. It
+does not cover configs `009`–`011` or authorize worker-slot execution for the
+current extension.
 
 The parent requires the tuple to list every YAML config in `run/` exactly once,
 holds one experiment lock, and runs configs serially by default. The completed
@@ -60,17 +61,20 @@ CUDA_VISIBLE_DEVICES=0 python3 experiments/01-a1-lr-screen/run/runner.py
 ```
 
 All A1 configs `001`–`008` are immutable completed evidence and must never be
-rerun. Other definitive tranches remain serial unless a later reviewed policy
-says otherwise. Even a one-config scientific tranche uses its runner. Never
-run case runners in parallel, pack two workers onto one GPU, mix GPU types, or
-dispatch one launch across Pods.
+rerun. The runner now lists all eleven reviewed A1 configs, treats `001`–`008`
+as required completed reuse, and admits only pending configs `009`–`011` when
+the plain invocation above receives separate launch approval. Other definitive
+tranches remain serial unless a later reviewed policy says otherwise. Even a
+one-config scientific tranche uses its runner. Never run case runners in
+parallel, pack two workers onto one GPU, mix GPU types, or dispatch one launch
+across Pods.
 
 `00-infrastructure-smoke/run/00-smoke.yaml` is the only runner-free exception.
 It is an infrastructure check, not a paper experiment or a scientific config
 template. Do not add scientific scaffolds while
 `docs/experiment_plan.md` says `Plan status: placeholder`, or for a case group
-outside its reviewed scope. After A1 closeout, the next scientific scaffold or
-run requires newly reviewed plan scope.
+outside its reviewed scope. The current reviewed scope contains only
+`A1-lr-screen`; configs `009`–`011` are the only pending scientific work.
 
 ## Config and Attempt Identity
 

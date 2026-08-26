@@ -9,9 +9,10 @@ Reviewed case groups: [A1-lr-screen]
 > directed a factor-two extension at `1.28e-1`, `2.56e-1`, and `5.12e-1`.
 > That direction reviewed the exact eleven-cell design at commit
 > `2320d542b14926315a17e873afac2d41a40d6814` and reopens the `lr_14m`
-> decision. Only `A1-lr-screen` is in scope. Configs `009`–`011` may now be
-> materialized, but scientific launch still requires a committed recipe,
-> calibrated ETC/cost envelope, and explicit launch approval.
+> decision. Only `A1-lr-screen` is in scope. Configs `009`–`011` were
+> materialized at commit `1fd0914068531d1c05e047f95352fabee3e3b04a` and are
+> pending definitive launch. Scientific launch still requires a committed
+> recipe, calibrated ETC/cost envelope, and explicit launch approval.
 
 The [`A1 formal review packet`](experimental-design/a1-review-packet.md) was
 approved at design commit `54be534f383001b4af3d3b43597e135d4ca6653d`.
@@ -19,7 +20,7 @@ That historical approval permitted its three immutable configs and the now
 completed original tranche only. The two separately reviewed single-cell
 boundary extensions and the reviewed three-cell high-LR extension are also
 complete; their immutable review and launch packets remain historical
-provenance and authorize no rerun. The proposed second three-cell extension is
+provenance and authorize no rerun. The reviewed second three-cell extension is
 owned by
 [`a1-very-high-lr-extension-review-packet.md`](experimental-design/a1-very-high-lr-extension-review-packet.md)
 and was reviewed at exact design commit

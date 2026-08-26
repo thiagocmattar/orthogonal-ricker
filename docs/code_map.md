@@ -20,8 +20,9 @@ pinned scaffold raw/ -> plots/dispatch.py -> family renderer -> scaffold figs/
   contains one config.
 - `runner.py` is the only parent runner. It validates the whole tranche and
   holds one lock. Definitive pretraining is serial by default. A1's dormant
-  bounded-worker metadata records completed history and authorizes no rerun or
-  new work. Calibration uses the same worker engine but remains a separate
+  bounded-worker metadata covers only the completed `001`–`008` launch shape;
+  it does not cover pending configs `009`–`011` or authorize worker slots for
+  them. Calibration uses the same worker engine but remains a separate
   non-evidence workflow.
 - Diagnostics consume exact saved run/checkpoint identities. Plots consume
   saved artifacts only.
