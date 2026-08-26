@@ -1,21 +1,16 @@
 # Definitive Experiment Plan Manifest
 
-Plan status: reviewed
-Reviewed design commit: e8214a411afebf0cec5658f0f1ccdd3e6bcd5585
-Reviewed case groups: [A1-lr-screen]
+Plan status: placeholder
+Reviewed design commit: none
+Reviewed case groups: []
 
-> **Reviewed scope:** `[A1-lr-screen]`. The user approved the exact
-> [`A1 boundary-extension design`](experimental-design/a1-boundary-extension-review-packet.md)
-> at commit `e8214a411afebf0cec5658f0f1ccdd3e6bcd5585` on 2026-08-25. Reuse
-> the three accepted original cells and materialize exactly one new `4e-3`
-> cell in `experiments/01-a1-lr-screen/`. `lr_14m` remains unresolved until
-> all four cells receive terminal classifications. Config `004` and the
-> fail-closed serial runner were materialized at commit
-> `e7e63a4ae7f7def56d344b69adc426636dd7e0fb`; see the
-> [`definitive launch packet`](experimental-design/a1-boundary-extension-launch-packet.md).
-> This review does not by itself authorize definitive launch or RunPod
-> spending; both remain subject to the explicit approvals required below and
-> in the runbook.
+> **Current scope:** none. The reviewed `A1-lr-screen` boundary extension is
+> complete: all four cells have valid eligible attempts, and the predeclared
+> rule freezes `lr_14m = 4e-3` in
+> [`decisions.md`](experimental-design/decisions.md). The selected value is the
+> upper tested boundary at the fixed 400M-token horizon; no `8e-3` extension is
+> authorized. Recording this upstream decision resets the plan to placeholder
+> status until the next exact case groups and design commit are reviewed.
 
 The [`A1 formal review packet`](experimental-design/a1-review-packet.md) was
 approved at design commit `54be534f383001b4af3d3b43597e135d4ca6653d`.

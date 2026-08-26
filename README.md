@@ -11,12 +11,11 @@ plotting utilities.
 modular proposal for the lean 14M discovery and 70M/410M replication program;
 its [executive brief](docs/experimental-design/executive.md) is advisor-facing.
 The sole scientific-scope authority is
-[`docs/experiment_plan.md`](docs/experiment_plan.md). It currently reviews only
-`[A1-lr-screen]`. The original three A1 cells are complete,
-and the reviewed single `4e-3` upper-boundary cell is materialized in the same
-scaffold. `lr_14m` remains unresolved until config `004` reaches a reviewed
-terminal classification. Definitive launch and every cloud resource envelope
-still require their own explicit approval.
+[`docs/experiment_plan.md`](docs/experiment_plan.md). A1 is complete: all four
+learning-rate cells are eligible, and its predeclared rule freezes
+`lr_14m = 4e-3` at the fixed 400M-token horizon. This remains the upper tested
+boundary, not a horizon-independent optimum. The plan is now a placeholder
+with no reviewed case group while the next tranche is prepared for review.
 
 The tracked tree contains the definitive A1 recipes and their evidence index;
 raw attempts remain ignored and are addressed by exact identities from
@@ -96,12 +95,12 @@ After the relevant case groups enter the definitive plan's reviewed scope:
 4. Commit the reviewed runner and configs before launch.
 5. Prepare the declared dataset cache.
 6. Run a calibration when no reliable same-hardware throughput estimate exists.
-   A1 may calibrate distinct configs concurrently under one coordinator and
-   lock, with one process per distinct homogeneous GPU.
+   A1 historically calibrated distinct configs concurrently under one
+   coordinator and lock, with one process per distinct homogeneous GPU.
 7. Execute the case runner; it reuses coherent completed configs and runs new
    cases serially by default under one lock. The historical A1 two-worker
-   authorization is bound to exactly configs `001`–`003` and does not cover
-   the proposed `004`; the four-config extension runner is serial. A reviewed
+   authorization was bound to exactly configs `001`–`003`; config `004` later
+   completed through the serial four-config extension runner. A reviewed
    infrastructure retry requires the explicit `--retry-failed` flag.
 8. Verify terminal artifacts before running diagnostics or plotting.
 9. Record accepted evidence in the experiment and paper maps.
