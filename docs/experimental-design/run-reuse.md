@@ -47,15 +47,15 @@ checkpoint semantics. If that check is absent or fails, the identity changes
 and cross-revision reuse stops for review; never rerun A1 silently to conceal
 the incompatibility.
 
-The eight-cell A1 boundary extension must reuse configs/runs `001`–`005`
-exactly and materialize only the new `1.6e-2`, `3.2e-2`, and `6.4e-2`
-conditions. Before comparing the new attempts with those earlier runs, record
-the unchanged-active-path check between config `005` execution commit
-`a4ddaa5c9897224a9285afae09d2d9c6b07b3cec` and the new execution commit. The
+The eleven-cell A1 extension must reuse configs/runs `001`–`008` exactly and
+materialize only the new `1.28e-1`, `2.56e-1`, and `5.12e-1` conditions. Before
+comparing the new attempts with those earlier runs, record the
+unchanged-active-path check between config `008` execution commit
+`d4105722516958df6e9c3cc43b20d6bfd4619d0f` and the new execution commit. The
 check must cover every item listed above and must confirm the retained
 `a1_pretraining_v1` identity; otherwise stop for review. On a remote execution
-host, stage the five accepted raw attempts as well as the frozen cache so the
-eight-config runner reuses them rather than treating them as absent.
+host, stage all eight accepted raw attempts as well as the frozen cache so the
+eleven-config runner reuses them rather than treating them as absent.
 
 ## Allocation Procedure
 

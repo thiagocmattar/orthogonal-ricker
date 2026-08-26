@@ -4,13 +4,13 @@ Plan status: placeholder
 Reviewed design commit: none
 Reviewed case groups: []
 
-> **Current state:** A1 is complete: all eight cells are completed, eligible,
-> and valid. The predeclared rule freezes `lr_14m=6.4e-2` from config
-> `008-a1-lr-6p4e-2`, run `001-20260826-190546-4df1c441`. This selected point
-> is the upper tested boundary; no further A1 LR extension is authorized.
-> Recording this upstream decision resets the plan to `placeholder`. No next
-> case group is reviewed; dependent groups require a new reviewed design
-> commit before materialization or launch.
+> **Current state:** A1 configs `001`–`008` are completed, eligible, valid, and
+> immutable. Because validation loss still decreased at `6.4e-2`, the user
+> directed a proposed factor-two extension at `1.28e-1`, `2.56e-1`, and
+> `5.12e-1`. That direction reopens the `lr_14m` decision but does not bypass
+> exact-SHA design review. The plan remains `placeholder`; configs `009`–`011`
+> do not exist and no scientific launch is authorized until the proposed
+> eleven-cell `A1-lr-screen` design is reviewed at one committed SHA.
 
 The [`A1 formal review packet`](experimental-design/a1-review-packet.md) was
 approved at design commit `54be534f383001b4af3d3b43597e135d4ca6653d`.
@@ -18,7 +18,10 @@ That historical approval permitted its three immutable configs and the now
 completed original tranche only. The two separately reviewed single-cell
 boundary extensions and the reviewed three-cell high-LR extension are also
 complete; their immutable review and launch packets remain historical
-provenance and authorize no further launch.
+provenance and authorize no rerun. The proposed second three-cell extension is
+owned by
+[`a1-very-high-lr-extension-review-packet.md`](experimental-design/a1-very-high-lr-extension-review-packet.md)
+and requires a new exact-SHA review before materialization.
 
 This file remains the sole launch-status authority. The proposed scientific
 design is split into focused components under

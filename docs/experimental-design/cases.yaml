@@ -56,12 +56,12 @@ case_groups:
       threshold: none
       pressure: none
       peak_lr_ref: protocol.md#batch-and-learning-rate-grids
-    conceptual_cells: 8
-    unique_cases: 8
+    conceptual_cells: 11
+    unique_cases: 11
     produces_decision: lr_14m
     notes:
-      - reuse the exact accepted configs and attempts for 5e-4, 1e-3, 2e-3, 4e-3, and 8e-3
-      - materialize only the new 1.6e-2, 3.2e-2, and 6.4e-2 cells after exact-SHA review
+      - reuse the exact accepted configs and attempts for every completed cell from 5e-4 through 6.4e-2
+      - materialize only the new 1.28e-1, 2.56e-1, and 5.12e-1 cells after exact-SHA review
 
   - group_id: A2-relu-control
     stage: A2

@@ -20,6 +20,7 @@ Pythia-14M discovery and Pythia-70M/410M replication program.
 | Historical `8e-3` definitive launch review | [`a1-8e-3-launch-packet.md`](a1-8e-3-launch-packet.md) |
 | Completed three-cell high-LR extension | [`a1-high-lr-extension-review-packet.md`](a1-high-lr-extension-review-packet.md) |
 | Historical high-LR launch record | [`a1-high-lr-launch-packet.md`](a1-high-lr-launch-packet.md) |
+| Proposed very-high-LR extension | [`a1-very-high-lr-extension-review-packet.md`](a1-very-high-lr-extension-review-packet.md) |
 | Historical A1 calibration and ETC | [`a1-calibration-packet.md`](a1-calibration-packet.md) |
 | Shared scientific configuration | [`protocol.md`](protocol.md) |
 | Stage design or selection | [Phase A](phases/a-pressure.md), [B](phases/b-threshold.md), or [C](phases/c-scale.md), plus [`cases.yaml`](cases.yaml) |
@@ -30,10 +31,11 @@ Pythia-14M discovery and Pythia-70M/410M replication program.
 | Record a selected value | [`decisions.md`](decisions.md) |
 
 A1 configs `001`–`008` are completed, immutable evidence and must never be
-rerun. The exact selected value and run are recorded in
-[`decisions.md`](decisions.md), and the evidence cohort is indexed by
-[`../experiment_log.md`](../experiment_log.md). The tracked output recipe is
-commit `56d7771`. Any next scientific work requires newly reviewed plan scope.
+rerun. Their interim eight-cell selection is now reopened by the proposed
+factor-two cells `1.28e-1`, `2.56e-1`, and `5.12e-1`. The completed evidence
+cohort is indexed by [`../experiment_log.md`](../experiment_log.md); the
+existing eight-cell output recipe is commit `56d7771`. The proposed
+eleven-cell scope requires exact-SHA review before config allocation.
 
 ## One Fact, One Owner
 
