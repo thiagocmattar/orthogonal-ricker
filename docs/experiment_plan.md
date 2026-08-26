@@ -8,8 +8,9 @@ Reviewed case groups: [A1-lr-screen]
 > best upper boundary, the user directed exactly three further factor-two
 > cells at `1.6e-2`, `3.2e-2`, and `6.4e-2`. `lr_14m` is reopened until those
 > cells receive reviewed terminal classifications. The exact eight-cell A1
-> design is reviewed at the SHA above; only the three new cells may now be
-> materialized.
+> design is reviewed at the SHA above; configs `006`–`008` are materialized
+> at commit `b586500d28bd9ee6e15319ceb4180008a0b63082` and are the only pending
+> scientific conditions.
 
 The [`A1 formal review packet`](experimental-design/a1-review-packet.md) was
 approved at design commit `54be534f383001b4af3d3b43597e135d4ca6653d`.
