@@ -1171,7 +1171,7 @@ def test_case_runner_rejects_configs_outside_tracked_authorization(
         )
 
 
-def test_a1_high_lr_extension_runner_is_exactly_eight_configs_and_three_a40s() -> None:
+def test_a1_very_high_lr_extension_runner_has_eleven_configs_and_exact_reuse() -> None:
     repository = Path(__file__).resolve().parents[1]
     namespace = runpy.run_path(
         str(repository / "experiments" / "01-a1-lr-screen" / "run" / "runner.py")
@@ -1186,6 +1186,9 @@ def test_a1_high_lr_extension_runner_is_exactly_eight_configs_and_three_a40s() -
         "experiments/01-a1-lr-screen/run/006-a1-lr-1p6e-2.yaml",
         "experiments/01-a1-lr-screen/run/007-a1-lr-3p2e-2.yaml",
         "experiments/01-a1-lr-screen/run/008-a1-lr-6p4e-2.yaml",
+        "experiments/01-a1-lr-screen/run/009-a1-lr-1p28e-1.yaml",
+        "experiments/01-a1-lr-screen/run/010-a1-lr-2p56e-1.yaml",
+        "experiments/01-a1-lr-screen/run/011-a1-lr-5p12e-1.yaml",
     )
     assert namespace["REQUIRED_COMPLETED_CONFIG_IDS"] == (
         "001-a1-lr-5e-4",
@@ -1193,6 +1196,9 @@ def test_a1_high_lr_extension_runner_is_exactly_eight_configs_and_three_a40s() -
         "003-a1-lr-2e-3",
         "004-a1-lr-4e-3",
         "005-a1-lr-8e-3",
+        "006-a1-lr-1p6e-2",
+        "007-a1-lr-3p2e-2",
+        "008-a1-lr-6p4e-2",
     )
     assert namespace["PARALLEL_AUTHORIZATION"] == runner.ParallelLaunchAuthorization(
         worker_count=3,

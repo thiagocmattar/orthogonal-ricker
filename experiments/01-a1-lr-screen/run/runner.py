@@ -10,6 +10,9 @@ CONFIGS = (
     "experiments/01-a1-lr-screen/run/006-a1-lr-1p6e-2.yaml",
     "experiments/01-a1-lr-screen/run/007-a1-lr-3p2e-2.yaml",
     "experiments/01-a1-lr-screen/run/008-a1-lr-6p4e-2.yaml",
+    "experiments/01-a1-lr-screen/run/009-a1-lr-1p28e-1.yaml",
+    "experiments/01-a1-lr-screen/run/010-a1-lr-2p56e-1.yaml",
+    "experiments/01-a1-lr-screen/run/011-a1-lr-5p12e-1.yaml",
 )
 
 REQUIRED_COMPLETED_CONFIG_IDS = (
@@ -18,6 +21,9 @@ REQUIRED_COMPLETED_CONFIG_IDS = (
     "003-a1-lr-2e-3",
     "004-a1-lr-4e-3",
     "005-a1-lr-8e-3",
+    "006-a1-lr-1p6e-2",
+    "007-a1-lr-3p2e-2",
+    "008-a1-lr-6p4e-2",
 )
 
 PARALLEL_AUTHORIZATION = ParallelLaunchAuthorization(
