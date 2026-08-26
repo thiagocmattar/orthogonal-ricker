@@ -1,24 +1,24 @@
 # Definitive Experiment Plan Manifest
 
-Plan status: reviewed
-Reviewed design commit: d80f6a9b6c99bcaec7ddc52e73c1a407a5020a8e
-Reviewed case groups: [A1-lr-screen]
+Plan status: placeholder
+Reviewed design commit: none
+Reviewed case groups: []
 
-> **Current state:** Five A1 cells are accepted. Because `8e-3` remained the
-> best upper boundary, the user directed exactly three further factor-two
-> cells at `1.6e-2`, `3.2e-2`, and `6.4e-2`. `lr_14m` is reopened until those
-> cells receive reviewed terminal classifications. The exact eight-cell A1
-> design is reviewed at the SHA above; configs `006`–`008` are materialized
-> at commit `b586500d28bd9ee6e15319ceb4180008a0b63082` and are the only pending
-> scientific conditions.
+> **Current state:** A1 is complete: all eight cells are completed, eligible,
+> and valid. The predeclared rule freezes `lr_14m=6.4e-2` from config
+> `008-a1-lr-6p4e-2`, run `001-20260826-190546-4df1c441`. This selected point
+> is the upper tested boundary; no further A1 LR extension is authorized.
+> Recording this upstream decision resets the plan to `placeholder`. No next
+> case group is reviewed; dependent groups require a new reviewed design
+> commit before materialization or launch.
 
 The [`A1 formal review packet`](experimental-design/a1-review-packet.md) was
 approved at design commit `54be534f383001b4af3d3b43597e135d4ca6653d`.
 That historical approval permitted its three immutable configs and the now
 completed original tranche only. The two separately reviewed single-cell
-boundary extensions are also complete; their immutable review and launch
-packets remain historical provenance. The new three-cell extension is a
-separate review and launch contract.
+boundary extensions and the reviewed three-cell high-LR extension are also
+complete; their immutable review and launch packets remain historical
+provenance and authorize no further launch.
 
 This file remains the sole launch-status authority. The proposed scientific
 design is split into focused components under

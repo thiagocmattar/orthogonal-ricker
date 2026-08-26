@@ -1,8 +1,8 @@
 # A1 Three-Cell High-LR Extension Review Packet
 
-> **Status:** reviewed by direct user instruction on 2026-08-26 at exact
-> design commit `d80f6a9b6c99bcaec7ddc52e73c1a407a5020a8e`; activated for
-> `[A1-lr-screen]` in `docs/experiment_plan.md`.
+> **Status:** completed. Reviewed by direct user instruction on 2026-08-26 at
+> exact design commit `d80f6a9b6c99bcaec7ddc52e73c1a407a5020a8e`; executed from
+> clean commit `d410572`; tracked output recipe commit `56d7771`.
 
 ## Why These Cells Exist
 
@@ -45,18 +45,20 @@ Report the complete eight-cell table and curve. If `6.4e-2` wins, label it as
 the upper tested boundary and make no convergence, full-pass, global-optimum,
 or horizon-independent optimality claim.
 
-## Execution Shape
+## Execution Record
 
-Use one Secure RunPod machine with exactly three distinct homogeneous NVIDIA
-A40 48GB GPUs, one coordinator, one repository lock, and one isolated worker
-per pending config. Require exact completed reuse of configs `001`–`005`
-before admitting configs `006`–`008`. Because all three pending cells are
-admitted at launch, a scientific failure in one cell does not suppress the
-other two; the coordinator drains every admitted worker before returning.
+The reviewed design initially proposed one coordinator with three A40 workers;
+that operational path was superseded before scientific execution. Configs
+`006`–`008` instead completed serially on one A40 under one coordinator and
+lock from clean commit `d410572`:
 
-Multiple runners, same-GPU packing, heterogeneous GPUs, serial fail-stop, and
-multi-Pod execution are forbidden for this tranche. The accepted config `005`
-create-to-retrieval duration was approximately 57 minutes and its training
-phase was approximately 40 minutes. Use these same-hardware observations for
-the launch ETC and cost envelope; verify the current RunPod price and capacity
-immediately before provisioning.
+```bash
+CUDA_VISIBLE_DEVICES=0 python3 experiments/01-a1-lr-screen/run/runner.py
+```
+
+No `--worker-slot` argument was passed. Dormant worker-authorization metadata
+in the runner records the superseded design only and authorizes no rerun. All
+eight cells are completed, eligible, and valid. The selection rule freezes
+`lr_14m` to `6.4e-2`, exact config `008-a1-lr-6p4e-2`, run
+`001-20260826-190546-4df1c441`, at the upper tested boundary. No further A1
+cell or next-stage run is authorized without newly reviewed plan scope.

@@ -26,12 +26,13 @@ Then read the document that owns the task:
 
 The reviewed `docs/experiment_plan.md` and the exact normative components it
 lists are the authority for datasets, models, budgets, seeds, comparisons,
-promotion rules, diagnostics, and paper outputs. Its current status is
-`reviewed` for `[A1-lr-screen]` at the exact design SHA recorded there. A1
-configs/runs `001`–`005` are
-accepted historical evidence and must never be rerun. The user directed new
-factor-two cells at `1.6e-2`, `3.2e-2`, and `6.4e-2`; `lr_14m` is reopened
-until their terminal classifications complete the eight-cell cohort. Use
+promotion rules, diagnostics, and paper outputs. A1 is complete: configs/runs
+`001`–`008` are accepted historical evidence and must never be rerun.
+`lr_14m` is frozen to `6.4e-2` at the upper tested boundary, selected from
+config `008-a1-lr-6p4e-2`, run `001-20260826-190546-4df1c441`, under the
+reviewed fixed-400M-token rule. The tracked output recipe is commit `56d7771`.
+The plan is now at placeholder status; any next scientific config or run
+requires newly reviewed scope. Use
 `docs/experimental-design/cases.yaml` and
 `docs/experimental-design/run-reuse.md` to ensure one physical config per
 scientific condition and seed.
@@ -68,9 +69,8 @@ scientific condition and seed.
   into repository-level directories.
 - A case runner contains the ordered config paths and calls the single parent,
   `paper_exp.runner.run_launch`. Only a reviewed bounded execution exception
-  may add explicit tracked operational authorization metadata; A1 binds that
-  metadata to its exact original three config IDs, two workers, and A40 GPU
-  identity. It is historical and does not authorize an appended A1 cell.
+  may add explicit tracked operational authorization metadata. A1's dormant
+  worker authorization is historical and authorizes no rerun or new work.
 - Definitive configs are named `CCC-<case>.yaml`; prefixes are globally unique
   and sequential. Raw attempts use
   `raw/CCC-<case>/001-<timestamp>-<id>/` inside the owning scaffold.
@@ -79,13 +79,10 @@ scientific condition and seed.
 - The parent validates the complete tranche and holds one lock. It executes
   configs serially by default. The completed original three-cell A1 launch
   historically used one coordinator and two distinct homogeneous A40 slots;
-  that exact authorization cannot be reused for appended cells. A separate
-  exact three-A40 authorization may cover only the directed configs
-  `006`–`008` after review and materialization. Both earlier A1 boundary cells
-  ran serially. Multiple case runners,
-  same-GPU packing, heterogeneous slots, and multi-Pod dispatch remain
-  forbidden. Keep scientific selection and phase-specific behavior out of the
-  parent.
+  configs `004`–`008` ran serially, with `006`–`008` completing on one A40
+  from clean commit `d410572`. Multiple case runners, same-GPU packing,
+  heterogeneous slots, and multi-Pod dispatch remain forbidden. Keep
+  scientific selection and phase-specific behavior out of the parent.
 - Before a launch, report first-run and full-tranche ETCs, projected completion
   time, evidence, assumptions, and uncertainty. Follow `docs/runbook.md` for
   status and recovery; wait for explicit launch approval, and keep monitoring

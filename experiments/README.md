@@ -44,29 +44,33 @@ if __name__ == "__main__":
 ```
 
 A reviewed bounded execution exception may additionally declare tracked
-operational authorization in that runner. The current A1 high-LR authorization
-is a separate exception bound to the exact eight config IDs, exactly three
-workers, and the `NVIDIA A40` identity. Its required-completion prefix protects
-historical configs `001`–`005`, so only configs `006`–`008` may be admitted.
+operational authorization in that runner. The A1 runner retains dormant
+worker-authorization metadata from a superseded launch shape. It is historical
+and authorizes neither a rerun nor new work.
 
 The parent requires the tuple to list every YAML config in `run/` exactly once,
 holds one experiment lock, and runs configs serially by default. The completed
 original three-cell A1 launch used a reviewed one-coordinator/two-A40
 exception; Git history preserves that recipe. The later configs `004` and
-`005` completed serially. The new eight-config runner requires those five
-completions and has a distinct one-coordinator/three-A40 authorization so all
-three high-LR cells are admitted before any scientific failure can stop later
-admission. A missing or incoherent historical attempt is a prelaunch error,
-never a new run. Other definitive tranches remain serial unless a later
-reviewed policy says otherwise. Even a one-config scientific tranche uses its
-runner. Never run case runners in parallel, pack two workers onto one GPU, mix
-GPU types, or dispatch one launch across Pods.
+`005` completed serially. High-LR configs `006`–`008` completed serially on one
+A40 from clean commit `d410572` with no `--worker-slot` arguments:
+
+```bash
+CUDA_VISIBLE_DEVICES=0 python3 experiments/01-a1-lr-screen/run/runner.py
+```
+
+All A1 configs `001`–`008` are immutable completed evidence and must never be
+rerun. Other definitive tranches remain serial unless a later reviewed policy
+says otherwise. Even a one-config scientific tranche uses its runner. Never
+run case runners in parallel, pack two workers onto one GPU, mix GPU types, or
+dispatch one launch across Pods.
 
 `00-infrastructure-smoke/run/00-smoke.yaml` is the only runner-free exception.
 It is an infrastructure check, not a paper experiment or a scientific config
 template. Do not add scientific scaffolds while
 `docs/experiment_plan.md` says `Plan status: placeholder`, or for a case group
-outside its reviewed scope.
+outside its reviewed scope. After A1 closeout, the next scientific scaffold or
+run requires newly reviewed plan scope.
 
 ## Config and Attempt Identity
 

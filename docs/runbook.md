@@ -18,6 +18,8 @@ The infrastructure-only
 scientific config requires its case group in the reviewed scope. A launch also
 requires a committed scaffold recipe, clean checkout, calibrated ETC, and
 explicit launch approval.
+After A1 closeout, the plan is at placeholder status; the next scientific
+config or run requires newly reviewed scope.
 Once attempted, a config is immutable. A scientific change gets a new config;
 an infrastructure retry gets a new run attempt under the same config.
 
@@ -52,8 +54,9 @@ recipes before their inputs and promotion rules are known.
 Each case runner contains an ordered `CONFIGS` tuple and a call to
 `paper_exp.runner.run_launch`. A reviewed bounded execution exception may add
 tracked operational authorization bound to exact config IDs, worker count,
-and GPU identity; A1 is the only current exception. Shared mechanics belong in
-the parent; science belongs in configs and the reviewed plan.
+and GPU identity. A1's dormant authorization metadata is historical and
+authorizes no rerun or new work. Shared mechanics belong in the parent;
+science belongs in configs and the reviewed plan.
 
 ## 3. Preflight and ETC
 
@@ -85,13 +88,13 @@ or truncate definitive pretraining. A scientific learning-rate screen is a
 normal training tranche and must use a case runner. `OPS-03` closes only after
 the local implementation is paired with a same-hardware timing artifact.
 
-For A1, calibration may be solo or bounded concurrent. Concurrent calibration
-accepts distinct committed configs from one scaffold under one coordinator and
-repository lock. It requires at least two explicit worker slots, one process
-per distinct homogeneous BF16-capable physical GPU, and records the GPU,
-Torch, CUDA runtime, launch, slot, and config identity in every calibration
-manifest. It never reuses a calibration attempt as pretraining evidence.
-Multiple coordinators, same-GPU packing, and multi-Pod dispatch are forbidden.
+The historical A1 calibration permitted solo or bounded concurrent execution.
+Concurrent calibration accepted distinct committed configs from one scaffold
+under one coordinator and repository lock. It required at least two explicit
+worker slots, one process per distinct homogeneous BF16-capable physical GPU,
+and recorded the GPU, Torch, CUDA runtime, launch, slot, and config identity in
+every calibration manifest. It was not pretraining evidence and does not
+authorize future work.
 
 ## 4. Launch
 
@@ -103,8 +106,7 @@ make prepare-data CONFIG=experiments/<scaffold>/run/<config>.yaml
 make calibrate CONFIG=experiments/<scaffold>/run/<config>.yaml
 ```
 
-After A1 is reviewed and its three configs are committed, the approved
-two-GPU calibration shape is:
+The historical approved two-GPU A1 calibration shape was:
 
 ```bash
 python -m paper_exp.cli calibrate \
@@ -128,26 +130,18 @@ python experiments/NN-phase-tranche/run/runner.py
 ```
 
 Serial execution is the default. The completed original three-cell A1 launch
-historically used the same runner with two explicit A40 worker slots, and
-configs `004` and `005` later completed serially. The reviewed high-LR
-extension has a separate authorization for the exact eight-config runner and
-three explicit A40 worker slots:
+historically used the same runner with two explicit A40 worker slots. Configs
+`004` and `005` later completed serially. High-LR configs `006`–`008` completed
+serially on one A40 from clean commit `d410572` with this plain invocation:
 
 ```bash
-python experiments/01-a1-lr-screen/run/runner.py \
-  --worker-slot gpu-0=0 \
-  --worker-slot gpu-1=1 \
-  --worker-slot gpu-2=2
+CUDA_VISIBLE_DEVICES=0 python3 experiments/01-a1-lr-screen/run/runner.py
 ```
 
-This is one coordinator, one repository lock, one writable checkout, and one
-process per distinct A40. The runner requires exact completed reuse of configs
-`001`–`005`, then admits pending configs `006`–`008` together. Its tracked
-`required_completed_config_ids` contract fails closed before mutation if an
-earlier completion is missing, ambiguous, or inconsistent; it never
-substitutes a rerun. Because all three pending cells are initially admitted,
-an escaping failure drains the other two to terminal state rather than
-suppressing a later high-LR cell.
+No `--worker-slot` argument was passed, so the runner used its serial-default
+path under one coordinator and lock. The superseded three-A40 authorization
+remains dormant historical metadata only. All exact A1 configs `001`–`008` are
+completed evidence and must never be rerun.
 
 The parent runner:
 
@@ -166,9 +160,6 @@ The parent runner:
 - aborts before mutation on running, statusless, inconsistent, or ambiguous
   pretraining state;
 - executes one config at a time by default;
-- for the reviewed exact eight-config `A1-lr-screen` recipe, accepts exactly
-  three worker slots mapped one-to-one to distinct homogeneous A40 GPUs on one
-  Pod, while required reuse prevents admission of configs `001`–`005`;
 - stops admitting new configs on the first escaping failure and drains every
   already-admitted worker to terminal state.
 
@@ -178,8 +169,8 @@ that workflow.
 
 The isolated worker engine is implemented and live-validated for
 infrastructure smoke, bounded calibration, and the completed original A1
-launch. The current high-LR amendment exposes it through a new config-bound
-three-A40 authorization. Other definitive work remains serial by default.
+launch. No current scientific scope authorizes bounded-worker execution; new
+work remains serial by default unless a newly reviewed plan says otherwise.
 Multiple case runners, same-GPU packing, heterogeneous worker slots, and
 multi-Pod dispatch remain unsupported.
 
@@ -322,13 +313,13 @@ and clean Git SHA. Long-running commands must survive SSH loss and write their
 log to `/workspace`.
 
 One multi-GPU Pod with one authoritative coordinator and one writable checkout
-is the supported parallel shape. For definitive pretraining, the current
-authorization is bound to the exact eight-config A1 runner, three A40 workers,
-and required completed reuse of configs `001`–`005`; only configs `006`–`008`
-may run. Other tranches remain serial. Do not run independent case runners or allow
-concurrent writable checkouts on one volume. Multi-Pod scientific execution is
-outside this implementation and requires a future reviewed contract rather
-than an ad hoc extension of the local lock.
+is the supported parallel shape when a reviewed scope explicitly authorizes
+it. A1's bounded-worker metadata is completed history and authorizes no rerun;
+the actual high-LR cells ran serially on one A40. No current scientific scope
+authorizes parallel execution. Do not run independent case runners or allow
+concurrent writable checkouts on one volume. Multi-Pod scientific execution
+requires a future reviewed contract rather than an ad hoc extension of the
+local lock.
 
 #### Combined GPU smoke and hardware profile
 

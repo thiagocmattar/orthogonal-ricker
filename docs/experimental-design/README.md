@@ -18,9 +18,9 @@ Pythia-14M discovery and Pythia-70M/410M replication program.
 | Historical `4e-3` definitive launch review | [`a1-boundary-extension-launch-packet.md`](a1-boundary-extension-launch-packet.md) |
 | Historical `8e-3` A1 design review | [`a1-8e-3-boundary-extension-review-packet.md`](a1-8e-3-boundary-extension-review-packet.md) |
 | Historical `8e-3` definitive launch review | [`a1-8e-3-launch-packet.md`](a1-8e-3-launch-packet.md) |
-| Directed three-cell high-LR extension | [`a1-high-lr-extension-review-packet.md`](a1-high-lr-extension-review-packet.md) |
-| Three-cell high-LR definitive launch | [`a1-high-lr-launch-packet.md`](a1-high-lr-launch-packet.md) |
-| A1 calibration and ETC | [`a1-calibration-packet.md`](a1-calibration-packet.md) |
+| Completed three-cell high-LR extension | [`a1-high-lr-extension-review-packet.md`](a1-high-lr-extension-review-packet.md) |
+| Historical high-LR launch record | [`a1-high-lr-launch-packet.md`](a1-high-lr-launch-packet.md) |
+| Historical A1 calibration and ETC | [`a1-calibration-packet.md`](a1-calibration-packet.md) |
 | Shared scientific configuration | [`protocol.md`](protocol.md) |
 | Stage design or selection | [Phase A](phases/a-pressure.md), [B](phases/b-threshold.md), or [C](phases/c-scale.md), plus [`cases.yaml`](cases.yaml) |
 | Config allocation or reuse | [`cases.yaml`](cases.yaml), [`run-reuse.md`](run-reuse.md), and [`../../experiments/README.md`](../../experiments/README.md) |
@@ -28,6 +28,12 @@ Pythia-14M discovery and Pythia-70M/410M replication program.
 | Implementation work | [`workboard.md`](workboard.md) and [`../code_map.md`](../code_map.md) |
 | Launch, recovery, or ETC | [`../runbook.md`](../runbook.md) |
 | Record a selected value | [`decisions.md`](decisions.md) |
+
+A1 configs `001`–`008` are completed, immutable evidence and must never be
+rerun. The exact selected value and run are recorded in
+[`decisions.md`](decisions.md), and the evidence cohort is indexed by
+[`../experiment_log.md`](../experiment_log.md). The tracked output recipe is
+commit `56d7771`. Any next scientific work requires newly reviewed plan scope.
 
 ## One Fact, One Owner
 

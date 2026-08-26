@@ -2,8 +2,10 @@
 
 > **Status:** completed under the user-approved one-A40 serial amendment on
 > 2026-08-26. Configs `006`–`008` are completed, eligible, and valid; their
-> artifacts were retrieved and verified before teardown. The eight-cell
-> `lr_14m` plot and selection remain pending and are not decided here.
+> artifacts were retrieved and verified before teardown. The subsequent
+> eight-cell decision checkpoint froze `lr_14m=6.4e-2` from config
+> `008-a1-lr-6p4e-2`, run `001-20260826-190546-4df1c441`. It is the upper
+> tested boundary, and no further A1 LR extension is authorized.
 
 ## Authority and Identity
 
@@ -124,6 +126,16 @@ RunPod billing had posted `$0.5880` only through `19:00Z` when checked; the
 final partial hour was still pending, so this record does not claim an exact
 final cost.
 
-The eight-cell curve and the preregistered lowest-final-selection-loss rule
-must be applied in a separate checkpoint. No further LR cell is authorized by
-this launch record.
+The separate decision checkpoint applied the predeclared
+lowest-final-selection-loss rule to all eight completed, eligible, valid
+cells. It selected config `008-a1-lr-6p4e-2`, run
+`001-20260826-190546-4df1c441`, checkpoint
+[`checkpoints/final`](../../experiments/01-a1-lr-screen/raw/008-a1-lr-6p4e-2/001-20260826-190546-4df1c441/checkpoints/final/), and froze
+`lr_14m=6.4e-2`. The [curve](../../experiments/01-a1-lr-screen/figs/01-a1-learning-rate-screen.pdf),
+[table](../../experiments/01-a1-lr-screen/figs/01-a1-learning-rate-screen.md),
+and [provenance](../../experiments/01-a1-lr-screen/figs/01-a1-learning-rate-screen.provenance.json)
+use the deterministic recipe committed at
+`56d7771a84ea378be09e66b7fc270cab29e17b0c`; the operational record is commit
+`be365472ff775493984b0c5e69b6250e03d1392e`. Because the selected point is the
+upper tested boundary, it is the best tested LR at the fixed A1 horizon, not a
+global optimum. No further A1 LR extension is authorized.

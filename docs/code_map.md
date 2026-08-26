@@ -19,10 +19,10 @@ pinned scaffold raw/ -> plots/dispatch.py -> family renderer -> scaffold figs/
   `experiments/NN-<phase>-<tranche>/run/runner.py`, even when the tranche
   contains one config.
 - `runner.py` is the only parent runner. It validates the whole tranche and
-  holds one lock. Definitive pretraining is serial by default; the exact
-  `A1-lr-screen` case runner may use bounded isolated worker slots on one
-  homogeneous two-A40 Pod. Calibration uses the same worker engine but remains
-  a separate non-evidence workflow.
+  holds one lock. Definitive pretraining is serial by default. A1's dormant
+  bounded-worker metadata records completed history and authorizes no rerun or
+  new work. Calibration uses the same worker engine but remains a separate
+  non-evidence workflow.
 - Diagnostics consume exact saved run/checkpoint identities. Plots consume
   saved artifacts only.
 

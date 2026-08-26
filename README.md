@@ -11,18 +11,20 @@ plotting utilities.
 modular proposal for the lean 14M discovery and 70M/410M replication program;
 its [executive brief](docs/experimental-design/executive.md) is advisor-facing.
 The sole scientific-scope authority is
-[`docs/experiment_plan.md`](docs/experiment_plan.md). Five A1 learning-rate
-cells are accepted; because `8e-3` remained the best upper boundary, the user
-directed three further factor-two cells at `1.6e-2`, `3.2e-2`, and `6.4e-2`.
-`lr_14m` is reopened until all three new cells receive terminal
-classifications. The decision remains specific to the fixed 400M-token
-horizon, not a global or horizon-independent optimum.
+[`docs/experiment_plan.md`](docs/experiment_plan.md). The eight-cell A1
+learning-rate screen is complete: configs `001`–`008` are completed, eligible,
+valid evidence and must never be rerun. Under the reviewed selection rule,
+`lr_14m` is frozen to `6.4e-2`, from config `008-a1-lr-6p4e-2`, run
+`001-20260826-190546-4df1c441`. This is the best tested value at the upper
+boundary of the fixed 400M-token screen, not a global or horizon-independent
+optimum. The tracked output recipe is commit `56d7771`.
 
 The tracked tree contains the definitive A1 recipes and their evidence index;
 raw attempts remain ignored and are addressed by exact identities from
 [`docs/experiment_log.md`](docs/experiment_log.md). A1 selects an optimization
 setting at its fixed 400M-token horizon and makes no sparsity or
-horizon-independent optimum claim.
+horizon-independent optimum claim. The plan is now at placeholder status; any
+next scientific config or run requires newly reviewed scope.
 
 ## Scientific Invariants
 
@@ -99,11 +101,8 @@ After the relevant case groups enter the definitive plan's reviewed scope:
    A1 historically calibrated distinct configs concurrently under one
    coordinator and lock, with one process per distinct homogeneous GPU.
 7. Execute the case runner; it reuses coherent completed configs and runs new
-   cases serially by default under one lock. A1 has a separate reviewed
-   three-A40 exception for exactly the eight-config runner: configs `001`–`005`
-   are required completed reuse and only pending configs `006`–`008` are
-   admitted. A reviewed infrastructure retry requires the explicit
-   `--retry-failed` flag.
+   cases serially by default under one lock. A reviewed infrastructure retry
+   requires the explicit `--retry-failed` flag.
 8. Verify terminal artifacts before running diagnostics or plotting.
 9. Record accepted evidence in the experiment and paper maps.
 
@@ -121,6 +120,13 @@ explicit GPU slots to one CLI coordinator; see the runbook. That operational
 timing workflow was not reused as pretraining evidence. The separately
 approved definitive A1 launch later used the same bounded two-GPU decomposition
 through its case runner and is now complete; neither record authorizes a rerun.
+Configs `004` and `005` also ran serially. The high-LR cells `006`–`008`
+completed serially on one A40 from clean commit `d410572` with the plain
+case-runner invocation:
+
+```bash
+CUDA_VISIBLE_DEVICES=0 python3 experiments/01-a1-lr-screen/run/runner.py
+```
 
 Every definitive training tranche, even one containing a single config, uses
 its committed case runner:
@@ -131,13 +137,12 @@ python experiments/NN-phase-tranche/run/runner.py
 
 The case runner contains the ordered config paths and delegates to
 `paper_exp.runner.run_launch`. A reviewed bounded exception may also carry
-tracked operational authorization. The current A1 high-LR exception is bound
-to the exact eight config IDs, three workers, and A40 identity, while its
-required-completion prefix prevents any rerun of configs `001`–`005`. Its
-scaffold prefix and lock serialize coordinator invocations. The parent
-validates the complete tranche, requires every config to be a direct sibling
-of the runner, and stops admission on the first failure while draining work
-already admitted.
+tracked operational authorization. The A1 runner's dormant worker
+authorization records a superseded launch shape; it is historical, was inert
+for the serial high-LR run, and authorizes neither an A1 rerun nor new work.
+The parent validates the complete tranche, requires every config to be a
+direct sibling of the runner, and stops admission on the first failure while
+draining work already admitted.
 See
 [`experiments/README.md`](experiments/README.md).
 
