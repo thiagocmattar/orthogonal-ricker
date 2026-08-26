@@ -1,16 +1,16 @@
 # Definitive Experiment Plan Manifest
 
-Plan status: placeholder
-Reviewed design commit: none
-Reviewed case groups: []
+Plan status: reviewed
+Reviewed design commit: 3710dfdd416ac3484516c4d8c2162692346fe7e9
+Reviewed case groups: [A1-lr-screen]
 
-> **Current scope:** none. The reviewed `A1-lr-screen` boundary extension is
-> complete: all four cells have valid eligible attempts, and the predeclared
-> rule freezes `lr_14m = 4e-3` in
-> [`decisions.md`](experimental-design/decisions.md). The selected value is the
-> upper tested boundary at the fixed 400M-token horizon; no `8e-3` extension is
-> authorized. Recording this upstream decision resets the plan to placeholder
-> status until the next exact case groups and design commit are reviewed.
+> **Reviewed scope:** `[A1-lr-screen]`. On 2026-08-26 the user directed one
+> additional factor-two upper-boundary cell after `4e-3` remained the best
+> tested value. The exact five-cell design is reviewed at commit
+> `3710dfdd416ac3484516c4d8c2162692346fe7e9`; reuse accepted configs/runs
+> `001`–`004` and materialize only `005-a1-lr-8e-3`. `lr_14m` remains
+> unresolved until all five cells receive terminal classifications. No
+> automatic `1.6e-2` extension is authorized.
 
 The [`A1 formal review packet`](experimental-design/a1-review-packet.md) was
 approved at design commit `54be534f383001b4af3d3b43597e135d4ca6653d`.

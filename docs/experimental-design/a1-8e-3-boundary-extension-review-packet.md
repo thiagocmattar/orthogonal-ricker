@@ -1,7 +1,8 @@
 # A1 `8e-3` Boundary Extension Review Packet
 
-> **Status:** directed by the user on 2026-08-26; awaiting exact-design-SHA
-> activation in `docs/experiment_plan.md` before config allocation.
+> **Status:** reviewed by user direction on 2026-08-26 at exact design commit
+> `3710dfdd416ac3484516c4d8c2162692346fe7e9`; activated for
+> `[A1-lr-screen]` in `docs/experiment_plan.md`.
 
 ## Why This Cell Exists
 
