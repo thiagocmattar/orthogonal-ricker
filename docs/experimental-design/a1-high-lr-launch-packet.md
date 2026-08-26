@@ -122,9 +122,15 @@ trigger a failure rule.
 All remote/local per-file hashes matched. The retrieved coordinator log is
 `tmp/a1-hi-lr-runner-bq45s1hj2262ak.log` (1,617 bytes; SHA-256
 `01f23203e8995b8b60818dc1bb3353b4319211018b2586d551fc6b43ab08beea`).
-RunPod billing had posted `$0.5880` only through `19:00Z` when checked; the
-final partial hour was still pending, so this record does not claim an exact
-final cost.
+RunPod billing was still ingesting the closed `19:00–20:00Z` hour in
+near-exact five-minute slices at the `2026-08-26T20:15:08Z` cutoff. For Pod
+`bq45s1hj2262ak`, the API subtotal of `$0.77430647413712` is therefore a lower
+bound, not a final charge. The independently observed lifecycle through about
+`19:45–19:46Z` implies an estimated final successful-Pod cost of
+`$0.998–$1.005`; this remains an inference pending billing convergence and is
+below the `$1.35` cap. The earlier preparation Pod `9l8jns1uwarkfp` is separate
+and has an exact posted charge of `$0.030331766232848167`. Final inventories
+show zero Pods and zero network volumes, so recurring spend is `$0/hour`.
 
 The separate decision checkpoint applied the predeclared
 lowest-final-selection-loss rule to all eight completed, eligible, valid
