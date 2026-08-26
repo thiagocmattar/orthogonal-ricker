@@ -11,11 +11,12 @@ plotting utilities.
 modular proposal for the lean 14M discovery and 70M/410M replication program;
 its [executive brief](docs/experimental-design/executive.md) is advisor-facing.
 The sole scientific-scope authority is
-[`docs/experiment_plan.md`](docs/experiment_plan.md). Four A1 learning-rate
-cells are eligible; because `4e-3` remained the best upper boundary, the user
-directed one final factor-two cell at `8e-3`. `lr_14m` is unresolved until that
-cell receives a terminal classification. The decision remains specific to the
-fixed 400M-token horizon, not a horizon-independent optimum.
+[`docs/experiment_plan.md`](docs/experiment_plan.md). The five-cell A1
+learning-rate screen is complete and `lr_14m` is frozen at `8e-3` by the
+predeclared fixed-horizon rule. It remains the upper tested boundary, so this
+is the best tested setting at 400M training tokens, not a global or
+horizon-independent optimum. The plan is now a placeholder pending review of
+the next case groups.
 
 The tracked tree contains the definitive A1 recipes and their evidence index;
 raw attempts remain ignored and are addressed by exact identities from
@@ -99,9 +100,9 @@ After the relevant case groups enter the definitive plan's reviewed scope:
    coordinator and lock, with one process per distinct homogeneous GPU.
 7. Execute the case runner; it reuses coherent completed configs and runs new
    cases serially by default under one lock. The historical A1 two-worker
-   authorization was bound to exactly configs `001`–`003`; config `004` later
-   completed through the serial four-config extension runner. A reviewed
-   infrastructure retry requires the explicit `--retry-failed` flag.
+   authorization was bound to exactly configs `001`–`003`; configs `004` and
+   `005` later completed through serial boundary-extension launches. A
+   reviewed infrastructure retry requires the explicit `--retry-failed` flag.
 8. Verify terminal artifacts before running diagnostics or plotting.
 9. Record accepted evidence in the experiment and paper maps.
 

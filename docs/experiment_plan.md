@@ -1,24 +1,22 @@
 # Definitive Experiment Plan Manifest
 
-Plan status: reviewed
-Reviewed design commit: 3710dfdd416ac3484516c4d8c2162692346fe7e9
-Reviewed case groups: [A1-lr-screen]
+Plan status: placeholder
+Reviewed design commit: none
+Reviewed case groups: []
 
-> **Reviewed scope:** `[A1-lr-screen]`. On 2026-08-26 the user directed one
-> additional factor-two upper-boundary cell after `4e-3` remained the best
-> tested value. The exact five-cell design is reviewed at commit
-> `3710dfdd416ac3484516c4d8c2162692346fe7e9`; reuse accepted configs/runs
-> `001`–`004` and materialize only `005-a1-lr-8e-3`. `lr_14m` remains
-> unresolved until all five cells receive terminal classifications. No
-> automatic `1.6e-2` extension is authorized. Config `005` and the amended
-> fail-closed serial runner were materialized at commit
-> `6df2206a215579853436d43c5fe0b5b6aa7620a9`.
+> **Current state:** The exact five-cell A1 screen is complete. Its
+> predeclared selection rule freezes `lr_14m` at `8e-3`, using config
+> `005-a1-lr-8e-3`, run `001-20260826-135546-928279bb`. This selected point is
+> the upper tested boundary at the fixed 400M-token horizon; no automatic
+> `1.6e-2` extension is authorized. No scientific case group is currently in
+> reviewed launch scope.
 
 The [`A1 formal review packet`](experimental-design/a1-review-packet.md) was
 approved at design commit `54be534f383001b4af3d3b43597e135d4ca6653d`.
 That historical approval permitted its three immutable configs and the now
-completed original tranche only; the separately approved boundary-extension
-design above governs the fourth cell.
+completed original tranche only. The two separately reviewed boundary
+extensions are also complete; their immutable review and launch packets remain
+historical provenance.
 
 This file remains the sole launch-status authority. The proposed scientific
 design is split into focused components under

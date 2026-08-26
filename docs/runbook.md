@@ -132,18 +132,20 @@ historically used the same runner with two explicit A40 worker slots. That
 authorization was bound to exactly configs `001`–`003` and is not active for
 either later boundary extension.
 
-Run the reviewed A1 extension serially, without worker-slot arguments:
+The completed A1 boundary extensions used the serial runner without
+worker-slot arguments:
 
 ```bash
 python experiments/01-a1-lr-screen/run/runner.py
 ```
 
-This is one coordinator, one repository lock, and one writable checkout. With
-the four accepted attempts staged under the scaffold, the runner reuses
-configs `001`–`004` and executes only pending config `005` on one A40. Its
-tracked `required_completed_config_ids` contract fails closed before mutation
-if any original completion is missing, ambiguous, or inconsistent; it never
-substitutes a rerun.
+This is one coordinator, one repository lock, and one writable checkout. At
+the fifth-cell launch, the runner reused configs `001`–`004` and executed only
+config `005` on one A40. All five cells are now complete, so the same runner
+would reuse every condition and create no new attempt. Its tracked
+`required_completed_config_ids` contract fails closed before mutation if an
+earlier completion is missing, ambiguous, or inconsistent; it never
+substitutes a rerun. Any new A1 condition requires a newly reviewed plan.
 
 The parent runner:
 

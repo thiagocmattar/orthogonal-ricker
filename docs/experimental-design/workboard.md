@@ -38,7 +38,7 @@ copied into this table.
 | `OPS-06` | resolved | concurrency infrastructure | Validate the bounded RunPod worker workflow with infrastructure-only smoke tests before any scientific use | Commit `b62f03b`; live report SHA-256 `2c356f51bd0068c7fd2d39ac5bbd70c3c4b3a43e53d101e7a3595f08c16bde17` proves overlap, injected failure/drain, same-coordinator-invocation recovery, completed reuse, BF16, and distinct GPUs; artifact retrieved and both RunPod inventories verified empty |
 | `OPS-09` | resolved | definitive A1 launch | Expose bounded config-level concurrency only to the exact `A1-lr-screen` case runner: one coordinator and lock, one Pod, exactly two distinct homogeneous A40 slots, stable admission, failure stop-and-drain, and unchanged per-config reuse/retry semantics | Commit `a23c56d`; authorization is bound to the ordered A1 config IDs, two workers, and `NVIDIA A40`; 74 focused runner/scheduler tests and the full 480-pass suite passed, with strict check at 0 errors/warnings and infrastructure smoke completed |
 | `OPS-10` | resolved | A1 boundary-cell launch | Preserve cross-revision A1 training semantics and make reuse of configs `001`–`003` fail closed before config `004` can run | Materialization commit `e7e63a4`; exact evidence below; 81 focused tests and full suite of 491 passed / 3 skipped; config `004` subsequently completed with the frozen initialization, schedule, cache, validation, budget, batch, precision, and checkpoint identities |
-| `OPS-11` | resolved | A1 `8e-3` boundary-cell launch | Preserve the active A1 path and make reuse of configs `001`–`004` fail closed before config `005` can run | Materialization commit `6df2206a215579853436d43c5fe0b5b6aa7620a9`; no `src/paper_exp`, constraints, or package change since config `004` execution commit; config `005` changes only label, fingerprint, and peak LR; 81 focused tests and strict integrity passed; exact local classification is `001`–`004` complete and `005` pending |
+| `OPS-11` | resolved | A1 `8e-3` boundary-cell launch | Preserve the active A1 path and make reuse of configs `001`–`004` fail closed before config `005` can run | Launch commit `a4ddaa5c9897224a9285afae09d2d9c6b07b3cec`; config `005` run `001-20260826-135546-928279bb` completed all 1,526 steps and passed remote/local checkpoint acceptance; retrieved archive SHA-256 `04e1ef3684152e86836a535f9f6b82c95193646f313bb7beae5aa89030c399f0`; teardown verified zero Pods, zero network volumes, and $0/hour |
 | `PLOT-01` | open | paper release | Implement the three declared figure families from pinned artifacts | Deterministic plot tests, PDF/PNG, provenance sidecars |
 | `MAN-01` | open | manuscript release | Remove or separately validate out-of-scope 12B/long-context claims and enforce claim wording | Reviewed introduction consistent with `outputs.md` |
 
@@ -50,7 +50,7 @@ Readiness is derived from this table, the reviewed case-group scope, and
 
 | Stage | State | Required closure/decision |
 | --- | --- | --- |
-| A1 | ready | Four cells are eligible, valid evidence; run only the reviewed `8e-3` cell before applying the five-cell selection rule |
+| A1 | complete | Five cells are eligible, valid evidence; `lr_14m` is frozen at `8e-3` by the reviewed fixed-horizon rule |
 | A2 | blocked | Review the A2 groups at a new design commit; `DIAG-02`, `OPS-08` |
 | A3 | blocked | Reviewed group `A3-ol1-screen`; A2 complete; `METHOD-02`, `DIAG-03`, `OPS-08` |
 | B1 | blocked | Review `B1-threshold-screen`; A2 terminal interpretation; resolve `DESIGN-01`, `METHOD-01`, `DIAG-01`, `OPS-08` |
@@ -119,8 +119,9 @@ each of `001`–`003` and no attempt for `004`.
 Verification at materialization: 81 focused runner/design tests passed; the
 full suite passed 491 with 3 expected platform skips; strict integrity reported
 0 errors and 0 warnings; infrastructure smoke attempt
-`018-20260825-233716-c9e29f60` passed. Therefore
-`a1_pretraining_v1` remains the correct active training identity. Runtime
-acceptance still requires config `004` to reproduce the frozen initial-
-parameter hash, schedule hash, cache identities, validation coverage, budget,
-physical batch, precision, and checkpoint contract.
+`018-20260825-233716-c9e29f60` passed. Config `004` subsequently reproduced the
+frozen runtime contract in run `001-20260826-123606-46e7454f`. Config `005`
+changed only its label, derived fingerprint, and peak LR, then reproduced the
+same initialization, schedule, cache, validation, budget, physical batch,
+precision, and checkpoint identities in run
+`001-20260826-135546-928279bb`.

@@ -53,10 +53,10 @@ The parent requires the tuple to list every YAML config in `run/` exactly once,
 holds one experiment lock, and runs configs serially by default. The completed
 original three-cell A1 launch used a reviewed one-coordinator/two-A40
 exception; Git history preserves that recipe, and it cannot be widened to the
-later boundary cells. The amended A1 runner must reuse completions `001`–`004`
-and execute only pending config `005` serially. Its tracked required-completion
-list makes a missing or incoherent original attempt a prelaunch error, never a
-new run. All definitive tranches remain
+later boundary cells. The amended A1 runner reused completions `001`–`004` and
+executed config `005` serially; all five cells are now complete. Its tracked
+required-completion list makes a missing or incoherent earlier attempt a
+prelaunch error, never a new run. All definitive tranches remain
 serial unless a later reviewed policy says otherwise. Even a one-config
 scientific tranche uses its runner. Never run case runners in parallel, pack
 two workers onto one GPU, mix GPU types, or dispatch one launch across Pods.
