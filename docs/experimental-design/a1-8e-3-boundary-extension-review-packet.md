@@ -28,7 +28,7 @@ selection evaluations, and one final model checkpoint.
 
 After all five cells have terminal classifications, select the eligible cell
 with the lowest final selection loss; an exact tie favors the lower learning
-rate. Scientific divergence is retained as a resolved dominated cell and is
+rate. Scientific divergence is retained as a resolved ineligible cell and is
 not retried. Infrastructure interruption requires explicit unchanged-config
 recovery. No automatic `1.6e-2` extension is authorized.
 
@@ -37,7 +37,7 @@ upper tested boundary and make no horizon-independent optimality claim.
 
 ## Execution Shape
 
-Use the existing serial A1 runner under one coordinator and lock. Require exact
+Use the amended serial A1 runner under one coordinator and lock. Require exact
 completed reuse of configs `001`–`004`, then run only config `005` on one A40
 48GB. Retrieve and verify the complete artifact envelope before deleting the
 Pod. The prior measured end-to-end duration for config `004` was 41m44.9s; use

@@ -28,9 +28,9 @@ The reviewed `docs/experiment_plan.md` and the exact normative components it
 lists are the authority for datasets, models, budgets, seeds, comparisons,
 promotion rules, diagnostics, and paper outputs. Its current status is
 `reviewed` for `[A1-lr-screen]` at design commit
-`e8214a411afebf0cec5658f0f1ccdd3e6bcd5585`. Config `004` is materialized in
-the existing scaffold but is not launch-authorized. Configs/runs `001`–`003`
-remain exact required reuse inputs and must never be rerun; the tracked runner
+`3710dfdd416ac3484516c4d8c2162692346fe7e9`. Config `005` is materialized in
+the existing scaffold. Configs/runs `001`–`004` remain exact required reuse
+inputs and must never be rerun; the tracked runner
 fails closed if any is unavailable. Use
 `docs/experimental-design/cases.yaml` and
 `docs/experimental-design/run-reuse.md` to ensure one physical config per
@@ -79,7 +79,7 @@ scientific condition and seed.
 - The parent validates the complete tranche and holds one lock. It executes
   configs serially by default. The completed original three-cell A1 launch
   historically used one coordinator and two distinct homogeneous A40 slots;
-  that exact authorization cannot be widened. The proposed fourth A1 cell is
+  that exact authorization cannot be widened. The fifth A1 cell is
   serial because it is the only pending condition. Multiple case runners,
   same-GPU packing, heterogeneous slots, and multi-Pod dispatch remain
   forbidden. Keep scientific selection and phase-specific behavior out of the

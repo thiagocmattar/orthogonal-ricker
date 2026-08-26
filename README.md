@@ -131,7 +131,7 @@ The case runner contains the ordered config paths and delegates to
 `paper_exp.runner.run_launch`. A reviewed bounded exception may also carry
 tracked operational authorization. The historical A1 exception was bound to
 the exact original three config IDs, two workers, and A40 identity; it does not
-cover config `004`. Its scaffold prefix and lock serialize coordinator
+cover configs `004` or `005`. Its scaffold prefix and lock serialize coordinator
 invocations. The parent validates the complete tranche, requires every config
 to be a direct sibling of the runner, and stops admission on the first failure.
 See

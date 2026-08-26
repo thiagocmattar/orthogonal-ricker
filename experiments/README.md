@@ -46,15 +46,15 @@ if __name__ == "__main__":
 A reviewed bounded execution exception may additionally declare tracked
 operational authorization in that runner. The historical A1 authorization is
 bound to its exact original three config IDs, exactly two workers, and the
-`NVIDIA A40` identity. It does not authorize an appended cell; the proposed
-four-config A1 extension runner is serial.
+`NVIDIA A40` identity. It does not authorize an appended cell; both later A1
+boundary extensions are serial.
 
 The parent requires the tuple to list every YAML config in `run/` exactly once,
 holds one experiment lock, and runs configs serially by default. The completed
 original three-cell A1 launch used a reviewed one-coordinator/two-A40
 exception; Git history preserves that recipe, and it cannot be widened to the
-proposed fourth cell. The amended A1 runner must reuse the three completions
-and execute only the pending config serially. Its tracked required-completion
+later boundary cells. The amended A1 runner must reuse completions `001`–`004`
+and execute only pending config `005` serially. Its tracked required-completion
 list makes a missing or incoherent original attempt a prelaunch error, never a
 new run. All definitive tranches remain
 serial unless a later reviewed policy says otherwise. Even a one-config

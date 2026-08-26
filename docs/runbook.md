@@ -175,7 +175,7 @@ that workflow.
 The isolated worker engine is implemented and live-validated for
 infrastructure smoke and bounded calibration. The selected A1 operational
 amendment exposed it to that exact original tranche through the config-bound
-authorization committed in `a23c56d`. The proposed fourth A1 cell and other
+authorization committed in `a23c56d`. Both later A1 boundary cells and other
 definitive work remain serial by default. Multiple case runners, same-GPU
 packing, heterogeneous worker slots, and multi-Pod dispatch remain unsupported.
 

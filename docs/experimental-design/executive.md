@@ -77,7 +77,7 @@ anchor.
 50-run B1 count assumes the predeclared kappa-zero equivalence passes its
 required numerical/diagnostic review. The lower B2/C3 count applies when
 `lambda_B2 = 1`; `K` is the number of frozen B2 frontier kappas. If all stages
-proceed, the catalog contains 131–149 new pretraining runs (`K` from 1 to 4).
+proceed, the catalog contains 132–150 new pretraining runs (`K` from 1 to 4).
 
 Full grids are exploratory seed-0 evidence. The fixed spillover contrast and
 the selected six-component winner comparison use seeds 0, 1, and 2. A later
