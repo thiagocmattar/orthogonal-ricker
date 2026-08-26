@@ -7,7 +7,7 @@ configs/runs/diagnostics in [`../experiment_log.md`](../experiment_log.md).
 | Decision ID | State | Value | Exact evidence pointer | Rule required before freezing |
 | --- | --- | --- | --- | --- |
 | `ol1_step_budget` | unresolved | `TODO:` | `TODO:` reviewed design record | Independent scientific review before A3; not selected by smoke calibration |
-| `lr_14m` | frozen | `4e-3` | The complete eligible cohort is indexed in the [experiment log](../experiment_log.md); selected config `004-a1-lr-4e-3`, run `001-20260826-123606-46e7454f`, checkpoint `checkpoints/final` | Lowest final selection loss in the exact four-cell A1 cohort; selected value remains the upper tested boundary |
+| `lr_14m` | unresolved | `TODO: five-cell A1 selection` | The four accepted cells are indexed in the [experiment log](../experiment_log.md); config `004-a1-lr-4e-3`, run `001-20260826-123606-46e7454f`, is the provisional four-cell selection, and the reviewed `8e-3` boundary cell is pending | Lowest final selection loss in the exact five-cell A1 cohort; an exact tie favors the lower LR |
 | `lambda_B2` | unresolved | `TODO:` | `TODO:` experiment-log cohort | A3 matched L1/OL1 Pareto rule |
 | `b1_family` | unresolved | `TODO:` | `TODO:` experiment-log cohort | B1 positive-kappa family rule |
 | `b2_frontier` | unresolved | `TODO:` | `TODO:` exact case/attempt set | All valid nondominated B2 combined points |

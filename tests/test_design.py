@@ -61,8 +61,8 @@ def test_repository_catalog_expands_every_declared_group_and_alias() -> None:
         "C3-frontier-replication",
         "C3-winner-confirmation",
     )
-    assert summary.groups["A1-lr-screen"]["conceptual_cells"] == 4
-    assert summary.groups["A1-lr-screen"]["unique_cases"] == 4
+    assert summary.groups["A1-lr-screen"]["conceptual_cells"] == 5
+    assert summary.groups["A1-lr-screen"]["unique_cases"] == 5
     assert summary.groups["B1-threshold-screen"]["conceptual_cells"] == 56
     assert summary.groups["B1-threshold-screen"]["unique_cases"] == 50
 
@@ -207,16 +207,16 @@ def test_a1_preflight_enforces_exact_physical_cell_and_duplicate_reuse(
         )
 
 
-def test_a1_preflight_accepts_4e_3_and_rejects_unreviewed_extension(
+def test_a1_preflight_accepts_8e_3_and_rejects_unreviewed_extension(
     tmp_path: Path,
 ) -> None:
     repository, _design_sha = _reviewed_repository(tmp_path)
     scaffold = repository / "experiments/01-a1-lr-screen"
     for name in ("run", "raw", "figs"):
         (scaffold / name).mkdir(parents=True, exist_ok=True)
-    config_path = scaffold / "run/004-a1-lr-4e-3.yaml"
+    config_path = scaffold / "run/005-a1-lr-8e-3.yaml"
     config = _a1_config()
-    config["training"]["learning_rate"] = 4.0e-3
+    config["training"]["learning_rate"] = 8.0e-3
     excludes = validate_catalog(repository).fingerprint_exclude_paths
     config["identity"]["condition_fingerprint"] = condition_fingerprint(
         config, exclude_paths=excludes
@@ -230,7 +230,7 @@ def test_a1_preflight_accepts_4e_3_and_rejects_unreviewed_extension(
         config_path=config_path,
     )
 
-    config["training"]["learning_rate"] = 8.0e-3
+    config["training"]["learning_rate"] = 1.6e-2
     config["identity"]["condition_fingerprint"] = condition_fingerprint(
         config, exclude_paths=excludes
     )

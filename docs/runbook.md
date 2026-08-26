@@ -130,7 +130,7 @@ python experiments/NN-phase-tranche/run/runner.py
 Serial execution is the default. The completed original three-cell A1 launch
 historically used the same runner with two explicit A40 worker slots. That
 authorization was bound to exactly configs `001`–`003` and is not active for
-the four-cell boundary extension.
+either later boundary extension.
 
 Run the reviewed A1 extension serially, without worker-slot arguments:
 
@@ -139,8 +139,8 @@ python experiments/01-a1-lr-screen/run/runner.py
 ```
 
 This is one coordinator, one repository lock, and one writable checkout. With
-the three accepted attempts staged under the scaffold, the runner reuses
-configs `001`–`003` and executes only pending config `004` on one A40. Its
+the four accepted attempts staged under the scaffold, the runner reuses
+configs `001`–`004` and executes only pending config `005` on one A40. Its
 tracked `required_completed_config_ids` contract fails closed before mutation
 if any original completion is missing, ambiguous, or inconsistent; it never
 substitutes a rerun.

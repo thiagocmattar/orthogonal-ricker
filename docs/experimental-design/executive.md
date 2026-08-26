@@ -25,7 +25,7 @@ checkpoint weights are not loaded.
 
 | Model | Global batch | Peak-LR grid |
 | --- | ---: | ---: |
-| Pythia-14M | 262,144 tokens/update | `{5e-4, 1e-3, 2e-3, 4e-3}` |
+| Pythia-14M | 262,144 tokens/update | `{5e-4, 1e-3, 2e-3, 4e-3, 8e-3}` |
 | Pythia-70M | 262,144 tokens/update | `{5e-4, 1e-3, 2e-3}` |
 | Pythia-410M | 262,144 tokens/update | `{1.5e-4, 3e-4, 6e-4}` |
 
@@ -64,7 +64,7 @@ anchor.
 
 | Stage | Experiment | Question/decision | New physical runs* |
 | --- | --- | --- | ---: |
-| A1 | 14M `A0`, four peak LRs, seed 0 | Freeze the lowest final selection-loss LR; `4e-3` is a single upper-boundary extension. | 4 |
+| A1 | 14M `A0`, five peak LRs, seed 0 | Freeze the lowest final selection-loss LR; `8e-3` is the single factor-two upper-boundary extension. | 5 |
 | A2 | ReLU `A1-H`, h-only L1 lambda grid | Map targeted and untargeted responses; confirm the fixed ReLU-only versus L1 contrast with three seeds. | 10 |
 | A3 | Same grid with OL1 | Compare loss versus achieved near-zero mass and projection behavior; freeze one matched nonzero lambda for B2. | 5 |
 | B1 | Placement × kappa × attention-threshold form, no pressure | Map and select the validation-loss/`R_model` family frontier. | 50 |

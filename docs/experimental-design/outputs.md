@@ -17,10 +17,10 @@
 
 ## Learning-Rate Screens
 
-Report A1 as a complete four-cell table and curve with peak LR, final selection
+Report A1 as a complete five-cell table and curve with peak LR, final selection
 loss, terminal classification, eligibility, exact config/run identity, and the
 selected rate. Preserve training/validation curves and timing/resource
-telemetry for every cell. If `4e-3` is selected, label it as the upper tested
+telemetry for every cell. If `8e-3` is selected, label it as the upper tested
 boundary. A1 supports only a best-tested-rate decision at the fixed 400M-token
 horizon; it does not support a sparsity, convergence, full-pass, or
 horizon-independent optimum claim.
@@ -69,7 +69,7 @@ case catalog is reviewed to add seeds.
 
 ## Appendix Package
 
-- complete four-cell A1 and complete C1 tuning tables and frozen rates;
+- complete five-cell A1 and complete C1 tuning tables and frozen rates;
 - every lambda/kappa point, including dominated, adverse, failed, and invalid
   cases;
 - full OL1 cosine, trust-scale, correction-ratio, and layerwise diagnostics;
