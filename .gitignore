@@ -37,3 +37,4 @@ experiments/*/figs/*
 
 # Local exploratory paper material is outside the definitive experiment tree.
 /report/
+/docs/humans/main.pdf
