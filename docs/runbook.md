@@ -178,10 +178,12 @@ that workflow.
 
 The isolated worker engine is implemented and live-validated for
 infrastructure smoke, bounded calibration, and the completed original A1
-launch. No current scientific scope authorizes bounded-worker execution; new
-work remains serial by default unless a newly reviewed plan says otherwise.
-Multiple case runners, same-GPU packing, heterogeneous worker slots, and
-multi-Pod dispatch remain unsupported.
+launch. The A2 case runner also has an exact two-A40 authorization, backed by
+its accepted production-shaped calibration; it remains subject to explicit
+definitive launch and billable-envelope approval. All other new work remains
+serial by default unless a newly reviewed plan says otherwise. Multiple case
+runners, same-GPU packing, heterogeneous worker slots, and multi-Pod dispatch
+remain unsupported.
 
 ### RunPod Operations
 

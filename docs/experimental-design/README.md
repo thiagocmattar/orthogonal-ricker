@@ -14,6 +14,7 @@ Pythia-14M discovery and Pythia-70M/410M replication program.
 | --- | --- |
 | Advisor review | [`executive.md`](executive.md) |
 | Reviewed six-run A2 plan | [`a2-review-packet.md`](a2-review-packet.md) |
+| Accepted A2 calibration and ETC | [`a2-calibration-packet.md`](a2-calibration-packet.md) |
 | Original three-cell A1 review | [`a1-review-packet.md`](a1-review-packet.md) |
 | Historical `4e-3` A1 design review | [`a1-boundary-extension-review-packet.md`](a1-boundary-extension-review-packet.md) |
 | Historical `4e-3` definitive launch review | [`a1-boundary-extension-launch-packet.md`](a1-boundary-extension-launch-packet.md) |
