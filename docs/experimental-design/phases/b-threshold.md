@@ -54,7 +54,10 @@ validation-loss/logical-opportunity frontier relative to its components?
 
 **Cases:** `B2-combined-screen` evaluates every catalogued kappa in the
 selected family. `B2-winner-confirmation` adds seeds 1 and 2 only to the final
-six-component comparison and reuses every matching seed-0/control case.
+six-component comparison and reuses every matching seed-0/control case. Its
+ReLU-only and selected-L1 components may also provide the deferred added-seed
+A2 selected-lambda contrast; no separate A2 replication run is allocated, and
+the full A2 grid is not replicated.
 
 **Frontier rule:** after every combined kappa cell is resolved, form the valid
 combined Pareto set. Freeze all nondominated points as `b2_frontier`. Select

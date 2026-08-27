@@ -25,21 +25,22 @@ not borrow another model's LR or make a complete cross-scale persistence claim.
 
 **Prerequisites:** the relevant per-model LR and the completed A2 design.
 
-**Cases:** `C2-dense-controls`, `C2-relu-controls`, `C2-l1-screens`,
-`C2-relu-confirmation`, and `C2-spillover-confirmation`. C1's `A0` cases
-cannot be reused because their budget is `lr-400m`; C2 uses `full-pass-wrap`.
-Each zero-pressure response anchor has `pressure: none`; only positive lambdas
-use `pressure: l1_naive`.
+**Cases:** `C2-dense-controls`, `C2-relu-controls`, and `C2-l1-screens`, all
+at seed 0. C1's `A0` cases cannot be reused because their budget is
+`lr-400m`; C2 uses `full-pass-wrap`. Each zero-pressure response anchor has
+`pressure: none`; only positive lambdas use `pressure: l1_naive`.
 
-**Evidence:** show the complete lambda response as exploratory seed-0 evidence.
-The same fixed ReLU-only versus L1 contrast used in A2 receives seeds 0, 1, and
-2 at both larger sizes. Absolute lambda values are transported unchanged.
+**Evidence:** show the transported `{0.1, 1, 5}` lambda response as exploratory
+seed-0 evidence. Absolute lambda values are transported unchanged. Added-seed
+replication of the full response is not planned. If the later final winner
+cohorts are reviewed and completed, their matching components can support only
+the selected-lambda contrast; this is not required for C2 completion.
 
 **Completion rule:** a full response requires every seed-0 grid cell to be
-resolved. A cross-size central contrast requires equal valid seed sets at all
-three sizes; missing/unfavorable seeds are not replaced.
+resolved. Missing or unfavorable cells are not replaced.
 
-**Produces:** the matched site/layer spillover vector for 14M, 70M, and 410M.
+**Produces:** the directional seed-0 site/layer spillover comparison for 14M,
+70M, and 410M.
 
 ## C3 Frontier Replication
 
@@ -53,8 +54,10 @@ retuning the intervention?
 seed 0. `C3-frontier-replication` transports the B2 topology, attention form,
 kappa cohort, lambda, and step budget literally; only threshold-only and
 threshold+OL1 vary by kappa. `C3-winner-confirmation` adds seeds 1 and 2 to the
-same six-component winner comparison. Matching C2 `A0`, ReLU-only, and
-L1-only cases are consumers, not new training runs.
+same six-component winner comparison. Matching seed-0 C2 `A0`, ReLU-only, and
+L1-only cases are consumers, not new training runs; added-seed components are
+owned by the final winner cohort and may also serve the deferred selected-L1
+contrast replication. They do not replicate the full C2 grid.
 
 **Evidence:** report the complete transported frontier as exploratory seed-0
 evidence. Only the selected six-component comparison has `n = 3`. An absolute

@@ -93,47 +93,11 @@ case_groups:
       h_operator: relu
       pressure: l1_naive
       pressure_sites: [h]
-      lambda: [0.1, 0.5, 1, 2, 5]
-    conceptual_cells: 5
-    unique_cases: 5
+      lambda: [0.1, 1, 5]
+    conceptual_cells: 3
+    unique_cases: 3
     notes:
       - the lambda=0 curve point reuses A2-relu-control
-
-  - group_id: A2-relu-confirmation
-    stage: A2
-    owner: phases/a-pressure.md#a2-l1-spillover
-    model: pythia-14m
-    budget: full-pass-wrap
-    seeds: added_confirmation
-    requires_decisions: [lr_14m]
-    factors:
-      peak_lr: decision:lr_14m
-      topology: A1-H
-      h_operator: relu
-      pressure: none
-    conceptual_cells: 2
-    unique_cases: 2
-    notes:
-      - seed-0 peer is A2-relu-control and is never rerun
-
-  - group_id: A2-spillover-confirmation
-    stage: A2
-    owner: phases/a-pressure.md#a2-l1-spillover
-    model: pythia-14m
-    budget: full-pass-wrap
-    seeds: added_confirmation
-    requires_decisions: [lr_14m]
-    factors:
-      peak_lr: decision:lr_14m
-      topology: A1-H
-      h_operator: relu
-      pressure: l1_naive
-      pressure_sites: [h]
-      lambda: [1]
-    conceptual_cells: 2
-    unique_cases: 2
-    notes:
-      - seed-0 peers come from A2-l1-screen and are never rerun
 
   - group_id: A3-ol1-screen
     stage: A3
@@ -148,10 +112,10 @@ case_groups:
       h_operator: relu
       pressure: orthogonal_l1
       pressure_sites: [h]
-      lambda: [0.1, 0.5, 1, 2, 5]
+      lambda: [0.1, 1, 5]
       step_budget: decision:ol1_step_budget
-    conceptual_cells: 5
-    unique_cases: 5
+    conceptual_cells: 3
+    unique_cases: 3
     controls:
       - reuse_group: A2-relu-control
         reuse_cell: seed=0
@@ -236,14 +200,11 @@ case_groups:
       - threshold_only_at_b2_winner
       - threshold_plus_ol1_at_b2_winner
     conceptual_cells: 12
-    unique_cases:
-      if_lambda_B2_is_1: 8
-      otherwise: 10
+    unique_cases: 12
     reuse_rules:
-      - reuse A2-relu-confirmation seeds 1/2 as relu_only
-      - reuse A2-spillover-confirmation seeds 1/2 if lambda_B2 is 1
       - reuse every existing seed-0 component; never promote by rerunning seed 0
       - materialize exact source config/attempt links before allocating new cases
+      - if this later cohort is reviewed and completed, its added-seed components can replicate only the selected-lambda ReLU/L1 contrast, not the full A2 grid
 
   - group_id: C1-lr-screens
     stage: C1
@@ -313,51 +274,11 @@ case_groups:
       h_operator: relu
       pressure: l1_naive
       pressure_sites: [h]
-      lambda: [0.1, 0.5, 1, 2, 5]
-    conceptual_cells: 10
-    unique_cases: 10
+      lambda: [0.1, 1, 5]
+    conceptual_cells: 6
+    unique_cases: 6
     notes:
       - each model's lambda=0 curve point reuses C2-relu-controls
-
-  - group_id: C2-relu-confirmation
-    stage: C2
-    owner: phases/c-scale.md#c2-spillover-replication
-    models: [pythia-70m, pythia-410m]
-    budget: full-pass-wrap
-    seeds: added_confirmation
-    requires_decisions: [lr_70m, lr_410m]
-    factors:
-      peak_lr_by_model:
-        pythia-70m: decision:lr_70m
-        pythia-410m: decision:lr_410m
-      topology: A1-H
-      h_operator: relu
-      pressure: none
-    conceptual_cells: 4
-    unique_cases: 4
-    notes:
-      - seed-0 peers are C2-relu-controls and are never rerun
-
-  - group_id: C2-spillover-confirmation
-    stage: C2
-    owner: phases/c-scale.md#c2-spillover-replication
-    models: [pythia-70m, pythia-410m]
-    budget: full-pass-wrap
-    seeds: added_confirmation
-    requires_decisions: [lr_70m, lr_410m]
-    factors:
-      peak_lr_by_model:
-        pythia-70m: decision:lr_70m
-        pythia-410m: decision:lr_410m
-      topology: A1-H
-      h_operator: relu
-      pressure: l1_naive
-      pressure_sites: [h]
-      lambda: [1]
-    conceptual_cells: 4
-    unique_cases: 4
-    notes:
-      - seed-0 peers come from C2-l1-screens and are never rerun
 
   - group_id: C3-ol1-controls
     stage: C3
@@ -422,13 +343,11 @@ case_groups:
       - threshold_only_at_b2_winner
       - threshold_plus_ol1_at_b2_winner
     conceptual_cells: 24
-    unique_cases:
-      if_lambda_B2_is_1: 16
-      otherwise: 20
+    unique_cases: 24
     reuse_rules:
-      - reuse C2 seed 1/2 components whenever the fingerprint matches
       - never rerun any seed-0 component
       - materialize exact source config/attempt links before allocation
+      - if this later cohort is reviewed and completed, its added-seed components can replicate only the selected-lambda ReLU/L1 contrast at scale, not the full C2 grid
 
 # Physical-case identity is stored in the immutable config and attempt
 # manifest, then indexed by scanning tracked configs. This normative catalog

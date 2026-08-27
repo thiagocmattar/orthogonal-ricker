@@ -130,6 +130,31 @@ bin-width-dependent spike as an exact-zero probability.
 Histogram ranges must report underflow and overflow. A visually convenient
 range does not authorize discarding mass silently.
 
+### Site-level reductions
+
+The saved layer rows already contain every value needed for the A2 spillover
+summary. For site `s`, pool threshold fractions by summing integer hits and
+integer totals across its layers; never average layer percentages. If a single
+site-level RMS is useful, derive it from the saved finite count `N_{s,l}` and
+layer RMS `r_{s,l}`:
+
+```text
+r_s = sqrt(sum_l N_{s,l} * r_{s,l}^2 / sum_l N_{s,l})
+```
+
+This is `sqrt(mean(x^2))` over all finite validation activations at the site,
+equivalently the L2 norm divided by the square root of the element count. It is
+an activation-scale summary, not an unnormalized activation norm and not the
+definition of spillover. The artifact's existing `finite`, `rms`,
+`threshold_hits`, `total`, histogram counts, underflow, and overflow fields are
+sufficient; no schema or training-time diagnostic change is required.
+
+One comparison must use one pinned diagnostic recipe with the same sites,
+thresholds, bins, and range for every source checkpoint. These histogram
+geometry values are analysis/presentation inputs recorded in that diagnostic
+config; they do not affect pretraining and need not block training-config
+materialization.
+
 ## Weight Histograms
 
 `weight_histograms.json` describes selected checkpoint tensors. Record the

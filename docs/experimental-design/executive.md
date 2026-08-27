@@ -65,24 +65,28 @@ anchor.
 | Stage | Experiment | Question/decision | New physical runs* |
 | --- | --- | --- | ---: |
 | A1 | 14M `A0`, eleven peak LRs, seed 0 | Freeze the lowest final selection-loss LR after the directed second three-cell upper extension. | 11 |
-| A2 | ReLU `A1-H`, h-only L1 lambda grid | Map targeted and untargeted responses; confirm the fixed ReLU-only versus L1 contrast with three seeds. | 10 |
-| A3 | Same grid with OL1 | Compare loss versus achieved near-zero mass and projection behavior; freeze one matched nonzero lambda for B2. | 5 |
+| A2 | ReLU `A1-H`, h-only L1 at lambda `{0.1, 1, 5}`, seed 0 | Map the targeted and untargeted response over a 50× pressure range. | 4 |
+| A3 | Same three-value grid with OL1 | Compare loss versus achieved near-zero mass and projection behavior; freeze one matched nonzero lambda for B2. | 3 |
 | B1 | Placement × kappa × attention-threshold form, no pressure | Map and select the validation-loss/`R_model` family frontier. | 50 |
-| B2 | Apply OL1 at the frozen lambda to the selected B1 family | Select the combined frontier and one quality-oriented winner. | 12 or 14 |
+| B2 | Apply OL1 at the frozen lambda to the selected B1 family | Select the combined frontier and one quality-oriented winner; add seeds 1/2 only for the final six-component cohort. | 16 |
 | C1 | 70M/410M LR screens at 400M tokens | Freeze one peak LR independently per size. | 6 |
-| C2 | Repeat the L1 response at 70M/410M | Test the same fixed spillover contrast without retuning lambda. | 22 |
-| C3 | Transport the B2 family, kappa cohort, lambda, and OL1 budget | Test frontier persistence without intervention retuning. | `18 + 4K` or `22 + 4K` |
+| C2 | Repeat the three-value seed-0 L1 response at 70M/410M | Test directional spillover recurrence without retuning lambda. | 10 |
+| C3 | Transport the B2 family, kappa cohort, lambda, and OL1 budget | Test frontier persistence; add seeds 1/2 only for the final six-component cohort. | `26 + 4K` |
 
 *Counts exclude reused cases, calibration, and infrastructure retries. The
 50-run B1 count assumes the predeclared kappa-zero equivalence passes its
-required numerical/diagnostic review. The lower B2/C3 count applies when
-`lambda_B2 = 1`; `K` is the number of frozen B2 frontier kappas. If all stages
-proceed, the catalog contains 135–153 new pretraining runs (`K` from 1 to 4).
+required numerical/diagnostic review. `K` is the number of frozen B2 frontier
+kappas. If all stages and final added-seed cohorts proceed, the catalog contains
+130–142 new pretraining runs (`K` from 1 to 4). The separate open `DESIGN-01`
+Phase-B baseline decision can add one full-pass A0 run, producing 131–143;
+the unresolved condition is not silently included in the current catalog.
 
-Full grids are exploratory seed-0 evidence. The fixed spillover contrast and
-the selected six-component winner comparison use seeds 0, 1, and 2. A later
-stage reuses any matching earlier condition/seed; it never creates a second
-config for the same physical case.
+Full grids and spillover responses are exploratory seed-0 evidence. The
+selected six-component winner comparison uses seeds 0, 1, and 2. Its matching
+ReLU/L1 components may also provide deferred replication of one selected-
+lambda spillover contrast, not the full response. A later stage reuses any
+matching earlier condition/seed; it never creates a second config for the same
+physical case.
 
 ## Reported Evidence
 
@@ -93,8 +97,9 @@ and topology-specific `R_model^max` at `T = 2,048`.
 
 The minimum paper package is:
 
-1. **Sparsity spillover:** lambda responses, the three-seed fixed contrast,
-   site/layer distributions, and scale comparison.
+1. **Sparsity spillover:** seed-0 lambda responses, site/layer distributions,
+   and directional scale comparison; add selected-lambda seed uncertainty only
+   if the final winner cohorts are completed.
 2. **Logical opportunity:** operation-level `R_model` and model/topology
    ceilings.
 3. **Intervention and mechanism:** six matched components, B1/C3 frontiers,

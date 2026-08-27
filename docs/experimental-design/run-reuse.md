@@ -98,14 +98,21 @@ Before materialization or launch, automated validation must establish that:
 | Primary physical case | Consumers that must reuse it |
 | --- | --- |
 | Selected A1 `A0`, seed 0 | B1 control and B2 component baseline |
-| A2 neutral ReLU-only (`pressure: none`) by seed | A2/A3 zero-pressure curve anchor and B2 ReLU component |
-| A2 L1 at `lambda_B2` by seed | B2 L1-only component when the selected lambda matches |
+| A2 neutral ReLU-only (`pressure: none`), seed 0 | A2/A3 zero-pressure curve anchor and seed-0 B2 ReLU component |
+| A2 L1 at `lambda_B2`, seed 0 | Seed-0 B2 L1-only component when the selected lambda matches |
 | A3 OL1 at `lambda_B2`, seed 0 | B2 OL1-only component |
 | B1 threshold point, seed 0 | B2 threshold-only component for the same family/kappa |
 | B1 topology `A2`, one-sided, `kappa = 0`, seed 0 | All six symmetric-attention `kappa = 0` conceptual anchors |
 | B2 combined winner, seed 0 | Seed-0 member of the B2 headline cohort |
-| C2 `A0`, ReLU-only, and matching L1 cases | C3 component controls for the same model/seed |
-| Any seed-0 screen point later promoted | Seed-0 member of the promoted cohort; add only seeds 1/2 |
+| C2 seed-0 `A0`, ReLU-only, and matching L1 cases | Seed-0 C3 component controls for the same model |
+| Any seed-0 screen point later promoted | Seed-0 member of the promoted cohort; final added-seed cohorts allocate only seeds 1/2 |
+
+The current A2/C2 scopes contain no added-seed spillover groups and do not
+replicate the full lambda grid. If the B2 or C3 final winner cohort is reviewed
+and run, its ReLU-only and selected-L1 components own the corresponding
+seed-1/2 conditions for only the selected-lambda contrast. A later spillover
+analysis consumes those exact cases by fingerprint; it never creates a second
+training config merely to relabel them as replication.
 
 Exact-fingerprint reuse never crosses a different model, seed, budget, LR,
 data-order hash, precision, optimizer recipe, topology/threshold, pressure

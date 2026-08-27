@@ -36,23 +36,28 @@ untargeted `a`, `m`, `q_post`, `k_post`, and `v` distributions change?
 
 **Prerequisite:** `lr_14m`.
 
-**Cases:** `A2-relu-control`, `A2-l1-screen`, `A2-relu-confirmation`, and
-`A2-spillover-confirmation`. The full lambda response is a seed-0 screen. The
-zero-pressure anchor has `pressure: none`; only positive lambdas use
-`pressure: l1_naive`. The fixed central contrast—ReLU-only versus L1 at the
-median nonzero grid value—uses seeds 0, 1, and 2 independently of Phase B.
+**Cases:** `A2-relu-control` and `A2-l1-screen`. A2 is a seed-0 discovery
+screen with the four curve points `pressure: none` and `pressure: l1_naive`
+at lambda `{0.1, 1, 5}`. The zero-pressure anchor is not encoded as an L1
+case with lambda zero.
 
-**Primary comparison:** within each seed, subtract the matched ReLU-only
-condition from the L1 condition at each named site. Report validation loss,
-exact-zero mass, near-zero mass, RMS, and the predeclared distributions in
-[`../outputs.md`](../outputs.md).
+**Primary comparison:** subtract the seed-0 ReLU-only condition from each L1
+condition at every named site. Report validation loss, exact-zero mass,
+and near-zero mass; use the already saved RMS and predeclared distributions as
+supporting evidence in
+[`../outputs.md`](../outputs.md). The response is directional single-seed
+evidence and carries no seed-uncertainty claim.
 
-**Completion rule:** the full seed-0 curve requires every screen cell to have a
-terminal classification. The central contrast is confirmed only with equal
-valid seed sets; missing or failed seeds are never replaced.
+**Completion rule:** all four seed-0 cells require a terminal classification.
+Missing, infrastructure-failed, or unresolved cells block the A2 response;
+scientific failures remain visible grid outcomes and are never replaced.
 
-**Produces:** the 14M spillover response and the predeclared three-seed central
-contrast. B1 remains predeclared and may proceed after a null A2 result, but its
+**Produces:** the 14M seed-0 spillover response. Full-grid added-seed
+replication is not planned in the current program.
+If the final B2 winner cohort is run, its independently initialized seed-1/2
+ReLU-only and selected-L1 components may provide an added-seed contrast without
+duplicating a physical condition, but only at the selected lambda.
+B1 remains predeclared and may proceed after a null A2 result, but its
 interpretation becomes a general multi-site threshold study.
 
 ## A3 OL1 Robustness
@@ -63,9 +68,10 @@ accompanies the difference?
 
 **Prerequisites:** `lr_14m` and reviewed decision `ol1_step_budget`.
 
-**Cases:** `A3-ol1-screen` contains only positive-lambda OL1 cases. Its
-zero-pressure curve anchor reuses `A2-relu-control` rather than encoding an
-OL1 case with lambda zero or training again.
+**Cases:** `A3-ol1-screen` contains only positive-lambda OL1 cases at the
+matched A2 grid `{0.1, 1, 5}`. Its zero-pressure curve anchor reuses
+`A2-relu-control` rather than encoding an OL1 case with lambda zero or training
+again.
 
 **Required evidence:** matched L1/OL1 final loss and `n_h(0.01)` plus
 all-optimizer-boundary conflict, projection, eligibility, and trust-budget

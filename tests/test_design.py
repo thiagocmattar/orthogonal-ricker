@@ -45,8 +45,6 @@ def test_repository_catalog_expands_every_declared_group_and_alias() -> None:
         "A1-lr-screen",
         "A2-relu-control",
         "A2-l1-screen",
-        "A2-relu-confirmation",
-        "A2-spillover-confirmation",
         "A3-ol1-screen",
         "B1-threshold-screen",
         "B2-combined-screen",
@@ -55,14 +53,21 @@ def test_repository_catalog_expands_every_declared_group_and_alias() -> None:
         "C2-dense-controls",
         "C2-relu-controls",
         "C2-l1-screens",
-        "C2-relu-confirmation",
-        "C2-spillover-confirmation",
         "C3-ol1-controls",
         "C3-frontier-replication",
         "C3-winner-confirmation",
     )
     assert summary.groups["A1-lr-screen"]["conceptual_cells"] == 11
     assert summary.groups["A1-lr-screen"]["unique_cases"] == 11
+    assert summary.groups["A2-relu-control"]["unique_cases"] == 1
+    assert summary.groups["A2-l1-screen"]["factors"]["lambda"] == [0.1, 1, 5]
+    assert summary.groups["A2-l1-screen"]["unique_cases"] == 3
+    assert summary.groups["A3-ol1-screen"]["factors"]["lambda"] == [0.1, 1, 5]
+    assert summary.groups["A3-ol1-screen"]["unique_cases"] == 3
+    assert summary.groups["C2-l1-screens"]["factors"]["lambda"] == [0.1, 1, 5]
+    assert summary.groups["C2-l1-screens"]["unique_cases"] == 6
+    assert summary.groups["B2-winner-confirmation"]["unique_cases"] == 12
+    assert summary.groups["C3-winner-confirmation"]["unique_cases"] == 24
     assert summary.groups["B1-threshold-screen"]["conceptual_cells"] == 56
     assert summary.groups["B1-threshold-screen"]["unique_cases"] == 50
 

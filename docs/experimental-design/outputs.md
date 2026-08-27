@@ -7,11 +7,14 @@
 ## Evidence Levels
 
 - Complete grids use the catalog's `screen` seed set and are exploratory.
-- The fixed ReLU-only versus L1 spillover contrast and selected six-component
-  winner use the catalog's `confirmed` seed set at all three model sizes.
-- Show every individual seed plus mean, sample standard deviation, and `n`.
-  Never replace a failed or unfavorable seed or compare unequal seed sets as a
-  confirmed contrast.
+- A2 and C2 spillover responses currently use seed 0 only. They are
+  directional evidence and carry no seed-uncertainty claim.
+- The selected six-component winner uses the catalog's `confirmed` seed set.
+  Show every individual seed plus mean, sample standard deviation, and `n`;
+  never replace a failed or unfavorable seed.
+- If the final winner cohorts supply matching added-seed ReLU/L1 components,
+  they may also report the deferred selected-lambda spillover replication.
+  This does not constitute replication of the full lambda response.
 - Selection/confirmation disagreement is reported without reranking,
   retuning, or reopening the confirmation partition.
 
@@ -28,19 +31,25 @@ sparsity, convergence, full-pass, or horizon-independent optimum claim.
 
 ## Spillover Measurements
 
-For each `s` in `{h, a, m, q_post, k_post, v}`, save pooled count-first:
+For each `s` in `{h, a, m, q_post, k_post, v}`, derive count-first from the
+saved per-layer rows in `activation_histograms.json`:
 
 - exact-zero fraction `z_s`;
 - primary near-zero mass `n_s(0.01)`;
 - secondary sensitivity `n_s(0.1)`;
-- pooled RMS;
+- per-layer RMS and, when a compact site summary is needed, count-weighted
+  pooled RMS;
 - layerwise histograms with the exact-zero atom separate.
 
-The primary spillover vector is the within-seed change from the ReLU-only
-`A1-H` control in `n_s(0.01)` and RMS at every named site. A statement that a
-distribution broadens requires an RMS increase and the corresponding
-distribution panel; near-zero change alone is insufficient. An opposing
-untargeted response is not evidence of functional compensation.
+The current artifact schema already contains the integer threshold hits,
+totals, finite counts, per-layer RMS values, histogram counts, underflow, and
+overflow needed for these reductions; A2 requires no diagnostic-schema or
+training change. The primary spillover vector is the within-seed change from
+the ReLU-only `A1-H` control in `n_s(0.01)` at every named site. RMS is a
+secondary activation-scale diagnostic, not the definition of spillover. A
+statement that a distribution broadens requires an RMS increase and the
+corresponding distribution panel; near-zero change alone is insufficient. An
+opposing untargeted response is not evidence of functional compensation.
 
 ## Logical Opportunity
 
@@ -58,10 +67,10 @@ experiment directly measures sparse-kernel execution.
 
 | Output | Required content |
 | --- | --- |
-| Figure 1 — sparsity spillover | Seed-0 A2/C2 lambda responses; three-seed fixed contrast; site/layer changes in near-zero mass and RMS across 14M/70M/410M. The distribution panel is fixed before results: 14M, deepest transformer layer, all six named sites, ReLU-only versus the fixed L1 contrast, with all three seeds and exact-zero atoms. |
+| Figure 1 — sparsity spillover | Seed-0 A2/C2 responses at `pressure: none` and lambda `{0.1, 1, 5}`; site/layer changes in near-zero mass and RMS across 14M/70M/410M. The required 14M distribution panel uses seed 0, the deepest transformer layer, all six named sites, ReLU-only versus lambda `1`, and separate exact-zero atoms. If final winner cohorts provide matching added seeds, a selected-lambda replication panel may be added without replacing the seed-0 response. |
 | Figure 2 — model-wide logical opportunity | Validated operation-level `R_model`; `R_model^max` by actual model/topology at `T = 2,048`; observed B1/B2/C3 contributions. |
 | Figure 3 — intervention and mechanism | Six matched components; B1/C3 frontiers; loss versus achieved `n_h(0.01)`; OL1 conflict/projection frequencies; paired one-sided-versus-symmetric points at every applicable matched topology/kappa/seed. |
-| Main results table | One row per model and final matched condition: complete recipe, validation loss and paired change, `n_h(0.01)`, named spillover vector, absolute/paired `R_model`, seeds, mean/sample SD, and evidence status. |
+| Main results table | One row per model and final matched condition: complete recipe, validation loss and paired change, `n_h(0.01)`, named spillover vector, absolute/paired `R_model`, seeds, uncertainty when replicated, and evidence status. |
 
 Figure 3 cannot claim OL1 beats L1 inside the selected threshold topology
 because no threshold+L1 case is planned. Paired threshold-form and complete
