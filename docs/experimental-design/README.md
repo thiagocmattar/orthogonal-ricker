@@ -13,7 +13,7 @@ Pythia-14M discovery and Pythia-70M/410M replication program.
 | Task | Read |
 | --- | --- |
 | Advisor review | [`executive.md`](executive.md) |
-| Proposed six-run A2 review | [`a2-review-packet.md`](a2-review-packet.md) |
+| User-confirmed six-run A2 review candidate | [`a2-review-packet.md`](a2-review-packet.md) |
 | Original three-cell A1 review | [`a1-review-packet.md`](a1-review-packet.md) |
 | Historical `4e-3` A1 design review | [`a1-boundary-extension-review-packet.md`](a1-boundary-extension-review-packet.md) |
 | Historical `4e-3` definitive launch review | [`a1-boundary-extension-launch-packet.md`](a1-boundary-extension-launch-packet.md) |
@@ -45,13 +45,15 @@ materialized at commit `1fd0914068531d1c05e047f95352fabee3e3b04a`, and the
 launch packet was approved at commit
 `2f8f55cd57b25828fea10f015992b0824b28f3a6`.
 
-The next proposed scope is a six-run A2 seed-0 discovery screen: one
+The next user-confirmed review candidate is a six-run A2 seed-0 discovery
+screen: one
 ReLU-only `A1-H` control plus h-only L1 at lambda
 `{0.1, 0.5, 1, 2, 5}`. Added-seed
 replication of the full response is not part of A2 completion. If the later
 final B2/C3 winner cohorts are reviewed and completed, their matching
 components can supply a selected-lambda contrast at seeds 1 and 2; they do not
 replicate the full grid. Every matching condition is reused by fingerprint.
+It remains a candidate until the user approves its exact committed SHA.
 
 ## One Fact, One Owner
 

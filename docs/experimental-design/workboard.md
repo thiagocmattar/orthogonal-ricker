@@ -25,12 +25,13 @@ copied into this table.
 | `VAL-01` | resolved | A1+ | Implement exact selection cadence and a caller-bound saved-checkpoint confirmation evaluator | Commit `e7d3b68`; exact 9/31-point cadence plus source/checkpoint/cache identity, complete-block coverage, loss/perplexity, completeness, and provenance tests |
 | `VAL-02` | open | headline confirmation/paper release | Publish a durable confirmation-validation workflow around the reusable evaluator | Exact source-run resolution, cache-byte verification, lifecycle publication, and CLI tests; not required by the A1 screen |
 | `OPS-01` | resolved | A1 config allocation | Validate catalog counts, reviewed design SHA/blobs, exact A1 group membership, config/manifest identity, and duplicate fingerprints | Commit `99c2d03`; all 18 catalog expressions checked; A1-only materialization, strict check, launch preflight, canonical fingerprints, and manifest SHA tests |
-| `OPS-08` | open | A2+ config allocation | Add exact physical-cell materialization contracts for non-A1 groups | Per-group field/grid/decision/reuse tests; current implementation fails closed for every non-A1 group |
+| `OPS-08` | resolved | A2 config allocation | Admit exactly the confirmed six-cell A2 cohort while preserving completed A1 history outside active scope without extending launch authority | Commit `6ca61ff4a2542093b59de5080af51bb711a0c00a`; 61 focused passes, 541 full-suite passes with 3 skips, strict check at 0 errors/warnings, smoke `025-20260827-110207-15e78835`, and exact-history acceptance for all 11 A1 configs |
+| `OPS-15` | open | A3+ config allocation | Add exact physical-cell materialization contracts for later non-A2 groups | Per-group field/grid/decision/reuse tests; current implementation deliberately fails closed for unknown later groups |
 | `DESIGN-02` | resolved | A1 boundary extension | Review the exact four-cell A1 design at a committed SHA while preserving configs/runs `001`–`003` and allocating only the proposed `4e-3` cell afterward | User approval on 2026-08-25 of design commit `e8214a411afebf0cec5658f0f1ccdd3e6bcd5585`; reviewed manifest for `[A1-lr-screen]` |
 | `DESIGN-03` | resolved | A1 final boundary extension | Review the exact five-cell A1 design while preserving configs/runs `001`–`004` and allocating only `8e-3` afterward | User direction on 2026-08-26; reviewed design commit `3710dfdd416ac3484516c4d8c2162692346fe7e9`; manifest scope `[A1-lr-screen]` |
 | `DESIGN-04` | resolved | A1 three-cell high-LR extension | Review the exact eight-cell A1 design while preserving configs/runs `001`–`005` and allocating only `1.6e-2`, `3.2e-2`, and `6.4e-2` afterward | Direct user instruction on 2026-08-26; reviewed design commit `d80f6a9b6c99bcaec7ddc52e73c1a407a5020a8e`; manifest scope `[A1-lr-screen]` |
 | `DESIGN-05` | resolved | A1 very-high-LR extension | Review the exact eleven-cell A1 design while preserving configs/runs `001`–`008` and allocating only `1.28e-1`, `2.56e-1`, and `5.12e-1` afterward | Direct user instruction on 2026-08-26; reviewed design commit `2320d542b14926315a17e873afac2d41a40d6814`; manifest scope `[A1-lr-screen]` |
-| `DESIGN-06` | in_progress | A2 screen | Refine A2 to one seed-0 ReLU control plus h-only L1 at lambda `{0.1, 0.5, 1, 2, 5}`; do not add seeds for the full response | Resolve `OPS-08` without changing the frozen scientific path; then exact A2 packet and user approval at one committed design SHA |
+| `DESIGN-06` | in_progress | A2 screen | Refine A2 to one seed-0 ReLU control plus h-only L1 at lambda `{0.1, 0.5, 1, 2, 5}`; do not add seeds for the full response | Scientific matrix confirmed by the user on 2026-08-27 and `OPS-08` resolved; awaiting explicit approval of the final committed review-candidate SHA |
 | `DESIGN-01` | open | B1/B2 | Resolve the Phase B baseline contradiction: B1/B2 use `full-pass-wrap`, but their catalogued A0 control reuses the selected 400M-token A1 run even though the fingerprint contract forbids reuse across budgets | Reviewed catalog/phase amendment that either allocates a matching full-pass A0 control or changes the relevant Phase B budget, with corrected run counts and reuse tests |
 | `OPS-02` | resolved | recovery | Scope resume to pretraining, skip completed configs, require explicit failed-retry authorization, and stop on unsafe state | Commits `8de8324`, `5263dba`, `be0c9a4`; 301 tests, strict check, and infrastructure smoke passed |
 | `OPS-03` | resolved | calibration/launch | Add a 600-second calibration-only limit that cannot truncate definitive pretraining; record setup, train, validation, diagnostic, and checkpoint timing separately | Commit `242c439`, local lifecycle tests, and the accepted [A1 same-hardware calibration](a1-calibration-packet.md); acceptance digest `d6b12d230e1b82a5b57f75857283b1b84690cadfe8264742e4e2b7456a051216` |
@@ -57,13 +58,13 @@ Readiness is derived from this table, the reviewed case-group scope, and
 | Stage | State | Required closure/decision |
 | --- | --- | --- |
 | A1 | complete | All eleven reviewed cells completed and are eligible, valid evidence; the predeclared lowest-final-selection-loss rule selects config `008-a1-lr-6p4e-2` for dependent experiments. |
-| A2 | blocked | Resolve `OPS-08` so it admits only the six proposed seed-0 cells while the scientific path stays frozen; then review exactly `[A2-relu-control, A2-l1-screen]` at the resulting commit. |
-| A3 | blocked | Reviewed group `A3-ol1-screen`; A2 complete; `METHOD-02`, `DIAG-03`, `OPS-08` |
-| B1 | blocked | Review `B1-threshold-screen`; A2 terminal interpretation; resolve `DESIGN-01`, `METHOD-01`, `DIAG-01`, `OPS-08` |
-| B2 | blocked | Review the B2 groups; resolve `DESIGN-01`; decisions `lambda_B2`, `b1_family`; valid prerequisites; `OPS-08` |
-| C1 | blocked | Reviewed group `C1-lr-screens`; `ID-02`, `OPS-07`, `OPS-08`, plus shared training/validation blockers |
-| C2 | blocked | Reviewed C2 groups; C1 per-model LRs and A2 design |
-| C3 | blocked | Reviewed C3 groups; C2 plus decisions `b2_frontier` and `b2_winner` |
+| A2 | blocked | Await formal exact-SHA approval of the confirmed `[A2-relu-control, A2-l1-screen]` review candidate; then activate that scope and materialize exactly six configs. |
+| A3 | blocked | Review group `A3-ol1-screen`; A2 complete; `METHOD-02`, `DIAG-03`, `OPS-15` |
+| B1 | blocked | Review `B1-threshold-screen`; A2 terminal interpretation; resolve `DESIGN-01`, `METHOD-01`, `DIAG-01`, `OPS-15` |
+| B2 | blocked | Review the B2 groups; resolve `DESIGN-01`; decisions `lambda_B2`, `b1_family`; valid prerequisites; `OPS-15` |
+| C1 | blocked | Review group `C1-lr-screens`; `ID-02`, `OPS-07`, `OPS-15`, plus shared training/validation blockers |
+| C2 | blocked | Review C2 groups; C1 per-model LRs and A2 design; `OPS-15` |
+| C3 | blocked | Review C3 groups; C2 plus decisions `b2_frontier` and `b2_winner`; `OPS-15` |
 
 `blocked` is descriptive here; it does not replace the goal-status semantics of
 an interactive agent. Agents should take the highest upstream unresolved item
@@ -99,8 +100,10 @@ Baseline execution commit
 
 The only changed library files are:
 
-- `integrity.py`: recognizes exact indexed historical evidence while a plan is
-  placeholder; `classify_run_directory` is unchanged.
+- `integrity.py`: recognizes exact indexed completed historical evidence while
+  a plan is placeholder or while its group is outside active reviewed scope;
+  this preservation grants no launch authority, and `classify_run_directory`
+  is unchanged.
 - `runner.py`: adds `required_completed_config_ids` checks before and under the
   launch lock. `_run_one` and the training call are unchanged. This affects
   admission/reuse only and refuses to rerun a required historical config.

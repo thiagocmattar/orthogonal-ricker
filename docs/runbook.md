@@ -190,6 +190,11 @@ may run scientifically, and every definitive launch and billable envelope
 requires its own explicit approval. Other RunPod use is limited to explicitly
 identified infrastructure profiling and smoke work.
 
+Integrity acceptance of an exact indexed completed config outside the active
+reviewed scope preserves historical evidence only. It does not satisfy the
+reviewed-group launch gate or authorize materialization, retry, rerun, or
+scientific execution.
+
 #### Skill and tool routing
 
 For every multi-step RunPod task, load the installed `runpod` router skill

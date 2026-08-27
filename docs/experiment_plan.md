@@ -23,8 +23,15 @@ L1 implementation. Added-seed
 replication of the full response is outside this scope. If the later final
 winner cohort is reviewed and completed, its matching components may supply
 only a selected-lambda ReLU/L1 contrast at added seeds; they do not replicate
-the full grid. This proposal is not review or launch authority while the raw
-status lines above remain `placeholder` and `OPS-08` remains open.
+the full grid. The user confirmed this scientific matrix on 2026-08-27 and
+`OPS-08` is closed; formal review now awaits approval of the final exact
+candidate SHA. This proposal is not review or launch authority while the raw
+status lines above remain `placeholder`.
+
+Completed A1 configs remain tracked as immutable historical evidence outside
+the proposed active A2 scope only when an exact indexed coherent completed run
+matches their config snapshot. That preservation does not reactivate A1 or
+authorize materialization, retry, or launch.
 
 The [`A1 formal review packet`](experimental-design/a1-review-packet.md) was
 approved at design commit `54be534f383001b4af3d3b43597e135d4ca6653d`.

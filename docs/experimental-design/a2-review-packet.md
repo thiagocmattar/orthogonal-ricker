@@ -4,6 +4,10 @@
 > containing this packet. The definitive plan remains a placeholder until that
 > approval is recorded.
 
+The user confirmed the six-cell scientific matrix on 2026-08-27. Formal plan
+review still requires explicit approval of the exact candidate Git SHA that
+contains this packet and the completed admission work.
+
 This packet owns the proposed next review scope only:
 `[A2-relu-control, A2-l1-screen]`. It changes grids and run scope without
 changing the model, L1 method, optimizer, training loop, diagnostics schema,
@@ -39,6 +43,13 @@ checkpoint is reusable: A1 used topology `A0` and `lr-400m`, while A2 uses
 `A1-H` and `full-pass-wrap`. A1 contributes only the frozen `lr_14m = 6.4e-2`
 decision and shared immutable input pins.
 
+The exact pressure encodings are:
+
+| Cell | `enabled` | `method` | `sites` | `weight` | `step_budget` |
+| --- | --- | --- | --- | ---: | --- |
+| ReLU control | `false` | `none` | `[h]` | `0` | `null` |
+| Each L1 cell | `true` | `l1_naive` | `[h]` | one of `{0.1, 0.5, 1, 2, 5}` | `null` |
+
 ## Fixed Training Contract
 
 | Item | A2 value |
@@ -55,18 +66,29 @@ decision and shared immutable input pins.
 | LR schedule | 57-step linear warmup, then cosine decay to `0.1 × peak` |
 | Validation | Complete selection partition at update 1, every 191 updates, and final: 31 evaluations |
 | Checkpoint | Final model only; no optimizer state or intermediate checkpoints |
+| Training telemetry | Existing epsilon `1e-12`; near-zero thresholds `[0, 0.001, 0.01]` |
 
 The current `l1_naive` implementation is frozen. It computes task and L1
 gradients separately for gradient norm, dot-product, cosine/alignment, and
 conflict diagnostics, and applies the existing augmented-loss update. This
 packet authorizes no method or implementation optimization.
 
-Before formal review, `OPS-08` code work is limited to config-admission logic
-in `src/paper_exp/design.py` and its tests; no other `src/paper_exp` file may
-change. After review, every tracked `src/paper_exp` blob must remain identical
-through execution. Any difference, or any other change that can affect the
-exercised A1-H/L1 path, requires a new training identity and scientific
-re-review.
+The operational closure for `OPS-08` is commit
+`6ca61ff4a2542093b59de5080af51bb711a0c00a`. It changes only exact A2
+admission in `src/paper_exp/design.py`, preservation of immutable completed
+history in `src/paper_exp/integrity.py`, and focused tests for those two
+modules. It does not change model construction, the training loop, L1
+mathematics, optimizer behavior, data, validation, diagnostics, or artifacts.
+After review, every tracked scientific-path blob must remain identical through
+execution. Any change that can affect the exercised A1-H/L1 path requires a
+new training identity and scientific re-review.
+
+The integrity rule preserves an out-of-active-scope tracked config only when
+the experiment log identifies an exact, coherent, completed pretraining run
+whose immutable config snapshot matches. Unindexed, nonterminal, ambiguous,
+or changed snapshots remain errors. This keeps completed A1 evidence intact;
+it does not add A1 to reviewed scope or authorize A1 materialization, retry, or
+launch.
 
 ## Spillover Measurement
 
@@ -77,6 +99,10 @@ checkpoints have exact config/run identities. One six-source recipe must use:
 - thresholds `[0, 0.01, 0.1]`;
 - one common, explicitly recorded histogram bin count and range; and
 - the complete selection-validation partition.
+
+These final post-hoc histogram thresholds `[0, 0.01, 0.1]` are distinct from
+the inherited training-telemetry thresholds `[0, 0.001, 0.01]`. The former are
+pinned once in the diagnostic config and do not alter pretraining.
 
 No diagnostic-schema change is required. Existing layer rows already store
 integer threshold hits and totals, finite counts, RMS, histogram counts,
@@ -113,11 +139,16 @@ multi-site threshold study.
   Exact histogram geometry is an analysis parameter pinned once in the later
   diagnostic config, before diagnostic execution and before inspecting its
   outputs; it is not a pretraining or plan-review blocker.
-- `OPS-08` remains the sole pre-review blocker: config validation must admit
-  exactly one seed-0 control and exactly the five reviewed L1 weights, reject
-  every other A2 cell, verify fingerprints, and prevent duplicates. This is
-  launch/config plumbing, not a model, optimizer, pressure-method, or
-  diagnostic change.
+- `OPS-08` is resolved by commit
+  `6ca61ff4a2542093b59de5080af51bb711a0c00a`: validation admits exactly one
+  seed-0 control and the five user-confirmed L1 weights, rejects every other A2
+  cell, verifies fingerprints, prevents duplicates, and preserves exact
+  completed A1 history outside active scope.
+- Verification for that commit produced 61 focused passes, 541 full-suite
+  passes with 3 skips, strict integrity at 0 errors and 0 warnings, and the
+  infrastructure smoke attempt
+  `025-20260827-110207-15e78835`. All eleven tracked A1 configs also passed the
+  exact historical-evidence predicate.
 - After formal review and materialization, configs would receive the next six
   global IDs (`012`–`017`) in one A2 screen scaffold. No number is reserved by
   this proposal.
@@ -142,14 +173,12 @@ deadline, and a separately reviewed bounded-worker authorization.
 
 ## Review Sequence and Effect
 
-This design-only proposal is not yet eligible for formal approval because
-`OPS-08` fails closed for non-A1 groups. First implement and verify only the
-exact six-cell config-admission contract, while preserving the frozen
-scientific-path blobs above. Then commit the complete review packet and return
-one exact SHA for formal approval.
+The scientific matrix is user-confirmed and `OPS-08` is closed. This packet is
+therefore ready to be committed as one exact-SHA review candidate. The plan
+status remains `placeholder` until the user explicitly approves that SHA.
 
-Approval of that later exact SHA authorizes recording the plan as reviewed for
-`[A2-relu-control, A2-l1-screen]` and materializing those six configs. It does
-not authorize RunPod provisioning, spending, calibration, definitive
-training, retry, replacement, or teardown. Those remain separate explicit
-approvals.
+Approval of the candidate exact SHA first authorizes recording the plan as
+reviewed for `[A2-relu-control, A2-l1-screen]`. Only after that activation may
+the six configs be materialized. Approval does not authorize RunPod
+provisioning, spending, calibration, definitive training, retry, replacement,
+or teardown. Those remain separate explicit approvals.

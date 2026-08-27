@@ -53,7 +53,7 @@ Paths below are relative to `src/paper_exp/`.
 | `activations.py` | Capture and clipping hooks for canonical sites plus exact-zero counts | Capture/replacement behavior changes without changing site nomenclature |
 | `data.py` | Dataset/tokenizer loading, document handling, token-cache construction, metadata, and compatibility checks | Data preparation or cache identity changes |
 | `reproducibility.py` | Deterministic training schedules and document-disjoint validation partitions and hashes | Sampling or partition contracts change |
-| `integrity.py` | Read-only checks for scaffold shape, runner/config numbering, current or indexed `raw/` envelopes, indexed `figs/`, and document references | A durable repository invariant changes |
+| `integrity.py` | Read-only checks for scaffold shape, runner/config numbering, current or indexed `raw/` envelopes, indexed `figs/`, document references, and preservation of exact indexed completed historical configs outside active reviewed scope | A durable repository invariant changes |
 | `utils.py` | Small JSON/JSONL and environment/Git/GPU/package provenance helpers | A cross-workflow serialization or provenance primitive changes |
 
 The scientific entry points are tested primarily in

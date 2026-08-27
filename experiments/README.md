@@ -77,6 +77,12 @@ outside its reviewed scope. After the A1 decision was frozen, the plan returned
 to placeholder with no reviewed case groups; later groups require exact-SHA
 review before any config is materialized.
 
+One preservation-only exception applies to already tracked history: an
+immutable config may remain outside the current reviewed scope when the
+experiment log identifies an exact coherent completed pretraining run and its
+saved config snapshot matches. Integrity acceptance preserves evidence only;
+it never authorizes materialization, retry, rerun, or launch.
+
 ## Config and Attempt Identity
 
 Definitive configs are named `CCC-<case>.yaml`, where `CCC` is globally unique
