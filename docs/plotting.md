@@ -102,7 +102,10 @@ The all-or-nothing output suite is owned by
 vector PDF, inspection PNG, a complete Markdown table, and deterministic
 provenance. It is seed-0 exploratory evidence (`n = 1` per learning rate) at
 the fixed 400M-token horizon. If the selected rate is the upper tested
-boundary, both table and curve state that limitation directly.
+boundary, the companion Markdown states that limitation directly. The curve is
+selection-neutral: it uses one visual treatment for every tested rate and keeps
+seed, sample-size, horizon, and selection context in the companion caption and
+table rather than in an image footnote.
 
 ## Current Explicit Diagnostic Plots
 
@@ -154,9 +157,11 @@ scientific reason to differ:
 - stable series identity within a figure family;
 - readable labels at final paper size;
 - units on axes where units exist;
-- visible sample size, seed count, or denominator;
+- visible sample size, seed count, or denominator in the figure or companion
+  caption;
 - uncertainty or per-run points when the saved evidence supports them;
-- an explicit note for one-seed, exploratory, or provisional evidence;
+- an explicit figure or companion-caption note for one-seed, exploratory, or
+  provisional evidence;
 - legends outside dense data regions when practical.
 
 Axis rules:

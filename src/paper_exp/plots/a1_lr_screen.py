@@ -260,13 +260,11 @@ def build_a1_lr_figure(points: Sequence[A1Point]) -> Figure:
     """Build the complete eleven-cell fixed-horizon A1 curve."""
 
     ordered = tuple(sorted(points, key=lambda point: point.learning_rate))
-    selected = select_a1_point(ordered)
     learning_rates = [point.learning_rate for point in ordered]
     losses = [point.final_validation_loss for point in ordered]
 
     figure, axis = plt.subplots(figsize=(DOUBLE_COLUMN_WIDTH_INCHES, 4.4))
     sweep_style = series_style(0)
-    selected_style = series_style(1)
     axis.plot(
         learning_rates,
         losses,
@@ -277,18 +275,9 @@ def build_a1_lr_figure(points: Sequence[A1Point]) -> Figure:
         markersize=5.5,
         zorder=2,
     )
-    axis.scatter(
-        [selected.learning_rate],
-        [selected.final_validation_loss],
-        color=selected_style.color,
-        marker="D",
-        s=50,
-        zorder=3,
-    )
-
     axis.set_title("Pythia-14M A1 learning-rate screen (400M training tokens)")
     axis.set_xlabel(r"Peak learning rate (log$_2$ scale)")
-    axis.set_ylabel("Final selection validation loss (zoomed y-axis)")
+    axis.set_ylabel("Final validation loss")
     axis.set_xscale("log", base=2)
     axis.set_xticks(learning_rates)
     axis.set_xticklabels(
@@ -313,44 +302,17 @@ def build_a1_lr_figure(points: Sequence[A1Point]) -> Figure:
     axis.yaxis.grid(True, alpha=0.25)
 
     for point in ordered:
-        label = f"{point.final_validation_loss:.3f}"
-        if point == selected:
-            label += "  selected"
-        offset = (10, -5) if point == selected else (0, 9)
         axis.annotate(
-            label,
+            f"{point.final_validation_loss:.3f}",
             (point.learning_rate, point.final_validation_loss),
-            xytext=offset,
+            xytext=(0, 9),
             textcoords="offset points",
-            ha="left" if point == selected else "center",
-            va="top" if point == selected else "bottom",
+            ha="center",
+            va="bottom",
             fontsize=8,
         )
 
-    selected_is_upper_boundary = selected == ordered[-1]
-    boundary_note = (
-        "Selected point is the upper tested boundary; best tested, not a global optimum."
-        if selected_is_upper_boundary
-        else "Selected point lies inside the tested range."
-    )
-    figure.text(
-        0.5,
-        0.055,
-        "Seed 0; n = 1 per learning rate; fixed 400,031,744-token horizon; "
-        "lower is better.",
-        ha="center",
-        va="bottom",
-        fontsize=8,
-    )
-    figure.text(
-        0.5,
-        0.018,
-        boundary_note,
-        ha="center",
-        va="bottom",
-        fontsize=8,
-    )
-    figure.subplots_adjust(left=0.11, right=0.98, top=0.90, bottom=0.28)
+    figure.subplots_adjust(left=0.11, right=0.98, top=0.90, bottom=0.20)
     return figure
 
 
@@ -364,14 +326,18 @@ def build_a1_lr_table(points: Sequence[A1Point]) -> str:
         "# A1 learning-rate screen",
         "",
         (
-            "Pythia-14M, seed 0, one run per learning rate, 1,526 optimizer "
-            "updates and 400,031,744 training tokens per run. Lower final "
-            "selection validation loss is better."
+            "**Figure caption.** Final validation loss versus peak learning rate "
+            "for randomly initialized Pythia-14M after 1,526 optimizer updates "
+            "(400,031,744 training tokens). Each point is one run with seed 0; "
+            "the line connects tested rates in ascending order, the x-axis uses "
+            "a base-2 logarithmic scale, and point labels report the final loss. "
+            "Lower is better. With n = 1 per learning rate, no uncertainty "
+            "estimate is available."
         ),
         "",
         (
             "| Config | Pinned run | Peak LR | Seed | Updates | Training tokens | "
-            "Final selection loss | Terminal status | Eligibility | Evidence | Selection |"
+            "Final validation loss | Terminal status | Eligibility | Evidence | Selection |"
         ),
         "| --- | --- | ---: | ---: | ---: | ---: | ---: | --- | --- | --- | --- |",
     ]
@@ -408,8 +374,7 @@ def build_a1_lr_table(points: Sequence[A1Point]) -> str:
             "",
             (
                 "Validation losses are displayed to six decimals; full saved values and "
-                "input hashes are retained in the provenance sidecar. With n = 1 per "
-                "learning rate, no uncertainty estimate is available."
+                "input hashes are retained in the provenance sidecar."
             ),
             "",
         ]

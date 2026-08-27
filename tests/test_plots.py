@@ -332,7 +332,7 @@ def test_a1_lr_selection_breaks_an_exact_loss_tie_toward_lower_lr() -> None:
     assert select_a1_point((higher, lower)) == lower
 
 
-def test_a1_lr_outputs_retain_upper_boundary_warning() -> None:
+def test_a1_lr_table_retains_upper_boundary_warning_without_figure_mark() -> None:
     common = {
         "run_id": "001-test",
         "seed": 0,
@@ -360,9 +360,10 @@ def test_a1_lr_outputs_retain_upper_boundary_warning() -> None:
 
     figure = build_a1_lr_figure(points)
     try:
-        assert any(
-            "upper tested boundary" in text.get_text() for text in figure.texts
-        )
+        axis = figure.axes[0]
+        assert figure.texts == []
+        assert len(axis.collections) == 0
+        assert all("selected" not in text.get_text().lower() for text in axis.texts)
     finally:
         plt.close(figure)
     assert "selected (upper tested boundary)" in build_a1_lr_table(points)
@@ -376,12 +377,13 @@ def test_a1_lr_screen_publishes_complete_deterministic_suite(tmp_path: Path) -> 
     points, inputs = load_a1_lr_points(tmp_path)
     figure = build_a1_lr_figure(points)
     try:
-        assert figure.axes[0].get_xscale() == "log"
-        assert len(figure.axes[0].lines[0].get_xdata()) == 11
-        assert "zoomed" in figure.axes[0].get_ylabel()
-        assert any(
-            "inside the tested range" in text.get_text() for text in figure.texts
-        )
+        axis = figure.axes[0]
+        assert axis.get_xscale() == "log"
+        assert len(axis.lines[0].get_xdata()) == 11
+        assert axis.get_ylabel() == "Final validation loss"
+        assert figure.texts == []
+        assert len(axis.collections) == 0
+        assert all("selected" not in text.get_text().lower() for text in axis.texts)
         assert publication_figure_issues(
             figure,
             DOUBLE_COLUMN_PUBLICATION_PROFILE,
@@ -403,6 +405,13 @@ def test_a1_lr_screen_publishes_complete_deterministic_suite(tmp_path: Path) -> 
     assert all(source.run_id in table for source in A1_SOURCES)
     assert "selected (upper tested boundary)" not in table
     assert "It lies inside the tested range." in table
+    assert (
+        "**Figure caption.** Final validation loss versus peak learning rate" in table
+    )
+    assert "Each point is one run with seed 0" in table
+    assert (
+        "With n = 1 per learning rate, no uncertainty estimate is available." in table
+    )
 
     provenance = json.loads(outputs[3].read_text(encoding="utf-8"))
     assert provenance["cohort"]["cell_count"] == 11
