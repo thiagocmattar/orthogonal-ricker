@@ -1,14 +1,14 @@
 # A2 L1 Spillover — Formal Review Packet
 
-> **Proposal; no launch authority.** Approval must name the exact Git commit
-> containing this packet. The definitive plan remains a placeholder until that
-> approval is recorded.
+> **Status:** reviewed by explicit user approval on 2026-08-27 at exact design
+> commit `8d0a750f8f687041370037fa25553c13c9e4c081`. This permits activation and
+> six-config materialization only; it does not authorize calibration, RunPod
+> provisioning, spending, or scientific launch.
 
-The user confirmed the six-cell scientific matrix on 2026-08-27. Formal plan
-review still requires explicit approval of the exact candidate Git SHA that
-contains this packet and the completed admission work.
+The user confirmed and formally approved the six-cell scientific matrix on
+2026-08-27.
 
-This packet owns the proposed next review scope only:
+This packet owns the active reviewed scope only:
 `[A2-relu-control, A2-l1-screen]`. It changes grids and run scope without
 changing the model, L1 method, optimizer, training loop, diagnostics schema,
 data, validation, or failure semantics.
@@ -149,9 +149,8 @@ multi-site threshold study.
   infrastructure smoke attempt
   `025-20260827-110207-15e78835`. All eleven tracked A1 configs also passed the
   exact historical-evidence predicate.
-- After formal review and materialization, configs would receive the next six
-  global IDs (`012`–`017`) in one A2 screen scaffold. No number is reserved by
-  this proposal.
+- Materialization must allocate the next six global IDs (`012`–`017`) in one
+  A2 screen scaffold, with the control first and L1 weights in ascending order.
 
 ## Preliminary Operations
 
@@ -173,12 +172,8 @@ deadline, and a separately reviewed bounded-worker authorization.
 
 ## Review Sequence and Effect
 
-The scientific matrix is user-confirmed and `OPS-08` is closed. This packet is
-therefore ready to be committed as one exact-SHA review candidate. The plan
-status remains `placeholder` until the user explicitly approves that SHA.
-
-Approval of the candidate exact SHA first authorizes recording the plan as
-reviewed for `[A2-relu-control, A2-l1-screen]`. Only after that activation may
-the six configs be materialized. Approval does not authorize RunPod
-provisioning, spending, calibration, definitive training, retry, replacement,
-or teardown. Those remain separate explicit approvals.
+The scientific matrix is formally reviewed and `OPS-08` is closed. The plan
+records `[A2-relu-control, A2-l1-screen]` as its active reviewed scope. Exactly
+six configs may be materialized. RunPod provisioning, spending, calibration,
+definitive training, retry, replacement, and teardown remain separate explicit
+approvals.

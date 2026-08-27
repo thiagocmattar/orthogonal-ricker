@@ -19,11 +19,12 @@ The infrastructure-only
 scientific config requires its case group in the reviewed scope. A launch also
 requires a committed scaffold recipe, clean checkout, calibrated ETC, and
 explicit launch approval.
-The plan currently has no reviewed case groups after the completed A1 decision
-was recorded. All A1 configs `001`–`011` are immutable completed evidence and
-must never be rerun. Later scientific work requires a new exact-SHA review,
-then its own committed execution recipe, ETC/cost envelope, and launch
-approval.
+The plan currently reviews exactly `[A2-relu-control, A2-l1-screen]` at design
+commit `8d0a750f8f687041370037fa25553c13c9e4c081` for six-config materialization.
+All A1 configs `001`–`011` are immutable completed evidence and must never be
+rerun. A2 calibration requires its committed execution recipe and explicit
+calibration approval; definitive execution additionally requires an ETC/cost
+envelope and explicit launch approval.
 Once attempted, a config is immutable. A scientific change gets a new config;
 an infrastructure retry gets a new run attempt under the same config.
 

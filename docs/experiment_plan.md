@@ -1,8 +1,8 @@
 # Definitive Experiment Plan Manifest
 
-Plan status: placeholder
-Reviewed design commit: none
-Reviewed case groups: []
+Plan status: reviewed
+Reviewed design commit: 8d0a750f8f687041370037fa25553c13c9e4c081
+Reviewed case groups: [A2-relu-control, A2-l1-screen]
 
 > **Current state:** All eleven A1 configs `001`–`011` are completed,
 > eligible, valid, immutable evidence and must never be rerun. Applying the
@@ -12,24 +12,25 @@ Reviewed case groups: []
 > `checkpoints/final`, with final selection loss `4.0587728086270785`.
 > Configs `009`–`011` completed serially on one A40. This is the best tested
 > setting for seed 0 at the fixed 400M-token horizon, not a global,
-> horizon-independent, or convergence claim. Recording the result-backed
-> decision reset this manifest to placeholder with no reviewed case groups;
-> later groups require a new exact-SHA review before materialization or launch.
+> horizon-independent, or convergence claim. A1 remains historical-only. The
+> exact A2 groups listed above were approved on 2026-08-27 for config
+> materialization; calibration, provisioning, spending, and scientific launch
+> remain separately gated.
 
-The proposed next review scope is exactly `[A2-relu-control, A2-l1-screen]`:
+The active reviewed scope is exactly `[A2-relu-control, A2-l1-screen]`:
 one seed-0 ReLU-only control and h-only L1 at lambda
 `{0.1, 0.5, 1, 2, 5}`, all under the unchanged full-pass protocol and current
 L1 implementation. Added-seed
 replication of the full response is outside this scope. If the later final
 winner cohort is reviewed and completed, its matching components may supply
 only a selected-lambda ReLU/L1 contrast at added seeds; they do not replicate
-the full grid. The user confirmed this scientific matrix on 2026-08-27 and
-`OPS-08` is closed; formal review now awaits approval of the final exact
-candidate SHA. This proposal is not review or launch authority while the raw
-status lines above remain `placeholder`.
+the full grid. The user approved this scientific matrix at exact design commit
+`8d0a750f8f687041370037fa25553c13c9e4c081` on 2026-08-27, and `OPS-08` is
+closed. Review authorizes materializing exactly these six physical configs; it
+does not authorize calibration or launch.
 
 Completed A1 configs remain tracked as immutable historical evidence outside
-the proposed active A2 scope only when an exact indexed coherent completed run
+the active A2 scope only when an exact indexed coherent completed run
 matches their config snapshot. That preservation does not reactivate A1 or
 authorize materialization, retry, or launch.
 

@@ -21,9 +21,11 @@ global, horizon-independent, or converged optimum.
 
 The tracked tree contains the definitive A1 recipes and their evidence index;
 raw attempts remain ignored and are addressed by exact identities from
-[`docs/experiment_log.md`](docs/experiment_log.md). The plan is reset to
-placeholder after recording the A1 result, so later case groups require a new
-exact-SHA review before materialization or launch.
+[`docs/experiment_log.md`](docs/experiment_log.md). The exact A2 groups
+`[A2-relu-control, A2-l1-screen]` are reviewed at design commit
+`8d0a750f8f687041370037fa25553c13c9e4c081` for materializing one seed-0 ReLU
+control and five h-only L1 cells. Calibration, cloud spending, and scientific
+launch remain separately gated.
 
 ## Scientific Invariants
 

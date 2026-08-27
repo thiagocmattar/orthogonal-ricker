@@ -32,11 +32,12 @@ predeclared rule selected `lr_14m = 6.4e-2` from config
 `008-a1-lr-6p4e-2`, run `001-20260826-190546-4df1c441`, checkpoint
 `checkpoints/final`, at the fixed 400M-token horizon. This is the best tested
 setting for one seed, not a global, horizon-independent, or convergence claim.
-Recording that decision reset `docs/experiment_plan.md` to placeholder, so no
-case group is currently in reviewed scope. Use
+The exact A2 groups `[A2-relu-control, A2-l1-screen]` are reviewed at design
+commit `8d0a750f8f687041370037fa25553c13c9e4c081` for config materialization only;
+calibration and launch remain separately gated. Use
 `docs/experimental-design/cases.yaml` and
 `docs/experimental-design/run-reuse.md` to ensure one physical config per
-scientific condition and seed after later groups receive exact-SHA review.
+scientific condition and seed.
 
 ## Scientific Boundaries
 
