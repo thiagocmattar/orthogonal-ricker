@@ -9,10 +9,16 @@ import pytest
 from paper_exp.plots.a1_lr_screen import (
     A1Point,
     A1_SOURCES,
+    EXPECTED_TOKENS_PER_STEP,
+    EXPECTED_TRAIN_LOG_STEPS,
+    EXPECTED_VALIDATION_STEPS,
     build_a1_lr_figure,
     build_a1_lr_table,
+    build_a1_training_progress_figure,
     generate_a1_lr_screen,
+    generate_a1_training_progress,
     load_a1_lr_points,
+    load_a1_training_progress,
     select_a1_point,
 )
 from paper_exp.plots.export import (
@@ -433,6 +439,131 @@ def test_a1_lr_screen_publishes_complete_deterministic_suite(tmp_path: Path) -> 
     assert tuple(path.read_bytes() for path in outputs) == first_bytes
 
 
+def test_a1_training_progress_publishes_shared_legend_suite(tmp_path: Path) -> None:
+    _write_a1_lr_fixture(tmp_path)
+
+    outputs = generate_a1_training_progress(tmp_path)
+    first_bytes = tuple(path.read_bytes() for path in outputs)
+    traces, inputs = load_a1_training_progress(tmp_path)
+    figure = build_a1_training_progress_figure(traces)
+    try:
+        assert len(figure.axes) == 2
+        loss_axis, learning_rate_axis = figure.axes
+        assert len(loss_axis.lines) == 11
+        assert len(learning_rate_axis.lines) == 11
+        assert loss_axis.get_ylabel() == "Validation loss"
+        assert learning_rate_axis.get_ylabel() == (
+            r"Effective learning rate (log$_2$ scale)"
+        )
+        assert learning_rate_axis.get_yscale() == "log"
+        assert learning_rate_axis.yaxis.get_transform().base == 2
+        expected_xlim = (0.0, 400.031744 * 1.02)
+        assert loss_axis.get_xlim() == pytest.approx(expected_xlim)
+        assert learning_rate_axis.get_xlim() == pytest.approx(expected_xlim)
+        assert loss_axis.get_legend() is None
+        assert learning_rate_axis.get_legend() is None
+        assert len(figure.legends) == 1
+        assert len(figure.legends[0].get_texts()) == 11
+        assert all(
+            left.get_color() == right.get_color()
+            and left.get_marker() == right.get_marker()
+            and left.get_linestyle() == right.get_linestyle()
+            for left, right in zip(
+                loss_axis.lines,
+                learning_rate_axis.lines,
+                strict=True,
+            )
+        )
+        assert "#F0E442" not in {line.get_color() for line in loss_axis.lines}
+        assert {line.get_linewidth() for line in loss_axis.lines} == {1.2}
+        assert publication_figure_issues(
+            figure,
+            DOUBLE_COLUMN_PUBLICATION_PROFILE,
+        ) == ()
+    finally:
+        plt.close(figure)
+
+    assert [path.name for path in outputs] == [
+        "02-a1-training-progress.pdf",
+        "02-a1-training-progress.png",
+        "02-a1-training-progress.md",
+        "02-a1-training-progress.provenance.json",
+    ]
+    assert len(traces) == 11
+    assert all(len(trace.validation_steps) == 9 for trace in traces)
+    assert all(len(trace.learning_rate_steps) == 154 for trace in traces)
+    assert len(inputs) == 55
+    assert sum(item["role"] == "events" for item in inputs) == 11
+    caption = outputs[2].read_text(encoding="utf-8")
+    assert "**Figure caption.** Pythia-14M validation-loss trajectories" in caption
+    assert "seed 0 (n = 1)" in caption
+    assert "no uncertainty estimate is available" in caption
+    provenance = json.loads(outputs[3].read_text(encoding="utf-8"))
+    assert provenance["figure_id"] == "a1-training-progress"
+    assert provenance["cohort"]["cell_count"] == 11
+    assert provenance["panels"]["learning_trajectories"]["y"] == (
+        "validation_loss"
+    )
+    assert provenance["panels"]["learning_rate_schedules"]["y_scale"] == (
+        "log_base_2"
+    )
+    assert len(provenance["inputs"]) == 55
+    assert len(provenance["outputs"]) == 3
+
+    assert generate_a1_training_progress(tmp_path) == outputs
+    assert tuple(path.read_bytes() for path in outputs) == first_bytes
+
+
+def test_a1_training_progress_rejects_nonpositive_effective_lr(
+    tmp_path: Path,
+) -> None:
+    _write_a1_lr_fixture(tmp_path)
+    source = A1_SOURCES[0]
+    events_path = (
+        tmp_path
+        / "experiments"
+        / "01-a1-lr-screen"
+        / "raw"
+        / source.config_id
+        / source.run_id
+        / "events.jsonl"
+    )
+    rows = [
+        json.loads(line)
+        for line in events_path.read_text(encoding="utf-8").splitlines()
+    ]
+    rows[0]["learning_rate"] = 0.0
+    _write_jsonl(events_path, rows)
+
+    with pytest.raises(ValueError, match="effective learning rate must be positive"):
+        load_a1_training_progress(tmp_path)
+
+
+def test_a1_training_progress_rejects_incomplete_validation_trace(
+    tmp_path: Path,
+) -> None:
+    _write_a1_lr_fixture(tmp_path)
+    source = A1_SOURCES[0]
+    events_path = (
+        tmp_path
+        / "experiments"
+        / "01-a1-lr-screen"
+        / "raw"
+        / source.config_id
+        / source.run_id
+        / "events.jsonl"
+    )
+    rows = [
+        json.loads(line)
+        for line in events_path.read_text(encoding="utf-8").splitlines()
+    ]
+    rows.pop()
+    _write_jsonl(events_path, rows)
+
+    with pytest.raises(ValueError, match="validation cadence mismatch"):
+        load_a1_training_progress(tmp_path)
+
+
 @pytest.mark.parametrize(
     ("artifact", "field", "value", "message"),
     [
@@ -584,6 +715,7 @@ def _write_a1_lr_fixture(repository: Path) -> None:
             ),
             "training/validation_complete_block_coverage": True,
             "training/wall_time_limit_reached": False,
+            "training/learning_rate_final": source.learning_rate * 0.1,
         }
         (run_dir / "manifest.json").write_text(
             json.dumps(manifest), encoding="utf-8"
@@ -591,6 +723,40 @@ def _write_a1_lr_fixture(repository: Path) -> None:
         (run_dir / "metrics.json").write_text(
             json.dumps(metrics), encoding="utf-8"
         )
+        train_step_set = set(EXPECTED_TRAIN_LOG_STEPS)
+        validation_step_set = set(EXPECTED_VALIDATION_STEPS)
+        events: list[dict[str, object]] = []
+        for step in sorted(train_step_set | validation_step_set):
+            tokens_seen = step * EXPECTED_TOKENS_PER_STEP
+            if step in train_step_set:
+                if step == 1:
+                    effective_learning_rate = source.learning_rate / 16
+                elif step == 1_526:
+                    effective_learning_rate = source.learning_rate * 0.1
+                else:
+                    effective_learning_rate = source.learning_rate * 0.5
+                events.append(
+                    {
+                        "event": "train",
+                        "step": step,
+                        "tokens_seen": tokens_seen,
+                        "learning_rate": effective_learning_rate,
+                    }
+                )
+            if step in validation_step_set:
+                fraction = step / 1_526
+                validation_loss = 11.0 + (loss - 11.0) * fraction
+                if step == 1_526:
+                    validation_loss = loss
+                events.append(
+                    {
+                        "event": "validation",
+                        "step": step,
+                        "tokens_seen": tokens_seen,
+                        "validation_loss": validation_loss,
+                    }
+                )
+        _write_jsonl(run_dir / "events.jsonl", events)
 
 
 def _scaffold(tmp_path: Path, scaffold_id: str) -> Path:

@@ -83,12 +83,18 @@ the authored canvas, maximum height, minimum text size, and text containment.
 Do not use a tight bounding box for a final-size publication profile because it
 changes the validated canvas and PDF MediaBox.
 
-## A1 Fixed-Cohort Output
+## A1 Fixed-Cohort Outputs
 
 Regenerate the complete A1 table, curve, and provenance with:
 
 ```bash
 python -m paper_exp.plots.a1_lr_screen
+```
+
+Regenerate the two-panel A1 training-progress figure with:
+
+```bash
+python -m paper_exp.plots.a1_lr_screen --progress
 ```
 
 The recipe pins configs `001`–`011` and their exact accepted run IDs. It
@@ -106,6 +112,20 @@ boundary, the companion Markdown states that limitation directly. The curve is
 selection-neutral: it uses one visual treatment for every tested rate and keeps
 seed, sample-size, horizon, and selection context in the companion caption and
 table rather than in an image footnote.
+
+The second output is owned by
+`experiments/01-a1-lr-screen/figs/02-a1-training-progress` and contains a
+vector PDF, inspection PNG, self-contained Markdown caption, and deterministic
+provenance sidecar. Its left panel plots all saved `validation` events as
+validation loss versus cumulative training tokens. Its right panel plots the
+effective learning rate recorded in all saved `train` events versus cumulative
+training tokens, using a base-2 logarithmic y-axis. The event streams contain
+nine validation measurements and 154 logged learning-rate values per run. The
+learning-rate panel shows those recorded updates without synthesizing a
+token-zero point or reconstructing unlogged updates. Both panels use the same
+selection-neutral series identities and one shared legend below the plots; the
+companion caption records the seed, sample size, horizon, and uncertainty
+limit.
 
 ## Current Explicit Diagnostic Plots
 

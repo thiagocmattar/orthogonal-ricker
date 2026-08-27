@@ -38,8 +38,8 @@ Status rules:
 - Do not copy scalar results into this log when the saved artifact is the
   authority. Summarize only the decision and interpretation boundary.
 
-The registry contains all eleven completed A1 cells. Their final curve, table,
-and provenance are owned by
+The registry contains all eleven completed A1 cells. Their final screen curve,
+table, two-panel training-progress figure, and provenance are owned by
 [`experiments/01-a1-lr-screen/figs`](../experiments/01-a1-lr-screen/figs/).
 The predeclared lowest-final-selection-loss rule selects config
 `008-a1-lr-6p4e-2`. This is a single-seed selection at the fixed 400M-token

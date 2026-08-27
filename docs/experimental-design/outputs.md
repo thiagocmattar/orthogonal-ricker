@@ -19,11 +19,12 @@
 
 Report A1 as a complete eleven-cell table and curve with peak LR, final selection
 loss, terminal classification, eligibility, exact config/run identity, and the
-selected rate. Preserve training/validation curves and timing/resource
-telemetry for every cell. If `5.12e-1` is selected, label it as the upper tested
-boundary. A1 supports only a best-tested-rate decision at the fixed 400M-token
-horizon; it does not support a sparsity, convergence, full-pass, or
-horizon-independent optimum claim.
+selected rate. Report a two-panel progress figure with validation loss and the
+logged effective learning rate against cumulative training tokens for every
+cell. Preserve timing/resource telemetry for every cell. If `5.12e-1` is
+selected, label it as the upper tested boundary. A1 supports only a
+best-tested-rate decision at the fixed 400M-token horizon; it does not support a
+sparsity, convergence, full-pass, or horizon-independent optimum claim.
 
 ## Spillover Measurements
 
