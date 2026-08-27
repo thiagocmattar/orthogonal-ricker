@@ -67,7 +67,7 @@ experiment directly measures sparse-kernel execution.
 
 | Output | Required content |
 | --- | --- |
-| Figure 1 — sparsity spillover | Seed-0 A2/C2 responses at `pressure: none` and lambda `{0.1, 1, 5}`; site/layer changes in near-zero mass and RMS across 14M/70M/410M. The required 14M distribution panel uses seed 0, the deepest transformer layer, all six named sites, ReLU-only versus lambda `1`, and separate exact-zero atoms. If final winner cohorts provide matching added seeds, a selected-lambda replication panel may be added without replacing the seed-0 response. |
+| Figure 1 — sparsity spillover | Seed-0 A2/C2 responses at `pressure: none` and lambda `{0.1, 0.5, 1, 2, 5}`; site/layer changes in near-zero mass and RMS across 14M/70M/410M. The required 14M distribution panel uses seed 0, the deepest transformer layer, all six named sites, ReLU-only versus lambda `1`, and separate exact-zero atoms. If final winner cohorts provide matching added seeds, a selected-lambda replication panel may be added without replacing the seed-0 response. |
 | Figure 2 — model-wide logical opportunity | Validated operation-level `R_model`; `R_model^max` by actual model/topology at `T = 2,048`; observed B1/B2/C3 contributions. |
 | Figure 3 — intervention and mechanism | Six matched components; B1/C3 frontiers; loss versus achieved `n_h(0.01)`; OL1 conflict/projection frequencies; paired one-sided-versus-symmetric points at every applicable matched topology/kappa/seed. |
 | Main results table | One row per model and final matched condition: complete recipe, validation loss and paired change, `n_h(0.01)`, named spillover vector, absolute/paired `R_model`, seeds, uncertainty when replicated, and evidence status. |

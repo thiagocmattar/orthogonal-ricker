@@ -30,7 +30,7 @@ at seed 0. C1's `A0` cases cannot be reused because their budget is
 `lr-400m`; C2 uses `full-pass-wrap`. Each zero-pressure response anchor has
 `pressure: none`; only positive lambdas use `pressure: l1_naive`.
 
-**Evidence:** show the transported `{0.1, 1, 5}` lambda response as exploratory
+**Evidence:** show the transported `{0.1, 0.5, 1, 2, 5}` lambda response as exploratory
 seed-0 evidence. Absolute lambda values are transported unchanged. Added-seed
 replication of the full response is not planned. If the later final winner
 cohorts are reviewed and completed, their matching components can support only

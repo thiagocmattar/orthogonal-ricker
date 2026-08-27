@@ -37,9 +37,9 @@ untargeted `a`, `m`, `q_post`, `k_post`, and `v` distributions change?
 **Prerequisite:** `lr_14m`.
 
 **Cases:** `A2-relu-control` and `A2-l1-screen`. A2 is a seed-0 discovery
-screen with the four curve points `pressure: none` and `pressure: l1_naive`
-at lambda `{0.1, 1, 5}`. The zero-pressure anchor is not encoded as an L1
-case with lambda zero.
+screen with one `pressure: none` anchor and five `pressure: l1_naive` points
+at lambda `{0.1, 0.5, 1, 2, 5}`. The zero-pressure anchor is not encoded as
+an L1 case with lambda zero.
 
 **Primary comparison:** subtract the seed-0 ReLU-only condition from each L1
 condition at every named site. Report validation loss, exact-zero mass,
@@ -48,7 +48,7 @@ supporting evidence in
 [`../outputs.md`](../outputs.md). The response is directional single-seed
 evidence and carries no seed-uncertainty claim.
 
-**Completion rule:** all four seed-0 cells require a terminal classification.
+**Completion rule:** all six seed-0 cells require a terminal classification.
 Missing, infrastructure-failed, or unresolved cells block the A2 response;
 scientific failures remain visible grid outcomes and are never replaced.
 
@@ -69,7 +69,7 @@ accompanies the difference?
 **Prerequisites:** `lr_14m` and reviewed decision `ol1_step_budget`.
 
 **Cases:** `A3-ol1-screen` contains only positive-lambda OL1 cases at the
-matched A2 grid `{0.1, 1, 5}`. Its zero-pressure curve anchor reuses
+matched A2 grid `{0.1, 0.5, 1, 2, 5}`. Its zero-pressure curve anchor reuses
 `A2-relu-control` rather than encoding an OL1 case with lambda zero or training
 again.
 

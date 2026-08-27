@@ -20,15 +20,17 @@ seed-uncertainty or replication claim. Full-grid added seeds are not planned.
 If the final B2 winner cohort is later reviewed and completed, its matching
 ReLU-only and selected-L1 components at seeds 1 and 2 may provide replication
 of the selected-lambda contrast without duplicating a physical condition. They
-do not replicate the `{0.1, 1, 5}` response.
+do not replicate the `{0.1, 0.5, 1, 2, 5}` response.
 
-## Exact Four-Run Cohort
+## Exact Six-Run Cohort
 
 | Physical cell | Seed | Topology and activation | Pressure |
 | --- | ---: | --- | --- |
 | ReLU control | 0 | `A1-H`; ReLU replaces GELU at `h` | `none` |
 | L1 low | 0 | `A1-H`; ReLU replaces GELU at `h` | `l1_naive`, `sites: [h]`, lambda `0.1` |
+| L1 lower-middle | 0 | `A1-H`; ReLU replaces GELU at `h` | `l1_naive`, `sites: [h]`, lambda `0.5` |
 | L1 central | 0 | `A1-H`; ReLU replaces GELU at `h` | `l1_naive`, `sites: [h]`, lambda `1` |
+| L1 upper-middle | 0 | `A1-H`; ReLU replaces GELU at `h` | `l1_naive`, `sites: [h]`, lambda `2` |
 | L1 high | 0 | `A1-H`; ReLU replaces GELU at `h` | `l1_naive`, `sites: [h]`, lambda `5` |
 
 The control is the lambda-zero curve anchor but is encoded as `pressure:
@@ -43,7 +45,7 @@ decision and shared immutable input pins.
 | --- | --- |
 | Model | Randomly initialized Pythia-14M; released weights are not loaded |
 | Seeds | `run.seed: 0`; `model_initialization_seed: 0`; `data_order_seed: 0` |
-| Initialization check | All four cells must report the same initial-parameter SHA-256 before their first update |
+| Initialization check | All six cells must report the same initial-parameter SHA-256 before their first update |
 | Peak LR | `6.4e-2` for every cell |
 | Budget | `full-pass-wrap`: 5,691 updates; 1,491,861,504 input tokens |
 | Seed-0 schedule | SHA-256 `35da3f6aa891a2248407344715e4c75e99cb518b17119a8e66004466a823a21c` |
@@ -69,7 +71,7 @@ re-review.
 ## Spillover Measurement
 
 Run the existing activation-histogram diagnostic after all accepted final
-checkpoints have exact config/run identities. One four-source recipe must use:
+checkpoints have exact config/run identities. One six-source recipe must use:
 
 - sites `[h, a, m, q_post, k_post, v]`;
 - thresholds `[0, 0.01, 0.1]`;
@@ -94,7 +96,7 @@ already saved RMS, and layer distributions are supporting evidence.
 
 ## Completion and Claims
 
-All four cells require reviewed terminal classifications. Eligible and
+All six cells require reviewed terminal classifications. Eligible and
 scientific-failure cells resolve the grid; infrastructure-failure or unresolved
 cells block completion. Failed or unfavorable cells are never replaced.
 
@@ -112,13 +114,13 @@ multi-site threshold study.
   diagnostic config, before diagnostic execution and before inspecting its
   outputs; it is not a pretraining or plan-review blocker.
 - `OPS-08` remains the sole pre-review blocker: config validation must admit
-  exactly one seed-0
-  control and exactly the three reviewed L1 weights, reject every other A2
-  cell, verify fingerprints, and prevent duplicates. This is launch/config
-  plumbing, not a model, optimizer, pressure-method, or diagnostic change.
-- After formal review and materialization, configs would receive the next four global IDs
-  (`012`–`015`) in one A2 screen scaffold. No number is reserved by this
-  proposal.
+  exactly one seed-0 control and exactly the five reviewed L1 weights, reject
+  every other A2 cell, verify fingerprints, and prevent duplicates. This is
+  launch/config plumbing, not a model, optimizer, pressure-method, or
+  diagnostic change.
+- After formal review and materialization, configs would receive the next six
+  global IDs (`012`–`017`) in one A2 screen scaffold. No number is reserved by
+  this proposal.
 
 ## Preliminary Operations
 
@@ -126,27 +128,28 @@ The control projection is approximately 2.45–2.55 hours from accepted A1 A40
 timings. The current L1 path has no direct production A40 timing; its provisional
 range is 4.0–5.5 hours per run. This implies:
 
-- one-A40 serial: about 14.5–19.1 hours;
-- one coordinator with two A40 workers: about 8–11 hours; and
-- historical-price lifecycle planning only: roughly `$7.5–$10.4` at
-  `$0.44/A40-hour`.
+- one-A40 serial: about 22.5–30.1 hours;
+- one coordinator with two A40 workers: about 12–16.5 hours;
+- one coordinator with three A40 workers: about 8–11 hours; and
+- historical-price lifecycle planning only: roughly `$11–$15.5` for a
+  two- or three-A40 balanced launch at `$0.44/A40-hour`.
 
 These are not launch-quality ETC or live-price estimates. After reviewed
 materialization, calibrate the exact ReLU control and lambda-1 L1 cells for 600
 completed optimizer-step seconds each on the intended homogeneous A40 setup.
 Then return with measured first-run/full-cohort ETC, current price, cost cap,
-deadline, and a separately reviewed two-worker authorization.
+deadline, and a separately reviewed bounded-worker authorization.
 
 ## Review Sequence and Effect
 
 This design-only proposal is not yet eligible for formal approval because
 `OPS-08` fails closed for non-A1 groups. First implement and verify only the
-exact four-cell config-admission contract, while preserving the frozen
+exact six-cell config-admission contract, while preserving the frozen
 scientific-path blobs above. Then commit the complete review packet and return
 one exact SHA for formal approval.
 
 Approval of that later exact SHA authorizes recording the plan as reviewed for
-`[A2-relu-control, A2-l1-screen]` and materializing those four configs. It does
+`[A2-relu-control, A2-l1-screen]` and materializing those six configs. It does
 not authorize RunPod provisioning, spending, calibration, definitive
 training, retry, replacement, or teardown. Those remain separate explicit
 approvals.

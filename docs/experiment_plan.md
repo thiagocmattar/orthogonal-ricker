@@ -17,8 +17,9 @@ Reviewed case groups: []
 > later groups require a new exact-SHA review before materialization or launch.
 
 The proposed next review scope is exactly `[A2-relu-control, A2-l1-screen]`:
-one seed-0 ReLU-only control and h-only L1 at lambda `{0.1, 1, 5}`, all under
-the unchanged full-pass protocol and current L1 implementation. Added-seed
+one seed-0 ReLU-only control and h-only L1 at lambda
+`{0.1, 0.5, 1, 2, 5}`, all under the unchanged full-pass protocol and current
+L1 implementation. Added-seed
 replication of the full response is outside this scope. If the later final
 winner cohort is reviewed and completed, its matching components may supply
 only a selected-lambda ReLU/L1 contrast at added seeds; they do not replicate

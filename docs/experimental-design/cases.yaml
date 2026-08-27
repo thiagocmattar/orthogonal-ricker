@@ -93,9 +93,9 @@ case_groups:
       h_operator: relu
       pressure: l1_naive
       pressure_sites: [h]
-      lambda: [0.1, 1, 5]
-    conceptual_cells: 3
-    unique_cases: 3
+      lambda: [0.1, 0.5, 1, 2, 5]
+    conceptual_cells: 5
+    unique_cases: 5
     notes:
       - the lambda=0 curve point reuses A2-relu-control
 
@@ -112,10 +112,10 @@ case_groups:
       h_operator: relu
       pressure: orthogonal_l1
       pressure_sites: [h]
-      lambda: [0.1, 1, 5]
+      lambda: [0.1, 0.5, 1, 2, 5]
       step_budget: decision:ol1_step_budget
-    conceptual_cells: 3
-    unique_cases: 3
+    conceptual_cells: 5
+    unique_cases: 5
     controls:
       - reuse_group: A2-relu-control
         reuse_cell: seed=0
@@ -274,9 +274,9 @@ case_groups:
       h_operator: relu
       pressure: l1_naive
       pressure_sites: [h]
-      lambda: [0.1, 1, 5]
-    conceptual_cells: 6
-    unique_cases: 6
+      lambda: [0.1, 0.5, 1, 2, 5]
+    conceptual_cells: 10
+    unique_cases: 10
     notes:
       - each model's lambda=0 curve point reuses C2-relu-controls
 

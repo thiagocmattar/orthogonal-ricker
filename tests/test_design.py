@@ -60,12 +60,13 @@ def test_repository_catalog_expands_every_declared_group_and_alias() -> None:
     assert summary.groups["A1-lr-screen"]["conceptual_cells"] == 11
     assert summary.groups["A1-lr-screen"]["unique_cases"] == 11
     assert summary.groups["A2-relu-control"]["unique_cases"] == 1
-    assert summary.groups["A2-l1-screen"]["factors"]["lambda"] == [0.1, 1, 5]
-    assert summary.groups["A2-l1-screen"]["unique_cases"] == 3
-    assert summary.groups["A3-ol1-screen"]["factors"]["lambda"] == [0.1, 1, 5]
-    assert summary.groups["A3-ol1-screen"]["unique_cases"] == 3
-    assert summary.groups["C2-l1-screens"]["factors"]["lambda"] == [0.1, 1, 5]
-    assert summary.groups["C2-l1-screens"]["unique_cases"] == 6
+    expected_pressure_grid = [0.1, 0.5, 1, 2, 5]
+    assert summary.groups["A2-l1-screen"]["factors"]["lambda"] == expected_pressure_grid
+    assert summary.groups["A2-l1-screen"]["unique_cases"] == 5
+    assert summary.groups["A3-ol1-screen"]["factors"]["lambda"] == expected_pressure_grid
+    assert summary.groups["A3-ol1-screen"]["unique_cases"] == 5
+    assert summary.groups["C2-l1-screens"]["factors"]["lambda"] == expected_pressure_grid
+    assert summary.groups["C2-l1-screens"]["unique_cases"] == 10
     assert summary.groups["B2-winner-confirmation"]["unique_cases"] == 12
     assert summary.groups["C3-winner-confirmation"]["unique_cases"] == 24
     assert summary.groups["B1-threshold-screen"]["conceptual_cells"] == 56
