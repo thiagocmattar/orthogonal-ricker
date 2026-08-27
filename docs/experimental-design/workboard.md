@@ -58,7 +58,7 @@ Readiness is derived from this table, the reviewed case-group scope, and
 | Stage | State | Required closure/decision |
 | --- | --- | --- |
 | A1 | complete | All eleven reviewed cells completed and are eligible, valid evidence; the predeclared lowest-final-selection-loss rule selects config `008-a1-lr-6p4e-2` for dependent experiments. |
-| A2 | ready | Reviewed groups `[A2-relu-control, A2-l1-screen]`; materialize exactly configs `012`–`017` before calibration review. |
+| A2 | ready | Exact configs `012`–`017` are materialized; calibration/ETC and definitive launch each remain separately gated. |
 | A3 | blocked | Review group `A3-ol1-screen`; A2 complete; `METHOD-02`, `DIAG-03`, `OPS-15` |
 | B1 | blocked | Review `B1-threshold-screen`; A2 terminal interpretation; resolve `DESIGN-01`, `METHOD-01`, `DIAG-01`, `OPS-15` |
 | B2 | blocked | Review the B2 groups; resolve `DESIGN-01`; decisions `lambda_B2`, `b1_family`; valid prerequisites; `OPS-15` |

@@ -149,8 +149,9 @@ multi-site threshold study.
   infrastructure smoke attempt
   `025-20260827-110207-15e78835`. All eleven tracked A1 configs also passed the
   exact historical-evidence predicate.
-- Materialization must allocate the next six global IDs (`012`–`017`) in one
-  A2 screen scaffold, with the control first and L1 weights in ascending order.
+- Configs `012`–`017` are materialized under
+  `experiments/02-a2-l1-screen/`, with the control first and L1 weights in
+  ascending order.
 
 ## Preliminary Operations
 
@@ -174,6 +175,6 @@ deadline, and a separately reviewed bounded-worker authorization.
 
 The scientific matrix is formally reviewed and `OPS-08` is closed. The plan
 records `[A2-relu-control, A2-l1-screen]` as its active reviewed scope. Exactly
-six configs may be materialized. RunPod provisioning, spending, calibration,
+six configs are now materialized. RunPod provisioning, spending, calibration,
 definitive training, retry, replacement, and teardown remain separate explicit
 approvals.

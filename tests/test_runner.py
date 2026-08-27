@@ -1216,6 +1216,24 @@ def test_a1_very_high_lr_extension_runner_has_eleven_configs_and_exact_reuse() -
     )
 
 
+def test_a2_l1_screen_runner_has_exact_six_config_serial_order() -> None:
+    repository = Path(__file__).resolve().parents[1]
+    namespace = runpy.run_path(
+        str(repository / "experiments" / "02-a2-l1-screen" / "run" / "runner.py")
+    )
+
+    assert namespace["CONFIGS"] == (
+        "experiments/02-a2-l1-screen/run/012-a2-relu-control.yaml",
+        "experiments/02-a2-l1-screen/run/013-a2-l1-1e-1.yaml",
+        "experiments/02-a2-l1-screen/run/014-a2-l1-5e-1.yaml",
+        "experiments/02-a2-l1-screen/run/015-a2-l1-1.yaml",
+        "experiments/02-a2-l1-screen/run/016-a2-l1-2.yaml",
+        "experiments/02-a2-l1-screen/run/017-a2-l1-5.yaml",
+    )
+    assert "REQUIRED_COMPLETED_CONFIG_IDS" not in namespace
+    assert "PARALLEL_AUTHORIZATION" not in namespace
+
+
 def test_required_completed_reuse_fails_closed_before_rerun(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
