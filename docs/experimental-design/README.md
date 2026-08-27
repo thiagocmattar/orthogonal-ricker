@@ -21,7 +21,7 @@ Pythia-14M discovery and Pythia-70M/410M replication program.
 | Completed three-cell high-LR extension | [`a1-high-lr-extension-review-packet.md`](a1-high-lr-extension-review-packet.md) |
 | Historical high-LR launch record | [`a1-high-lr-launch-packet.md`](a1-high-lr-launch-packet.md) |
 | Reviewed very-high-LR extension | [`a1-very-high-lr-extension-review-packet.md`](a1-very-high-lr-extension-review-packet.md) |
-| Prepared very-high-LR launch | [`a1-very-high-lr-launch-packet.md`](a1-very-high-lr-launch-packet.md) |
+| Completed very-high-LR launch | [`a1-very-high-lr-launch-packet.md`](a1-very-high-lr-launch-packet.md) |
 | Historical A1 calibration and ETC | [`a1-calibration-packet.md`](a1-calibration-packet.md) |
 | Shared scientific configuration | [`protocol.md`](protocol.md) |
 | Stage design or selection | [Phase A](phases/a-pressure.md), [B](phases/b-threshold.md), or [C](phases/c-scale.md), plus [`cases.yaml`](cases.yaml) |
@@ -31,15 +31,18 @@ Pythia-14M discovery and Pythia-70M/410M replication program.
 | Launch, recovery, or ETC | [`../runbook.md`](../runbook.md) |
 | Record a selected value | [`decisions.md`](decisions.md) |
 
-A1 configs `001`–`008` are completed, immutable evidence and must never be
-rerun. Their interim eight-cell selection is now reopened by the reviewed
-factor-two cells `1.28e-1`, `2.56e-1`, and `5.12e-1`. The completed evidence
-cohort is indexed by [`../experiment_log.md`](../experiment_log.md); the
-existing eight-cell output recipe is commit `56d7771`. The eleven-cell scope
-was reviewed at design commit
-`2320d542b14926315a17e873afac2d41a40d6814`; configs `009`–`011` were
-materialized at commit `1fd0914068531d1c05e047f95352fabee3e3b04a` and remain
-pending a separately approved definitive launch.
+A1 configs `001`–`011` are completed, immutable evidence and must never be
+rerun. The factor-two extension at `1.28e-1`, `2.56e-1`, and `5.12e-1`
+completed without improving on config `008-a1-lr-6p4e-2`, which the final
+eleven-cell lowest-loss rule selects for dependent experiments. The complete
+evidence cohort is indexed by [`../experiment_log.md`](../experiment_log.md)
+and its execution record is
+[`a1-very-high-lr-launch-packet.md`](a1-very-high-lr-launch-packet.md). The
+eleven-cell scope was reviewed at design commit
+`2320d542b14926315a17e873afac2d41a40d6814`, configs `009`–`011` were
+materialized at commit `1fd0914068531d1c05e047f95352fabee3e3b04a`, and the
+launch packet was approved at commit
+`2f8f55cd57b25828fea10f015992b0824b28f3a6`.
 
 ## One Fact, One Owner
 

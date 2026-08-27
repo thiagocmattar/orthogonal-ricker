@@ -10,6 +10,7 @@ from paper_exp.plots.a1_lr_screen import (
     A1Point,
     A1_SOURCES,
     build_a1_lr_figure,
+    build_a1_lr_table,
     generate_a1_lr_screen,
     load_a1_lr_points,
     select_a1_point,
@@ -331,6 +332,42 @@ def test_a1_lr_selection_breaks_an_exact_loss_tie_toward_lower_lr() -> None:
     assert select_a1_point((higher, lower)) == lower
 
 
+def test_a1_lr_outputs_retain_upper_boundary_warning() -> None:
+    common = {
+        "run_id": "001-test",
+        "seed": 0,
+        "optimizer_steps": 1526,
+        "training_tokens": 400_031_744,
+        "validation_tokens": 311_296,
+        "terminal_status": "completed",
+        "case_class": "eligible",
+        "evidence_status": "valid",
+    }
+    points = (
+        A1Point(
+            config_id="001-lower-lr",
+            learning_rate=1e-3,
+            final_validation_loss=4.2,
+            **common,
+        ),
+        A1Point(
+            config_id="002-upper-lr",
+            learning_rate=2e-3,
+            final_validation_loss=4.0,
+            **common,
+        ),
+    )
+
+    figure = build_a1_lr_figure(points)
+    try:
+        assert any(
+            "upper tested boundary" in text.get_text() for text in figure.texts
+        )
+    finally:
+        plt.close(figure)
+    assert "selected (upper tested boundary)" in build_a1_lr_table(points)
+
+
 def test_a1_lr_screen_publishes_complete_deterministic_suite(tmp_path: Path) -> None:
     _write_a1_lr_fixture(tmp_path)
 
@@ -340,10 +377,10 @@ def test_a1_lr_screen_publishes_complete_deterministic_suite(tmp_path: Path) -> 
     figure = build_a1_lr_figure(points)
     try:
         assert figure.axes[0].get_xscale() == "log"
-        assert len(figure.axes[0].lines[0].get_xdata()) == 8
+        assert len(figure.axes[0].lines[0].get_xdata()) == 11
         assert "zoomed" in figure.axes[0].get_ylabel()
         assert any(
-            "upper tested boundary" in text.get_text() for text in figure.texts
+            "inside the tested range" in text.get_text() for text in figure.texts
         )
         assert publication_figure_issues(
             figure,
@@ -358,25 +395,26 @@ def test_a1_lr_screen_publishes_complete_deterministic_suite(tmp_path: Path) -> 
         "01-a1-learning-rate-screen.md",
         "01-a1-learning-rate-screen.provenance.json",
     ]
-    assert len(points) == 8
-    assert len(inputs) == 32
+    assert len(points) == 11
+    assert len(inputs) == 44
     table = outputs[2].read_text(encoding="utf-8")
-    assert sum(line.startswith("| `") for line in table.splitlines()) == 8
+    assert sum(line.startswith("| `") for line in table.splitlines()) == 11
     assert all(source.config_id in table for source in A1_SOURCES)
     assert all(source.run_id in table for source in A1_SOURCES)
-    assert "selected (upper tested boundary)" in table
+    assert "selected (upper tested boundary)" not in table
+    assert "It lies inside the tested range." in table
 
     provenance = json.loads(outputs[3].read_text(encoding="utf-8"))
-    assert provenance["cohort"]["cell_count"] == 8
+    assert provenance["cohort"]["cell_count"] == 11
     assert provenance["cohort"]["seed_count_per_cell"] == 1
     assert provenance["selected"] == {
         "config_id": "008-a1-lr-6p4e-2",
         "final_validation_loss": 4.0587728086270785,
         "learning_rate": 0.064,
         "run_id": "001-20260826-190546-4df1c441",
-        "upper_tested_boundary": True,
+        "upper_tested_boundary": False,
     }
-    assert len(provenance["inputs"]) == 32
+    assert len(provenance["inputs"]) == 44
     assert len(provenance["outputs"]) == 3
     assert all(point["terminal_status"] == "completed" for point in provenance["points"])
     assert all(point["case_class"] == "eligible" for point in provenance["points"])
@@ -449,6 +487,9 @@ def _write_a1_lr_fixture(repository: Path) -> None:
         4.112285005418878,
         4.082745991255107,
         4.0587728086270785,
+        4.172757286774485,
+        4.486860701912327,
+        4.837938653795343,
     )
     for source, loss in zip(A1_SOURCES, losses, strict=True):
         recipe_source = (

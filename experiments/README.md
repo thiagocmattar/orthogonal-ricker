@@ -46,24 +46,24 @@ if __name__ == "__main__":
 A reviewed bounded execution exception may additionally declare tracked
 operational authorization in that runner. The A1 runner retains dormant
 worker-authorization metadata from a superseded `001`–`008` launch shape. It
-does not cover configs `009`–`011` or authorize worker-slot execution for the
-current extension.
+did not cover configs `009`–`011` or authorize worker-slot execution for
+those runs.
 
 The parent requires the tuple to list every YAML config in `run/` exactly once,
 holds one experiment lock, and runs configs serially by default. The completed
 original three-cell A1 launch used a reviewed one-coordinator/two-A40
 exception; Git history preserves that recipe. The later configs `004` and
 `005` completed serially. High-LR configs `006`–`008` completed serially on one
-A40 from clean commit `d410572` with no `--worker-slot` arguments:
+A40 from clean commit `d410572`; very-high-LR configs `009`–`011` also
+completed serially on one A40, with no `--worker-slot` arguments:
 
 ```bash
 CUDA_VISIBLE_DEVICES=0 python3 experiments/01-a1-lr-screen/run/runner.py
 ```
 
-All A1 configs `001`–`008` are immutable completed evidence and must never be
-rerun. The runner now lists all eleven reviewed A1 configs, treats `001`–`008`
-as required completed reuse, and admits only pending configs `009`–`011` when
-the plain invocation above receives separate launch approval. Other definitive
+All A1 configs `001`–`011` are immutable completed evidence and must never be
+rerun. The runner lists all eleven A1 configs, and their exact attempts are
+completed-reuse state; no A1 invocation is authorized. Other definitive
 tranches remain serial unless a later reviewed policy says otherwise. Even a
 one-config scientific tranche uses its runner. Never run case runners in
 parallel, pack two workers onto one GPU, mix GPU types, or dispatch one launch
@@ -73,8 +73,9 @@ across Pods.
 It is an infrastructure check, not a paper experiment or a scientific config
 template. Do not add scientific scaffolds while
 `docs/experiment_plan.md` says `Plan status: placeholder`, or for a case group
-outside its reviewed scope. The current reviewed scope contains only
-`A1-lr-screen`; configs `009`–`011` are the only pending scientific work.
+outside its reviewed scope. After the A1 decision was frozen, the plan returned
+to placeholder with no reviewed case groups; later groups require exact-SHA
+review before any config is materialized.
 
 ## Config and Attempt Identity
 

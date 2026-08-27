@@ -1,20 +1,20 @@
 # Definitive Experiment Plan Manifest
 
-Plan status: reviewed
-Reviewed design commit: 2320d542b14926315a17e873afac2d41a40d6814
-Reviewed case groups: [A1-lr-screen]
+Plan status: placeholder
+Reviewed design commit: none
+Reviewed case groups: []
 
-> **Current state:** A1 configs `001`–`008` are completed, eligible, valid, and
-> immutable. Because validation loss still decreased at `6.4e-2`, the user
-> directed a factor-two extension at `1.28e-1`, `2.56e-1`, and `5.12e-1`.
-> That direction reviewed the exact eleven-cell design at commit
-> `2320d542b14926315a17e873afac2d41a40d6814` and reopens the `lr_14m`
-> decision. Only `A1-lr-screen` is in scope. Configs `009`–`011` were
-> materialized at commit `1fd0914068531d1c05e047f95352fabee3e3b04a` and are
-> pending definitive launch. The committed recipe and calibrated ETC/cost
-> envelope are frozen in
-> [`a1-very-high-lr-launch-packet.md`](experimental-design/a1-very-high-lr-launch-packet.md);
-> explicit definitive-launch and RunPod-spending approval remain required.
+> **Current state:** All eleven A1 configs `001`–`011` are completed,
+> eligible, valid, immutable evidence and must never be rerun. Applying the
+> predeclared rule—lowest finite final selection loss across the exact
+> eleven-cell cohort at 400M tokens—froze `lr_14m = 6.4e-2` from config
+> `008-a1-lr-6p4e-2`, run `001-20260826-190546-4df1c441`, checkpoint
+> `checkpoints/final`, with final selection loss `4.0587728086270785`.
+> Configs `009`–`011` completed serially on one A40. This is the best tested
+> setting for seed 0 at the fixed 400M-token horizon, not a global,
+> horizon-independent, or convergence claim. Recording the result-backed
+> decision reset this manifest to placeholder with no reviewed case groups;
+> later groups require a new exact-SHA review before materialization or launch.
 
 The [`A1 formal review packet`](experimental-design/a1-review-packet.md) was
 approved at design commit `54be534f383001b4af3d3b43597e135d4ca6653d`.
@@ -22,11 +22,12 @@ That historical approval permitted its three immutable configs and the now
 completed original tranche only. The two separately reviewed single-cell
 boundary extensions and the reviewed three-cell high-LR extension are also
 complete; their immutable review and launch packets remain historical
-provenance and authorize no rerun. The reviewed second three-cell extension is
-owned by
+provenance and authorize no rerun. The completed second three-cell extension
+is owned by
 [`a1-very-high-lr-extension-review-packet.md`](experimental-design/a1-very-high-lr-extension-review-packet.md)
 and was reviewed at exact design commit
-`2320d542b14926315a17e873afac2d41a40d6814` before materialization.
+`2320d542b14926315a17e873afac2d41a40d6814` before materialization; configs
+`009`–`011` then completed serially on one A40.
 
 This file remains the sole launch-status authority. The proposed scientific
 design is split into focused components under

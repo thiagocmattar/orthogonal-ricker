@@ -7,7 +7,7 @@ configs/runs/diagnostics in [`../experiment_log.md`](../experiment_log.md).
 | Decision ID | State | Value | Exact evidence pointer | Rule required before freezing |
 | --- | --- | --- | --- | --- |
 | `ol1_step_budget` | unresolved | `TODO:` | `TODO:` reviewed design record | Independent scientific review before A3; not selected by smoke calibration |
-| `lr_14m` | unresolved | `TODO:` eleven-cell selection | Completed evidence through config `008-a1-lr-6p4e-2`, run `001-20260826-190546-4df1c441`; configs `009`–`011` are not allocated until exact-SHA review | Lowest final selection loss among eligible cells in the exact eleven-cell A1 cohort; an exact tie favors the lower LR. Scientific divergence is retained and ineligible, never retried. If the selected cell is `5.12e-1`, label it as the upper tested boundary; no further automatic extension is authorized. |
+| `lr_14m` | frozen | `6.4e-2` | `tranche_id=01-a1-lr-screen`; `config_id=008-a1-lr-6p4e-2`; `run_id=001-20260826-190546-4df1c441`; `checkpoint=checkpoints/final`; final selection loss `4.0587728086270785`; indexed in [`../experiment_log.md`](../experiment_log.md) | Applied unchanged: lowest finite final selection loss across the exact eleven-cell A1 cohort at 400M tokens; an exact tie favors the lower LR, and scientific divergence is ineligible. The selected cell is interior to the tested grid. This seed-0 fixed-horizon result is not a global or convergence claim. |
 | `lambda_B2` | unresolved | `TODO:` | `TODO:` experiment-log cohort | A3 matched L1/OL1 Pareto rule |
 | `b1_family` | unresolved | `TODO:` | `TODO:` experiment-log cohort | B1 positive-kappa family rule |
 | `b2_frontier` | unresolved | `TODO:` | `TODO:` exact case/attempt set | All valid nondominated B2 combined points |

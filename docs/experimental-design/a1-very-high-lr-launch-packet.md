@@ -1,8 +1,10 @@
-# A1 Three-Cell Very-High-LR Definitive Launch Packet
+# A1 Three-Cell Very-High-LR Definitive Launch Record
 
-> **Status:** prepared on 2026-08-26 and awaiting explicit definitive-launch
-> and RunPod-spending approval. No Pod, transfer, or scientific attempt has
-> been created under this packet.
+> **Status:** completed on 2026-08-27 under the packet approved by the user at
+> commit `2f8f55cd57b25828fea10f015992b0824b28f3a6`. Configs `009`–`011`
+> completed, are eligible and valid, and were retrieved and verified before
+> teardown. The final eleven-cell rule retains config `008` at peak learning
+> rate `6.4e-2`.
 
 ## Scientific and Execution Identity
 
@@ -65,7 +67,7 @@ and archive membership contain no `docs/humans/main.pdf`, credentials, key or
 `.env` files, token cache, unrelated run, or unrelated untracked file. POSIX
 path normalization is permitted only in the copied cache metadata.
 
-## RunPod Envelope
+## Approved RunPod Envelope
 
 A read-only inventory and capacity snapshot at `2026-08-26T21:34Z` found zero
 Pods, zero network volumes, zero endpoints, and therefore `$0/hour` recurring
@@ -150,3 +152,59 @@ After all three cells have reviewed terminal classifications, regenerate the
 complete eleven-cell table, curve, and provenance and apply the predeclared
 lowest-final-selection-loss rule. No further automatic A1 extension is
 authorized.
+
+## Executed RunPod Record
+
+The approved packet was executed without changing its scientific or resource
+contract. The runner used its serial default path, one coordinator, one lock,
+and no worker slots. No replacement Pod or scientific retry was used.
+
+| Field | Executed value |
+| --- | --- |
+| Pod | `bgh0jufzmn180f` (`osp-a1-vhigh-4e5e93e`) |
+| Region and hardware | `CA-MTL-1`; 1× NVIDIA A40 48GB |
+| Execution commit | `4e5e93e64d979004f2fd2e2a5b7aab275b088e0d` |
+| Pod created | `2026-08-26T21:54:22.796Z` |
+| Scientific launch | `2026-08-26T22:13:44Z` |
+| Final completion | `2026-08-27T00:13:46.367707Z` |
+| Teardown verification | Pod deleted before `2026-08-27T00:17:22.671Z`; zero Pods, network volumes, endpoints, and `$0/hour` recurring spend |
+
+The exact pinned Python, Torch, CUDA, Transformers, BF16, A40, and driver
+preflight passed, as did the bounded CUDA forward/backward smoke. Transfer
+verification preserved the approved bundle, accepted reuse, and frozen-cache
+identities. Configs `001`–`008` were reused without modification or rerun;
+only configs `009`–`011` were admitted.
+
+## Results and Artifact Acceptance
+
+| Config | Run | Final selection loss | Wall seconds | Final checkpoint SHA-256 | Classification |
+| --- | --- | ---: | ---: | --- | --- |
+| `009-a1-lr-1p28e-1` | `001-20260826-221407-812e78f4` | `4.172757286774485` | `2387.0494339615107` | `995ca3165b3b905f1f89f90a8a1c2556ff0374be009ce553e8cad0f0993ec5f9` | completed; eligible; valid |
+| `010-a1-lr-2p56e-1` | `001-20260826-225355-07a74682` | `4.486860701912327` | `2393.547318134457` | `a6421820344c097f6b8572f6cdc819d7d10773d30a7d03ce57e248ea8ddf0885` | completed; eligible; valid |
+| `011-a1-lr-5p12e-1` | `001-20260826-233349-87400e7d` | `4.837938653795343` | `2395.96188467741` | `2d51f5bb0b6ce4337ef960288ea9d25b2707354bc9da1c27824deebc75d7d082` | completed; eligible; valid |
+
+Each attempt completed all 1,526 optimizer updates and 400,031,744 training
+tokens. Required metrics, events, predictions, and final checkpoints are
+finite and passed local acceptance. The accepted archive
+`a1-vhigh-artifacts-4e5e93e.tar.gz` is 156,863,433 bytes; its matching remote
+and local SHA-256 is
+`69e3166607635d891607888b92dab6cdad7e27ed451ac65ef735b78894322a98`.
+The acceptance-record SHA-256 is
+`41917bad40e0b6bf8a085378967f57b81be03937088ad6aeb764815a6ba33035`.
+
+The posted billing subtotal through `2026-08-27T00:00:00Z` was
+`$0.6187817616155371`. It is a lower bound because the last billing slices had
+not yet posted. The independently observed Pod lifecycle implies an estimated
+final charge of approximately `$1.08`, below the approved `$1.35` ceiling.
+Verified retrieval preceded deletion, and the post-teardown inventory found
+zero Pods, zero network volumes, zero endpoints, and `$0/hour` recurring
+spend.
+
+Across all eleven completed, eligible, valid cells, config
+`008-a1-lr-6p4e-2`, run `001-20260826-190546-4df1c441`, remains the unique
+lowest-final-selection-loss cell at `4.0587728086270785`. The three new values
+turn upward rather than improving on it. The selection therefore freezes
+`lr_14m=6.4e-2` for dependent experiments. This is the best tested learning
+rate for Pythia-14M at seed 0 and the fixed 400M-token A1 horizon; it is not a
+claim of a global optimum, a full-pass optimum, or cross-seed uncertainty.
+No further automatic A1 extension is authorized.

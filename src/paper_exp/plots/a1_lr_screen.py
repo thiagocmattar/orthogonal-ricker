@@ -163,6 +163,42 @@ A1_SOURCES = (
             "336adaf43bde4494c90d1f6a7f11d5a4aca7804a60ee75fded15a670a9f6f89e"
         ),
     ),
+    A1Source(
+        config_id="009-a1-lr-1p28e-1",
+        run_id="001-20260826-221407-812e78f4",
+        learning_rate=1.28e-1,
+        git_commit="4e5e93e64d979004f2fd2e2a5b7aab275b088e0d",
+        config_sha256=(
+            "8a7da2c097435968e03704fa09921a8345dea0c14a20a9e9ed717c980b05f259"
+        ),
+        condition_fingerprint=(
+            "0b5c10665bc83355fe365e91b1aeae156f970a96dc995a4cffbd80581426a001"
+        ),
+    ),
+    A1Source(
+        config_id="010-a1-lr-2p56e-1",
+        run_id="001-20260826-225355-07a74682",
+        learning_rate=2.56e-1,
+        git_commit="4e5e93e64d979004f2fd2e2a5b7aab275b088e0d",
+        config_sha256=(
+            "4edfcfbca86a72e0ef0809e743ae62157b4759518dd2b7705a8ba8d5f8805cfc"
+        ),
+        condition_fingerprint=(
+            "9a541bb3b14196b96a9d130c7eb2d3c360beaa94ff4d828bb13aee93b10fec18"
+        ),
+    ),
+    A1Source(
+        config_id="011-a1-lr-5p12e-1",
+        run_id="001-20260826-233349-87400e7d",
+        learning_rate=5.12e-1,
+        git_commit="4e5e93e64d979004f2fd2e2a5b7aab275b088e0d",
+        config_sha256=(
+            "7424beae00383dc0396712992cc38d372f2b7bf6de2226bf30b574a8fb7a7ae1"
+        ),
+        condition_fingerprint=(
+            "9782a13261d41f817ad99b72ac4efd2addc43bfe51de452ac9673cdfcf15faaa"
+        ),
+    ),
 )
 
 
@@ -186,7 +222,7 @@ class A1Point:
 def load_a1_lr_points(
     repository: str | Path | None = None,
 ) -> tuple[tuple[A1Point, ...], tuple[dict[str, Any], ...]]:
-    """Load and validate the exact eight-cell cohort without run discovery."""
+    """Load and validate the exact eleven-cell cohort without run discovery."""
 
     root = _repository_root(repository)
     _validate_source_registry()
@@ -221,7 +257,7 @@ def select_a1_point(points: Sequence[A1Point]) -> A1Point:
 
 
 def build_a1_lr_figure(points: Sequence[A1Point]) -> Figure:
-    """Build the complete eight-cell fixed-horizon A1 curve."""
+    """Build the complete eleven-cell fixed-horizon A1 curve."""
 
     ordered = tuple(sorted(points, key=lambda point: point.learning_rate))
     selected = select_a1_point(ordered)
@@ -255,7 +291,13 @@ def build_a1_lr_figure(points: Sequence[A1Point]) -> Figure:
     axis.set_ylabel("Final selection validation loss (zoomed y-axis)")
     axis.set_xscale("log", base=2)
     axis.set_xticks(learning_rates)
-    axis.set_xticklabels(tuple(_math_lr_label(value) for value in learning_rates))
+    axis.set_xticklabels(
+        tuple(_math_lr_label(value) for value in learning_rates),
+        rotation=30,
+        ha="right",
+        rotation_mode="anchor",
+    )
+    axis.tick_params(axis="x", labelsize=8, pad=2)
     axis.minorticks_off()
 
     log_values = [math.log2(value) for value in learning_rates]
@@ -274,13 +316,14 @@ def build_a1_lr_figure(points: Sequence[A1Point]) -> Figure:
         label = f"{point.final_validation_loss:.3f}"
         if point == selected:
             label += "  selected"
+        offset = (10, -5) if point == selected else (0, 9)
         axis.annotate(
             label,
             (point.learning_rate, point.final_validation_loss),
-            xytext=(0, 9),
+            xytext=offset,
             textcoords="offset points",
-            ha="center",
-            va="bottom",
+            ha="left" if point == selected else "center",
+            va="top" if point == selected else "bottom",
             fontsize=8,
         )
 
@@ -307,7 +350,7 @@ def build_a1_lr_figure(points: Sequence[A1Point]) -> Figure:
         va="bottom",
         fontsize=8,
     )
-    figure.subplots_adjust(left=0.11, right=0.98, top=0.90, bottom=0.23)
+    figure.subplots_adjust(left=0.11, right=0.98, top=0.90, bottom=0.28)
     return figure
 
 
@@ -485,16 +528,16 @@ def _load_source(
 
 
 def _validate_source_registry() -> None:
-    if len(A1_SOURCES) != 8:
-        raise ValueError("The A1 figure registry must contain exactly eight sources.")
+    if len(A1_SOURCES) != 11:
+        raise ValueError("The A1 figure registry must contain exactly eleven sources.")
     if len({source.config_id for source in A1_SOURCES}) != len(A1_SOURCES):
         raise ValueError("The A1 figure registry contains duplicate config IDs.")
     if len({source.run_id for source in A1_SOURCES}) != len(A1_SOURCES):
         raise ValueError("The A1 figure registry contains duplicate run IDs.")
-    expected_prefixes = tuple(f"{index:03d}" for index in range(1, 9))
+    expected_prefixes = tuple(f"{index:03d}" for index in range(1, 12))
     prefixes = tuple(source.config_id.split("-", 1)[0] for source in A1_SOURCES)
     if prefixes != expected_prefixes:
-        raise ValueError("The A1 figure registry must cover config prefixes 001-008.")
+        raise ValueError("The A1 figure registry must cover config prefixes 001-011.")
     learning_rates = tuple(source.learning_rate for source in A1_SOURCES)
     if any(
         not math.isclose(current, previous * 2.0, rel_tol=0.0, abs_tol=0.0)
@@ -785,7 +828,7 @@ def _write_json(path: Path, value: dict[str, Any]) -> None:
 
 def main(argv: Sequence[str] | None = None) -> None:
     parser = argparse.ArgumentParser(
-        description="Generate the pinned eight-cell A1 learning-rate table and curve."
+        description="Generate the pinned eleven-cell A1 learning-rate table and curve."
     )
     parser.add_argument(
         "--repository",

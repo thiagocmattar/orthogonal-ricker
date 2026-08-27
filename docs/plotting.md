@@ -6,7 +6,7 @@ cohort, or repair missing inputs.
 
 The `paper-exp plot` command renders one explicitly named saved run artifact.
 The A1 learning-rate screen has a separate tracked fixed-cohort recipe because
-the reviewed plan names its exact eight runs, estimand, selection rule, and
+the reviewed plan names its exact eleven runs, estimand, selection rule, and
 output suite.
 
 ## Four Boundaries
@@ -91,7 +91,7 @@ Regenerate the complete A1 table, curve, and provenance with:
 python -m paper_exp.plots.a1_lr_screen
 ```
 
-The recipe pins configs `001`–`008` and their exact accepted run IDs. It
+The recipe pins configs `001`–`011` and their exact accepted run IDs. It
 validates tracked/saved config identity, launch provenance, terminal status,
 the fixed 1,526-update / 400,031,744-token budget, selection-partition
 coverage, and finite final selection loss before applying the predeclared

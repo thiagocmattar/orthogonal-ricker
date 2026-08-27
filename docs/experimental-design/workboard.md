@@ -43,7 +43,7 @@ copied into this table.
 | `OPS-11` | resolved | A1 `8e-3` boundary-cell launch | Preserve the active A1 path and make reuse of configs `001`–`004` fail closed before config `005` can run | Launch commit `a4ddaa5c9897224a9285afae09d2d9c6b07b3cec`; config `005` run `001-20260826-135546-928279bb` completed all 1,526 steps and passed remote/local checkpoint acceptance; retrieved archive SHA-256 `04e1ef3684152e86836a535f9f6b82c95193646f313bb7beae5aa89030c399f0`; teardown verified zero Pods, zero network volumes, and $0/hour |
 | `OPS-12` | resolved | A1 three-cell high-LR preparation | Bind a definitive exception to exact configs `001`–`008`, require completed reuse of `001`–`005`, and admit only pending `006`–`008` on three distinct homogeneous A40 GPUs under one coordinator and lock | Materialization commit `b586500d28bd9ee6e15319ceb4180008a0b63082`; 104 focused tests and full suite 494 passed / 3 skipped; strict integrity 0 errors/warnings; infrastructure smoke `021-20260826-162207-c1b4c4b9`. Pod `9l8jns1uwarkfp` passed base preflight but was stopped before transfer or training; resume did not reacquire three A40s, it was deleted, permitted replacement calls allocated no Pod, and inventories were reconciled. This path was superseded before scientific execution by `OPS-13` |
 | `OPS-13` | resolved | A1 three-cell high-LR serial launch | Execute exact configs `006`–`008` serially on one Secure A40 under the existing coordinator, lock, scientific contract, and required reuse of `001`–`005` | User-approved one-A40 amendment; clean commit `d4105722516958df6e9c3cc43b20d6bfd4619d0f`; Pod `bq45s1hj2262ak` in `CA-MTL-1`; runs `001-20260826-174611-04b42898`, `001-20260826-182559-bb05a50c`, and `001-20260826-190546-4df1c441` each completed all 1,526 steps and are eligible, valid evidence; all remote/local per-file hashes matched; coordinator-log SHA-256 `01f23203e8995b8b60818dc1bb3353b4319211018b2586d551fc6b43ab08beea`; verified retrieval preceded deletion; zero Pods and zero network volumes confirmed |
-| `OPS-14` | in_progress | A1 very-high-LR serial launch | Execute exact configs `009`–`011` serially on one Secure A40 under one coordinator and lock while requiring immutable completed reuse of `001`–`008` | Reviewed design commit `2320d542b14926315a17e873afac2d41a40d6814`; execution commit `4e5e93e64d979004f2fd2e2a5b7aab275b088e0d`; config identities, reuse archive, transfer bundle, preflight, and [launch packet](a1-very-high-lr-launch-packet.md) verified; explicit approval, terminal artifacts, retrieval verification, and zero-resource teardown remain pending |
+| `OPS-14` | resolved | A1 very-high-LR serial launch | Execute exact configs `009`–`011` serially on one Secure A40 under one coordinator and lock while requiring immutable completed reuse of `001`–`008` | Packet approved at commit `2f8f55cd57b25828fea10f015992b0824b28f3a6`; execution commit `4e5e93e64d979004f2fd2e2a5b7aab275b088e0d`; Pod `bgh0jufzmn180f` in `CA-MTL-1`; runs `001-20260826-221407-812e78f4`, `001-20260826-225355-07a74682`, and `001-20260826-233349-87400e7d` completed all 1,526 steps and are eligible, valid evidence; accepted archive SHA-256 `69e3166607635d891607888b92dab6cdad7e27ed451ac65ef735b78894322a98`; acceptance SHA-256 `41917bad40e0b6bf8a085378967f57b81be03937088ad6aeb764815a6ba33035`; verified retrieval preceded deletion; zero Pods, network volumes, endpoints, and `$0/hour` confirmed |
 | `PLOT-01` | open | paper release | Implement the three declared figure families from pinned artifacts | Deterministic plot tests, PDF/PNG, provenance sidecars |
 | `MAN-01` | open | manuscript release | Remove or separately validate out-of-scope 12B/long-context claims and enforce claim wording | Reviewed introduction consistent with `outputs.md` |
 
@@ -55,7 +55,7 @@ Readiness is derived from this table, the reviewed case-group scope, and
 
 | Stage | State | Required closure/decision |
 | --- | --- | --- |
-| A1 | ready | Reviewed eleven-cell design under `DESIGN-05`; configs/runs `001`–`008` remain immutable accepted inputs, configs `009`–`011` are materialized, and only their definitive serial launch remains pending review. |
+| A1 | complete | All eleven reviewed cells completed and are eligible, valid evidence; the predeclared lowest-final-selection-loss rule selects config `008-a1-lr-6p4e-2` for dependent experiments. |
 | A2 | blocked | Review the A2 groups at a new design commit; `DIAG-02`, `OPS-08` |
 | A3 | blocked | Reviewed group `A3-ol1-screen`; A2 complete; `METHOD-02`, `DIAG-03`, `OPS-08` |
 | B1 | blocked | Review `B1-threshold-screen`; A2 terminal interpretation; resolve `DESIGN-01`, `METHOD-01`, `DIAG-01`, `OPS-08` |
@@ -79,12 +79,11 @@ later tranches must supply their own.
 
 `CLOUD-01`, `OPS-04`, `OPS-05`, `OPS-06`, and `OPS-09` preserve the operational
 record for the completed original A1 launch. `OPS-12` preserves the
-superseded three-A40 preparation, while `OPS-13` records the completed
-one-A40 serial high-LR launch. `OPS-14` tracks the reviewed but not yet
-launch-approved serial extension at configs `009`–`011`; the earlier records
-do not authorize it. Future definitive tranches remain serial by default
-unless a newly reviewed bounded exception says otherwise. Multiple runners,
-same-GPU packing, heterogeneous slots, and multi-Pod execution remain
+superseded three-A40 preparation, `OPS-13` records the completed one-A40
+serial high-LR launch, and `OPS-14` records the completed one-A40 serial
+extension at configs `009`–`011`. Future definitive tranches remain serial by
+default unless a newly reviewed bounded exception says otherwise. Multiple
+runners, same-GPU packing, heterogeneous slots, and multi-Pod execution remain
 forbidden.
 
 ## A1 Boundary-Extension Compatibility Evidence

@@ -1,7 +1,8 @@
 # Experiment Runbook
 
-This is the operational contract for definitive experiments. The reviewed
-[`experiment_plan.md`](experiment_plan.md) is the scientific authority.
+This is the operational contract for definitive experiments. The status and
+scope in [`experiment_plan.md`](experiment_plan.md) are the scientific
+authority.
 The modular proposal and physical-case reuse rules are indexed in
 [`experimental-design/README.md`](experimental-design/README.md).
 
@@ -18,9 +19,11 @@ The infrastructure-only
 scientific config requires its case group in the reviewed scope. A launch also
 requires a committed scaffold recipe, clean checkout, calibrated ETC, and
 explicit launch approval.
-The current reviewed scope contains only `A1-lr-screen`. Its configs
-`009`–`011` are materialized but remain blocked until their exact execution
-commit, ETC/cost envelope, and definitive launch are explicitly approved.
+The plan currently has no reviewed case groups after the completed A1 decision
+was recorded. All A1 configs `001`–`011` are immutable completed evidence and
+must never be rerun. Later scientific work requires a new exact-SHA review,
+then its own committed execution recipe, ETC/cost envelope, and launch
+approval.
 Once attempted, a config is immutable. A scientific change gets a new config;
 an infrastructure retry gets a new run attempt under the same config.
 
@@ -57,8 +60,8 @@ Each case runner contains an ordered `CONFIGS` tuple and a call to
 tracked operational authorization bound to exact config IDs, worker count,
 and GPU identity. A1's dormant authorization metadata covers only a
 superseded `001`–`008` launch shape and cannot authorize worker-slot execution
-for pending configs `009`–`011`. Shared mechanics belong in the parent;
-science belongs in configs and the reviewed plan.
+for configs `009`–`011`; those runs completed serially. Shared mechanics
+belong in the parent; science belongs in configs and the reviewed plan.
 
 ## 3. Preflight and ETC
 
@@ -141,13 +144,12 @@ CUDA_VISIBLE_DEVICES=0 python3 experiments/01-a1-lr-screen/run/runner.py
 ```
 
 No `--worker-slot` argument was passed, so the runner used its serial-default
-path under one coordinator and lock. The superseded three-A40 authorization
-remains dormant historical metadata only. All exact A1 configs `001`–`008` are
-completed evidence and must never be rerun. The reviewed runner now requires
-those eight completed configs as reuse and then admits pending configs
-`009`–`011` serially. Their definitive launch must use the same plain
-invocation above; passing a worker slot fails closed because the historical
-authorization does not match the eleven-cell runner.
+path under one coordinator and lock. Configs `009`–`011` subsequently
+completed the same way on one A40. The superseded three-A40 authorization
+remains dormant historical metadata only and does not match the eleven-cell
+runner. All exact A1 configs `001`–`011` are completed evidence and must never
+be rerun; their exact attempts are completed-reuse state, and no A1 invocation
+is authorized.
 
 The parent runner:
 
@@ -176,8 +178,7 @@ that workflow.
 The isolated worker engine is implemented and live-validated for
 infrastructure smoke, bounded calibration, and the completed original A1
 launch. No current scientific scope authorizes bounded-worker execution; new
-work, including A1 configs `009`–`011`, remains serial by default unless a
-newly reviewed plan says otherwise.
+work remains serial by default unless a newly reviewed plan says otherwise.
 Multiple case runners, same-GPU packing, heterogeneous worker slots, and
 multi-Pod dispatch remain unsupported.
 
@@ -322,9 +323,8 @@ log to `/workspace`.
 One multi-GPU Pod with one authoritative coordinator and one writable checkout
 is the supported parallel shape when a reviewed scope explicitly authorizes
 it. A1's bounded-worker metadata covers only completed configs `001`–`008`;
-the actual high-LR cells ran serially on one A40. Pending configs `009`–`011`
-must also run serially after explicit launch approval. No current scientific
-scope authorizes parallel execution. Do not run independent case runners or
+configs `006`–`011` ran serially on one A40. No current scientific scope
+authorizes parallel execution. Do not run independent case runners or
 allow concurrent writable checkouts on one volume. Multi-Pod scientific
 execution requires a future reviewed contract rather than an ad hoc extension
 of the local lock.

@@ -11,22 +11,19 @@ plotting utilities.
 modular proposal for the lean 14M discovery and 70M/410M replication program;
 its [executive brief](docs/experimental-design/executive.md) is advisor-facing.
 The sole scientific-scope authority is
-[`docs/experiment_plan.md`](docs/experiment_plan.md). A1 configs `001`–`008`
-are completed, eligible, valid evidence and must never be rerun. Their interim
-eight-cell rule selected `6.4e-2` at the upper tested boundary. Because loss
-still decreased there, the reviewed design adds exactly `1.28e-1`, `2.56e-1`,
-and `5.12e-1`. Those cells are materialized as configs `009`–`011` and remain
-pending definitive launch, so `lr_14m` is reopened. The fixed horizon remains
-400M tokens, so A1 cannot
-support a global or horizon-independent optimum claim.
+[`docs/experiment_plan.md`](docs/experiment_plan.md). All eleven A1 configs
+`001`–`011` are completed, eligible, valid evidence and must never be rerun.
+The exact selection rule chose `6.4e-2` from config `008-a1-lr-6p4e-2`, run
+`001-20260826-190546-4df1c441`, at `checkpoints/final`; `lr_14m` is frozen to
+that value. Configs `009`–`011` completed serially on one A40. This is the best
+tested setting for seed 0 at the fixed 400M-token horizon, not evidence of a
+global, horizon-independent, or converged optimum.
 
 The tracked tree contains the definitive A1 recipes and their evidence index;
 raw attempts remain ignored and are addressed by exact identities from
-[`docs/experiment_log.md`](docs/experiment_log.md). A1 selects an optimization
-setting at its fixed 400M-token horizon and makes no sparsity or
-horizon-independent optimum claim. The eleven-cell A1 scope is reviewed for
-config allocation; every launch still requires its committed ETC/cost packet
-and explicit approval.
+[`docs/experiment_log.md`](docs/experiment_log.md). The plan is reset to
+placeholder after recording the A1 result, so later case groups require a new
+exact-SHA review before materialization or launch.
 
 ## Scientific Invariants
 
@@ -141,8 +138,8 @@ The case runner contains the ordered config paths and delegates to
 `paper_exp.runner.run_launch`. A reviewed bounded exception may also carry
 tracked operational authorization. The A1 runner's dormant worker
 authorization records a superseded `001`–`008` launch shape; it was inert for
-the serial high-LR run and does not cover configs `009`–`011` or authorize
-worker-slot execution for them. Their reviewed launch shape is serial.
+the serial high-LR runs and did not cover configs `009`–`011`. Those three
+configs also completed serially on one A40. No A1 config may be rerun.
 The parent validates the complete tranche, requires every config to be a
 direct sibling of the runner, and stops admission on the first failure while
 draining work already admitted.
