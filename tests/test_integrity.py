@@ -345,6 +345,85 @@ def test_run_directories_are_classified_from_scaffold_raw_artifacts(
     ).severity == "error"
 
 
+def test_reviewed_a2_scope_preserves_exact_indexed_completed_a1_history(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _make_repository_skeleton(tmp_path)
+    scaffold = _make_scientific_scaffold(tmp_path, "01-a1-history")
+    config_path = scaffold / "run" / "001-a1-case.yaml"
+    _write_config(config_path, scaffold)
+    run_dir = scaffold / "raw" / "001-a1-case" / "001-completed"
+    _write_lifecycle_run(run_dir, scaffold, status="completed", core=True)
+    manifest = json.loads((run_dir / "manifest.json").read_text(encoding="utf-8"))
+    manifest["mode"] = "pretrain"
+    (run_dir / "manifest.json").write_text(
+        json.dumps(manifest) + "\n", encoding="utf-8"
+    )
+    (tmp_path / "docs" / "experiment_log.md").write_text(
+        "`experiments/01-a1-history/raw/001-a1-case/001-completed/`\n",
+        encoding="utf-8",
+    )
+    review = _mock_reviewed_a2_design(monkeypatch, tmp_path, config_path)
+    monkeypatch.setattr(
+        integrity, "classify_run_directory", lambda _run_dir: "complete"
+    )
+
+    findings = integrity._check_design(tmp_path)
+
+    assert not any(
+        finding.code == "design.config_group_unreviewed" for finding in findings
+    )
+    assert review.reviewed_groups == ("A2-relu-control", "A2-l1-screen")
+
+
+@pytest.mark.parametrize("evidence_case", ["unindexed", "nonterminal", "changed"])
+def test_reviewed_a2_scope_rejects_invalid_a1_historical_evidence(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    evidence_case: str,
+) -> None:
+    _make_repository_skeleton(tmp_path)
+    scaffold = _make_scientific_scaffold(tmp_path, "01-a1-history")
+    config_path = scaffold / "run" / "001-a1-case.yaml"
+    _write_config(config_path, scaffold)
+    run_dir = scaffold / "raw" / "001-a1-case" / "001-evidence"
+    status = "failed" if evidence_case == "nonterminal" else "completed"
+    _write_lifecycle_run(run_dir, scaffold, status=status, core=True)
+    manifest = json.loads((run_dir / "manifest.json").read_text(encoding="utf-8"))
+    manifest["mode"] = "pretrain"
+    (run_dir / "manifest.json").write_text(
+        json.dumps(manifest) + "\n", encoding="utf-8"
+    )
+    if evidence_case == "changed":
+        (run_dir / "config.yaml").write_text(
+            _valid_config(scaffold).replace("max_examples: 1", "max_examples: 2"),
+            encoding="utf-8",
+        )
+    log_text = (
+        "No accepted run is indexed.\n"
+        if evidence_case == "unindexed"
+        else "`experiments/01-a1-history/raw/001-a1-case/001-evidence/`\n"
+    )
+    (tmp_path / "docs" / "experiment_log.md").write_text(
+        log_text, encoding="utf-8"
+    )
+    _mock_reviewed_a2_design(monkeypatch, tmp_path, config_path)
+    monkeypatch.setattr(
+        integrity, "classify_run_directory", lambda _run_dir: "complete"
+    )
+
+    findings = integrity._check_design(tmp_path)
+
+    finding = _finding(
+        findings,
+        "design.config_group_unreviewed",
+        "experiments/01-a1-history/run/001-a1-case.yaml",
+    )
+    assert "outside active reviewed scope" in finding.message
+    assert "does not authorize materialization or launch" in finding.message
+
+
 def test_placeholder_preserves_only_exact_indexed_completed_config(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -433,7 +512,7 @@ def test_placeholder_rejects_indexed_nonterminal_or_changed_snapshot(
         encoding="utf-8",
     )
 
-    assert not integrity._placeholder_config_has_indexed_completed_evidence(
+    assert not integrity._config_has_indexed_completed_evidence(
         tmp_path, config_path
     )
 
@@ -454,7 +533,7 @@ def test_placeholder_rejects_indexed_nonterminal_or_changed_snapshot(
         "`experiments/01-a1-history/raw/001-case/002-completed/`\n",
         encoding="utf-8",
     )
-    assert not integrity._placeholder_config_has_indexed_completed_evidence(
+    assert not integrity._config_has_indexed_completed_evidence(
         tmp_path, config_path
     )
 
@@ -481,7 +560,7 @@ def test_placeholder_rejects_completed_calibration(
     monkeypatch.setattr(
         integrity, "classify_run_directory", lambda _run_dir: "complete"
     )
-    assert not integrity._placeholder_config_has_indexed_completed_evidence(
+    assert not integrity._config_has_indexed_completed_evidence(
         tmp_path, config_path
     )
 
@@ -735,6 +814,44 @@ def _write_lifecycle_run(
         json.dumps(_manifest(run_dir, status=status)) + "\n",
         encoding="utf-8",
     )
+
+
+def _mock_reviewed_a2_design(
+    monkeypatch: pytest.MonkeyPatch,
+    repository: Path,
+    historical_config: Path,
+) -> SimpleNamespace:
+    plan = repository / integrity.PLAN_PATH
+    catalog = repository / integrity.CATALOG_PATH
+    plan.parent.mkdir(parents=True, exist_ok=True)
+    catalog.parent.mkdir(parents=True, exist_ok=True)
+    plan.write_text("Plan status: reviewed\n", encoding="utf-8")
+    catalog.write_text("case_groups: []\n", encoding="utf-8")
+    catalog_groups = {
+        "A1-lr-screen": {},
+        "A2-relu-control": {},
+        "A2-l1-screen": {},
+    }
+    review = SimpleNamespace(
+        status="reviewed",
+        reviewed_groups=("A2-relu-control", "A2-l1-screen"),
+    )
+    monkeypatch.setattr(
+        integrity,
+        "validate_catalog",
+        lambda _repository: SimpleNamespace(groups=catalog_groups),
+    )
+    monkeypatch.setattr(
+        integrity,
+        "validate_reviewed_design",
+        lambda _repository, require_reviewed=False: review,
+    )
+    monkeypatch.setattr(
+        integrity,
+        "tracked_training_identities",
+        lambda _repository: [(historical_config, "A1-lr-screen", "a" * 64)],
+    )
+    return review
 
 
 def _has_finding(

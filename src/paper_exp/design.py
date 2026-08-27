@@ -450,6 +450,13 @@ def _validate_group_membership(
 ) -> None:
     """Fail closed until each catalog group has an exact materialization contract."""
 
+    if group_id in {"A2-relu-control", "A2-l1-screen"}:
+        _validate_a2_group_membership(
+            config,
+            group_id=group_id,
+            repository=repository,
+        )
+        return
     if group_id != "A1-lr-screen":
         raise DesignError(
             f"Exact config membership validation is not implemented for {group_id}; "
@@ -531,6 +538,127 @@ def _validate_group_membership(
     block_size = int(_value_at(config, "preprocessing.block_size"))
     if micro_batch * accumulation * block_size != 262_144:
         raise DesignError("A1 physical batch does not equal 262,144 input tokens per update.")
+
+
+def _validate_a2_group_membership(
+    config: Mapping[str, Any],
+    *,
+    group_id: str,
+    repository: Path,
+) -> None:
+    """Admit only the reviewed seed-zero A2 control and L1 response cells."""
+
+    catalog = validate_catalog(repository)
+    l1_group = catalog.groups["A2-l1-screen"]
+    l1_factors = _mapping(l1_group.get("factors"), "A2-l1-screen.factors")
+    l1_weights = _numeric_list(
+        l1_factors.get("lambda"),
+        "A2-l1-screen.lambda",
+    )
+    selected_lr = _frozen_numeric_decision(
+        repository / DECISIONS_PATH,
+        "lr_14m",
+    )
+    exact_values: tuple[tuple[str, Any], ...] = (
+        ("model.provider", "huggingface"),
+        ("model.name", "pythia-14m-random"),
+        ("model.architecture", "EleutherAI/pythia-14m-deduped"),
+        ("model.revision", "7386d9a4ae45aef494a6e704910394def3037fc5"),
+        ("model.initialization", "random"),
+        ("model.topology_id", "A1-H"),
+        ("model.site_gate", {"operator": "relu"}),
+        ("data.name", "JeanKaddour/minipile"),
+        ("data.revision", "18ad1b0c701eaa0de03d3cecfdd769cbc70ffbd0"),
+        ("data.split", "train"),
+        ("data.text_column", "text"),
+        ("data.max_documents", None),
+        ("tokenizer.name", "EleutherAI/pythia-14m-deduped"),
+        ("tokenizer.revision", "7386d9a4ae45aef494a6e704910394def3037fc5"),
+        ("preprocessing.cache_id", "03-pythia-14m-minipile-random-full-10min"),
+        ("preprocessing.tokens_sha256", "da82a2ea2e0080c7fd681c7a93b07d3d9ff3d5357a8640895a82d536a1eaf97c"),
+        ("preprocessing.block_size", 2048),
+        ("preprocessing.append_eos", True),
+        ("preprocessing.overwrite", False),
+        ("evaluation.metric", "validation_loss"),
+        ("run.seed", 0),
+        ("run.training_schedule_scheme", TRAINING_SCHEDULE_SCHEME),
+        ("run.model_initialization_seed", 0),
+        ("run.data_order_seed", 0),
+        ("run.training_schedule_hash", "35da3f6aa891a2248407344715e4c75e99cb518b17119a8e66004466a823a21c"),
+        ("training.device", "cuda"),
+        ("training.precision", "bfloat16"),
+        ("training.max_steps", 5691),
+        ("training.learning_rate", selected_lr),
+        ("training.warmup_steps", 57),
+        ("training.micro_batch_size", 16),
+        ("training.gradient_accumulation_steps", 8),
+        ("training.log_every", 10),
+        ("training.optimizer", "adamw"),
+        ("training.adamw_betas", [0.9, 0.95]),
+        ("training.adamw_eps", 1.0e-8),
+        ("training.weight_decay", 0.1),
+        ("validation.enabled", True),
+        ("validation.split", "validation"),
+        ("validation.max_documents", 500),
+        ("validation.partition", "selection"),
+        ("validation.partition_scheme", "shuffled_source_documents_half_v1"),
+        ("validation.partition_seed", 20260718),
+        ("validation.partition_hash", "ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47"),
+        ("validation.tokens_sha256", "22bb7c27864f0e5941548c572d6c75b1b5ba6a4c13e4cd26f40f4de546c5cc19"),
+        ("validation.batch_size", 4),
+        ("validation.eval_every_steps", 191),
+        ("validation.eval_batches", None),
+        ("checkpoint.save_final", True),
+        ("checkpoint.save_optimizer", False),
+        ("activation_pressure.sites", ["h"]),
+        ("activation_pressure.step_budget", None),
+        ("activation_pressure.eps", 1.0e-12),
+        ("activation_pressure.log_thresholds", [0.0, 0.001, 0.01]),
+    )
+    mismatches = [
+        f"{path}={_value_at(config, path)!r}"
+        for path, expected in exact_values
+        if _value_at(config, path) != expected
+    ]
+    if mismatches:
+        raise DesignError(
+            f"Config is not an exact {group_id} physical cell: "
+            + ", ".join(mismatches)
+        )
+
+    pressure_values = (
+        ("activation_pressure.enabled", False),
+        ("activation_pressure.method", "none"),
+        ("activation_pressure.weight", 0.0),
+    )
+    if group_id == "A2-l1-screen":
+        pressure_values = (
+            ("activation_pressure.enabled", True),
+            ("activation_pressure.method", "l1_naive"),
+        )
+    pressure_mismatches = [
+        f"{path}={_value_at(config, path)!r}"
+        for path, expected in pressure_values
+        if _value_at(config, path) != expected
+    ]
+    if pressure_mismatches:
+        raise DesignError(
+            f"Config is not an exact {group_id} physical cell: "
+            + ", ".join(pressure_mismatches)
+        )
+
+    if group_id == "A2-l1-screen":
+        weight = _value_at(config, "activation_pressure.weight")
+        if isinstance(weight, bool) or not isinstance(weight, int | float):
+            raise DesignError("A2 L1 pressure weight must be numeric.")
+        if float(weight) not in l1_weights:
+            raise DesignError("A2 L1 pressure weight is outside the reviewed grid.")
+
+    micro_batch = int(_value_at(config, "training.micro_batch_size"))
+    accumulation = int(_value_at(config, "training.gradient_accumulation_steps"))
+    block_size = int(_value_at(config, "preprocessing.block_size"))
+    if micro_batch * accumulation * block_size != 262_144:
+        raise DesignError("A2 physical batch does not equal 262,144 input tokens per update.")
 
 
 def _expected_conceptual_count(
@@ -860,6 +988,35 @@ def _decision_ids(path: Path) -> set[str]:
     if not decisions:
         raise DesignError("Decision register contains no decision IDs.")
     return decisions
+
+
+def _frozen_numeric_decision(path: Path, decision_id: str) -> float:
+    """Read one exact frozen positive numeric value from the decision register."""
+
+    try:
+        lines = path.read_text(encoding="utf-8-sig").splitlines()
+    except (OSError, UnicodeError) as error:
+        raise DesignError(f"Cannot read decision register: {path}") from error
+    matches = []
+    for line in lines:
+        cells = _markdown_cells(line)
+        if cells and cells[0].strip().strip("`") == decision_id:
+            matches.append(cells)
+    if len(matches) != 1 or len(matches[0]) < 3:
+        raise DesignError(
+            f"Decision register must contain exactly one complete {decision_id} row."
+        )
+    cells = matches[0]
+    if cells[1] != "frozen":
+        raise DesignError(f"Decision {decision_id} must be frozen before materialization.")
+    value_text = cells[2].strip().strip("`")
+    try:
+        value = float(value_text)
+    except ValueError as error:
+        raise DesignError(f"Decision {decision_id} must have one numeric value.") from error
+    if not math.isfinite(value) or value <= 0.0:
+        raise DesignError(f"Decision {decision_id} must have one positive finite value.")
+    return value
 
 
 def _workboard_states(path: Path) -> dict[str, str]:

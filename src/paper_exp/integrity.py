@@ -450,18 +450,30 @@ def _check_design(repository: Path) -> list[IntegrityFinding]:
     if review.status == "reviewed":
         reviewed = set(review.reviewed_groups)
         for path, group_id, _fingerprint in identities:
-            if group_id not in reviewed:
-                findings.append(
-                    IntegrityFinding(
-                        severity="error",
-                        code="design.config_group_unreviewed",
-                        message=f"Training config case group {group_id} is outside reviewed scope.",
-                        path=_relative_path(repository, path),
-                    )
+            if group_id in reviewed:
+                continue
+            if _config_has_indexed_completed_evidence(repository, path):
+                # Historical evidence is preserved without extending the
+                # reviewed group set that grants materialization and launch
+                # authority.
+                continue
+            findings.append(
+                IntegrityFinding(
+                    severity="error",
+                    code="design.config_group_unreviewed",
+                    message=(
+                        f"Training config case group {group_id} is outside active "
+                        "reviewed scope. It may be preserved only when the experiment "
+                        "log indexes an exact coherent completed run with the same "
+                        "immutable config snapshot; preservation does not authorize "
+                        "materialization or launch."
+                    ),
+                    path=_relative_path(repository, path),
                 )
+            )
     else:
         for path, _group_id, _fingerprint in identities:
-            if _placeholder_config_has_indexed_completed_evidence(repository, path):
+            if _config_has_indexed_completed_evidence(repository, path):
                 continue
             findings.append(
                 IntegrityFinding(
@@ -478,10 +490,10 @@ def _check_design(repository: Path) -> list[IntegrityFinding]:
     return findings
 
 
-def _placeholder_config_has_indexed_completed_evidence(
+def _config_has_indexed_completed_evidence(
     repository: Path, config_path: Path
 ) -> bool:
-    """Recognize a historical recipe without authorizing new materialization."""
+    """Recognize historical evidence without authorizing materialization or launch."""
 
     root = repository.resolve()
     resolved_config = config_path.resolve()
