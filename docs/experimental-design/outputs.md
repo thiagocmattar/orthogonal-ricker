@@ -63,6 +63,17 @@ latency, energy savings, or measured speedup. The paper axis is always
 **validation-loss/logical-opportunity frontier** unless a later reviewed
 experiment directly measures sparse-kernel execution.
 
+### Proposed A2 post-hoc clipping frontier
+
+For each accepted A2 checkpoint and each common cutoff
+`t = {0, 0.01, 0.03, 0.10, 0.30}`, jointly clip
+`[a, m, h, q_post, k_post, v]` and report validation loss against observed
+`R_model`. Use only each checkpoint's same-sweep `t = 0` row for paired loss
+and `R_model` changes. The fixed-cohort figure contains an absolute panel and a
+within-checkpoint delta panel; its companion table retains all 30 points and
+the exact per-site/per-operation integer counts. Full details and limitations
+are in [`a2-clipping-review-packet.md`](a2-clipping-review-packet.md).
+
 ## Main-Paper Package
 
 | Output | Required content |
@@ -84,6 +95,8 @@ case catalog is reviewed to add seeds.
   cases;
 - full OL1 cosine, trust-scale, correction-ratio, and layerwise diagnostics;
 - full per-site/layer distributions and `n_s(0.1)` sensitivity;
+- the complete A2 post-hoc clipping grid, including dominated and adverse
+  points, if its proposed design is reviewed and executed;
 - `R_model`/`R_model^max` formulas, integer counts, denominators, and coverage;
 - selection-versus-confirmation comparisons;
 - exact config/run/diagnostic identities and regeneration commands.

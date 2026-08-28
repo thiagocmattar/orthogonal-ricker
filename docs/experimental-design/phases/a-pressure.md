@@ -60,6 +60,29 @@ duplicating a physical condition, but only at the selected lambda.
 B1 remains predeclared and may proceed after a null A2 result, but its
 interpretation becomes a general multi-site threshold study.
 
+### Proposed post-hoc clipping frontier
+
+**Question:** Do the six trained A2 conditions expose different model-wide
+quality–logical-opportunity tradeoffs when small operands are set exactly to
+zero after training?
+
+**Sources:** reuse only the accepted final checkpoints for configs `012`–`017`.
+No training condition is added or rerun.
+
+**Intervention:** jointly apply the existing absolute clipping rule
+`abs(x) <= t -> 0` at `[a, m, h, q_post, k_post, v]`, in every layer, for
+`t = {0, 0.01, 0.03, 0.10, 0.30}`. Use one common cutoff across sites, the
+complete selection partition, and actual-operand logical-product measurement
+at every point. The exact source identities, row contract, output, and claim
+limits are frozen in
+[`../a2-clipping-review-packet.md`](../a2-clipping-review-packet.md).
+
+**Produces when reviewed and completed:** a 30-point seed-0 post-hoc frontier
+reporting validation loss and observed `R_model`, plus within-checkpoint changes
+relative to each sweep's `t = 0` row. This is descriptive model-wide
+thresholdability evidence, not causal attribution to spillover and not measured
+speedup.
+
 ## A3 OL1 Robustness
 
 **Question:** At matched pressure weights, how do L1 and OL1 differ in final

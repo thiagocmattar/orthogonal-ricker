@@ -1,8 +1,8 @@
 # Definitive Experiment Plan Manifest
 
-Plan status: reviewed
-Reviewed design commit: 8d0a750f8f687041370037fa25553c13c9e4c081
-Reviewed case groups: [A2-relu-control, A2-l1-screen]
+Plan status: placeholder
+Reviewed design commit: none
+Reviewed case groups: []
 
 > **Current state:** All eleven A1 configs `001`–`011` are completed,
 > eligible, valid, immutable evidence and must never be rerun. Applying the
@@ -16,9 +16,13 @@ Reviewed case groups: [A2-relu-control, A2-l1-screen]
 > A2 configs `012`–`017` and diagnostics `018`–`019` are also completed,
 > accepted, immutable evidence and must not be rerun.
 
-The active reviewed scope remains exactly
-`[A2-relu-control, A2-l1-screen]` for analysis of the completed seed-0 control
-and h-only L1 grid. The user has deferred A3; its
+The previously reviewed A2 pretraining scope remains immutable completed
+evidence. The proposed amendment adds one joint six-site post-hoc clipping
+diagnostic and figure over those six accepted checkpoints, so the manifest is
+reset to placeholder pending review of
+[`a2-clipping-review-packet.md`](experimental-design/a2-clipping-review-packet.md).
+No config materialization, calibration, diagnostic execution, or figure
+evidence is authorized while this status is placeholder. The user has deferred A3; its
 [`review packet`](experimental-design/a3-review-packet.md) is backlog material
 only. `ol1_step_budget` remains unresolved, and no A3 config, calibration, or
 launch is authorized.
