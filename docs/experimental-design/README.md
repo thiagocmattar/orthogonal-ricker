@@ -13,7 +13,7 @@ Pythia-14M discovery and Pythia-70M/410M replication program.
 | Task | Read |
 | --- | --- |
 | Advisor review | [`executive.md`](executive.md) |
-| A3 scientific review candidate | [`a3-review-packet.md`](a3-review-packet.md) |
+| Backlog A3 scientific candidate | [`a3-review-packet.md`](a3-review-packet.md) |
 | Reviewed six-run A2 plan | [`a2-review-packet.md`](a2-review-packet.md) |
 | Accepted A2 calibration and ETC | [`a2-calibration-packet.md`](a2-calibration-packet.md) |
 | Original three-cell A1 review | [`a1-review-packet.md`](a1-review-packet.md) |
@@ -48,10 +48,11 @@ launch packet was approved at commit
 `2f8f55cd57b25828fea10f015992b0824b28f3a6`.
 
 A2 is complete: the seed-0 ReLU control, five h-only L1 cells, and common
-activation diagnostic are accepted immutable evidence. The plan is now a
-placeholder while the five-cell A3 OL1 contract is reviewed. No A3 config may
-be materialized until the exact committed candidate is explicitly approved
-and recorded in [`../experiment_plan.md`](../experiment_plan.md).
+activation diagnostic are accepted immutable evidence and remain the active
+reviewed scope for pinned analysis. A3 is deferred in the backlog. Its packet
+and implementation create no materialization authority; no A3 config may be
+created until a future explicit review is recorded in
+[`../experiment_plan.md`](../experiment_plan.md).
 
 ## One Fact, One Owner
 

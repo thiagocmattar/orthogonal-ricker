@@ -1,8 +1,8 @@
 # Definitive Experiment Plan Manifest
 
-Plan status: placeholder
-Reviewed design commit: none
-Reviewed case groups: []
+Plan status: reviewed
+Reviewed design commit: 8d0a750f8f687041370037fa25553c13c9e4c081
+Reviewed case groups: [A2-relu-control, A2-l1-screen]
 
 > **Current state:** All eleven A1 configs `001`–`011` are completed,
 > eligible, valid, immutable evidence and must never be rerun. Applying the
@@ -16,18 +16,18 @@ Reviewed case groups: []
 > A2 configs `012`–`017` and diagnostic `018` are also completed, accepted,
 > immutable evidence and must not be rerun.
 
-There is currently no active reviewed group. The plan is a placeholder while
-the exact five-cell seed-0 `A3-ol1-screen` candidate is reviewed. The candidate
-uses topology `A1-H`, h-only OL1 at lambda `{0.1, 0.5, 1, 2, 5}`, and proposed
-fixed `ol1_step_budget = 0.1`; it reuses the accepted A2 control and L1
-evidence. No A3 config may be materialized until the user approves the
-committed [`A3 review packet`](experimental-design/a3-review-packet.md) and
-this manifest records that reviewed SHA and group.
+The active reviewed scope remains exactly
+`[A2-relu-control, A2-l1-screen]` for analysis of the completed seed-0 control
+and h-only L1 grid. The user has deferred A3; its
+[`review packet`](experimental-design/a3-review-packet.md) is backlog material
+only. `ol1_step_budget` remains unresolved, and no A3 config, calibration, or
+launch is authorized.
 
-Completed A1 and A2 configs remain tracked only because the experiment log
-indexes exact coherent completed runs whose immutable config snapshots match.
-That preservation does not reactivate either group or authorize
-materialization, retry, or launch.
+Completed A1 configs remain tracked only because the experiment log indexes
+exact coherent completed runs whose immutable config snapshots match. That
+preservation does not reactivate A1 or authorize materialization, retry, or
+launch. Completed A2 configs and diagnostic `018` are the immutable inputs to
+the active analysis and must not be rerun.
 
 The [`A1 formal review packet`](experimental-design/a1-review-packet.md) was
 approved at design commit `54be534f383001b4af3d3b43597e135d4ca6653d`.

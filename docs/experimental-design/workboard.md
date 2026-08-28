@@ -18,7 +18,7 @@ copied into this table.
 | `TRAIN-02` | resolved | A1+ | Implement 1% warmup and cosine decay to 0.1 of peak | Commit `e7d3b68`; endpoint/off-by-one tests for both budgets |
 | `TRAIN-03` | resolved | A1+ | Implement global gradient clipping at 1.0 with specified L1/OL1 ordering | Commit `1d71698`; 59 focused tests covering none/L1/OL1 ordering, nonfinite rejection, telemetry, and manifests |
 | `METHOD-01` | open | B1+ | Support one-sided FFN and independently one-sided/symmetric attention thresholds under one kappa | Reviewed methods amendment; schema/model/checkpoint tests; numerical and diagnostic-sufficiency proof for the kappa-zero functional alias |
-| `METHOD-02` | in_progress | A3+ | Freeze OL1 `step_budget` without using smoke calibration as scientific selection | The committed A3 candidate proposes `0.1` with a method-level rationale; explicit scientific review is the remaining acceptance step |
+| `METHOD-02` | open | A3+ | Freeze OL1 `step_budget` without using smoke calibration as scientific selection | Deferred with A3; the backlog packet proposes `0.1`, but the decision remains unresolved until a future explicit scientific review |
 | `DIAG-01` | open | B1+ | Define and implement `R_model^max` numerator/denominator/coverage contract | Reviewed `diagnostics.md` amendment and exact-count tests |
 | `DIAG-02` | not_applicable | A2 pretraining | Add pooled-RMS schema fields or new training-time spillover machinery | Config `018-a2-activation-histograms`, run `001-20260828-082044-a031175f`, used the existing schema-v3 implementation over the complete selection partition; artifact SHA-256 `5f33739088a3cdc69e7cec28a7fe0061497c96d12f5b73996422324d76be850b`. Existing integer counts and RMS fields supply every reviewed A2 reduction. |
 | `DIAG-03` | resolved | A3+ | Aggregate OL1 conflict/projection/eligibility counters over every optimizer boundary | Commit `b32f8dd`; 59 focused passes cover complete-boundary aggregation, integer serialization, conflict/projection/trust-limit counts, and eligible/skipped tensor-boundary totals without new gradients, hooks, config fields, or events |
@@ -60,7 +60,7 @@ Readiness is derived from this table, the reviewed case-group scope, and
 | --- | --- | --- |
 | A1 | complete | All eleven reviewed cells completed and are eligible, valid evidence; the predeclared lowest-final-selection-loss rule selects config `008-a1-lr-6p4e-2` for dependent experiments. |
 | A2 | complete | Configs `012`–`017` and diagnostic `018` completed, passed independent acceptance, and provide the reviewed seed-0 loss and spillover evidence. |
-| A3 | blocked | Explicitly review the committed `A3-ol1-screen` candidate and its proposed `ol1_step_budget = 0.1`; all implementation blockers are closed for A3 only |
+| A3 | blocked | Explicitly deferred by the user on 2026-08-28; backlog packet only, unresolved `ol1_step_budget`, and no config materialization authority |
 | B1 | blocked | Review `B1-threshold-screen`; A2 terminal interpretation; resolve `DESIGN-01`, `METHOD-01`, `DIAG-01`, `OPS-15` |
 | B2 | blocked | Review the B2 groups; resolve `DESIGN-01`; decisions `lambda_B2`, `b1_family`; valid prerequisites; `OPS-15` |
 | C1 | blocked | Review group `C1-lr-screens`; `ID-02`, `OPS-07`, `OPS-15`, plus shared training/validation blockers |

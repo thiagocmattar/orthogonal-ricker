@@ -1,7 +1,7 @@
-# A3 OL1 Screen — Review Candidate
+# A3 OL1 Screen — Backlog Candidate
 
-> **Status:** awaiting explicit review at one committed Git SHA. This packet
-> proposes the A3 scientific contract only. It authorizes no config
+> **Status:** deferred by the user on 2026-08-28. This packet preserves a
+> possible future A3 scientific contract only. It authorizes no config
 > materialization, calibration, RunPod spending, or scientific launch.
 
 ## Question
