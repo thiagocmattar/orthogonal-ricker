@@ -13,16 +13,18 @@ Reviewed case groups: [A2-relu-control, A2-l1-screen]
 > Configs `009`–`011` completed serially on one A40. This is the best tested
 > setting for seed 0 at the fixed 400M-token horizon, not a global,
 > horizon-independent, or convergence claim. A1 remains historical-only.
-> A2 configs `012`–`017` and diagnostics `018`–`019` are also completed,
+> A2 configs `012`–`017` and diagnostics `018`–`020` are also completed,
 > accepted, immutable evidence and must not be rerun.
 
 The reviewed A2 pretraining scope remains immutable completed evidence. The
 reviewed amendment adds one joint six-site post-hoc clipping diagnostic and
 figure over those six accepted checkpoints under
 [`a2-clipping-review-packet.md`](experimental-design/a2-clipping-review-packet.md).
-This review permits implementation, diagnostic-config materialization, and
-non-evidence timing calibration; definitive diagnostic execution still requires
-separate explicit launch approval. The user has deferred A3; its
+The reviewed diagnostic completed locally as config `020`, run
+`001-20260828-130123-cefae393`, at launch Git
+`5f1f5a7aa079d46c4d2855ee7c2a16d027abe37d`; its primary artifact SHA-256 is
+`9322c54c61fa68e5edb5b191d417a77e5c985369d2a10ed66b5cc05676322f23`.
+The user has deferred A3; its
 [`review packet`](experimental-design/a3-review-packet.md) is backlog material
 only. `ol1_step_budget` remains unresolved, and no A3 config, calibration, or
 launch is authorized.
@@ -30,7 +32,7 @@ launch is authorized.
 Completed A1 configs remain tracked only because the experiment log indexes
 exact coherent completed runs whose immutable config snapshots match. That
 preservation does not reactivate A1 or authorize materialization, retry, or
-launch. Completed A2 configs and diagnostics `018`–`019` are the immutable
+launch. Completed A2 configs and diagnostics `018`–`020` are the immutable
 inputs to the active analysis and must not be rerun.
 
 The [`A1 formal review packet`](experimental-design/a1-review-packet.md) was

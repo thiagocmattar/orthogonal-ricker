@@ -29,6 +29,7 @@ well as successful ones.
 | 2026-08-28 | [`experiments/02-a2-l1-screen`](../experiments/02-a2-l1-screen/) | [`017-a2-l1-5`](../experiments/02-a2-l1-screen/run/017-a2-l1-5.yaml) | [`001-20260828-000829-0959f855`](../experiments/02-a2-l1-screen/raw/017-a2-l1-5/001-20260828-000829-0959f855/) | completed | eligible | valid | A2 L1 spillover screen, lambda 5 | Accepted pretraining source consumed by diagnostic configs `018` and `019`. |
 | 2026-08-28 | [`experiments/02-a2-l1-screen`](../experiments/02-a2-l1-screen/) | [`018-a2-activation-histograms`](../experiments/02-a2-l1-screen/run/018-a2-activation-histograms.yaml) | [`001-20260828-082044-a031175f`](../experiments/02-a2-l1-screen/raw/018-a2-activation-histograms/001-20260828-082044-a031175f/) | completed | eligible | valid | A2 six-source activation diagnostic | Complete selection partition; schema-v3 artifact SHA-256 `5f33739088a3cdc69e7cec28a7fe0061497c96d12f5b73996422324d76be850b`; fixed-range `k_post` tail mass must be disclosed in distribution plots. |
 | 2026-08-28 | [`experiments/02-a2-l1-screen`](../experiments/02-a2-l1-screen/) | [`019-a2-activation-propagation`](../experiments/02-a2-l1-screen/run/019-a2-activation-propagation.yaml) | [`001-20260828-110533-6ac813e6`](../experiments/02-a2-l1-screen/raw/019-a2-activation-propagation/001-20260828-110533-6ac813e6/) | completed | eligible | valid | A2 six-source logical-opportunity diagnostic | Launch Git `96621bcb73f74933f95b8b5fcd9a63ec2e15e3ff`; complete selection partition, 152 sequences and 311,296 tokens; schema-v5 `activation_propagation.json` SHA-256 `709599e0e68abe8350a720e6a37f392f19aadaf42fb681d28308b62db44cf3d9`; supplies observed `R_block` and `R_model`, not `R_model^max` or measured speedup. |
+| 2026-08-28 | [`experiments/02-a2-l1-screen`](../experiments/02-a2-l1-screen/) | [`020-a2-posthoc-clipping-frontier`](../experiments/02-a2-l1-screen/run/020-a2-posthoc-clipping-frontier.yaml) | [`001-20260828-130123-cefae393`](../experiments/02-a2-l1-screen/raw/020-a2-posthoc-clipping-frontier/001-20260828-130123-cefae393/) | completed | eligible | valid | A2 six-source post-hoc clipping frontier | Launch Git `5f1f5a7aa079d46c4d2855ee7c2a16d027abe37d`; complete selection partition, six checkpoints by five thresholds, 152 sequences and 311,296 tokens per point; `clipping_frontier.jsonl` SHA-256 `9322c54c61fa68e5edb5b191d417a77e5c985369d2a10ed66b5cc05676322f23`; logical opportunities are not measured speedup. |
 
 Status rules:
 
@@ -54,7 +55,7 @@ The predeclared lowest-final-selection-loss rule selects config
 horizon: it identifies the best tested learning rate for A1, not a global
 optimum or a full-pass result.
 
-The six A2 pretraining cells and their two pinned six-source diagnostics are
+The six A2 pretraining cells and their three pinned six-source diagnostics are
 complete, verified, and locally indexed. Together they support the matched
 seed-0 final-validation-loss response, saved gradient-interaction diagnostics,
 count-first spillover vector at all six named sites, and observed

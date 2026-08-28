@@ -24,12 +24,12 @@ raw attempts remain ignored and are addressed by exact identities from
 [`docs/experiment_log.md`](docs/experiment_log.md). The exact A2 groups
 `[A2-relu-control, A2-l1-screen]` were reviewed at design commit
 `3a4b047b1f4712d07b32314461913aae09cc46a7`. Training configs `012`–`017`
-and diagnostics `018`–`019` are completed, accepted, immutable evidence.
-Diagnostic config `020` is materialized and its implementation is ready, but
-the diagnostic is unattempted. Its full-partition local calibration measured
-4.075 seconds per point after 2.167 seconds of setup on the RTX 5070 Ti; the
-projected 30-point ETC is about 2 minutes 15 seconds. Definitive execution
-remains explicitly approval-gated. A3 is deferred in the backlog, with no
+and diagnostics `018`–`020` are completed, accepted, immutable evidence.
+Diagnostic config `020` completed locally as run
+`001-20260828-130123-cefae393` at launch Git
+`5f1f5a7aa079d46c4d2855ee7c2a16d027abe37d`; its 30-point primary artifact
+has SHA-256 `9322c54c61fa68e5edb5b191d417a77e5c985369d2a10ed66b5cc05676322f23`.
+A3 is deferred in the backlog, with no
 config materialization, calibration, cloud spending, or launch authority.
 
 ## Scientific Invariants

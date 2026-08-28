@@ -48,13 +48,13 @@ materialized at commit `1fd0914068531d1c05e047f95352fabee3e3b04a`, and the
 launch packet was approved at commit
 `2f8f55cd57b25828fea10f015992b0824b28f3a6`.
 
-A2 pretraining and diagnostics `018`–`019` are complete: the seed-0 ReLU
+A2 pretraining and diagnostics `018`–`020` are complete: the seed-0 ReLU
 control, five h-only L1 cells, and accepted activation diagnostics are
 immutable evidence. The joint six-site post-hoc clipping design is reviewed,
-config `020` is materialized, and its implementation is ready. Non-evidence
-local timing calibration completed at implementation commit `904bdc4`, with a
-conservative full-run ETC of about 2 minutes 15 seconds. Definitive diagnostic
-execution remains separately approval-gated. A3 is deferred in the backlog.
+and config `020` completed locally as run `001-20260828-130123-cefae393` at
+launch Git `5f1f5a7aa079d46c4d2855ee7c2a16d027abe37d`; its primary artifact
+SHA-256 is `9322c54c61fa68e5edb5b191d417a77e5c985369d2a10ed66b5cc05676322f23`.
+A3 is deferred in the backlog.
 Its packet and implementation create no materialization authority; no A3 config
 may be created until a future explicit review is recorded in
 [`../experiment_plan.md`](../experiment_plan.md).

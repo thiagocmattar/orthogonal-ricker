@@ -34,13 +34,11 @@ predeclared rule selected `lr_14m = 6.4e-2` from config
 setting for one seed, not a global, horizon-independent, or convergence claim.
 The exact A2 groups `[A2-relu-control, A2-l1-screen]` are reviewed at design
 commit `3a4b047b1f4712d07b32314461913aae09cc46a7`. Training configs `012`–`017`
-and diagnostics `018`–`019` are completed immutable evidence and must not be
-rerun. Diagnostic config `020` is materialized and its implementation is ready,
-but the diagnostic is unattempted. Non-evidence production-shaped local timing
-completed at implementation commit `904bdc4`: 4.075 seconds per full-partition
-point after 2.167 seconds of setup on the RTX 5070 Ti, yielding a conservative
-30-point ETC of about 2 minutes 15 seconds. Definitive diagnostic execution
-remains separately approval-gated. Use
+and diagnostics `018`–`020` are completed immutable evidence and must not be
+rerun. Diagnostic config `020` completed as run
+`001-20260828-130123-cefae393` at launch Git
+`5f1f5a7aa079d46c4d2855ee7c2a16d027abe37d`; its primary artifact SHA-256 is
+`9322c54c61fa68e5edb5b191d417a77e5c985369d2a10ed66b5cc05676322f23`. Use
 `docs/experimental-design/cases.yaml` and
 `docs/experimental-design/run-reuse.md` to ensure one physical config per
 scientific condition and seed.
