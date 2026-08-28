@@ -2196,6 +2196,8 @@ def _build_provenance(
                     "model_denominator_extension": (
                         "dense hidden-to-vocabulary LM head"
                     ),
+                    "attention_implementation": "eager",
+                    "future_causal_positions_excluded": True,
                     "execution": dict(EXPECTED_PROPAGATION_EXECUTION),
                     "block_size": EXPECTED_BLOCK_SIZE,
                     "validation_sequences": EXPECTED_VALIDATION_SEQUENCES,

@@ -276,6 +276,8 @@ def test_a2_suite_is_atomic_and_deterministic_from_compact_fixture(
     assert len(response_provenance["logical_opportunities"]) == len(A2_SOURCES)
     assert response_provenance["reduction"]["logical_product_metric"]["not_a_speedup"] is True
     logical_metric = response_provenance["reduction"]["logical_product_metric"]
+    assert logical_metric["attention_implementation"] == "eager"
+    assert logical_metric["future_causal_positions_excluded"] is True
     assert logical_metric["execution"] == a2.EXPECTED_PROPAGATION_EXECUTION
     assert logical_metric["block_size"] == 2_048
     assert logical_metric["trailing_tokens_excluded"] == 443
