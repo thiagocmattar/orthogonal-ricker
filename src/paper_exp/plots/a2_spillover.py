@@ -49,11 +49,10 @@ DIAGNOSTIC_CONFIG_ID = "018-a2-activation-histograms"
 DIAGNOSTIC_RUN_ID = "001-20260828-082044-a031175f"
 DIAGNOSTIC_GIT_COMMIT = "a0f86e057b0f67e3a2726b9cb6e352d8f8914176"
 PROPAGATION_CONFIG_ID = "019-a2-activation-propagation"
-# Filled only after the exact post-hoc attempt is accepted.  Keeping these
-# identities unset makes report generation fail closed instead of discovering
-# or silently selecting a propagation attempt.
-PROPAGATION_RUN_ID: str | None = None
-PROPAGATION_GIT_COMMIT: str | None = None
+PROPAGATION_RUN_ID: str | None = "001-20260828-110533-6ac813e6"
+PROPAGATION_GIT_COMMIT: str | None = (
+    "96621bcb73f74933f95b8b5fcd9a63ec2e15e3ff"
+)
 RESPONSE_STEM = "01-a2-spillover-response"
 LAYERWISE_DISTRIBUTION_STEM = "02-a2-layerwise-distributions"
 POOLED_DISTRIBUTION_STEM = "03-a2-site-distributions"
