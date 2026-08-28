@@ -84,8 +84,13 @@ outside its reviewed scope. The plan currently reviews exactly
 `8d0a750f8f687041370037fa25553c13c9e4c081`. Their six physical pretraining
 configs `012`–`017` are completed immutable evidence and must never be rerun.
 Post-hoc config `018` pins those exact runs for the completed A2 activation
-diagnostic; it is not an additional training condition. No other physical
-training config may be materialized under the current reviewed scope.
+diagnostic. Post-hoc config `019` pins the same accepted checkpoints and
+complete selection partition for the pending observed `R_block`/`R_model`
+diagnostic required by the reviewed output contract. Neither diagnostic is an
+additional training condition. No other physical training config may be
+materialized under the current reviewed scope. Once measured, the exact
+logical-opportunity artifact is reused by later accepted pressure/intervention
+evidence; activation marginals must never be substituted for `R_model`.
 
 One preservation-only exception applies to already tracked history: an
 immutable config may remain outside the current reviewed scope when the
