@@ -55,6 +55,53 @@ VALIDATION_CACHE_IDENTITY_FIELDS = (
     "source_document_indices_sha256",
 )
 
+_OL1_BOUNDARY_COUNT = "ol1/optimizer_boundary_count"
+
+
+def _empty_ol1_boundary_counters() -> dict[str, int]:
+    return {
+        _OL1_BOUNDARY_COUNT: 0,
+        "ol1/raw_gradient_conflict_boundary_count": 0,
+        "ol1/preconditioned_projection_boundary_count": 0,
+        "ol1/trust_budget_limited_boundary_count": 0,
+        "ol1/eligible_parameter_tensor_count_sum": 0,
+        "ol1/skipped_parameter_tensor_count_sum": 0,
+    }
+
+
+def _accumulate_ol1_boundary_counters(
+    counters: dict[str, int],
+    step_result: dict[str, Any],
+) -> None:
+    counters[_OL1_BOUNDARY_COUNT] += 1
+    counters["ol1/raw_gradient_conflict_boundary_count"] += int(
+        bool(step_result["pressure/pressure_conflict"])
+    )
+    counters["ol1/preconditioned_projection_boundary_count"] += int(
+        bool(step_result["pressure/pressure_update_projected"])
+    )
+    counters["ol1/trust_budget_limited_boundary_count"] += int(
+        float(step_result["pressure/pressure_update_applied_scale"]) < 1.0
+    )
+    counters["ol1/eligible_parameter_tensor_count_sum"] += int(
+        step_result["pressure/eligible_parameters"]
+    )
+    counters["ol1/skipped_parameter_tensor_count_sum"] += int(
+        step_result["pressure/skipped_parameters"]
+    )
+
+
+def _final_ol1_boundary_counters(
+    counters: dict[str, int],
+    *,
+    completed_steps: int,
+) -> dict[str, int]:
+    if counters[_OL1_BOUNDARY_COUNT] != completed_steps:
+        raise RuntimeError(
+            "OL1 optimizer-boundary counter coverage does not match completed steps."
+        )
+    return dict(counters)
+
 
 def validation_update_steps(
     max_steps: int,
@@ -261,6 +308,9 @@ def _run_started_training(
     final_mlp_weight_norm = None
     final_learning_rate = None
     final_pressure_metrics: dict[str, Any] = {}
+    ol1_boundary_counters = (
+        _empty_ol1_boundary_counters() if pressure_config.orthogonal else None
+    )
     completed_steps = 0
     stopped_by_wall_limit = False
     validation_steps: frozenset[int] = frozenset()
@@ -317,6 +367,11 @@ def _run_started_training(
             training_elapsed += step_training_elapsed
 
             diagnostic_start = time.perf_counter()
+            if ol1_boundary_counters is not None:
+                _accumulate_ol1_boundary_counters(
+                    ol1_boundary_counters,
+                    step_result,
+                )
             grad_norm = step_result["pressure/task_gradient_norm"] if should_log or should_eval else None
             weight_norm = _global_weight_norm(model) if should_log or should_eval else None
             mlp_weight_norm = _mlp_weight_norm(model) if should_log or should_eval else None
@@ -537,6 +592,13 @@ def _run_started_training(
         "weight_norm_final": final_weight_norm,
         "mlp_weight_norm_final": final_mlp_weight_norm,
     }
+    if ol1_boundary_counters is not None:
+        run_metrics.update(
+            _final_ol1_boundary_counters(
+                ol1_boundary_counters,
+                completed_steps=completed_steps,
+            )
+        )
     metrics = {
         **{f"{metric_prefix}/{key}": value for key, value in run_metrics.items()},
         "checkpoint/final_path": checkpoint_metadata["path"],

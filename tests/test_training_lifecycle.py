@@ -57,6 +57,56 @@ def test_training_phase_timing_metrics_are_recorded_separately() -> None:
     }
 
 
+def test_ol1_terminal_counters_cover_every_optimizer_boundary() -> None:
+    counters = training._empty_ol1_boundary_counters()
+    step_results = (
+        {
+            "pressure/pressure_conflict": True,
+            "pressure/pressure_update_projected": False,
+            "pressure/pressure_update_applied_scale": 1.0,
+            "pressure/eligible_parameters": 7,
+            "pressure/skipped_parameters": 2,
+        },
+        {
+            "pressure/pressure_conflict": False,
+            "pressure/pressure_update_projected": True,
+            "pressure/pressure_update_applied_scale": 0.25,
+            "pressure/eligible_parameters": 8,
+            "pressure/skipped_parameters": 1,
+        },
+        {
+            "pressure/pressure_conflict": True,
+            "pressure/pressure_update_projected": True,
+            "pressure/pressure_update_applied_scale": 0.75,
+            "pressure/eligible_parameters": 9,
+            "pressure/skipped_parameters": 0,
+        },
+    )
+    for step_result in step_results:
+        training._accumulate_ol1_boundary_counters(counters, step_result)
+
+    terminal = training._final_ol1_boundary_counters(
+        counters,
+        completed_steps=len(step_results),
+    )
+    assert terminal == {
+        "ol1/optimizer_boundary_count": 3,
+        "ol1/raw_gradient_conflict_boundary_count": 2,
+        "ol1/preconditioned_projection_boundary_count": 2,
+        "ol1/trust_budget_limited_boundary_count": 2,
+        "ol1/eligible_parameter_tensor_count_sum": 24,
+        "ol1/skipped_parameter_tensor_count_sum": 3,
+    }
+    assert json.loads(json.dumps(terminal)) == terminal
+
+
+def test_ol1_terminal_counters_require_complete_boundary_coverage() -> None:
+    counters = training._empty_ol1_boundary_counters()
+
+    with pytest.raises(RuntimeError, match="coverage does not match completed steps"):
+        training._final_ol1_boundary_counters(counters, completed_steps=1)
+
+
 @pytest.mark.parametrize(
     ("method", "scope"),
     [

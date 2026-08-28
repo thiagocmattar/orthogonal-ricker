@@ -89,6 +89,22 @@ Orthogonal methods additionally record:
 - final pressure/task direction ratio;
 - eligible and skipped parameter counts.
 
+Completed OL1 training and calibration runs also reduce the already computed
+step values over every completed optimizer boundary. Under the mode prefix
+(`training/` or `calibration/`), `metrics.json` records:
+
+- `ol1/optimizer_boundary_count` as the common denominator;
+- `ol1/raw_gradient_conflict_boundary_count`;
+- `ol1/preconditioned_projection_boundary_count`;
+- `ol1/trust_budget_limited_boundary_count`, where the applied scale is below
+  one;
+- `ol1/eligible_parameter_tensor_count_sum` and
+  `ol1/skipped_parameter_tensor_count_sum`.
+
+The last two values sum parameter-tensor counts across boundaries; they are not
+numbers of scalar parameters. These terminal counters provide complete
+boundary coverage without adding per-boundary events or recomputing gradients.
+
 The interpretation must follow [`methods.md`](methods.md): the directions are
 computed before per-group learning rates and exclude the separate decoupled
 weight-decay displacement.
