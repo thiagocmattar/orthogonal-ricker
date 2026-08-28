@@ -174,19 +174,21 @@ python -m paper_exp.plots.a2_clipping
 ```
 
 `experiments/02-a2-l1-screen/figs/04-a2-posthoc-clipping-frontier` is owned by
-diagnostic config `020-a2-posthoc-clipping-frontier`. The generator deliberately
-fails closed until one accepted diagnostic run, its clean Git commit, and the
-SHA-256 of `clipping_frontier.jsonl` are pinned in the renderer; it never scans
-for a latest attempt. It also requires the complete lifecycle envelope and
-checks that `predictions.jsonl` exactly repeats the 30-row cohort artifact.
+diagnostic config `020-a2-posthoc-clipping-frontier`. The generator pins
+accepted run `001-20260828-130123-cefae393`, its clean launch Git commit, and
+the SHA-256 of `clipping_frontier.jsonl`; it never scans for a latest attempt.
+It also requires the complete lifecycle envelope and checks that
+`predictions.jsonl` exactly repeats the 30-row cohort artifact.
 
 The figure maps all six accepted A2 checkpoints at joint symmetric clipping
 cutoffs `{0, 0.01, 0.03, 0.10, 0.30}` over
 `{a, m, h, q_post, k_post, v}`. Panel (a) shows absolute validation loss versus
 `R_model`; panel (b) shows within-checkpoint changes from that checkpoint's own
-same-sweep `t = 0` row. Curves retain cutoff order even when `R_model` is not
-monotone, all dominated or adverse points remain visible, and the common delta
-origin is not jittered. The Markdown companion defines every site and both
+same-sweep `t = 0` row. The main axes retain the complete grid, while labelled
+insets enlarge the `t <= 0.10` region without hiding the adverse `t = 0.30`
+endpoints. Curves retain cutoff order even when `R_model` is not monotone, all
+dominated or adverse points remain visible, and the common delta origin is not
+jittered. The Markdown companion defines every site and both
 logical-opportunity denominators, discloses the zoomed absolute-loss axis and
 single-seed limitation, and tabulates all 30 points. The provenance sidecar
 pins diagnostic, source checkpoint, validation-cache, zero-reference,

@@ -58,6 +58,7 @@ optimum or a full-pass result.
 The six A2 pretraining cells and their three pinned six-source diagnostics are
 complete, verified, and locally indexed. Together they support the matched
 seed-0 final-validation-loss response, saved gradient-interaction diagnostics,
-count-first spillover vector at all six named sites, and observed
-`R_block`/`R_model`. This remains directional single-seed evidence and carries
+count-first spillover vector at all six named sites, observed
+`R_block`/`R_model`, and the joint post-hoc clipping frontier. This remains
+directional single-seed evidence and carries
 no robustness, uncertainty, or measured-speedup claim.

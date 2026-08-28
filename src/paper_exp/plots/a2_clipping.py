@@ -250,7 +250,7 @@ def build_a2_clipping_figure(data: A2ClippingData) -> Figure:
     figure, axes = plt.subplots(
         1,
         2,
-        figsize=(DOUBLE_COLUMN_WIDTH_INCHES, 4.10),
+        figsize=(DOUBLE_COLUMN_WIDTH_INCHES, 4.35),
     )
     absolute_axis, delta_axis = axes
 
@@ -318,12 +318,14 @@ def build_a2_clipping_figure(data: A2ClippingData) -> Figure:
     )
 
     absolute_axis.set_title("(a) Absolute frontier", loc="left")
-    absolute_axis.set_xlabel(r"Model-wide logical opportunity, $R_{model}$ (%)")
-    absolute_axis.set_ylabel("Validation loss")
+    absolute_axis.set_xlabel(
+        r"Model-wide logical opportunity, $R_{\mathrm{model}}$ (%)"
+    )
+    absolute_axis.set_ylabel("Validation loss (range-scaled)")
     absolute_axis.set_xlim(left=0.0)
 
     delta_axis.set_title("(b) Within-checkpoint change", loc="left")
-    delta_axis.set_xlabel(r"Change in $R_{model}$ (pp)")
+    delta_axis.set_xlabel(r"Change in $R_{\mathrm{model}}$ (pp)")
     delta_axis.set_ylabel("Change in validation loss")
     delta_axis.axhline(0.0, color="#888888", linewidth=0.8, zorder=0)
     delta_axis.axvline(0.0, color="#888888", linewidth=0.8, zorder=0)
@@ -350,6 +352,104 @@ def build_a2_clipping_figure(data: A2ClippingData) -> Figure:
     _include_zero(
         delta_axis,
         values=[point.delta_validation_loss for point in data.points],
+        axis_name="y",
+    )
+
+    # The severe t = 0.30 endpoints are scientifically important but compress
+    # the near-neutral region. Keep the complete grid on the main axes and
+    # enlarge the first four thresholds in explicitly labelled detail insets.
+    detail_thresholds = THRESHOLDS[:-1]
+    detail_points = tuple(
+        point
+        for point in data.points
+        if any(_close(point.threshold, threshold) for threshold in detail_thresholds)
+    )
+    absolute_inset = absolute_axis.inset_axes((0.17, 0.49, 0.52, 0.42))
+    delta_inset = delta_axis.inset_axes((0.17, 0.49, 0.52, 0.42))
+    for source_index, source in enumerate(A2_SOURCES):
+        points = _source_points(data.points, source)[:-1]
+        color = COLORBLIND_SAFE_COLORS[source_index]
+        linestyle = _CURVE_LINESTYLES[source_index]
+        absolute_inset.plot(
+            [100.0 * point.R_model for point in points],
+            [point.validation_loss for point in points],
+            color=color,
+            linestyle=linestyle,
+            linewidth=1.0,
+            zorder=2,
+        )
+        delta_inset.plot(
+            [100.0 * point.delta_R_model for point in points],
+            [point.delta_validation_loss for point in points],
+            color=color,
+            linestyle=linestyle,
+            linewidth=1.0,
+            zorder=2,
+        )
+        for threshold_index, point in enumerate(points):
+            marker = _THRESHOLD_MARKERS[threshold_index]
+            facecolor = "white" if threshold_index == 0 else color
+            absolute_inset.scatter(
+                [100.0 * point.R_model],
+                [point.validation_loss],
+                marker=marker,
+                s=18 if threshold_index == 0 else 14,
+                facecolor=facecolor,
+                edgecolor=color,
+                linewidth=0.75,
+                zorder=3,
+            )
+            if threshold_index > 0:
+                delta_inset.scatter(
+                    [100.0 * point.delta_R_model],
+                    [point.delta_validation_loss],
+                    marker=marker,
+                    s=14,
+                    facecolor=facecolor,
+                    edgecolor=color,
+                    linewidth=0.75,
+                    zorder=3,
+                )
+    delta_inset.scatter(
+        [0.0],
+        [0.0],
+        marker=_THRESHOLD_MARKERS[0],
+        s=20,
+        facecolor="white",
+        edgecolor="#333333",
+        linewidth=0.8,
+        zorder=4,
+    )
+    for inset in (absolute_inset, delta_inset):
+        inset.set_title(r"Detail: $t \leq 0.10$", loc="left", fontsize=8.0, pad=2.0)
+        inset.set_facecolor("white")
+        inset.patch.set_alpha(0.97)
+        inset.tick_params(labelsize=8.0, pad=1.5, length=2.5)
+        inset.locator_params(axis="both", nbins=4)
+        inset.grid(True, alpha=0.14, linewidth=0.55)
+        for spine in inset.spines.values():
+            spine.set_color("#777777")
+            spine.set_linewidth(0.65)
+    _set_padded_limits(
+        absolute_inset,
+        values=[100.0 * point.R_model for point in detail_points],
+        axis_name="x",
+        include_zero=False,
+    )
+    _set_padded_limits(
+        absolute_inset,
+        values=[point.validation_loss for point in detail_points],
+        axis_name="y",
+        include_zero=False,
+    )
+    _include_zero(
+        delta_inset,
+        values=[100.0 * point.delta_R_model for point in detail_points],
+        axis_name="x",
+    )
+    _include_zero(
+        delta_inset,
+        values=[point.delta_validation_loss for point in detail_points],
         axis_name="y",
     )
 
@@ -380,21 +480,35 @@ def build_a2_clipping_figure(data: A2ClippingData) -> Figure:
             zip(THRESHOLDS, _THRESHOLD_MARKERS, strict=True)
         )
     ]
-    figure.legend(
-        handles=[*condition_handles, *threshold_handles],
-        loc="lower center",
-        bbox_to_anchor=(0.5, 0.025),
+    checkpoint_legend = figure.legend(
+        handles=condition_handles,
+        title="Checkpoint",
+        loc="upper center",
+        bbox_to_anchor=(0.5, 0.245),
         ncol=6,
         frameon=False,
-        columnspacing=1.05,
+        columnspacing=1.10,
         handlelength=2.0,
         handletextpad=0.45,
     )
+    checkpoint_legend.get_title().set_fontweight("bold")
+    cutoff_legend = figure.legend(
+        handles=threshold_handles,
+        title="Cutoff",
+        loc="upper center",
+        bbox_to_anchor=(0.5, 0.125),
+        ncol=5,
+        frameon=False,
+        columnspacing=1.25,
+        handlelength=1.5,
+        handletextpad=0.45,
+    )
+    cutoff_legend.get_title().set_fontweight("bold")
     figure.subplots_adjust(
         left=0.095,
         right=0.985,
-        top=0.90,
-        bottom=0.275,
+        top=0.91,
+        bottom=0.325,
         wspace=0.29,
     )
     return figure
@@ -404,6 +518,15 @@ def build_a2_clipping_markdown(data: A2ClippingData) -> str:
     """Build the self-contained caption and complete 30-point result table."""
 
     _validate_reduced_cohort(data.points)
+    points_003 = tuple(
+        point for point in data.points if _close(point.threshold, 0.03)
+    )
+    points_010 = tuple(
+        point for point in data.points if _close(point.threshold, 0.10)
+    )
+    points_030 = tuple(
+        point for point in data.points if _close(point.threshold, 0.30)
+    )
     lines = [
         "# A2 post-hoc clipping frontier",
         "",
@@ -414,10 +537,13 @@ def build_a2_clipping_markdown(data: A2ClippingData) -> str:
         "an activation is set to exactly zero when `abs(x) <= t`. Panel (a) "
         "shows validation loss against observed model-wide logical opportunity "
         "`R_model`; panel (b) subtracts each checkpoint's own same-sweep `t = 0` "
-        "reference from both quantities. Marker shape identifies the common "
-        "cutoff. Panel (a) uses a disclosed zoomed validation-loss axis while "
-        "its `R_model` axis starts at zero. All tested points are shown; no point "
-        "is selected as a winner.",
+        "reference from both quantities. Its six baselines therefore coincide "
+        "exactly at `(0, 0)` and are drawn once without jitter; they remain six "
+        "separate rows in the table. Marker shape identifies the common "
+        "cutoff. The main axes show all 30 points, including `t = 0.30`; the "
+        "labelled insets enlarge `t <= 0.10`. Validation-loss axes are "
+        "range-scaled and do not start at zero, while panel (a)'s `R_model` axis "
+        "does. No point is selected as a winner.",
         "",
         "The clipped ports are `a` (attention-branch layer-normalization output "
         "entering Q/K/V projections), `m` (MLP-branch layer-normalization output "
@@ -439,7 +565,21 @@ def build_a2_clipping_markdown(data: A2ClippingData) -> str:
         "thresholdability and does not causally isolate spillover or any one site. "
         "It is not a trained `A6-POST` topology or a Phase-B threshold gate.",
         "",
-        "A tested point is marked nondominated when no other tested point has both "
+        "**Observed pattern.** At `t = 0.03`, clipping adds "
+        f"`{100.0 * min(point.delta_R_model for point in points_003):.3f}` to "
+        f"`{100.0 * max(point.delta_R_model for point in points_003):.3f}` "
+        "percentage points of `R_model`, while the largest paired validation-loss "
+        f"increase is `{max(point.delta_validation_loss for point in points_003):.6f}`. "
+        "At `t = 0.10`, the paired loss increase ranges from "
+        f"`{min(point.delta_validation_loss for point in points_010):.6f}` to "
+        f"`{max(point.delta_validation_loss for point in points_010):.6f}`; at "
+        "`t = 0.30`, it ranges from "
+        f"`{min(point.delta_validation_loss for point in points_030):.6f}` to "
+        f"`{max(point.delta_validation_loss for point in points_030):.6f}`. The "
+        "response is not monotone in lambda, and no single checkpoint dominates "
+        "the complete tested grid.",
+        "",
+        "The table labels a tested point nondominated when no other tested point has both "
         "lower-or-equal validation loss and higher-or-equal `R_model`, with at "
         "least one strict inequality. This descriptive flag is not a selection.",
         "",

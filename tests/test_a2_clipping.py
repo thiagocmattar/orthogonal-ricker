@@ -80,17 +80,21 @@ def test_a2_clipping_reduction_rejects_changed_source_evidence() -> None:
         reduce_a2_clipping_rows(rows)
 
 
-def test_a2_clipping_figure_has_two_panels_shared_legend_and_no_jitter() -> None:
+def test_a2_clipping_figure_has_two_panels_grouped_legends_and_no_jitter() -> None:
     data = _synthetic_data()
     figure = build_a2_clipping_figure(data)
     try:
         assert len(figure.axes) == 2
-        assert len(figure.legends) == 1
+        assert len(figure.legends) == 2
         absolute_axis, delta_axis = figure.axes
+        assert len(absolute_axis.child_axes) == 1
+        assert len(delta_axis.child_axes) == 1
+        absolute_inset = absolute_axis.child_axes[0]
+        delta_inset = delta_axis.child_axes[0]
         assert absolute_axis.get_xlabel() == (
-            r"Model-wide logical opportunity, $R_{model}$ (%)"
+            r"Model-wide logical opportunity, $R_{\mathrm{model}}$ (%)"
         )
-        assert delta_axis.get_xlabel() == r"Change in $R_{model}$ (pp)"
+        assert delta_axis.get_xlabel() == r"Change in $R_{\mathrm{model}}$ (pp)"
         assert len(absolute_axis.lines) == len(clipping.A2_SOURCES)
         assert len(delta_axis.lines) == len(clipping.A2_SOURCES) + 2
         delta_paths = []
@@ -109,19 +113,28 @@ def test_a2_clipping_figure_has_two_panels_shared_legend_and_no_jitter() -> None
         assert len(set(delta_paths)) == len(clipping.A2_SOURCES)
         assert len(absolute_axis.collections) == 30
         assert len(delta_axis.collections) == 25
+        assert len(absolute_inset.lines) == len(clipping.A2_SOURCES)
+        assert len(delta_inset.lines) == len(clipping.A2_SOURCES)
+        assert absolute_inset.get_title(loc="left") == r"Detail: $t \leq 0.10$"
+        assert delta_inset.get_title(loc="left") == r"Detail: $t \leq 0.10$"
         assert absolute_axis.get_xlim()[0] == pytest.approx(0.0)
         assert delta_axis.get_xlim()[0] <= 0.0 <= delta_axis.get_xlim()[1]
         assert delta_axis.get_ylim()[0] <= 0.0 <= delta_axis.get_ylim()[1]
-        legend_labels = [
+        checkpoint_labels = [
             text.get_text() for text in figure.legends[0].get_texts()
         ]
-        assert legend_labels == [
+        assert checkpoint_labels == [
             "Control",
             r"L1 $\lambda = 0.1$",
             r"L1 $\lambda = 0.5$",
             r"L1 $\lambda = 1$",
             r"L1 $\lambda = 2$",
             r"L1 $\lambda = 5$",
+        ]
+        cutoff_labels = [
+            text.get_text() for text in figure.legends[1].get_texts()
+        ]
+        assert cutoff_labels == [
             "t = 0",
             "t = 0.01",
             "t = 0.03",
@@ -151,7 +164,8 @@ def test_a2_clipping_markdown_contains_caption_limits_and_all_30_rows() -> None:
     ]
 
     assert len(data_rows) == 30
-    assert "zoomed validation-loss axis" in markdown
+    assert "labelled insets enlarge" in markdown
+    assert "**Observed pattern.**" in markdown
     assert "311,296 tokens" in markdown
     assert "not measured speedup" in markdown
     assert "does not causally isolate spillover" in markdown
