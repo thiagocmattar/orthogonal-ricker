@@ -657,14 +657,14 @@ def build_a2_layerwise_distributions_figure(data: A2SpilloverData) -> Figure:
                     linewidth=1.20,
                 )
             if site == "h":
-                values = "/".join(
+                values = " / ".join(
                     _format_compact_percentage(curve.exact_zero_fraction)
                     for curve in curves
                 )
                 axis.text(
                     0.98,
                     0.95,
-                    r"$P_0$ (%): C / $\lambda=1$" + "\n" + values,
+                    r"$P_0$ (%)" + "\n" + values,
                     transform=axis.transAxes,
                     ha="right",
                     va="top",
@@ -677,14 +677,14 @@ def build_a2_layerwise_distributions_figure(data: A2SpilloverData) -> Figure:
                     },
                 )
             if site == "k_post":
-                values = "/".join(
+                values = " / ".join(
                     _format_compact_percentage(curve.outside_display_fraction_nonzero)
                     for curve in curves
                 )
                 axis.text(
                     0.98,
                     0.95,
-                    r"Out (%): C / $\lambda=1$" + "\n" + values,
+                    "Out (%)\n" + values,
                     transform=axis.transAxes,
                     ha="right",
                     va="top",
@@ -739,7 +739,7 @@ def build_a2_layerwise_distributions_figure(data: A2SpilloverData) -> Figure:
         right=0.975,
         top=0.935,
         bottom=0.075,
-        wspace=0.26,
+        wspace=0.44,
         hspace=0.23,
     )
     return figure
@@ -810,7 +810,7 @@ def build_a2_site_distributions_figure(data: A2SpilloverData) -> Figure:
                 )
             if annotation is not None:
                 axis.text(
-                    0.97,
+                    0.93,
                     0.94,
                     annotation,
                     transform=axis.transAxes,
@@ -858,7 +858,7 @@ def build_a2_site_distributions_figure(data: A2SpilloverData) -> Figure:
         right=0.975,
         top=0.92,
         bottom=0.11,
-        wspace=0.26,
+        wspace=0.44,
         hspace=0.25,
     )
     return figure
@@ -1039,6 +1039,7 @@ def build_a2_layerwise_distribution_markdown(data: A2SpilloverData) -> str:
             "use exact count-preserving 0.16-wide bins, linear density, and the same "
             "x and y scales within each site column. No KDE or interpolation is used."
         ),
+        "In-panel pairs follow legend order: ReLU control / L1 lambda 1.",
         "",
         (
             "Displayed windows are `h: [0, 8]`, `m/a/v: [-4, 4]`, and "
