@@ -13,6 +13,7 @@ Pythia-14M discovery and Pythia-70M/410M replication program.
 | Task | Read |
 | --- | --- |
 | Advisor review | [`executive.md`](executive.md) |
+| A3 scientific review candidate | [`a3-review-packet.md`](a3-review-packet.md) |
 | Reviewed six-run A2 plan | [`a2-review-packet.md`](a2-review-packet.md) |
 | Accepted A2 calibration and ETC | [`a2-calibration-packet.md`](a2-calibration-packet.md) |
 | Original three-cell A1 review | [`a1-review-packet.md`](a1-review-packet.md) |
@@ -46,15 +47,11 @@ materialized at commit `1fd0914068531d1c05e047f95352fabee3e3b04a`, and the
 launch packet was approved at commit
 `2f8f55cd57b25828fea10f015992b0824b28f3a6`.
 
-The active reviewed scope is a six-run A2 seed-0 discovery screen: one
-ReLU-only `A1-H` control plus h-only L1 at lambda
-`{0.1, 0.5, 1, 2, 5}`. Added-seed
-replication of the full response is not part of A2 completion. If the later
-final B2/C3 winner cohorts are reviewed and completed, their matching
-components can supply a selected-lambda contrast at seeds 1 and 2; they do not
-replicate the full grid. Every matching condition is reused by fingerprint.
-The user approved it at exact design commit
-`8d0a750f8f687041370037fa25553c13c9e4c081` on 2026-08-27.
+A2 is complete: the seed-0 ReLU control, five h-only L1 cells, and common
+activation diagnostic are accepted immutable evidence. The plan is now a
+placeholder while the five-cell A3 OL1 contract is reviewed. No A3 config may
+be materialized until the exact committed candidate is explicitly approved
+and recorded in [`../experiment_plan.md`](../experiment_plan.md).
 
 ## One Fact, One Owner
 

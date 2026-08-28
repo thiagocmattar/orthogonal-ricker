@@ -6,7 +6,7 @@ configs/runs/diagnostics in [`../experiment_log.md`](../experiment_log.md).
 
 | Decision ID | State | Value | Exact evidence pointer | Rule required before freezing |
 | --- | --- | --- | --- | --- |
-| `ol1_step_budget` | unresolved | `TODO:` | `TODO:` reviewed design record | Independent scientific review before A3; not selected by smoke calibration |
+| `ol1_step_budget` | frozen | `0.1` | [A3 review candidate](a3-review-packet.md); effective only when its committed design is explicitly reviewed | Fixed before A3 calibration as a conservative dimensionless 10% cap on the weighted safe-pressure/task Adam-direction ratio; not selected by smoke calibration, A2 outcomes, or an A3 sweep |
 | `lr_14m` | frozen | `6.4e-2` | `tranche_id=01-a1-lr-screen`; `config_id=008-a1-lr-6p4e-2`; `run_id=001-20260826-190546-4df1c441`; `checkpoint=checkpoints/final`; final selection loss `4.0587728086270785`; indexed in [`../experiment_log.md`](../experiment_log.md) | Applied unchanged: lowest finite final selection loss across the exact eleven-cell A1 cohort at 400M tokens; an exact tie favors the lower LR, and scientific divergence is ineligible. The selected cell is interior to the tested grid. This seed-0 fixed-horizon result is not a global or convergence claim. |
 | `lambda_B2` | unresolved | `TODO:` | `TODO:` experiment-log cohort | A3 matched L1/OL1 Pareto rule |
 | `b1_family` | unresolved | `TODO:` | `TODO:` experiment-log cohort | B1 positive-kappa family rule |
