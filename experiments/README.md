@@ -49,9 +49,15 @@ worker-authorization metadata from a superseded `001`–`008` launch shape. It
 did not cover configs `009`–`011` or authorize worker-slot execution for
 those runs.
 
-The parent requires the tuple to list every YAML config in `run/` exactly once,
-holds one experiment lock, and runs configs serially by default. The completed
-original three-cell A1 launch used a reviewed one-coordinator/two-A40
+The parent requires the tuple to list every pretraining YAML config in `run/`
+exactly once, holds one experiment lock, and runs configs serially by default.
+Numbered post-hoc diagnostic recipes may coexist in the source scaffold's
+`run/` directory; they are not case-runner members and run through their
+dedicated diagnostic CLI under the same clean-checkout and experiment-lock
+guard.
+
+The completed original three-cell A1 launch used a reviewed
+one-coordinator/two-A40
 exception; Git history preserves that recipe. The later configs `004` and
 `005` completed serially. High-LR configs `006`–`008` completed serially on one
 A40 from clean commit `d410572`; very-high-LR configs `009`–`011` also

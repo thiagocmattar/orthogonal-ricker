@@ -50,6 +50,13 @@ _NON_PRETRAIN_MODES = frozenset(
         "weight-histograms",
     }
 )
+_POSTHOC_DIAGNOSTIC_SECTIONS = frozenset(
+    {
+        "activation_histograms",
+        "activation_propagation",
+        "weight_histograms",
+    }
+)
 _WORKER_SLOT_ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 _CUDA_DEVICE_RE = re.compile(r"^(0|[1-9][0-9]*)$")
 _CALIBRATION_PARALLEL_READY_ITEMS = ("CLOUD-01", "OPS-04", "OPS-05", "OPS-06")
@@ -209,10 +216,19 @@ def run_launch(
         for path in expected_config_root.iterdir()
         if path.is_file() and path.suffix.lower() in {".yaml", ".yml"}
     }
+    folder_pretraining_configs = {
+        path
+        for path in folder_configs
+        if not _is_posthoc_diagnostic_recipe(path)
+    }
     listed_configs = set(configs)
-    if listed_configs != folder_configs:
-        missing = sorted(path.name for path in folder_configs - listed_configs)
-        unexpected = sorted(path.name for path in listed_configs - folder_configs)
+    if listed_configs != folder_pretraining_configs:
+        missing = sorted(
+            path.name for path in folder_pretraining_configs - listed_configs
+        )
+        unexpected = sorted(
+            path.name for path in listed_configs - folder_pretraining_configs
+        )
         details: list[str] = []
         if missing:
             details.append(f"missing from CONFIGS: {', '.join(missing)}")
@@ -220,7 +236,8 @@ def run_launch(
             details.append(f"not present in the folder: {', '.join(unexpected)}")
         raise RunnerError(
             f"Runner {runner.name} must list exactly all YAML files in "
-            f"{expected_config_root.relative_to(root).as_posix()}/ "
+            f"{expected_config_root.relative_to(root).as_posix()}/ that belong "
+            "to pretraining; post-hoc diagnostic recipes use their dedicated CLI "
             f"({'; '.join(details)})."
         )
 
@@ -337,6 +354,20 @@ def run_launch(
 
         completed = [completed_by_config[path.stem] for path, _config in loaded]
     return completed
+
+
+def _is_posthoc_diagnostic_recipe(path: Path) -> bool:
+    """Return whether one sibling YAML is a dedicated saved-run diagnostic."""
+
+    try:
+        with path.open("r", encoding="utf-8") as handle:
+            payload = safe_load(handle) or {}
+    except (OSError, UnicodeError, YAMLError) as error:
+        raise RunnerError(f"Cannot inspect sibling config {path}: {error}") from error
+    if not isinstance(payload, dict) or "training" in payload:
+        return False
+    selected = _POSTHOC_DIAGNOSTIC_SECTIONS.intersection(payload)
+    return len(selected) == 1
 
 
 def _require_completed_reuse(

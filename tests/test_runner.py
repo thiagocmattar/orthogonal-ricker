@@ -1924,6 +1924,20 @@ def test_case_runner_requires_every_yaml_in_its_folder(
         runner.run_launch(runner_path, configs, repository=tmp_path)
 
 
+def test_case_runner_leaves_sibling_posthoc_diagnostic_to_its_cli(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runner_path, configs = _layout(tmp_path, (1,))
+    diagnostic = configs[0].parent / "002-activation-histograms.yaml"
+    diagnostic.write_text("activation_histograms: {}\n", encoding="utf-8")
+    _stub_preflight(monkeypatch)
+    expected = configs[0].parent.parent / "raw" / configs[0].stem / "001-complete"
+    monkeypatch.setattr(runner, "_run_one", lambda *_args, **_kwargs: expected)
+
+    assert runner.run_launch(runner_path, configs, repository=tmp_path) == [expected]
+
+
 def _layout(tmp_path: Path, prefixes: tuple[int, ...]) -> tuple[Path, list[Path]]:
     scaffold = _scaffold(tmp_path, "01-first-set")
     runner_path = scaffold / "run" / "runner.py"
