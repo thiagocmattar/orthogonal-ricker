@@ -1696,7 +1696,9 @@ def _logical_opportunity_point(
     ):
         raise ValueError("inconsistent endpoint denominators")
     per_operation = endpoint.get("per_operation")
-    if not isinstance(per_operation, dict) or tuple(per_operation) != LOGICAL_MATMUL_STAGES:
+    if not isinstance(per_operation, dict) or set(per_operation) != set(
+        LOGICAL_MATMUL_STAGES
+    ):
         raise ValueError("operation coverage differs")
     operation_zero_total = 0
     operation_product_total = 0
