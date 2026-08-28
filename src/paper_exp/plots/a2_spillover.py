@@ -600,7 +600,7 @@ def build_a2_spillover_response_figure(data: A2SpilloverData) -> Figure:
     axis.set_xlabel(r"$m$ near-zero response, $\Delta n_m(0.01)$ (pp)")
     axis.set_ylabel(
         "Attention near-zero response,\n"
-        r"$\Delta n_{\mathcal{A}}(0.01)$ (pp)"
+        r"$\Delta n_A(0.01)$ (pp)"
     )
     axis.grid(False)
     axis.xaxis.grid(True, alpha=0.18)
@@ -1044,7 +1044,7 @@ def build_a2_layerwise_distribution_markdown(data: A2SpilloverData) -> str:
             "Displayed windows are `h: [0, 8]`, `m/a/v: [-4, 4]`, and "
             "`q_post/k_post: [-16, 16]`. Out-of-window mass remains in the "
             "conditional-density denominator. The dagger on `k_post` marks material "
-            "stored-range tails; exact values are below."
+            "stored-range tails; reported values are below."
         ),
         "",
         "## Exact-zero mass at h",
