@@ -90,9 +90,9 @@ diagnostic required by the reviewed output contract; its accepted run is
 indexed in `docs/experiment_log.md`. Configs `018`–`020` are diagnostics, not
 training conditions. Post-hoc config `020` owns the reviewed joint six-site,
 five-cutoff clipping frontier over those same six checkpoints. It must remain
-unattempted until its implementation is committed, its local ETC is calibrated,
-and the user explicitly approves definitive diagnostic execution. No other
-physical training config may be materialized
+unattempted until the user explicitly approves definitive diagnostic execution;
+its implementation and local ETC calibration are complete. No other physical
+training config may be materialized
 under the current reviewed scope. The exact logical-opportunity artifact is
 reused by later accepted pressure/intervention evidence; activation marginals
 must never be substituted for `R_model`.

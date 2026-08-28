@@ -52,10 +52,11 @@ A2 pretraining and diagnostics `018`–`019` are complete: the seed-0 ReLU
 control, five h-only L1 cells, and accepted activation diagnostics are
 immutable evidence. The joint six-site post-hoc clipping design is reviewed,
 config `020` is materialized, and its implementation is ready. Non-evidence
-local timing calibration is next; definitive diagnostic execution remains
-separately approval-gated. A3 is deferred in the backlog. Its packet and
-implementation create no materialization authority; no A3 config may be
-created until a future explicit review is recorded in
+local timing calibration completed at implementation commit `904bdc4`, with a
+conservative full-run ETC of about 2 minutes 15 seconds. Definitive diagnostic
+execution remains separately approval-gated. A3 is deferred in the backlog.
+Its packet and implementation create no materialization authority; no A3 config
+may be created until a future explicit review is recorded in
 [`../experiment_plan.md`](../experiment_plan.md).
 
 ## One Fact, One Owner

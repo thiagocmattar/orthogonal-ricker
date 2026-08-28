@@ -37,8 +37,10 @@ commit `3a4b047b1f4712d07b32314461913aae09cc46a7`. Training configs `012`–`017
 and diagnostics `018`–`019` are completed immutable evidence and must not be
 rerun. Diagnostic config `020` is materialized and its implementation is ready,
 but the diagnostic is unattempted. Non-evidence production-shaped local timing
-is permitted; definitive diagnostic execution remains separately
-approval-gated. Use
+completed at implementation commit `904bdc4`: 4.075 seconds per full-partition
+point after 2.167 seconds of setup on the RTX 5070 Ti, yielding a conservative
+30-point ETC of about 2 minutes 15 seconds. Definitive diagnostic execution
+remains separately approval-gated. Use
 `docs/experimental-design/cases.yaml` and
 `docs/experimental-design/run-reuse.md` to ensure one physical config per
 scientific condition and seed.

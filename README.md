@@ -26,10 +26,11 @@ raw attempts remain ignored and are addressed by exact identities from
 `3a4b047b1f4712d07b32314461913aae09cc46a7`. Training configs `012`–`017`
 and diagnostics `018`–`019` are completed, accepted, immutable evidence.
 Diagnostic config `020` is materialized and its implementation is ready, but
-the diagnostic is unattempted; only non-evidence local timing is currently
-permitted, and its definitive execution remains explicitly approval-gated. A3
-is deferred in the backlog, with no config materialization, calibration, cloud
-spending, or launch authority.
+the diagnostic is unattempted. Its full-partition local calibration measured
+4.075 seconds per point after 2.167 seconds of setup on the RTX 5070 Ti; the
+projected 30-point ETC is about 2 minutes 15 seconds. Definitive execution
+remains explicitly approval-gated. A3 is deferred in the backlog, with no
+config materialization, calibration, cloud spending, or launch authority.
 
 ## Scientific Invariants
 
