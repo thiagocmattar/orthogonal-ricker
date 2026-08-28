@@ -1,8 +1,11 @@
-# A2 Post-hoc Clipping Frontier — Review Candidate
+# A2 Post-hoc Clipping Frontier — Formal Review Packet
 
-> **Status:** proposed; not reviewed. This packet authorizes no config
-> materialization, diagnostic execution, figure generation, retraining, cloud
-> provisioning, spending, or retry.
+> **Status:** reviewed by explicit user approval on 2026-08-28 at exact design
+> commit `3a4b047b1f4712d07b32314461913aae09cc46a7` for groups
+> `[A2-relu-control, A2-l1-screen]`. This permits implementation,
+> diagnostic-config materialization, and non-evidence timing calibration. It
+> does not authorize definitive diagnostic execution, retraining, cloud
+> provisioning, spending, scientific retry, or replacement.
 
 This packet adds one post-hoc diagnostic over the six already accepted A2
 checkpoints. It does not change training, the L1 implementation, checkpoints,
