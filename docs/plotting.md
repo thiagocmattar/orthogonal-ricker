@@ -127,6 +127,36 @@ selection-neutral series identities and one shared legend below the plots; the
 companion caption records the seed, sample size, horizon, and uncertainty
 limit.
 
+## A2 Fixed-Cohort Outputs
+
+Regenerate both accepted A2 figure packages with:
+
+```bash
+python -m paper_exp.plots.a2_spillover
+```
+
+The recipe pins pretraining configs `012`-`017`, their exact accepted run IDs,
+and activation-histogram diagnostic config `018` run
+`001-20260828-082044-a031175f`. It validates tracked/saved config identity,
+terminal provenance, complete-selection coverage, checkpoint presence, and the
+stored histogram count envelope before reducing any result.
+
+`experiments/02-a2-l1-screen/figs/01-a2-spillover-response` reports the
+count-first change from the ReLU control in `n_s(0.01)` at all six measured
+sites, with pooled RMS change as supporting scale evidence. Its companion
+Markdown includes final validation loss and the complete numerical table.
+
+`experiments/02-a2-l1-screen/figs/02-a2-layer5-distributions` contrasts the
+deepest-layer ReLU control and L1 `lambda = 1` distributions. Exact-zero atoms
+are separate from the conditional nonzero densities. Stored-range underflow
+and overflow remain in the density denominator and are disclosed numerically
+in the companion Markdown.
+
+Both packages contain PDF, PNG, Markdown, and deterministic provenance. They
+are seed-0 directional evidence (`n = 1` per condition): they do not establish
+seed robustness, functional compensation, compute reduction, or runtime
+speedup.
+
 ## Current Explicit Diagnostic Plots
 
 Render one saved artifact with:

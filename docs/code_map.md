@@ -99,6 +99,7 @@ All paths in this table are under `src/paper_exp/plots/`.
 | `export.py` | Panel layouts, publication checks, one-build PDF/PNG export, staging, and atomic publication | Mechanical layout/export behavior changes |
 | `histograms.py` | Presentation-neutral histogram validation, pooling, and density reductions | Histogram mathematics shared by plot families changes |
 | `a1_lr_screen.py` | Exact eleven-run A1 cohort, fixed-horizon LR selection, training-progress panels, and deterministic suite provenance | The reviewed A1 evidence pins, selection presentation, progress rendering, or appendix output changes |
+| `a2_spillover.py` | Exact six-run A2 cohort plus diagnostic `018`, count-first site reductions, layer-5 distributions, and deterministic suite provenance | The accepted A2 evidence pins, spillover presentation, distribution contrast, or claim boundary changes |
 | `run_diagnostics.py` | Training-run summary figure | That figure's cohorts, labels, axes, or rendering change |
 | `activation_histograms.py` | Activation histogram figure | That figure family changes |
 | `weight_histograms.py` | Weight histogram figure | That figure family changes |
