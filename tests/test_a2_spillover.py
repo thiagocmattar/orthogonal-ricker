@@ -204,6 +204,8 @@ def test_a2_figures_pass_publication_checks_and_keep_distribution_atoms_separate
 def test_a2_suite_is_atomic_and_deterministic_from_compact_fixture(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    monkeypatch.setattr(a2, "PROPAGATION_RUN_ID", "001-20260828-120000-fixture")
+    monkeypatch.setattr(a2, "PROPAGATION_GIT_COMMIT", "f" * 40)
     monkeypatch.setattr(a2, "EXPECTED_BINS", 4)
     monkeypatch.setattr(a2, "DENSITY_REBIN_FACTOR", 1)
     monkeypatch.setattr(
@@ -235,6 +237,9 @@ def test_a2_suite_is_atomic_and_deterministic_from_compact_fixture(
     pooled_markdown = outputs[10].read_text(encoding="utf-8")
     assert "single-seed directional screen" in response_markdown
     assert "R_model" in response_markdown
+    assert "R_block (%)" in response_markdown
+    assert "Delta R_model (pp)" in response_markdown
+    assert "diagnostic `019`" in response_markdown
     assert "Complete per-site activation response" in response_markdown
     assert "count-preserving" in layerwise_markdown
     assert "lambda 1" in layerwise_markdown
@@ -243,6 +248,10 @@ def test_a2_suite_is_atomic_and_deterministic_from_compact_fixture(
     layerwise_provenance = json.loads(outputs[7].read_text(encoding="utf-8"))
     pooled_provenance = json.loads(outputs[11].read_text(encoding="utf-8"))
     assert response_provenance["cohort"]["diagnostic_run_id"] == a2.DIAGNOSTIC_RUN_ID
+    assert (
+        response_provenance["cohort"]["propagation_run_id"]
+        == a2.PROPAGATION_RUN_ID
+    )
     assert response_provenance["reduction"]["primary_threshold"] == 0.01
     assert response_provenance["reduction"]["attention_sites"] == list(
         a2.ATTENTION_SITES
@@ -258,10 +267,55 @@ def test_a2_suite_is_atomic_and_deterministic_from_compact_fixture(
     ]
     assert len(layerwise_provenance["reduction"]["panels"]) == 72
     assert len(pooled_provenance["reduction"]["panels"]) == 18
-    assert len(response_provenance["inputs"]) == 35
+    assert len(response_provenance["logical_opportunities"]) == len(A2_SOURCES)
+    assert response_provenance["reduction"]["logical_product_metric"]["not_a_speedup"] is True
+    assert len(response_provenance["inputs"]) == 40
 
     assert generate_a2_spillover_suite(tmp_path) == outputs
     assert tuple(path.read_bytes() for path in outputs) == first_bytes
+
+
+def test_a2_report_fails_closed_until_propagation_identity_is_pinned(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(a2, "PROPAGATION_RUN_ID", None)
+    monkeypatch.setattr(a2, "PROPAGATION_GIT_COMMIT", None)
+
+    with pytest.raises(RuntimeError, match="has not been pinned"):
+        a2._pinned_propagation_identity()
+
+
+def test_a2_report_rejects_propagation_with_a_different_source_cohort(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(a2, "PROPAGATION_RUN_ID", "001-20260828-120000-fixture")
+    monkeypatch.setattr(a2, "PROPAGATION_GIT_COMMIT", "f" * 40)
+    monkeypatch.setattr(a2, "EXPECTED_BINS", 4)
+    _write_a2_fixture(tmp_path, bin_count=4)
+    recipe_path = (
+        tmp_path
+        / "experiments"
+        / a2.TRANCHE_ID
+        / "run"
+        / f"{a2.PROPAGATION_CONFIG_ID}.yaml"
+    )
+    saved_path = (
+        tmp_path
+        / "experiments"
+        / a2.TRANCHE_ID
+        / "raw"
+        / a2.PROPAGATION_CONFIG_ID
+        / a2.PROPAGATION_RUN_ID
+        / "config.yaml"
+    )
+    recipe = yaml.safe_load(recipe_path.read_text(encoding="utf-8"))
+    recipe["activation_propagation"]["selected_runs"].reverse()
+    changed = yaml.safe_dump(recipe, sort_keys=False)
+    recipe_path.write_text(changed, encoding="utf-8")
+    saved_path.write_text(changed, encoding="utf-8")
+
+    with pytest.raises(ValueError, match="selected runs"):
+        a2.load_a2_spillover(tmp_path)
 
 
 def test_a2_percentage_formatters_do_not_round_non_boundary_values_to_boundaries(
@@ -323,7 +377,32 @@ def _synthetic_data(*, bin_count: int) -> A2SpilloverData:
         )
         for index, source in enumerate(A2_SOURCES)
     )
-    return A2SpilloverData(reductions, losses, edges, methods, ())
+    opportunities = tuple(
+        _opportunity_point(source, index)
+        for index, source in enumerate(A2_SOURCES)
+    )
+    return A2SpilloverData(reductions, losses, edges, methods, opportunities, ())
+
+
+def _opportunity_point(
+    source: a2.A2Source, source_index: int
+) -> a2.LogicalOpportunityPoint:
+    block_products = 600_000
+    head_products = 1_200_000
+    model_products = block_products + head_products
+    block_zeros = 60_000 + 6_000 * source_index
+    return a2.LogicalOpportunityPoint(
+        config_id=source.config_id,
+        run_id=source.run_id,
+        label=source.label,
+        lambda_value=source.lambda_value,
+        block_zero_product_count=block_zeros,
+        block_product_count=block_products,
+        lm_head_product_count=head_products,
+        model_product_count=model_products,
+        R_block=block_zeros / block_products,
+        R_model=block_zeros / model_products,
+    )
 
 
 def _write_a2_fixture(repository: Path, *, bin_count: int) -> None:
@@ -485,6 +564,113 @@ def _write_a2_fixture(repository: Path, *, bin_count: int) -> None:
     _write_json(diagnostic_run / "metrics.json", diagnostic_metrics)
     _write_json(diagnostic_run / "activation_histograms.json", payload)
 
+    propagation_recipe = json.loads(json.dumps(diagnostic_recipe))
+    propagation_recipe["experiment_name"] = "pythia_14m_a2_activation_propagation_seed_0"
+    propagation_recipe.pop("activation_histograms")
+    propagation_recipe["activation_propagation"] = {
+        "selected_runs": [
+            {
+                "label": source.label,
+                "tranche_id": a2.TRANCHE_ID,
+                "config_id": source.config_id,
+                "run_id": source.run_id,
+            }
+            for source in A2_SOURCES
+        ]
+    }
+    propagation_recipe_path = run_root / f"{a2.PROPAGATION_CONFIG_ID}.yaml"
+    propagation_recipe_text = yaml.safe_dump(propagation_recipe, sort_keys=False)
+    propagation_recipe_path.write_text(propagation_recipe_text, encoding="utf-8")
+    assert a2.PROPAGATION_RUN_ID is not None
+    assert a2.PROPAGATION_GIT_COMMIT is not None
+    propagation_run = (
+        raw_root / a2.PROPAGATION_CONFIG_ID / a2.PROPAGATION_RUN_ID
+    )
+    propagation_run.mkdir(parents=True)
+    (propagation_run / "config.yaml").write_text(
+        propagation_recipe_text, encoding="utf-8"
+    )
+    propagation_manifest = {
+        "status": "completed",
+        "mode": "activation-propagation",
+        "tranche_id": a2.TRANCHE_ID,
+        "config_id": a2.PROPAGATION_CONFIG_ID,
+        "run_id": a2.PROPAGATION_RUN_ID,
+        "git_commit": a2.PROPAGATION_GIT_COMMIT,
+        "git_dirty": False,
+        "seed": 0,
+        "validation_partition": "selection",
+        "validation_partition_hash": a2.EXPECTED_SELECTION_HASH,
+        "source_runs": source_runs,
+        "source_checkpoints": [f"{path}/checkpoints/final" for path in source_runs],
+        "tokenized_data": {
+            "validation": {
+                "partition": "selection",
+                "source_document_indices_sha256": a2.EXPECTED_SELECTION_HASH,
+                "tokens_sha256": (
+                    "22bb7c27864f0e5941548c572d6c75b1b5ba6a4c13e4cd26f40f4de546c5cc19"
+                ),
+            }
+        },
+        "activation_propagation": {
+            "selected_runs": propagation_recipe["activation_propagation"]["selected_runs"],
+            "attention_implementation": "eager",
+            "future_causal_positions_excluded": True,
+            "eval_batches": None,
+            "batch_size": 4,
+            "validation_sequences": a2.EXPECTED_VALIDATION_SEQUENCES,
+            "validation_tokens": a2.EXPECTED_VALIDATION_TOKENS,
+            "validation_cache_tokens": a2.EXPECTED_VALIDATION_CACHE_TOKENS,
+            "trailing_tokens_excluded": a2.EXPECTED_TRAILING_VALIDATION_TOKENS,
+            "validation_partition": "selection",
+            "validation_partition_hash": a2.EXPECTED_SELECTION_HASH,
+            "complete_named_partition": True,
+        },
+    }
+    propagation_methods = [
+        _propagation_method(source, index)
+        for index, source in enumerate(A2_SOURCES)
+    ]
+    propagation_metrics = {
+        "activation_propagation/methods": len(A2_SOURCES),
+        "activation_propagation/layers": len(a2.LAYERS),
+        "activation_propagation/matmul_stages": len(a2.LOGICAL_MATMUL_STAGES),
+        "activation_propagation/validation_batches": a2.EXPECTED_VALIDATION_BATCHES,
+        "activation_propagation/validation_sequences": a2.EXPECTED_VALIDATION_SEQUENCES,
+        "activation_propagation/validation_tokens": a2.EXPECTED_VALIDATION_TOKENS,
+        "activation_propagation/validation_cache_tokens": a2.EXPECTED_VALIDATION_CACHE_TOKENS,
+        "activation_propagation/trailing_tokens_excluded": a2.EXPECTED_TRAILING_VALIDATION_TOKENS,
+        "activation_propagation/validation_partition": "selection",
+        "activation_propagation/validation_partition_hash": a2.EXPECTED_SELECTION_HASH,
+    }
+    for method in propagation_methods:
+        endpoint = method["endpoint"]
+        prefix = f"activation_propagation/endpoint/{method['config_id']}"
+        propagation_metrics[f"{prefix}/R_block"] = endpoint["R_block"]
+        propagation_metrics[f"{prefix}/R_model"] = endpoint["R_model"]
+    propagation_payload = {
+        "schema_version": 5,
+        "validation_batches": a2.EXPECTED_VALIDATION_BATCHES,
+        "validation_sequences": a2.EXPECTED_VALIDATION_SEQUENCES,
+        "validation_tokens": a2.EXPECTED_VALIDATION_TOKENS,
+        "validation_cache_tokens": a2.EXPECTED_VALIDATION_CACHE_TOKENS,
+        "trailing_tokens_excluded": a2.EXPECTED_TRAILING_VALIDATION_TOKENS,
+        "validation_partition": "selection",
+        "validation_partition_hash": a2.EXPECTED_SELECTION_HASH,
+        "complete_named_partition": True,
+        "block_size": a2.EXPECTED_BLOCK_SIZE,
+        "batch_size": 4,
+        "attention_implementation": "eager",
+        "future_causal_positions_excluded": True,
+        "matmul_stage_order": list(a2.LOGICAL_MATMUL_STAGES),
+        "methods": propagation_methods,
+    }
+    _write_json(propagation_run / "manifest.json", propagation_manifest)
+    _write_json(propagation_run / "metrics.json", propagation_metrics)
+    _write_json(
+        propagation_run / "activation_propagation.json", propagation_payload
+    )
+
 
 def _method_payload(
     source: a2.A2Source, source_index: int, bin_count: int
@@ -518,6 +704,50 @@ def _method_payload(
         "source_checkpoint": f"{source_run}/checkpoints/final",
         "batches": a2.EXPECTED_VALIDATION_BATCHES,
         "layers": layers,
+    }
+
+
+def _propagation_method(
+    source: a2.A2Source, source_index: int
+) -> dict[str, object]:
+    point = _opportunity_point(source, source_index)
+    operation_products = point.block_product_count // len(a2.LOGICAL_MATMUL_STAGES)
+    operation_zeros = point.block_zero_product_count // len(a2.LOGICAL_MATMUL_STAGES)
+    per_operation = {
+        name: {
+            "zero_product_count": operation_zeros,
+            "product_count": operation_products,
+            "zero_product_fraction": operation_zeros / operation_products,
+        }
+        for name in a2.LOGICAL_MATMUL_STAGES
+    }
+    source_run = f"experiments/{a2.TRANCHE_ID}/raw/{source.config_id}/{source.run_id}"
+    return {
+        "label": source.label,
+        "config_id": source.config_id,
+        "run_id": source.run_id,
+        "source_run": source_run,
+        "source_checkpoint": f"{source_run}/checkpoints/final",
+        "source_manifest_status": "completed",
+        "num_layers": len(a2.LAYERS),
+        "batches": a2.EXPECTED_VALIDATION_BATCHES,
+        "architecture": {
+            "topology_id": "A1-H",
+            "active_sites": ["h"],
+            "num_layers": len(a2.LAYERS),
+            "sequence_length": a2.EXPECTED_BLOCK_SIZE,
+        },
+        "endpoint": {
+            "validation_sequences": a2.EXPECTED_VALIDATION_SEQUENCES,
+            "validation_tokens": a2.EXPECTED_VALIDATION_TOKENS,
+            "block_zero_product_count": point.block_zero_product_count,
+            "block_product_count": point.block_product_count,
+            "lm_head_product_count": point.lm_head_product_count,
+            "model_product_count": point.model_product_count,
+            "R_block": point.R_block,
+            "R_model": point.R_model,
+            "per_operation": per_operation,
+        },
     }
 
 

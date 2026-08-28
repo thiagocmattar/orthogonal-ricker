@@ -1,10 +1,11 @@
 """Deterministic A2 spillover reductions and paper-figure suite.
 
-This module deliberately pins the accepted seed-0 A2 cohort and its one
-post-hoc activation-histogram run.  It does not discover attempts or infer a
-latest run.  Site summaries are count-first: threshold hits and denominators
-are summed before division, while pooled RMS follows the reviewed
-finite-count-weighted second-moment reduction.
+This module deliberately pins the accepted seed-0 A2 cohort and its post-hoc
+activation-histogram and activation-propagation runs.  It does not discover
+attempts or infer a latest run.  Site summaries are count-first: threshold
+hits and denominators are summed before division, while pooled RMS follows the
+reviewed finite-count-weighted second-moment reduction.  Logical-product
+opportunities are loaded only from exact operation-level integer counters.
 """
 
 from __future__ import annotations
@@ -30,6 +31,7 @@ from matplotlib.ticker import MaxNLocator
 
 from paper_exp.config import validate_diagnostic_config, validate_training_config
 from paper_exp.design import complete_config_sha256
+from paper_exp.diagnostics.logical_products import LOGICAL_MATMUL_STAGES
 from paper_exp.utils import read_json
 
 from .export import (
@@ -46,6 +48,12 @@ TRANCHE_ID = "02-a2-l1-screen"
 DIAGNOSTIC_CONFIG_ID = "018-a2-activation-histograms"
 DIAGNOSTIC_RUN_ID = "001-20260828-082044-a031175f"
 DIAGNOSTIC_GIT_COMMIT = "a0f86e057b0f67e3a2726b9cb6e352d8f8914176"
+PROPAGATION_CONFIG_ID = "019-a2-activation-propagation"
+# Filled only after the exact post-hoc attempt is accepted.  Keeping these
+# identities unset makes report generation fail closed instead of discovering
+# or silently selecting a propagation attempt.
+PROPAGATION_RUN_ID: str | None = None
+PROPAGATION_GIT_COMMIT: str | None = None
 RESPONSE_STEM = "01-a2-spillover-response"
 LAYERWISE_DISTRIBUTION_STEM = "02-a2-layerwise-distributions"
 POOLED_DISTRIBUTION_STEM = "03-a2-site-distributions"
@@ -90,6 +98,9 @@ EXPECTED_RANGE = (-16.0, 16.0)
 EXPECTED_VALIDATION_SEQUENCES = 152
 EXPECTED_VALIDATION_TOKENS = 311_296
 EXPECTED_VALIDATION_BATCHES = 38
+EXPECTED_VALIDATION_CACHE_TOKENS = 311_739
+EXPECTED_TRAILING_VALIDATION_TOKENS = 443
+EXPECTED_BLOCK_SIZE = 2_048
 EXPECTED_SELECTION_HASH = (
     "ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47"
 )
@@ -231,6 +242,22 @@ class GroupReduction:
 
 
 @dataclass(frozen=True)
+class LogicalOpportunityPoint:
+    """Exact operation-level logical-product opportunity for one A2 cell."""
+
+    config_id: str
+    run_id: str
+    label: str
+    lambda_value: float
+    block_zero_product_count: int
+    block_product_count: int
+    lm_head_product_count: int
+    model_product_count: int
+    R_block: float
+    R_model: float
+
+
+@dataclass(frozen=True)
 class DensityReduction:
     """Exact rebinned density with zero and omitted mass kept explicit."""
 
@@ -253,6 +280,7 @@ class A2SpilloverData:
     losses: tuple[LossPoint, ...]
     bin_edges: tuple[float, ...]
     methods: tuple[dict[str, Any], ...]
+    logical_opportunities: tuple[LogicalOpportunityPoint, ...]
     inputs: tuple[dict[str, Any], ...]
 
 
@@ -487,6 +515,8 @@ def load_a2_spillover(
 
     payload, diagnostic_inputs = _load_diagnostic(root)
     inputs.extend(diagnostic_inputs)
+    logical_opportunities, propagation_inputs = _load_propagation_diagnostic(root)
+    inputs.extend(propagation_inputs)
     methods = tuple(payload["methods"])
     reductions = tuple(
         reduce_site_layers(
@@ -503,6 +533,7 @@ def load_a2_spillover(
         losses=tuple(losses),
         bin_edges=tuple(float(value) for value in payload["bin_edges"]),
         methods=methods,
+        logical_opportunities=logical_opportunities,
         inputs=tuple(inputs),
     )
 
@@ -873,6 +904,8 @@ def build_a2_response_markdown(data: A2SpilloverData) -> str:
         for source in A2_SOURCES
     )
     attention_control = attention[0]
+    opportunities = _logical_opportunity_rows(data.logical_opportunities)
+    opportunity_control = opportunities[0]
     control_loss = data.losses[0].final_validation_loss
     lines = [
         "# A2 spillover response",
@@ -899,17 +932,23 @@ def build_a2_response_markdown(data: A2SpilloverData) -> str:
         "",
         (
             "All `n(0.01)` values are percentages; deltas are percentage points. "
-            "RMS is pooled from finite-count-weighted second moments across layers."
+            "RMS is pooled from finite-count-weighted second moments across layers. "
+            "`R_block` and `R_model` are exact-zero logical-product opportunities, "
+            "not removed FLOPs or measured speedups."
         ),
         "",
         (
-            "| Condition | Final selection val. loss | Delta loss | n_h | Delta n_h | n_m | "
+            "| Condition | Final selection val. loss | Delta loss | R_block (%) | "
+            "R_model (%) | Delta R_model (pp) | n_h | Delta n_h | n_m | "
             "Delta n_m | n_A | Delta n_A | RMS h | RMS m |"
         ),
-        "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+        (
+            "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | "
+            "---: | ---: | ---: | ---: | ---: |"
+        ),
     ]
-    for source, loss, attention_row in zip(
-        A2_SOURCES, data.losses, attention, strict=True
+    for source, loss, attention_row, opportunity in zip(
+        A2_SOURCES, data.losses, attention, opportunities, strict=True
     ):
         source_rows = {row.site: row for row in _source_rows(data.reductions, source)}
         h_row = source_rows["h"]
@@ -917,6 +956,9 @@ def build_a2_response_markdown(data: A2SpilloverData) -> str:
         lines.append(
             f"| {_condition_label(source)} | {loss.final_validation_loss:.6f} | "
             f"{loss.final_validation_loss - control_loss:+.6f} | "
+            f"{100.0 * opportunity.R_block:.6f} | "
+            f"{100.0 * opportunity.R_model:.6f} | "
+            f"{100.0 * (opportunity.R_model - opportunity_control.R_model):+.6f} | "
             f"{100.0 * h_row.near_zero_0p01_fraction:.4f} | "
             f"{100.0 * (h_row.near_zero_0p01_fraction - controls['h'].near_zero_0p01_fraction):+.4f} | "
             f"{100.0 * m_row.near_zero_0p01_fraction:.4f} | "
@@ -1004,10 +1046,12 @@ def build_a2_response_markdown(data: A2SpilloverData) -> str:
         [
             "",
             (
-                "`R_model`, `R_block`, and any `m`-attributed logical-product "
-                "opportunity are not reported: diagnostic `018` measured activation "
-                "histograms, not logical-product opportunities. Activation near-zero "
-                "fractions must not be relabeled as compute opportunity."
+                "Logical opportunities use the complete selection partition and "
+                "operation-level integer counts from diagnostic `019`, including "
+                "actual post-RoPE Q/K operands and valid causal QK/PV pairs. The "
+                "near-zero `m` response is not counted unless an operand is exactly "
+                "zero; activation near-zero fractions must not be relabeled as "
+                "logical-product opportunity."
             ),
             "",
             (
@@ -1337,6 +1381,373 @@ def _load_diagnostic(root: Path) -> tuple[dict[str, Any], tuple[dict[str, Any], 
     )
 
 
+def _load_propagation_diagnostic(
+    root: Path,
+) -> tuple[tuple[LogicalOpportunityPoint, ...], tuple[dict[str, Any], ...]]:
+    run_id, git_commit = _pinned_propagation_identity()
+    recipe_path = (
+        root
+        / "experiments"
+        / TRANCHE_ID
+        / "run"
+        / f"{PROPAGATION_CONFIG_ID}.yaml"
+    )
+    run_dir = (
+        root
+        / "experiments"
+        / TRANCHE_ID
+        / "raw"
+        / PROPAGATION_CONFIG_ID
+        / run_id
+    )
+    paths = {
+        "propagation_recipe": recipe_path,
+        "propagation_saved_config": run_dir / "config.yaml",
+        "propagation_manifest": run_dir / "manifest.json",
+        "propagation_metrics": run_dir / "metrics.json",
+        "activation_propagation": run_dir / "activation_propagation.json",
+    }
+    _require_files(paths.values(), context="A2 activation-propagation diagnostic")
+    recipe = _load_yaml(paths["propagation_recipe"])
+    saved = _load_yaml(paths["propagation_saved_config"])
+    if saved != recipe:
+        raise ValueError(
+            f"Saved propagation config does not match tracked recipe: {run_dir}"
+        )
+    validate_diagnostic_config(recipe, "activation_propagation")
+    _validate_propagation_config(recipe, run_dir)
+    manifest = _load_json(paths["propagation_manifest"])
+    metrics = _load_json(paths["propagation_metrics"])
+    payload = _load_json(paths["activation_propagation"])
+    _validate_propagation_manifest(
+        manifest,
+        run_dir,
+        run_id=run_id,
+        git_commit=git_commit,
+    )
+    points = _validate_propagation_payload(payload, run_dir)
+    _validate_propagation_metrics(metrics, run_dir, points=points)
+    return points, tuple(
+        _input_record(root, path, role=role, source=None)
+        for role, path in paths.items()
+    )
+
+
+def _pinned_propagation_identity() -> tuple[str, str]:
+    run_id = PROPAGATION_RUN_ID
+    git_commit = PROPAGATION_GIT_COMMIT
+    if not isinstance(run_id, str) or not run_id:
+        raise RuntimeError(
+            "A2 activation-propagation run 019 has not been pinned; set "
+            "PROPAGATION_RUN_ID only after accepting one exact completed attempt."
+        )
+    if (
+        not isinstance(git_commit, str)
+        or len(git_commit) != 40
+        or any(character not in "0123456789abcdef" for character in git_commit)
+    ):
+        raise RuntimeError(
+            "A2 activation-propagation Git identity has not been pinned to one "
+            "40-character lowercase commit."
+        )
+    return run_id, git_commit
+
+
+def _expected_selected_runs() -> list[dict[str, Any]]:
+    return [
+        {
+            "label": source.label,
+            "tranche_id": TRANCHE_ID,
+            "config_id": source.config_id,
+            "run_id": source.run_id,
+        }
+        for source in A2_SOURCES
+    ]
+
+
+def _expected_source_paths() -> tuple[list[str], list[str]]:
+    runs = [
+        f"experiments/{TRANCHE_ID}/raw/{source.config_id}/{source.run_id}"
+        for source in A2_SOURCES
+    ]
+    return runs, [f"{path}/checkpoints/final" for path in runs]
+
+
+def _validate_propagation_config(config: dict[str, Any], run_dir: Path) -> None:
+    diagnostic = _mapping(
+        config.get("activation_propagation"), "activation_propagation", run_dir
+    )
+    validation = _mapping(config.get("validation"), "validation", run_dir)
+    checks = {
+        "selected runs": diagnostic.get("selected_runs") == _expected_selected_runs(),
+        "partition": (
+            validation.get("partition") == "selection"
+            and validation.get("partition_hash") == EXPECTED_SELECTION_HASH
+        ),
+        "coverage": (
+            validation.get("eval_batches") is None
+            and validation.get("batch_size") == 4
+        ),
+        "seed": (config.get("run") or {}).get("seed") == 0,
+    }
+    failed = [name for name, valid in checks.items() if not valid]
+    if failed:
+        raise ValueError(
+            f"A2 propagation recipe mismatch ({', '.join(failed)}): {run_dir}"
+        )
+
+
+def _validate_propagation_manifest(
+    manifest: dict[str, Any],
+    run_dir: Path,
+    *,
+    run_id: str,
+    git_commit: str,
+) -> None:
+    expected = {
+        "status": "completed",
+        "mode": "activation-propagation",
+        "tranche_id": TRANCHE_ID,
+        "config_id": PROPAGATION_CONFIG_ID,
+        "run_id": run_id,
+        "git_commit": git_commit,
+        "git_dirty": False,
+        "seed": 0,
+        "validation_partition": "selection",
+        "validation_partition_hash": EXPECTED_SELECTION_HASH,
+    }
+    mismatches = [key for key, value in expected.items() if manifest.get(key) != value]
+    expected_runs, expected_checkpoints = _expected_source_paths()
+    if manifest.get("source_runs") != expected_runs:
+        mismatches.append("source_runs")
+    if manifest.get("source_checkpoints") != expected_checkpoints:
+        mismatches.append("source_checkpoints")
+    diagnostic = manifest.get("activation_propagation")
+    diagnostic_expected = {
+        "selected_runs": _expected_selected_runs(),
+        "attention_implementation": "eager",
+        "future_causal_positions_excluded": True,
+        "eval_batches": None,
+        "batch_size": 4,
+        "validation_sequences": EXPECTED_VALIDATION_SEQUENCES,
+        "validation_tokens": EXPECTED_VALIDATION_TOKENS,
+        "validation_cache_tokens": EXPECTED_VALIDATION_CACHE_TOKENS,
+        "trailing_tokens_excluded": EXPECTED_TRAILING_VALIDATION_TOKENS,
+        "validation_partition": "selection",
+        "validation_partition_hash": EXPECTED_SELECTION_HASH,
+        "complete_named_partition": True,
+    }
+    if not isinstance(diagnostic, dict) or any(
+        diagnostic.get(key) != value
+        for key, value in diagnostic_expected.items()
+    ):
+        mismatches.append("activation_propagation")
+    validation = (manifest.get("tokenized_data") or {}).get("validation")
+    if not isinstance(validation, dict) or any(
+        validation.get(key) != value
+        for key, value in {
+            "partition": "selection",
+            "source_document_indices_sha256": EXPECTED_SELECTION_HASH,
+            "tokens_sha256": (
+                "22bb7c27864f0e5941548c572d6c75b1b5ba6a4c13e4cd26f40f4de546c5cc19"
+            ),
+        }.items()
+    ):
+        mismatches.append("validation cache")
+    if mismatches:
+        raise ValueError(
+            f"A2 propagation manifest mismatch ({', '.join(mismatches)}): {run_dir}"
+        )
+
+
+def _validate_propagation_metrics(
+    metrics: dict[str, Any],
+    run_dir: Path,
+    *,
+    points: Sequence[LogicalOpportunityPoint],
+) -> None:
+    expected = {
+        "activation_propagation/methods": len(A2_SOURCES),
+        "activation_propagation/layers": len(LAYERS),
+        "activation_propagation/matmul_stages": len(LOGICAL_MATMUL_STAGES),
+        "activation_propagation/validation_batches": EXPECTED_VALIDATION_BATCHES,
+        "activation_propagation/validation_sequences": EXPECTED_VALIDATION_SEQUENCES,
+        "activation_propagation/validation_tokens": EXPECTED_VALIDATION_TOKENS,
+        "activation_propagation/validation_cache_tokens": EXPECTED_VALIDATION_CACHE_TOKENS,
+        "activation_propagation/trailing_tokens_excluded": EXPECTED_TRAILING_VALIDATION_TOKENS,
+        "activation_propagation/validation_partition": "selection",
+        "activation_propagation/validation_partition_hash": EXPECTED_SELECTION_HASH,
+    }
+    mismatches = [key for key, value in expected.items() if metrics.get(key) != value]
+    for source, point in zip(A2_SOURCES, points, strict=True):
+        prefix = f"activation_propagation/endpoint/{source.config_id}"
+        for name, expected_value in (
+            ("R_block", point.R_block),
+            ("R_model", point.R_model),
+        ):
+            value = metrics.get(f"{prefix}/{name}")
+            if not _finite_fraction(value) or not _close(
+                float(value), expected_value
+            ):
+                mismatches.append(f"{prefix}/{name}")
+    if mismatches:
+        raise ValueError(
+            f"A2 propagation metric mismatch ({', '.join(mismatches)}): {run_dir}"
+        )
+
+
+def _validate_propagation_payload(
+    payload: dict[str, Any], run_dir: Path
+) -> tuple[LogicalOpportunityPoint, ...]:
+    expected = {
+        "schema_version": 5,
+        "validation_batches": EXPECTED_VALIDATION_BATCHES,
+        "validation_sequences": EXPECTED_VALIDATION_SEQUENCES,
+        "validation_tokens": EXPECTED_VALIDATION_TOKENS,
+        "validation_cache_tokens": EXPECTED_VALIDATION_CACHE_TOKENS,
+        "trailing_tokens_excluded": EXPECTED_TRAILING_VALIDATION_TOKENS,
+        "validation_partition": "selection",
+        "validation_partition_hash": EXPECTED_SELECTION_HASH,
+        "complete_named_partition": True,
+        "block_size": EXPECTED_BLOCK_SIZE,
+        "batch_size": 4,
+        "attention_implementation": "eager",
+        "future_causal_positions_excluded": True,
+        "matmul_stage_order": list(LOGICAL_MATMUL_STAGES),
+    }
+    mismatches = [key for key, value in expected.items() if payload.get(key) != value]
+    methods = payload.get("methods")
+    points: list[LogicalOpportunityPoint] = []
+    if not isinstance(methods, list) or len(methods) != len(A2_SOURCES):
+        mismatches.append("methods")
+    else:
+        expected_runs, expected_checkpoints = _expected_source_paths()
+        for source, source_run, source_checkpoint, method in zip(
+            A2_SOURCES,
+            expected_runs,
+            expected_checkpoints,
+            methods,
+            strict=True,
+        ):
+            if not isinstance(method, dict) or any(
+                method.get(key) != value
+                for key, value in {
+                    "label": source.label,
+                    "config_id": source.config_id,
+                    "run_id": source.run_id,
+                    "source_run": source_run,
+                    "source_checkpoint": source_checkpoint,
+                    "source_manifest_status": "completed",
+                    "num_layers": len(LAYERS),
+                    "batches": EXPECTED_VALIDATION_BATCHES,
+                }.items()
+            ):
+                mismatches.append(f"method:{source.config_id}")
+                continue
+            architecture = method.get("architecture")
+            if not isinstance(architecture, dict) or any(
+                architecture.get(key) != value
+                for key, value in {
+                    "topology_id": "A1-H",
+                    "active_sites": ["h"],
+                    "num_layers": len(LAYERS),
+                    "sequence_length": EXPECTED_BLOCK_SIZE,
+                }.items()
+            ):
+                mismatches.append(f"architecture:{source.config_id}")
+                continue
+            try:
+                points.append(_logical_opportunity_point(source, method["endpoint"]))
+            except (KeyError, TypeError, ValueError) as error:
+                mismatches.append(f"endpoint:{source.config_id}:{error}")
+    if mismatches:
+        raise ValueError(
+            f"A2 propagation payload mismatch ({', '.join(mismatches)}): {run_dir}"
+        )
+    return tuple(points)
+
+
+def _logical_opportunity_point(
+    source: A2Source, endpoint: dict[str, Any]
+) -> LogicalOpportunityPoint:
+    if not isinstance(endpoint, dict):
+        raise ValueError("endpoint must be a mapping")
+    if endpoint.get("validation_sequences") != EXPECTED_VALIDATION_SEQUENCES or endpoint.get(
+        "validation_tokens"
+    ) != EXPECTED_VALIDATION_TOKENS:
+        raise ValueError("endpoint validation coverage differs")
+    integer_names = (
+        "block_zero_product_count",
+        "block_product_count",
+        "lm_head_product_count",
+        "model_product_count",
+    )
+    integers: dict[str, int] = {}
+    for name in integer_names:
+        value = endpoint.get(name)
+        if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+            raise ValueError(f"invalid {name}")
+        integers[name] = value
+    if (
+        integers["block_product_count"] <= 0
+        or integers["lm_head_product_count"] <= 0
+        or integers["block_zero_product_count"] > integers["block_product_count"]
+        or integers["model_product_count"]
+        != integers["block_product_count"] + integers["lm_head_product_count"]
+    ):
+        raise ValueError("inconsistent endpoint denominators")
+    per_operation = endpoint.get("per_operation")
+    if not isinstance(per_operation, dict) or tuple(per_operation) != LOGICAL_MATMUL_STAGES:
+        raise ValueError("operation coverage differs")
+    operation_zero_total = 0
+    operation_product_total = 0
+    for name in LOGICAL_MATMUL_STAGES:
+        row = per_operation[name]
+        if not isinstance(row, dict):
+            raise ValueError(f"invalid operation {name}")
+        zero_count = row.get("zero_product_count")
+        product_count = row.get("product_count")
+        fraction = row.get("zero_product_fraction")
+        if (
+            isinstance(zero_count, bool)
+            or not isinstance(zero_count, int)
+            or isinstance(product_count, bool)
+            or not isinstance(product_count, int)
+            or not 0 <= zero_count <= product_count
+            or product_count <= 0
+            or not _close(float(fraction), zero_count / product_count)
+        ):
+            raise ValueError(f"invalid operation counters for {name}")
+        operation_zero_total += zero_count
+        operation_product_total += product_count
+    if (
+        operation_zero_total != integers["block_zero_product_count"]
+        or operation_product_total != integers["block_product_count"]
+    ):
+        raise ValueError("operation counters do not sum to the block endpoint")
+    r_block = endpoint.get("R_block")
+    r_model = endpoint.get("R_model")
+    if not _finite_fraction(r_block) or not _finite_fraction(r_model):
+        raise ValueError("invalid R_block/R_model")
+    if not _close(
+        float(r_block),
+        integers["block_zero_product_count"] / integers["block_product_count"],
+    ) or not _close(
+        float(r_model),
+        integers["block_zero_product_count"] / integers["model_product_count"],
+    ):
+        raise ValueError("logical-opportunity fractions disagree with counters")
+    return LogicalOpportunityPoint(
+        config_id=source.config_id,
+        run_id=source.run_id,
+        label=source.label,
+        lambda_value=source.lambda_value,
+        R_block=float(r_block),
+        R_model=float(r_model),
+        **integers,
+    )
+
+
 def _validate_source_config(config: dict[str, Any], source: A2Source, run_dir: Path) -> None:
     identity = _mapping(config.get("identity"), "config.identity", run_dir)
     run = _mapping(config.get("run"), "config.run", run_dir)
@@ -1645,6 +2056,17 @@ def _source_rows(
     return rows
 
 
+def _logical_opportunity_rows(
+    rows: Sequence[LogicalOpportunityPoint],
+) -> tuple[LogicalOpportunityPoint, ...]:
+    ordered = tuple(rows)
+    expected = tuple((source.config_id, source.run_id) for source in A2_SOURCES)
+    realized = tuple((row.config_id, row.run_id) for row in ordered)
+    if realized != expected:
+        raise ValueError("A2 logical-opportunity cohort is incomplete or out of order.")
+    return ordered
+
+
 def _build_provenance(
     *,
     root: Path,
@@ -1666,7 +2088,13 @@ def _build_provenance(
                 "y": "100 * (n_A(0.01, lambda) - n_A(0.01, control))",
                 "attention_sites": list(ATTENTION_SITES),
                 "attention_pool": "sum(site-and-layer hits) / sum(site-and-layer totals)",
-                "logical_product_metric": "not measured",
+                "logical_product_metric": {
+                    "R_block": "block_zero_product_count / block_product_count",
+                    "R_model": "block_zero_product_count / model_product_count",
+                    "delta_R_model": "R_model(condition) - R_model(control)",
+                    "unit": "exact-zero logical-product opportunity",
+                    "not_a_speedup": True,
+                },
             }
         )
     elif stem in density_stems:
@@ -1727,11 +2155,16 @@ def _build_provenance(
             "lambda_values": [source.lambda_value for source in A2_SOURCES],
             "diagnostic_config_id": DIAGNOSTIC_CONFIG_ID,
             "diagnostic_run_id": DIAGNOSTIC_RUN_ID,
+            "propagation_config_id": PROPAGATION_CONFIG_ID,
+            "propagation_run_id": PROPAGATION_RUN_ID,
             "validation_sequences": EXPECTED_VALIDATION_SEQUENCES,
             "validation_tokens": EXPECTED_VALIDATION_TOKENS,
         },
         "reduction": reduction,
         "losses": [asdict(point) for point in data.losses],
+        "logical_opportunities": [
+            asdict(point) for point in _logical_opportunity_rows(data.logical_opportunities)
+        ],
         "site_reductions": [asdict(row) for row in data.reductions],
         "inputs": list(data.inputs),
         "generator": {
@@ -1832,6 +2265,15 @@ def _load_json(path: Path) -> dict[str, Any]:
     if not isinstance(value, dict):
         raise ValueError(f"Expected a JSON object: {path}")
     return value
+
+
+def _finite_fraction(value: Any) -> bool:
+    return (
+        not isinstance(value, bool)
+        and isinstance(value, int | float)
+        and math.isfinite(float(value))
+        and 0.0 <= float(value) <= 1.0
+    )
 
 
 def _matching_edge_index(edges: Sequence[float], value: float) -> int | None:
