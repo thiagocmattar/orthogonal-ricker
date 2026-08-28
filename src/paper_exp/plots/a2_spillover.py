@@ -64,7 +64,8 @@ SITE_LABELS = {
     "v": r"$v$",
 }
 LAYERS = tuple(range(6))
-DENSITY_SOURCE_INDICES = (0, 4, 5)
+LAYERWISE_SOURCE_INDICES = (0, 3)
+POOLED_SOURCE_INDICES = (0, 4, 5)
 DENSITY_REBIN_FACTOR = 16
 DENSITY_WINDOWS = {
     "h": (0.0, 8.0),
@@ -74,9 +75,14 @@ DENSITY_WINDOWS = {
     "k_post": (-16.0, 16.0),
     "v": (-4.0, 4.0),
 }
-DENSITY_COLORS = ("#4D4D4D", "#0072B2", "#D55E00")
-DENSITY_LINESTYLES = ("-", "--", "-.")
-DENSITY_LABELS = ("ReLU control", r"L1 $\lambda=2$", r"L1 $\lambda=5$")
+DENSITY_STYLE_BY_SOURCE = {
+    0: ("#4D4D4D", "-"),
+    3: ("#009E73", ":"),
+    4: ("#0072B2", "--"),
+    5: ("#D55E00", "-."),
+}
+LAYERWISE_LABELS = ("ReLU control", r"L1 $\lambda=1$")
+POOLED_LABELS = ("Control", r"L1 $\lambda=2$", r"L1 $\lambda=5$")
 THRESHOLDS = (0.0, 0.01, 0.1)
 THRESHOLD_KEYS = ("0", "0.01", "0.1")
 EXPECTED_BINS = 3_200
@@ -520,26 +526,27 @@ def _density_reduction(
     )
 
 
-def _density_column_limits(data: A2SpilloverData) -> dict[str, float]:
+def _density_column_limits(
+    data: A2SpilloverData,
+    *,
+    source_indices: Sequence[int],
+    pooled: bool,
+) -> dict[str, float]:
     limits: dict[str, float] = {}
+    layer_groups: tuple[tuple[int, ...], ...] = (
+        (LAYERS,) if pooled else tuple((layer,) for layer in LAYERS)
+    )
     for site in DENSITY_SITES:
         maximum = 0.0
-        for source_index in DENSITY_SOURCE_INDICES:
-            for layer in LAYERS:
+        for source_index in source_indices:
+            for layers in layer_groups:
                 curve = _density_reduction(
                     data,
                     source_index=source_index,
                     site=site,
-                    layers=(layer,),
+                    layers=layers,
                 )
                 maximum = max(maximum, *curve.density)
-            pooled = _density_reduction(
-                data,
-                source_index=source_index,
-                site=site,
-                layers=LAYERS,
-            )
-            maximum = max(maximum, *pooled.density)
         limits[site] = 1.08 * maximum if maximum > 0.0 else 1.0
     return limits
 
@@ -586,10 +593,15 @@ def build_a2_spillover_response_figure(data: A2SpilloverData) -> Figure:
             va="center",
             fontsize=9,
         )
-    axis.set_xlim(-2.2, 33.2)
+    axis.set_xlim(-2.5, 33.2)
     axis.set_ylim(-0.9, 7.45)
+    axis.set_xticks((-2.0, 0.0, 5.0, 10.0, 15.0, 20.0, 25.0, 30.0))
+    axis.set_yticks((-0.5, 0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0))
     axis.set_xlabel(r"$m$ near-zero response, $\Delta n_m(0.01)$ (pp)")
-    axis.set_ylabel(r"Attention response, $\Delta n_{\mathcal{A}}(0.01)$ (pp)")
+    axis.set_ylabel(
+        "Attention near-zero response,\n"
+        r"$\Delta n_{\mathcal{A}}(0.01)$ (pp)"
+    )
     axis.grid(False)
     axis.xaxis.grid(True, alpha=0.18)
     axis.yaxis.grid(True, alpha=0.18)
@@ -600,7 +612,7 @@ def build_a2_spillover_response_figure(data: A2SpilloverData) -> Figure:
 
 
 def build_a2_layerwise_distributions_figure(data: A2SpilloverData) -> Figure:
-    """Plot control/lambda-2/lambda-5 densities for every layer and site."""
+    """Plot control/lambda-1 densities for every layer and site."""
 
     figure, axes = plt.subplots(
         len(LAYERS),
@@ -610,7 +622,11 @@ def build_a2_layerwise_distributions_figure(data: A2SpilloverData) -> Figure:
         sharey="col",
         squeeze=False,
     )
-    limits = _density_column_limits(data)
+    limits = _density_column_limits(
+        data,
+        source_indices=LAYERWISE_SOURCE_INDICES,
+        pooled=False,
+    )
     for column, site in enumerate(DENSITY_SITES):
         title = SITE_LABELS[site] + (r"$^{\dagger}$" if site == "k_post" else "")
         axes[0, column].set_title(title, pad=4)
@@ -623,39 +639,22 @@ def build_a2_layerwise_distributions_figure(data: A2SpilloverData) -> Figure:
                     site=site,
                     layers=(layer,),
                 )
-                for source_index in DENSITY_SOURCE_INDICES
+                for source_index in LAYERWISE_SOURCE_INDICES
             )
-            for condition_index, curve in enumerate(curves):
+            for source_index, curve in zip(
+                LAYERWISE_SOURCE_INDICES,
+                curves,
+                strict=True,
+            ):
                 if curve.nonzero_total == 0:
                     continue
+                color, linestyle = DENSITY_STYLE_BY_SOURCE[source_index]
                 axis.stairs(
                     curve.density,
                     curve.edges,
-                    color=DENSITY_COLORS[condition_index],
-                    linestyle=DENSITY_LINESTYLES[condition_index],
-                    linewidth=1.05,
-                )
-            atom_only = tuple(
-                DENSITY_LABELS[index]
-                for index, curve in enumerate(curves)
-                if curve.nonzero_total == 0
-            )
-            if atom_only:
-                axis.text(
-                    0.98,
-                    0.10,
-                    " / ".join(atom_only) + ": atom only",
-                    transform=axis.transAxes,
-                    ha="right",
-                    va="bottom",
-                    fontsize=8,
-                    color="#333333",
-                    bbox={
-                        "facecolor": "white",
-                        "edgecolor": "none",
-                        "alpha": 0.82,
-                        "pad": 1.0,
-                    },
+                    color=color,
+                    linestyle=linestyle,
+                    linewidth=1.20,
                 )
             if site == "h":
                 values = "/".join(
@@ -665,7 +664,7 @@ def build_a2_layerwise_distributions_figure(data: A2SpilloverData) -> Figure:
                 axis.text(
                     0.98,
                     0.95,
-                    "$P_0$ C/2/5\n" + values,
+                    r"$P_0$ (%): C / $\lambda=1$" + "\n" + values,
                     transform=axis.transAxes,
                     ha="right",
                     va="top",
@@ -685,7 +684,7 @@ def build_a2_layerwise_distributions_figure(data: A2SpilloverData) -> Figure:
                 axis.text(
                     0.98,
                     0.95,
-                    "Out C/2/5\n" + values,
+                    r"Out (%): C / $\lambda=1$" + "\n" + values,
                     transform=axis.transAxes,
                     ha="right",
                     va="top",
@@ -712,24 +711,24 @@ def build_a2_layerwise_distributions_figure(data: A2SpilloverData) -> Figure:
         Line2D(
             (0,),
             (0,),
-            color=DENSITY_COLORS[index],
-            linestyle=DENSITY_LINESTYLES[index],
+            color=DENSITY_STYLE_BY_SOURCE[source_index][0],
+            linestyle=DENSITY_STYLE_BY_SOURCE[source_index][1],
             linewidth=1.4,
-            label=DENSITY_LABELS[index],
+            label=LAYERWISE_LABELS[index],
         )
-        for index in range(len(DENSITY_SOURCE_INDICES))
+        for index, source_index in enumerate(LAYERWISE_SOURCE_INDICES)
     )
     figure.legend(
         handles=handles,
         loc="upper center",
-        ncol=3,
+        ncol=2,
         frameon=False,
         bbox_to_anchor=(0.5, 0.998),
     )
     figure.text(
         0.012,
         0.50,
-        r"Density conditional on $x\ne0$",
+        r"Conditional density ($x\ne0$)",
         ha="center",
         va="center",
         rotation="vertical",
@@ -750,20 +749,25 @@ def build_a2_site_distributions_figure(data: A2SpilloverData) -> Figure:
     """Plot within-site, across-layer pooled densities for three conditions."""
 
     figure, axes = plt.subplots(
-        len(DENSITY_SOURCE_INDICES),
+        len(POOLED_SOURCE_INDICES),
         len(DENSITY_SITES),
         figsize=(DOUBLE_COLUMN_WIDTH_INCHES, 5.15),
         sharex="col",
         sharey="col",
         squeeze=False,
     )
-    limits = _density_column_limits(data)
-    row_labels = ("Control", r"L1 $\lambda=2$", r"L1 $\lambda=5$")
+    limits = _density_column_limits(
+        data,
+        source_indices=POOLED_SOURCE_INDICES,
+        pooled=True,
+    )
+    row_labels = POOLED_LABELS
     for column, site in enumerate(DENSITY_SITES):
         title = SITE_LABELS[site] + (r"$^{\dagger}$" if site == "k_post" else "")
         axes[0, column].set_title(title, pad=4)
-        for row, source_index in enumerate(DENSITY_SOURCE_INDICES):
+        for row, source_index in enumerate(POOLED_SOURCE_INDICES):
             axis = axes[row, column]
+            color, _ = DENSITY_STYLE_BY_SOURCE[source_index]
             curve = _density_reduction(
                 data,
                 source_index=source_index,
@@ -775,14 +779,14 @@ def build_a2_site_distributions_figure(data: A2SpilloverData) -> Figure:
                     curve.density,
                     curve.edges,
                     fill=True,
-                    facecolor=DENSITY_COLORS[row],
+                    facecolor=color,
                     edgecolor="none",
                     alpha=0.12,
                 )
                 axis.stairs(
                     curve.density,
                     curve.edges,
-                    color=DENSITY_COLORS[row],
+                    color=color,
                     linewidth=1.25,
                 )
             else:
@@ -795,26 +799,31 @@ def build_a2_site_distributions_figure(data: A2SpilloverData) -> Figure:
                     va="center",
                     fontsize=8,
                 )
-            axis.text(
-                0.97,
-                0.94,
-                (
-                    "$P_0$ "
-                    + _format_probability(curve.exact_zero_fraction)
-                    + "\nOut "
-                    + _format_probability(curve.outside_display_fraction_nonzero)
-                ),
-                transform=axis.transAxes,
-                ha="right",
-                va="top",
-                fontsize=8,
-                bbox={
-                    "facecolor": "white",
-                    "edgecolor": "none",
-                    "alpha": 0.80,
-                    "pad": 1.0,
-                },
-            )
+            annotation = None
+            if site == "h":
+                annotation = "$P_0$ " + _format_probability(
+                    curve.exact_zero_fraction
+                )
+            elif site == "k_post":
+                annotation = "Out " + _format_probability(
+                    curve.outside_display_fraction_nonzero
+                )
+            if annotation is not None:
+                axis.text(
+                    0.97,
+                    0.94,
+                    annotation,
+                    transform=axis.transAxes,
+                    ha="right",
+                    va="top",
+                    fontsize=8,
+                    bbox={
+                        "facecolor": "white",
+                        "edgecolor": "none",
+                        "alpha": 0.80,
+                        "pad": 1.0,
+                    },
+                )
             axis.set_xlim(DENSITY_WINDOWS[site])
             axis.set_ylim(0.0, limits[site])
             axis.grid(False)
@@ -822,7 +831,7 @@ def build_a2_site_distributions_figure(data: A2SpilloverData) -> Figure:
             axis.xaxis.set_major_locator(MaxNLocator(nbins=3))
             axis.yaxis.set_major_locator(MaxNLocator(nbins=3, min_n_ticks=2))
             axis.tick_params(
-                labelbottom=row == len(DENSITY_SOURCE_INDICES) - 1,
+                labelbottom=row == len(POOLED_SOURCE_INDICES) - 1,
                 labelleft=row == 0,
             )
             axis.spines["top"].set_visible(False)
@@ -838,7 +847,7 @@ def build_a2_site_distributions_figure(data: A2SpilloverData) -> Figure:
     figure.text(
         0.012,
         0.50,
-        r"Density conditional on $x\ne0$",
+        r"Conditional density ($x\ne0$)",
         ha="center",
         va="center",
         rotation="vertical",
@@ -878,11 +887,12 @@ def build_a2_response_markdown(data: A2SpilloverData) -> str:
         ),
         "",
         (
-            "The screen shows two descriptive response regimes: lambda <= 1 "
-            "increases attention-site near-zero mass while leaving `m` near its "
-            "control value; lambda 2 and 5 sharply increase near-zero mass at `m` "
-            "while the pooled attention response returns near control. This is not "
-            "a causal compensation claim."
+            "Across the tested coefficients, lambda <= 1 increases attention-site "
+            "near-zero mass while leaving `m` near its control value. Lambda 2 and "
+            "5 instead produce a large, layer-local near-zero response at `m`, "
+            "while the pooled attention response returns near control. These are "
+            "descriptive response ranges, not a causal compensation or phase-boundary "
+            "claim."
         ),
         "",
         "## Quality and activation response",
@@ -893,7 +903,7 @@ def build_a2_response_markdown(data: A2SpilloverData) -> str:
         ),
         "",
         (
-            "| Condition | Val. loss | Delta loss | n_h | Delta n_h | n_m | "
+            "| Condition | Final selection val. loss | Delta loss | n_h | Delta n_h | n_m | "
             "Delta n_m | n_A | Delta n_A | RMS h | RMS m |"
         ),
         "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
@@ -918,30 +928,86 @@ def build_a2_response_markdown(data: A2SpilloverData) -> str:
     lines.extend(
         [
             "",
-            "## Attention-site disaggregation",
+            "## Complete per-site activation response",
             "",
-            "| Condition | n_a | n_q_post | n_k_post | n_v |",
-            "| --- | ---: | ---: | ---: | ---: |",
+            (
+                "For every site, `n_s(epsilon) = #(|x| <= epsilon) / #elements`; "
+                "`z_s = #(x = 0) / #elements`. Delta values are relative to the "
+                "matched ReLU control. `a` is the attention-branch LayerNorm output "
+                "feeding fused W_QKV; `m` is the MLP-branch LayerNorm output feeding "
+                "W1; `h` is the post-activation MLP hidden state feeding W2; "
+                "`q_post` and `k_post` are the post-RoPE Q/K operands of QK^T; and "
+                "`v` is the V operand of PV."
+            ),
+            "",
+            "| Condition | Site | z_s (%) | n_s(0.01) (%) | Delta n_s(0.01) (pp) | n_s(0.1) (%) | RMS |",
+            "| --- | --- | ---: | ---: | ---: | ---: | ---: |",
         ]
     )
     for source in A2_SOURCES:
         source_rows = {row.site: row for row in _source_rows(data.reductions, source)}
-        lines.append(
-            f"| {_condition_label(source)} | "
-            + " | ".join(
-                f"{100.0 * source_rows[site].near_zero_0p01_fraction:.4f}"
-                for site in ATTENTION_SITES
+        for site in DENSITY_SITES:
+            row = source_rows[site]
+            control = controls[site]
+            lines.append(
+                f"| {_condition_label(source)} | `{site}` | "
+                f"{_format_precise_percentage(row.exact_zero_fraction)} | "
+                f"{100.0 * row.near_zero_0p01_fraction:.4f} | "
+                f"{100.0 * (row.near_zero_0p01_fraction - control.near_zero_0p01_fraction):+.4f} | "
+                f"{100.0 * row.near_zero_0p1_fraction:.4f} | "
+                f"{row.pooled_rms:.5f} |"
             )
-            + " |"
+    lines.extend(
+        [
+            "",
+            "## Localization of the high-lambda m response",
+            "",
+            (
+                "The pooled lambda-2/lambda-5 `m` response is driven by the three "
+                "observed layer cells below. Their exact-zero mass remains zero: "
+                "this is near-zero collapse at the measured `m` port, not exact "
+                "zeros or whole-model collapse. In the same cells, the pressured "
+                "`h` port has 100% exact-zero mass; this co-location is descriptive "
+                "and does not establish causality."
+            ),
+            "",
+            "| Condition | Layer | z_h (%) | z_m (%) | n_m(0.01) (%) | RMS m |",
+            "| --- | ---: | ---: | ---: | ---: | ---: |",
+        ]
+    )
+    for source_index, layer in ((4, 4), (5, 0), (5, 1)):
+        source = A2_SOURCES[source_index]
+        row = histogram_layer(data.methods[source_index], f"m.layer_{layer}")
+        _validate_layer_row(
+            row,
+            site="m",
+            bin_count=EXPECTED_BINS,
+        )
+        h_row = histogram_layer(data.methods[source_index], f"h.layer_{layer}")
+        _validate_layer_row(
+            h_row,
+            site="h",
+            bin_count=EXPECTED_BINS,
+        )
+        total = int(row["total"])
+        hits = row["threshold_hits"]
+        h_total = int(h_row["total"])
+        h_hits = h_row["threshold_hits"]
+        lines.append(
+            f"| {_condition_label(source)} | {layer} | "
+            f"{100.0 * int(h_hits['0']) / h_total:.4f} | "
+            f"{100.0 * int(hits['0']) / total:.4f} | "
+            f"{100.0 * int(hits['0.01']) / total:.4f} | "
+            f"{float(row['rms']):.3e} |"
         )
     lines.extend(
         [
             "",
             (
-                "`R_model`, `R_block`, and an operation-level `R(m)` are not "
-                "reported: diagnostic `018` measured activation histograms, not "
-                "logical-product opportunities. Activation near-zero fractions "
-                "must not be relabeled as compute opportunity."
+                "`R_model`, `R_block`, and any `m`-attributed logical-product "
+                "opportunity are not reported: diagnostic `018` measured activation "
+                "histograms, not logical-product opportunities. Activation near-zero "
+                "fractions must not be relabeled as compute opportunity."
             ),
             "",
             (
@@ -963,9 +1029,13 @@ def build_a2_layerwise_distribution_markdown(data: A2SpilloverData) -> str:
         "",
         (
             "**Figure caption.** Layer-resolved activation densities for the ReLU "
-            "control and the two strongest h-only L1 conditions (lambda 2 and 5). "
+            "control and h-only L1 at lambda 1. This is the predeclared A2 "
+            "distribution comparison; all six layers are shown, including the "
+            "required deepest-layer row. "
             "Each panel is a density conditional on `x != 0`; exact-zero atoms are "
-            "removed before adjacent-bin rebinning and reported separately. Curves "
+            "removed from every density before adjacent-bin rebinning. Material `h` "
+            "atoms are printed in-panel; all-site values are tabulated in the "
+            "spillover-response companion and recorded exactly in provenance. Curves "
             "use exact count-preserving 0.16-wide bins, linear density, and the same "
             "x and y scales within each site column. No KDE or interpolation is used."
         ),
@@ -979,8 +1049,8 @@ def build_a2_layerwise_distribution_markdown(data: A2SpilloverData) -> str:
         "",
         "## Exact-zero mass at h",
         "",
-        "| Layer | Control | lambda 2 | lambda 5 |",
-        "| ---: | ---: | ---: | ---: |",
+        "| Layer | Control | lambda 1 |",
+        "| ---: | ---: | ---: |",
     ]
     for layer in LAYERS:
         curves = tuple(
@@ -990,7 +1060,7 @@ def build_a2_layerwise_distribution_markdown(data: A2SpilloverData) -> str:
                 site="h",
                 layers=(layer,),
             )
-            for source_index in DENSITY_SOURCE_INDICES
+            for source_index in LAYERWISE_SOURCE_INDICES
         )
         lines.append(
             f"| {layer} | "
@@ -1001,15 +1071,14 @@ def build_a2_layerwise_distribution_markdown(data: A2SpilloverData) -> str:
         [
             "",
             (
-                "The all-atom cases are lambda 5 at `h.layer_0` and `h.layer_1`, "
-                "and lambda 2 at `h.layer_4`; no conditional density is drawn for "
-                "those cells."
+                "No all-atom `h` cell occurs in this control-versus-lambda-1 "
+                "comparison."
             ),
             "",
             "## k_post mass outside the stored range, conditional on x != 0",
             "",
-            "| Layer | Control | lambda 2 | lambda 5 |",
-            "| ---: | ---: | ---: | ---: |",
+            "| Layer | Control | lambda 1 |",
+            "| ---: | ---: | ---: |",
         ]
     )
     for layer in LAYERS:
@@ -1020,7 +1089,7 @@ def build_a2_layerwise_distribution_markdown(data: A2SpilloverData) -> str:
                 site="k_post",
                 layers=(layer,),
             )
-            for source_index in DENSITY_SOURCE_INDICES
+            for source_index in LAYERWISE_SOURCE_INDICES
         )
         lines.append(
             f"| {layer} | "
@@ -1041,7 +1110,7 @@ def build_a2_layerwise_distribution_markdown(data: A2SpilloverData) -> str:
     )
     for site in DENSITY_SITES:
         candidates = []
-        for source_index in DENSITY_SOURCE_INDICES:
+        for source_index in LAYERWISE_SOURCE_INDICES:
             for layer in LAYERS:
                 curve = _density_reduction(
                     data,
@@ -1062,9 +1131,10 @@ def build_a2_layerwise_distribution_markdown(data: A2SpilloverData) -> str:
         [
             "",
             (
-                "The large pooled `m` response is layer-local: lambda 2 concentrates "
-                "`m.layer_4` near zero, while lambda 5 concentrates `m.layer_0` and "
-                "`m.layer_1` near zero. Their exact-zero counts remain zero."
+                "The control-versus-lambda-1 atlas is the predeclared distribution "
+                "view. The separate pooled control/lambda-2/lambda-5 figure shows "
+                "the larger tested-coefficient shapes; the response companion "
+                "quantifies their layer-local `m` near-zero collapse."
             ),
             "",
             (
@@ -1086,21 +1156,26 @@ def build_a2_site_distribution_markdown(data: A2SpilloverData) -> str:
         (
             "**Figure caption.** Per-site activation distributions after pooling "
             "integer histogram counts across all six layers within each site. Rows "
-            "are the ReLU control, h-only L1 lambda 2, and h-only L1 lambda 5. "
-            "Densities are conditional on `x != 0`; exact-zero atoms and omitted "
-            "conditional mass are printed in each panel as `P0` and `Out`."
+            "are the ReLU control, h-only L1 lambda 2, and h-only L1 lambda 5. This "
+            "high-coefficient comparison is a post-hoc descriptive view selected "
+            "after inspecting A2; it does not replace the predeclared control-versus-"
+            "lambda-1 deepest-layer comparison. "
+            "Densities are conditional on `x != 0`; material exact-zero mass at "
+            "`h` and omitted tail mass at `k_post` are printed in-panel. The table "
+            "reports both quantities for every condition and site."
         ),
         "",
         (
-            "The reduction, rebinning, windows, and site-column scales match the "
-            "layerwise atlas. Counts are never pooled across sites. The dagger on "
-            "`k_post` flags stored-range tails."
+            "The reduction, rebinning, and windows match the layerwise atlas. "
+            "Within this figure, x and y scales are shared down each site column. "
+            "Counts are never pooled across sites. The dagger on `k_post` flags "
+            "stored-range tails."
         ),
         "",
         "| Condition | Site | P(x = 0) | Outside window given x != 0 |",
         "| --- | --- | ---: | ---: |",
     ]
-    for source_index in DENSITY_SOURCE_INDICES:
+    for source_index in POOLED_SOURCE_INDICES:
         source = A2_SOURCES[source_index]
         for site in DENSITY_SITES:
             curve = _density_reduction(
@@ -1595,10 +1670,13 @@ def _build_provenance(
         )
     elif stem in density_stems:
         pooled = stem == POOLED_DISTRIBUTION_STEM
+        source_indices = (
+            POOLED_SOURCE_INDICES if pooled else LAYERWISE_SOURCE_INDICES
+        )
         reduction.update(
             {
                 "density_sources": [
-                    A2_SOURCES[index].config_id for index in DENSITY_SOURCE_INDICES
+                    A2_SOURCES[index].config_id for index in source_indices
                 ],
                 "density_sites": list(DENSITY_SITES),
                 "layers": "pooled within site" if pooled else list(LAYERS),
@@ -1618,7 +1696,16 @@ def _build_provenance(
                 ),
                 "exact_zero_atom_separate": True,
                 "no_kde_or_interpolation": True,
-                "panels": _density_panel_summaries(data, pooled=pooled),
+                "comparison_status": (
+                    "post-hoc descriptive high-coefficient view"
+                    if pooled
+                    else "predeclared control-versus-lambda-1 comparison"
+                ),
+                "panels": _density_panel_summaries(
+                    data,
+                    pooled=pooled,
+                    source_indices=source_indices,
+                ),
             }
         )
     else:
@@ -1665,12 +1752,13 @@ def _density_panel_summaries(
     data: A2SpilloverData,
     *,
     pooled: bool,
+    source_indices: Sequence[int],
 ) -> list[dict[str, Any]]:
     summaries: list[dict[str, Any]] = []
     layer_groups: tuple[tuple[int, ...], ...] = (
         (LAYERS,) if pooled else tuple((layer,) for layer in LAYERS)
     )
-    for source_index in DENSITY_SOURCE_INDICES:
+    for source_index in source_indices:
         source = A2_SOURCES[source_index]
         for site in DENSITY_SITES:
             for layers in layer_groups:
@@ -1762,11 +1850,17 @@ def _format_probability(value: float | None) -> str:
     percentage = 100.0 * value
     if percentage == 0.0:
         return "0%"
+    if percentage == 100.0:
+        return "100%"
     if percentage < 0.001:
         return "<0.001%"
     if percentage < 0.1:
         return f"{percentage:.3f}%"
     if percentage < 10.0:
+        return f"{percentage:.2f}%"
+    if percentage > 99.99:
+        return ">99.99%"
+    if percentage >= 99.95:
         return f"{percentage:.2f}%"
     return f"{percentage:.1f}%"
 
@@ -1777,13 +1871,28 @@ def _format_compact_percentage(value: float | None) -> str:
     percentage = 100.0 * value
     if percentage == 0.0:
         return "0"
+    if percentage == 100.0:
+        return "100"
     if percentage < 0.001:
         return "<.001"
+    if percentage < 0.01:
+        return "<.01"
     if percentage < 10.0:
         return f"{percentage:.2f}"
     if percentage < 99.95:
         return f"{percentage:.1f}"
-    return "100"
+    if percentage > 99.99:
+        return ">99.99"
+    return f"{percentage:.2f}"
+
+
+def _format_precise_percentage(value: float) -> str:
+    percentage = 100.0 * value
+    if percentage == 0.0:
+        return "0.0000"
+    if percentage < 0.0001:
+        return "<0.0001"
+    return f"{percentage:.4f}"
 
 
 def _condition_label(source: A2Source) -> str:

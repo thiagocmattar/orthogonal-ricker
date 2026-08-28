@@ -190,7 +190,7 @@ def test_a2_figures_pass_publication_checks_and_keep_distribution_atoms_separate
         assert len(response.axes[0].texts) == 5
         assert len(layerwise.axes) == 36
         assert len(layerwise.legends) == 1
-        assert len(layerwise.legends[0].get_texts()) == 3
+        assert len(layerwise.legends[0].get_texts()) == 2
         assert len(pooled.axes) == 18
         assert len(pooled.legends) == 0
         assert all(axis.get_yscale() == "linear" for axis in layerwise.axes)
@@ -235,7 +235,9 @@ def test_a2_suite_is_atomic_and_deterministic_from_compact_fixture(
     pooled_markdown = outputs[10].read_text(encoding="utf-8")
     assert "single-seed directional screen" in response_markdown
     assert "R_model" in response_markdown
+    assert "Complete per-site activation response" in response_markdown
     assert "count-preserving" in layerwise_markdown
+    assert "lambda 1" in layerwise_markdown
     assert "Counts are never pooled across sites" in pooled_markdown
     response_provenance = json.loads(outputs[3].read_text(encoding="utf-8"))
     layerwise_provenance = json.loads(outputs[7].read_text(encoding="utf-8"))
@@ -248,12 +250,47 @@ def test_a2_suite_is_atomic_and_deterministic_from_compact_fixture(
     assert layerwise_provenance["reduction"]["layers"] == list(a2.LAYERS)
     assert layerwise_provenance["reduction"]["exact_zero_atom_separate"] is True
     assert pooled_provenance["reduction"]["layers"] == "pooled within site"
-    assert len(layerwise_provenance["reduction"]["panels"]) == 108
+    assert layerwise_provenance["reduction"]["density_sources"] == [
+        A2_SOURCES[index].config_id for index in a2.LAYERWISE_SOURCE_INDICES
+    ]
+    assert pooled_provenance["reduction"]["density_sources"] == [
+        A2_SOURCES[index].config_id for index in a2.POOLED_SOURCE_INDICES
+    ]
+    assert len(layerwise_provenance["reduction"]["panels"]) == 72
     assert len(pooled_provenance["reduction"]["panels"]) == 18
     assert len(response_provenance["inputs"]) == 35
 
     assert generate_a2_spillover_suite(tmp_path) == outputs
     assert tuple(path.read_bytes() for path in outputs) == first_bytes
+
+
+def test_a2_percentage_formatters_do_not_round_non_boundary_values_to_boundaries(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    assert a2._format_compact_percentage(0.0) == "0"
+    assert a2._format_compact_percentage(1.0) == "100"
+    assert a2._format_compact_percentage(0.000015) == "<.01"
+    assert a2._format_compact_percentage(0.999798) == "99.98"
+    assert a2._format_compact_percentage(0.999999) == ">99.99"
+    assert a2._format_probability(0.999798) == "99.98%"
+    assert a2._format_probability(0.999999) == ">99.99%"
+    assert a2._format_precise_percentage(0.0) == "0.0000"
+    assert a2._format_precise_percentage(0.000000025) == "<0.0001"
+    assert a2._format_precise_percentage(0.943476) == "94.3476"
+
+    monkeypatch.setattr(a2, "EXPECTED_BINS", 4)
+    data = _synthetic_data(bin_count=4)
+    data = replace(
+        data,
+        reductions=tuple(
+            replace(row, exact_zero_fraction=0.000000025)
+            if row.config_id == A2_SOURCES[0].config_id and row.site == "q_post"
+            else row
+            for row in data.reductions
+        ),
+    )
+    markdown = a2.build_a2_response_markdown(data)
+    assert "| Control | `q_post` | <0.0001 |" in markdown
 
 
 def _synthetic_data(*, bin_count: int) -> A2SpilloverData:

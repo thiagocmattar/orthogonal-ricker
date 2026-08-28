@@ -151,18 +151,21 @@ summary is not `R_model` or a logical-product opportunity metric.
 
 `experiments/02-a2-l1-screen/figs/02-a2-layerwise-distributions` is the
 supplemental six-layer by six-site atlas. Each panel overlays the ReLU control,
-L1 `lambda = 2`, and L1 `lambda = 5`. Exact-zero atoms are removed before an
-exact adjacent-bin rebin; all-atom cells are labeled rather than drawn as zero
-densities.
+and L1 `lambda = 1`, matching the predeclared A2 distribution comparison while
+also exposing every layer. Exact-zero atoms are removed before an exact
+adjacent-bin rebin and reported separately.
 
 `experiments/02-a2-l1-screen/figs/03-a2-site-distributions` is the cleaner
-main-paper candidate. Rows are the same three conditions, columns are sites,
-and integer counts are pooled across layers only within a site. Every panel
-reports its exact-zero atom and mass outside the displayed window.
+supplemental, post-hoc high-coefficient view. Rows are control, L1 `lambda = 2`,
+and L1 `lambda = 5`; columns are sites, and integer counts are pooled across
+layers only within a site. It does not replace the predeclared control-versus-
+`lambda = 1` panel. Material `h` zero mass and `k_post` tail mass are labeled
+in-panel; the companion table and provenance report both quantities for every
+condition and site.
 
-Both density figures use 0.16-wide count-preserving bins, linear conditional
-densities, and identical site-specific x/y scales. No KDE or interpolation is
-used. Stored-range and display-window tails remain in the nonzero denominator
+Both density figures use 0.16-wide count-preserving bins and linear conditional
+densities; each shares x/y scales within a site column. No KDE or interpolation
+is used. Stored-range and display-window tails remain in the nonzero denominator
 and are disclosed in the companion Markdown and provenance. All three packages
 contain PDF, PNG, Markdown, and deterministic provenance. They are seed-0
 directional evidence (`n = 1` per condition): they do not establish seed
