@@ -19,6 +19,7 @@ from paper_exp.design import (
     TRAINING_IMPLEMENTATION_ID,
     WORKBOARD_PATH,
     DesignError,
+    _validate_group_membership,
     condition_fingerprint,
     tracked_training_identities,
     validate_catalog,
@@ -31,6 +32,8 @@ from paper_exp.reproducibility import TRAINING_SCHEDULE_SCHEME
 REPOSITORY = Path(__file__).resolve().parents[1]
 A2_GROUPS = ("A2-relu-control", "A2-l1-screen")
 A2_L1_WEIGHTS = (0.1, 0.5, 1.0, 2.0, 5.0)
+A3_GROUP = "A3-ol1-screen"
+A3_OL1_WEIGHTS = A2_L1_WEIGHTS
 
 
 @pytest.fixture(autouse=True)
@@ -522,30 +525,162 @@ def test_a2_preflight_rejects_an_unreviewed_a2_group(tmp_path: Path) -> None:
         )
 
 
-def test_non_a1_a2_groups_remain_fail_closed(tmp_path: Path) -> None:
-    repository, _design_sha = _reviewed_repository(
-        tmp_path,
-        reviewed_groups=("A3-ol1-screen",),
-    )
-    path = repository / "experiments/02-a2-l1-screen/run/018-a3-ol1.yaml"
-    config = _a2_config("A2-l1-screen", weight=1.0)
-    config["identity"]["group_id"] = "A3-ol1-screen"
-    config["activation_pressure"].update(
-        {
-            "method": "orthogonal_l1",
-            "step_budget": 0.1,
-        }
-    )
-    _track_training_config(repository, path, config)
+def test_a3_preflight_accepts_exact_five_cell_cohort(tmp_path: Path) -> None:
+    repository, _design_sha = _reviewed_a3_repository(tmp_path)
+    run_dir = repository / "experiments/03-a3-ol1-screen/run"
+    tracked: list[tuple[Path, dict[str, Any]]] = []
+    for index, weight in enumerate(A3_OL1_WEIGHTS, start=19):
+        path = run_dir / f"{index:03d}-a3-ol1-{weight:g}.yaml"
+        config = _a3_config(weight=weight)
+        _track_training_config(repository, path, config)
+        tracked.append((path, config))
 
-    with pytest.raises(
-        DesignError,
-        match="Exact config membership validation is not implemented for A3-ol1-screen",
-    ):
+    identities = tracked_training_identities(repository)
+
+    assert len(identities) == 5
+    assert len({fingerprint for _path, _group, fingerprint in identities}) == 5
+    assert all(group == A3_GROUP for _path, group, _fingerprint in identities)
+    for path, config in tracked:
         validate_config_for_reviewed_design(
             config,
             repository=repository,
             config_path=path,
+        )
+
+
+@pytest.mark.parametrize(
+    ("dotted_path", "value"),
+    (
+        ("model.topology_id", "A0"),
+        ("model.site_gate", None),
+        ("run.seed", 1),
+        ("training.max_steps", 1526),
+        ("training.learning_rate", 3.2e-2),
+        ("training.micro_batch_size", 8),
+        ("validation.partition", "confirmation"),
+        ("activation_pressure.enabled", False),
+        ("activation_pressure.method", "l1_naive"),
+        ("activation_pressure.sites", ["a"]),
+        ("activation_pressure.step_budget", 0.2),
+    ),
+)
+def test_a3_preflight_rejects_wrong_physical_cell_fields(
+    tmp_path: Path,
+    dotted_path: str,
+    value: Any,
+) -> None:
+    repository, _design_sha = _reviewed_a3_repository(tmp_path)
+    path = repository / "experiments/03-a3-ol1-screen/run/019-a3-ol1-1.yaml"
+    config = _a3_config(weight=1.0)
+    _set_config_value(config, dotted_path, value)
+    _track_training_config(repository, path, config)
+
+    with pytest.raises(DesignError, match="not an exact A3-ol1-screen physical cell"):
+        tracked_training_identities(repository)
+
+
+@pytest.mark.parametrize("weight", (0.0, 0.2, 10.0))
+def test_a3_preflight_rejects_weights_outside_reviewed_grid(
+    tmp_path: Path,
+    weight: float,
+) -> None:
+    repository, _design_sha = _reviewed_a3_repository(tmp_path)
+    path = repository / "experiments/03-a3-ol1-screen/run/019-a3-ol1.yaml"
+    config = _a3_config(weight=weight)
+    _track_training_config(repository, path, config)
+
+    with pytest.raises(DesignError, match="outside the reviewed grid"):
+        tracked_training_identities(repository)
+
+
+def test_a3_preflight_requires_a_frozen_step_budget_decision(tmp_path: Path) -> None:
+    repository = _design_repository(tmp_path)
+    _set_numeric_decision(
+        repository,
+        decision_id="ol1_step_budget",
+        state="unresolved",
+        value="TODO:",
+    )
+    repository, _design_sha = _review_repository(
+        repository,
+        reviewed_groups=(A3_GROUP,),
+    )
+    path = repository / "experiments/03-a3-ol1-screen/run/019-a3-ol1.yaml"
+    config = _a3_config(weight=1.0)
+    _track_training_config(repository, path, config)
+
+    with pytest.raises(DesignError, match="Decision ol1_step_budget must be frozen"):
+        validate_config_for_reviewed_design(
+            config,
+            repository=repository,
+            config_path=path,
+        )
+
+
+def test_a3_preflight_uses_the_frozen_step_budget_decision(tmp_path: Path) -> None:
+    repository, _design_sha = _reviewed_a3_repository(
+        tmp_path,
+        step_budget=0.2,
+    )
+    path = repository / "experiments/03-a3-ol1-screen/run/019-a3-ol1.yaml"
+    config = _a3_config(weight=1.0, step_budget=0.1)
+    _track_training_config(repository, path, config)
+
+    with pytest.raises(DesignError, match="activation_pressure.step_budget"):
+        validate_config_for_reviewed_design(
+            config,
+            repository=repository,
+            config_path=path,
+        )
+
+
+def test_a3_preflight_rejects_stale_and_duplicate_fingerprints(tmp_path: Path) -> None:
+    repository, _design_sha = _reviewed_a3_repository(tmp_path)
+    run_dir = repository / "experiments/03-a3-ol1-screen/run"
+    first_path = run_dir / "019-a3-ol1-1.yaml"
+    first = _a3_config(weight=1.0)
+    _track_training_config(
+        repository,
+        first_path,
+        first,
+        refresh_fingerprint=False,
+    )
+    with pytest.raises(DesignError, match="condition fingerprint does not match"):
+        validate_config_for_reviewed_design(
+            first,
+            repository=repository,
+            config_path=first_path,
+        )
+
+    _track_training_config(repository, first_path, first)
+    duplicate_path = run_dir / "020-a3-ol1-duplicate.yaml"
+    duplicate = deepcopy(first)
+    duplicate["experiment_name"] = "duplicate-a3-label"
+    _track_training_config(repository, duplicate_path, duplicate)
+    assert duplicate["identity"]["condition_fingerprint"] == first["identity"][
+        "condition_fingerprint"
+    ]
+    with pytest.raises(DesignError, match="Duplicate scientific condition fingerprints"):
+        validate_config_for_reviewed_design(
+            first,
+            repository=repository,
+            config_path=first_path,
+        )
+
+
+def test_groups_after_a3_remain_fail_closed(tmp_path: Path) -> None:
+    repository = _design_repository(tmp_path)
+    config = _a3_config(weight=1.0)
+    config["identity"]["group_id"] = "B1-threshold-screen"
+
+    with pytest.raises(
+        DesignError,
+        match="Exact config membership validation is not implemented for B1-threshold-screen",
+    ):
+        _validate_group_membership(
+            config,
+            group_id="B1-threshold-screen",
+            repository=repository,
         )
 
 
@@ -586,6 +721,22 @@ def _reviewed_repository(
     reviewed_groups: tuple[str, ...] = ("A1-lr-screen",),
 ) -> tuple[Path, str]:
     repository = _design_repository(tmp_path)
+    return _review_repository(repository, reviewed_groups=reviewed_groups)
+
+
+def _reviewed_a3_repository(
+    tmp_path: Path,
+    *,
+    step_budget: float = 0.1,
+    reviewed_groups: tuple[str, ...] = (A3_GROUP,),
+) -> tuple[Path, str]:
+    repository = _design_repository(tmp_path)
+    _set_numeric_decision(
+        repository,
+        decision_id="ol1_step_budget",
+        state="frozen",
+        value=step_budget,
+    )
     return _review_repository(repository, reviewed_groups=reviewed_groups)
 
 
@@ -731,6 +882,46 @@ def _a2_config(
     )
     config["output"]["dir"] = "experiments/02-a2-l1-screen/raw"
     return config
+
+
+def _a3_config(
+    *,
+    weight: float,
+    step_budget: float = 0.1,
+) -> dict[str, Any]:
+    config = _a2_config("A2-l1-screen", weight=weight)
+    config["experiment_name"] = f"pythia_14m_a3_ol1_{weight:g}"
+    config["identity"]["group_id"] = A3_GROUP
+    config["activation_pressure"].update(
+        {
+            "method": "orthogonal_l1",
+            "step_budget": step_budget,
+        }
+    )
+    config["output"]["dir"] = "experiments/03-a3-ol1-screen/raw"
+    return config
+
+
+def _set_numeric_decision(
+    repository: Path,
+    *,
+    decision_id: str,
+    state: str,
+    value: float | str,
+) -> None:
+    path = repository / DECISIONS_PATH
+    lines = path.read_text(encoding="utf-8").splitlines()
+    matched = 0
+    for index, line in enumerate(lines):
+        cells = line.split("|")
+        if len(cells) < 5 or cells[1].strip().strip("`") != decision_id:
+            continue
+        cells[2] = f" {state} "
+        cells[3] = f" `{value}` "
+        lines[index] = "|".join(cells)
+        matched += 1
+    assert matched == 1
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 def _track_training_config(

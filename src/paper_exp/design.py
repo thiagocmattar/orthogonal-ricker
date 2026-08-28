@@ -457,6 +457,9 @@ def _validate_group_membership(
             repository=repository,
         )
         return
+    if group_id == "A3-ol1-screen":
+        _validate_a3_group_membership(config, repository=repository)
+        return
     if group_id != "A1-lr-screen":
         raise DesignError(
             f"Exact config membership validation is not implemented for {group_id}; "
@@ -659,6 +662,122 @@ def _validate_a2_group_membership(
     block_size = int(_value_at(config, "preprocessing.block_size"))
     if micro_batch * accumulation * block_size != 262_144:
         raise DesignError("A2 physical batch does not equal 262,144 input tokens per update.")
+
+
+def _validate_a3_group_membership(
+    config: Mapping[str, Any],
+    *,
+    repository: Path,
+) -> None:
+    """Admit only the reviewed seed-zero A3 h-only OL1 response cells."""
+
+    catalog = validate_catalog(repository)
+    group = catalog.groups["A3-ol1-screen"]
+    factors = _mapping(group.get("factors"), "A3-ol1-screen.factors")
+    weights = _numeric_list(
+        factors.get("lambda"),
+        "A3-ol1-screen.lambda",
+    )
+    selected_lr = _frozen_numeric_decision(
+        repository / DECISIONS_PATH,
+        "lr_14m",
+    )
+    step_budget = _frozen_numeric_decision(
+        repository / DECISIONS_PATH,
+        "ol1_step_budget",
+    )
+    exact_values: tuple[tuple[str, Any], ...] = (
+        ("model.provider", "huggingface"),
+        ("model.name", "pythia-14m-random"),
+        ("model.architecture", "EleutherAI/pythia-14m-deduped"),
+        ("model.revision", "7386d9a4ae45aef494a6e704910394def3037fc5"),
+        ("model.initialization", "random"),
+        ("model.topology_id", "A1-H"),
+        ("model.site_gate", {"operator": "relu"}),
+        ("data.name", "JeanKaddour/minipile"),
+        ("data.revision", "18ad1b0c701eaa0de03d3cecfdd769cbc70ffbd0"),
+        ("data.split", "train"),
+        ("data.text_column", "text"),
+        ("data.max_documents", None),
+        ("tokenizer.name", "EleutherAI/pythia-14m-deduped"),
+        ("tokenizer.revision", "7386d9a4ae45aef494a6e704910394def3037fc5"),
+        ("preprocessing.cache_id", "03-pythia-14m-minipile-random-full-10min"),
+        (
+            "preprocessing.tokens_sha256",
+            "da82a2ea2e0080c7fd681c7a93b07d3d9ff3d5357a8640895a82d536a1eaf97c",
+        ),
+        ("preprocessing.block_size", 2048),
+        ("preprocessing.append_eos", True),
+        ("preprocessing.overwrite", False),
+        ("evaluation.metric", "validation_loss"),
+        ("run.seed", 0),
+        ("run.training_schedule_scheme", TRAINING_SCHEDULE_SCHEME),
+        ("run.model_initialization_seed", 0),
+        ("run.data_order_seed", 0),
+        (
+            "run.training_schedule_hash",
+            "35da3f6aa891a2248407344715e4c75e99cb518b17119a8e66004466a823a21c",
+        ),
+        ("training.device", "cuda"),
+        ("training.precision", "bfloat16"),
+        ("training.max_steps", 5691),
+        ("training.learning_rate", selected_lr),
+        ("training.warmup_steps", 57),
+        ("training.micro_batch_size", 16),
+        ("training.gradient_accumulation_steps", 8),
+        ("training.log_every", 10),
+        ("training.optimizer", "adamw"),
+        ("training.adamw_betas", [0.9, 0.95]),
+        ("training.adamw_eps", 1.0e-8),
+        ("training.weight_decay", 0.1),
+        ("validation.enabled", True),
+        ("validation.split", "validation"),
+        ("validation.max_documents", 500),
+        ("validation.partition", "selection"),
+        ("validation.partition_scheme", "shuffled_source_documents_half_v1"),
+        ("validation.partition_seed", 20260718),
+        (
+            "validation.partition_hash",
+            "ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47",
+        ),
+        (
+            "validation.tokens_sha256",
+            "22bb7c27864f0e5941548c572d6c75b1b5ba6a4c13e4cd26f40f4de546c5cc19",
+        ),
+        ("validation.batch_size", 4),
+        ("validation.eval_every_steps", 191),
+        ("validation.eval_batches", None),
+        ("checkpoint.save_final", True),
+        ("checkpoint.save_optimizer", False),
+        ("activation_pressure.enabled", True),
+        ("activation_pressure.method", "orthogonal_l1"),
+        ("activation_pressure.sites", ["h"]),
+        ("activation_pressure.step_budget", step_budget),
+        ("activation_pressure.eps", 1.0e-12),
+        ("activation_pressure.log_thresholds", [0.0, 0.001, 0.01]),
+    )
+    mismatches = [
+        f"{path}={_value_at(config, path)!r}"
+        for path, expected in exact_values
+        if _value_at(config, path) != expected
+    ]
+    if mismatches:
+        raise DesignError(
+            "Config is not an exact A3-ol1-screen physical cell: "
+            + ", ".join(mismatches)
+        )
+
+    weight = _value_at(config, "activation_pressure.weight")
+    if isinstance(weight, bool) or not isinstance(weight, int | float):
+        raise DesignError("A3 OL1 pressure weight must be numeric.")
+    if float(weight) not in weights:
+        raise DesignError("A3 OL1 pressure weight is outside the reviewed grid.")
+
+    micro_batch = int(_value_at(config, "training.micro_batch_size"))
+    accumulation = int(_value_at(config, "training.gradient_accumulation_steps"))
+    block_size = int(_value_at(config, "preprocessing.block_size"))
+    if micro_batch * accumulation * block_size != 262_144:
+        raise DesignError("A3 physical batch does not equal 262,144 input tokens per update.")
 
 
 def _expected_conceptual_count(

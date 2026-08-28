@@ -377,6 +377,81 @@ def test_reviewed_a2_scope_preserves_exact_indexed_completed_a1_history(
     assert review.reviewed_groups == ("A2-relu-control", "A2-l1-screen")
 
 
+def test_reviewed_a3_scope_preserves_exact_indexed_completed_a1_a2_history(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _make_repository_skeleton(tmp_path)
+    historical: list[tuple[Path, str, str]] = []
+    log_entries: list[str] = []
+    for scaffold_name, config_id, group_id, fingerprint in (
+        ("01-a1-history", "001-a1-case", "A1-lr-screen", "a" * 64),
+        ("02-a2-relu-history", "012-a2-relu", "A2-relu-control", "b" * 64),
+        ("02-a2-l1-history", "013-a2-l1", "A2-l1-screen", "c" * 64),
+    ):
+        scaffold = _make_scientific_scaffold(tmp_path, scaffold_name)
+        config_path = scaffold / "run" / f"{config_id}.yaml"
+        _write_config(config_path, scaffold)
+        run_dir = scaffold / "raw" / config_id / "001-completed"
+        _write_lifecycle_run(run_dir, scaffold, status="completed", core=True)
+        manifest = json.loads((run_dir / "manifest.json").read_text(encoding="utf-8"))
+        manifest["mode"] = "pretrain"
+        (run_dir / "manifest.json").write_text(
+            json.dumps(manifest) + "\n",
+            encoding="utf-8",
+        )
+        historical.append((config_path, group_id, fingerprint))
+        log_entries.append(f"`experiments/{scaffold_name}/raw/{config_id}/001-completed/`")
+
+    (tmp_path / "docs" / "experiment_log.md").write_text(
+        "\n".join(log_entries) + "\n",
+        encoding="utf-8",
+    )
+    plan = tmp_path / integrity.PLAN_PATH
+    catalog = tmp_path / integrity.CATALOG_PATH
+    plan.parent.mkdir(parents=True, exist_ok=True)
+    catalog.parent.mkdir(parents=True, exist_ok=True)
+    plan.write_text("Plan status: reviewed\n", encoding="utf-8")
+    catalog.write_text("case_groups: []\n", encoding="utf-8")
+    review = SimpleNamespace(
+        status="reviewed",
+        reviewed_groups=("A3-ol1-screen",),
+    )
+    monkeypatch.setattr(
+        integrity,
+        "validate_catalog",
+        lambda _repository: SimpleNamespace(
+            groups={
+                "A1-lr-screen": {},
+                "A2-relu-control": {},
+                "A2-l1-screen": {},
+                "A3-ol1-screen": {},
+            }
+        ),
+    )
+    monkeypatch.setattr(
+        integrity,
+        "validate_reviewed_design",
+        lambda _repository, require_reviewed=False: review,
+    )
+    monkeypatch.setattr(
+        integrity,
+        "tracked_training_identities",
+        lambda _repository: historical,
+    )
+    monkeypatch.setattr(
+        integrity,
+        "classify_run_directory",
+        lambda _run_dir: "complete",
+    )
+
+    findings = integrity._check_design(tmp_path)
+
+    assert not any(
+        finding.code == "design.config_group_unreviewed" for finding in findings
+    )
+
+
 @pytest.mark.parametrize("evidence_case", ["unindexed", "nonterminal", "changed"])
 def test_reviewed_a2_scope_rejects_invalid_a1_historical_evidence(
     tmp_path: Path,
