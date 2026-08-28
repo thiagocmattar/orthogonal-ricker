@@ -327,13 +327,18 @@ def validate_diagnostic_config(config: Mapping[str, Any], kind: str) -> None:
         "activation_histograms",
         "weight_histograms",
         "activation_propagation",
+        "clipping_frontier",
     }:
         raise ConfigError(f"Unsupported diagnostic config kind: {kind}.")
     diagnostic = _required_mapping(config, kind)
     _require_explicit_fields(diagnostic, kind, ("selected_runs",))
     _validate_selected_runs(diagnostic["selected_runs"], prefix=f"{kind}.selected_runs")
 
-    if kind in {"activation_histograms", "activation_propagation"}:
+    if kind in {
+        "activation_histograms",
+        "activation_propagation",
+        "clipping_frontier",
+    }:
         _validate_diagnostic_validation(config)
 
     if kind == "activation_histograms":
@@ -377,6 +382,110 @@ def validate_diagnostic_config(config: Mapping[str, Any], kind: str) -> None:
                 "Config field weight_histograms.scope must be mlp_weights or attention_weights."
             )
         _validate_histogram_geometry(diagnostic, prefix=kind)
+
+    if kind == "clipping_frontier":
+        _require_explicit_fields(
+            diagnostic,
+            kind,
+            (
+                "mode",
+                "thresholds",
+                "sites",
+                "measure_zero_products",
+                "zero_threshold_reference",
+            ),
+        )
+        if diagnostic["mode"] != "threshold":
+            raise ConfigError(
+                "Config field clipping_frontier.mode must be threshold."
+            )
+        thresholds = diagnostic["thresholds"]
+        if not isinstance(thresholds, list) or not thresholds:
+            raise ConfigError(
+                "Config field clipping_frontier.thresholds must be a non-empty list."
+            )
+        parsed_thresholds = [
+            _finite_number(value, "clipping_frontier.thresholds")
+            for value in thresholds
+        ]
+        if any(value < 0.0 for value in parsed_thresholds):
+            raise ConfigError(
+                "Config field clipping_frontier.thresholds must be non-negative."
+            )
+        if parsed_thresholds != sorted(set(parsed_thresholds)):
+            raise ConfigError(
+                "Config field clipping_frontier.thresholds must be strictly increasing."
+            )
+        if parsed_thresholds[0] != 0.0:
+            raise ConfigError(
+                "Config field clipping_frontier.thresholds must start with the "
+                "zero-threshold reference."
+            )
+        _nonempty_unique_strings(
+            diagnostic["sites"], "clipping_frontier.sites"
+        )
+        try:
+            resolve_site_aliases(diagnostic["sites"])
+        except ValueError as error:
+            raise ConfigError(str(error)) from error
+        if diagnostic["measure_zero_products"] is not True:
+            raise ConfigError(
+                "Config field clipping_frontier.measure_zero_products must be true."
+            )
+        reference = diagnostic["zero_threshold_reference"]
+        if not isinstance(reference, Mapping):
+            raise ConfigError(
+                "Config field clipping_frontier.zero_threshold_reference must be a mapping."
+            )
+        _require_explicit_fields(
+            reference,
+            "clipping_frontier.zero_threshold_reference",
+            ("tranche_id", "config_id", "run_id", "git_commit", "artifact_sha256"),
+        )
+        tranche_id = _nonempty_string(
+            reference["tranche_id"],
+            "clipping_frontier.zero_threshold_reference.tranche_id",
+        )
+        config_id = _nonempty_string(
+            reference["config_id"],
+            "clipping_frontier.zero_threshold_reference.config_id",
+        )
+        run_id = _nonempty_string(
+            reference["run_id"],
+            "clipping_frontier.zero_threshold_reference.run_id",
+        )
+        if TRANCHE_ID_RE.fullmatch(tranche_id) is None:
+            raise ConfigError(
+                "Config field clipping_frontier.zero_threshold_reference.tranche_id "
+                "is not a numbered scientific tranche ID."
+            )
+        if re.fullmatch(r"\d{2,}-[a-z0-9][a-z0-9-]*", config_id) is None:
+            raise ConfigError(
+                "Config field clipping_frontier.zero_threshold_reference.config_id "
+                "is not a numbered config ID."
+            )
+        if re.fullmatch(r"\d{3}-[A-Za-z0-9][A-Za-z0-9._-]*", run_id) is None:
+            raise ConfigError(
+                "Config field clipping_frontier.zero_threshold_reference.run_id "
+                "is not a numbered run ID."
+            )
+        for field in ("git_commit", "artifact_sha256"):
+            value = _nonempty_string(
+                reference[field],
+                f"clipping_frontier.zero_threshold_reference.{field}",
+            )
+            digest_length = 40 if field == "git_commit" else 64
+            if re.fullmatch(rf"[0-9a-f]{{{digest_length}}}", value):
+                continue
+            raise ConfigError(
+                "Config field clipping_frontier.zero_threshold_reference."
+                f"{field} must be a lowercase hexadecimal digest."
+            )
+        validation = _required_mapping(config, "validation")
+        if validation.get("eval_batches") is not None:
+            raise ConfigError(
+                "Config field validation.eval_batches must be null for a clipping frontier."
+            )
 
 
 def _validate_selected_runs(value: Any, *, prefix: str) -> None:

@@ -117,7 +117,9 @@ def build_manifest(
     config_id: str | None = None,
     result_path: str | Path | None = None,
     tranche_id: str | None = None,
+    repository: str | Path | None = None,
 ) -> dict[str, Any]:
+    root = Path(repository).resolve() if repository is not None else Path.cwd().resolve()
     manifest = {
         "experiment_name": config["experiment_name"],
         "tranche_id": tranche_id,
@@ -126,11 +128,11 @@ def build_manifest(
         "run_sequence": _run_sequence(run_id),
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "command": command,
-        "git_commit": collect_git_commit(Path.cwd()),
-        "git_dirty": collect_git_dirty(Path.cwd()),
-        "config_path": portable_path(config_path),
+        "git_commit": collect_git_commit(root),
+        "git_dirty": collect_git_dirty(root),
+        "config_path": portable_path(config_path, root=root),
         "result_path": (
-            portable_path(result_path) if result_path is not None else None
+            portable_path(result_path, root=root) if result_path is not None else None
         ),
         "mode": mode,
         "model_provider": config["model"]["provider"],

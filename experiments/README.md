@@ -81,14 +81,18 @@ template. Do not add scientific scaffolds while
 `docs/experiment_plan.md` says `Plan status: placeholder`, or for a case group
 outside its reviewed scope. The plan currently reviews exactly
 `[A2-relu-control, A2-l1-screen]` at design commit
-`8d0a750f8f687041370037fa25553c13c9e4c081`. Their six physical pretraining
+`3a4b047b1f4712d07b32314461913aae09cc46a7`. Their six physical pretraining
 configs `012`–`017` are completed immutable evidence and must never be rerun.
 Post-hoc config `018` pins those exact runs for the completed A2 activation
 diagnostic. Post-hoc config `019` pins the same accepted checkpoints and
 complete selection partition for the completed observed `R_block`/`R_model`
 diagnostic required by the reviewed output contract; its accepted run is
-indexed in `docs/experiment_log.md`. Neither diagnostic is an additional
-training condition. No other physical training config may be materialized
+indexed in `docs/experiment_log.md`. Configs `018`–`020` are diagnostics, not
+training conditions. Post-hoc config `020` owns the reviewed joint six-site,
+five-cutoff clipping frontier over those same six checkpoints. It must remain
+unattempted until its implementation is committed, its local ETC is calibrated,
+and the user explicitly approves definitive diagnostic execution. No other
+physical training config may be materialized
 under the current reviewed scope. The exact logical-opportunity artifact is
 reused by later accepted pressure/intervention evidence; activation marginals
 must never be substituted for `R_model`.
@@ -131,6 +135,9 @@ experiments/NN-phase-tranche/raw/CCC-case/001-YYYYMMDD-HHMMSS-xxxxxxxx/
 Diagnostic selections pin `tranche_id`, `config_id`, and `run_id`; this makes
 cross-tranche sources exact without scanning for a latest run. Post-hoc outputs
 stay under the source or explicitly owning scaffold recorded by their recipe.
+When one diagnostic audits or reuses another, it also pins the referenced
+diagnostic's exact Git commit and primary-artifact SHA-256; config `020` does
+this for diagnostic `019`.
 
 ## Raw Lifecycle
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from copy import deepcopy
 from typing import Any
 
 import pytest
@@ -9,6 +10,7 @@ from paper_exp.config import (
     load_config,
     validate_config,
     validate_config_filename,
+    validate_diagnostic_config,
     validate_training_config,
 )
 from paper_exp.design import TRAINING_IMPLEMENTATION_ID
@@ -291,6 +293,79 @@ def test_definitive_training_config_requires_canonical_pressure_sites() -> None:
 
     with pytest.raises(ConfigError, match="Unsupported transformer site alias"):
         validate_training_config(config)
+
+
+def test_a2_clipping_frontier_config_is_exact_and_valid() -> None:
+    config = load_config(
+        "experiments/02-a2-l1-screen/run/020-a2-posthoc-clipping-frontier.yaml",
+        allow_todos=False,
+    )
+
+    validate_diagnostic_config(config, "clipping_frontier")
+
+    frontier = config["clipping_frontier"]
+    assert [row["config_id"] for row in frontier["selected_runs"]] == [
+        "012-a2-relu-control",
+        "013-a2-l1-1e-1",
+        "014-a2-l1-5e-1",
+        "015-a2-l1-1",
+        "016-a2-l1-2",
+        "017-a2-l1-5",
+    ]
+    assert frontier["mode"] == "threshold"
+    assert frontier["thresholds"] == [0.0, 0.01, 0.03, 0.1, 0.3]
+    assert frontier["sites"] == ["a", "m", "h", "q_post", "k_post", "v"]
+    assert frontier["measure_zero_products"] is True
+    assert frontier["zero_threshold_reference"] == {
+        "tranche_id": "02-a2-l1-screen",
+        "config_id": "019-a2-activation-propagation",
+        "run_id": "001-20260828-110533-6ac813e6",
+        "git_commit": "96621bcb73f74933f95b8b5fcd9a63ec2e15e3ff",
+        "artifact_sha256": "709599e0e68abe8350a720e6a37f392f19aadaf42fb681d28308b62db44cf3d9",
+    }
+    assert config["validation"]["eval_batches"] is None
+
+
+@pytest.mark.parametrize(
+    ("mutation", "message"),
+    [
+        (lambda cfg: cfg["clipping_frontier"].update(mode="quantile"), "mode"),
+        (
+            lambda cfg: cfg["clipping_frontier"].update(thresholds=[0.01, 0.1]),
+            "zero-threshold",
+        ),
+        (
+            lambda cfg: cfg["clipping_frontier"].update(measure_zero_products=False),
+            "must be true",
+        ),
+        (
+            lambda cfg: cfg["clipping_frontier"]["zero_threshold_reference"].update(
+                git_commit="ABC"
+            ),
+            "git_commit.*lowercase hexadecimal",
+        ),
+        (
+            lambda cfg: cfg["clipping_frontier"]["zero_threshold_reference"].update(
+                artifact_sha256="0" * 63
+            ),
+            "artifact_sha256.*lowercase hexadecimal",
+        ),
+        (lambda cfg: cfg["validation"].update(eval_batches=1), "must be null"),
+    ],
+)
+def test_clipping_frontier_config_fails_closed(
+    mutation: Any,
+    message: str,
+) -> None:
+    config = load_config(
+        "experiments/02-a2-l1-screen/run/020-a2-posthoc-clipping-frontier.yaml",
+        allow_todos=False,
+    )
+    config = deepcopy(config)
+    mutation(config)
+
+    with pytest.raises(ConfigError, match=message):
+        validate_diagnostic_config(config, "clipping_frontier")
 
 
 def _base_config(

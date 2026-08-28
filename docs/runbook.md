@@ -20,11 +20,16 @@ scientific config requires its case group in the reviewed scope. A launch also
 requires a committed scaffold recipe, clean checkout, calibrated ETC, and
 explicit launch approval.
 The plan currently reviews exactly `[A2-relu-control, A2-l1-screen]` at design
-commit `8d0a750f8f687041370037fa25553c13c9e4c081` for six-config materialization.
-All A1 configs `001`–`011` are immutable completed evidence and must never be
-rerun. A2 calibration requires its committed execution recipe and explicit
-calibration approval; definitive execution additionally requires an ETC/cost
-envelope and explicit launch approval.
+commit `3a4b047b1f4712d07b32314461913aae09cc46a7`. The six A2 pretraining
+configs and diagnostics `018`–`019` are completed immutable evidence. The
+reviewed amendment permits materialization and non-evidence production-shaped
+local timing calibration of diagnostic `020-a2-posthoc-clipping-frontier`; its
+definitive local execution still requires a committed implementation,
+calibrated ETC, and explicit launch approval. All A1 configs `001`–`011` are
+immutable completed evidence and must never be rerun. A2 pretraining must not
+be rerun. Diagnostic `020` consumes its six accepted checkpoints sequentially
+under one lifecycle and lock; it is neither pretraining nor authority to modify
+those checkpoints.
 Once attempted, a config is immutable. A scientific change gets a new config;
 an infrastructure retry gets a new run attempt under the same config.
 
@@ -94,6 +99,24 @@ or truncate definitive pretraining. A scientific learning-rate screen is a
 normal training tranche and must use a case runner. `OPS-03` closes only after
 the local implementation is paired with a same-hardware timing artifact.
 
+The 600-second `calibrate` command is pretraining-only. Diagnostic `020` uses a
+separate bounded, non-evidence, production-shaped local timing pass that must
+not publish or accept a diagnostic-020 attempt. Before definitive execution,
+report setup time, measured first-source time, projected full 30-point ETC and
+local completion time, assumptions, and uncertainty. The one-off calibration
+must suppress scientific outcomes and execute under the normal clean-tree lock;
+it is not a second diagnostic recipe.
+
+```bash
+python -m paper_exp.cli calibrate-clipping-frontier \
+  --config experiments/02-a2-l1-screen/run/020-a2-posthoc-clipping-frontier.yaml
+```
+
+This command evaluates only the first configured source at `t = 0` over the
+complete selection partition. It prints one JSON object containing only timing,
+coverage, memory, and runtime identity; it creates no raw attempt or scientific
+artifact.
+
 The historical A1 calibration permitted solo or bounded concurrent execution.
 Concurrent calibration accepted distinct committed configs from one scaffold
 under one coordinator and repository lock. It required at least two explicit
@@ -134,6 +157,19 @@ tranche with only one config:
 ```bash
 python experiments/NN-phase-tranche/run/runner.py
 ```
+
+After explicit definitive diagnostic approval, config `020` is launched
+directly with:
+
+```bash
+python -m paper_exp.cli clipping-frontier \
+  --config experiments/02-a2-l1-screen/run/020-a2-posthoc-clipping-frontier.yaml
+```
+
+That single guarded command owns all 30 points under one lifecycle and lock.
+It is not added to the A2 training runner and must not run concurrently with
+another scientific command. A failed diagnostic attempt is preserved and any
+retry requires separate explicit approval.
 
 Serial execution is the default. The completed original three-cell A1 launch
 historically used the same runner with two explicit A40 worker slots. Configs

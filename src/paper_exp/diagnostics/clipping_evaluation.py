@@ -86,6 +86,10 @@ def _evaluate_clipped_loss(
                     total_sequences += len(batch_starts)
                     total_tokens += len(batch_starts) * block_size
                     batches += 1
+                    # Do not retain the full vocabulary logits while constructing
+                    # the next batch.  They are no longer needed after the loss and
+                    # activation counters above have been consumed.
+                    del output
 
     wall_seconds = time.perf_counter() - start_time
     site_achieved_sparsity = {

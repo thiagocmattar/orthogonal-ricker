@@ -50,6 +50,38 @@ def test_start_run_writes_launch_envelope_immediately(
     assert not list(run.run_dir.glob(".*.tmp"))
 
 
+def test_start_run_uses_explicit_repository_from_a_subdirectory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _stabilize_provenance(monkeypatch)
+    config, config_path = _write_config(tmp_path)
+    config["output"]["dir"] = "experiments/01-lifecycle-tests/raw"
+    config_path.write_text(yaml.safe_dump(config, sort_keys=False), encoding="utf-8")
+    subdirectory = tmp_path / "docs"
+    subdirectory.mkdir()
+    monkeypatch.chdir(subdirectory)
+
+    run = start_run(
+        config,
+        config_path=config_path,
+        command="pytest lifecycle",
+        mode="pretrain",
+        run_id="subdirectory",
+        repository=tmp_path,
+    )
+
+    assert run.run_dir.parent.parent == (
+        tmp_path / "experiments" / "01-lifecycle-tests" / "raw"
+    )
+    manifest = _read_manifest(run.run_dir)
+    assert manifest["config_path"] == (
+        "experiments/01-lifecycle-tests/run/001-lifecycle.yaml"
+    )
+    assert manifest["result_path"].startswith(
+        "experiments/01-lifecycle-tests/raw/001-lifecycle/"
+    )
+
+
 def test_start_run_records_explicit_parallel_worker_assignment(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

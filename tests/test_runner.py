@@ -1931,6 +1931,8 @@ def test_case_runner_leaves_sibling_posthoc_diagnostic_to_its_cli(
     runner_path, configs = _layout(tmp_path, (1,))
     diagnostic = configs[0].parent / "002-activation-histograms.yaml"
     diagnostic.write_text("activation_histograms: {}\n", encoding="utf-8")
+    clipping = configs[0].parent / "003-clipping-frontier.yaml"
+    clipping.write_text("clipping_frontier: {}\n", encoding="utf-8")
     _stub_preflight(monkeypatch)
     expected = configs[0].parent.parent / "raw" / configs[0].stem / "001-complete"
     monkeypatch.setattr(runner, "_run_one", lambda *_args, **_kwargs: expected)

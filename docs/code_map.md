@@ -79,11 +79,13 @@ All paths in this table are under `src/paper_exp/diagnostics/`.
 | `propagation_summary.py` | Stage vocabulary, architecture metadata, pooled denominators, and endpoint summaries | Propagation schema or reduction changes |
 | `propagation.py` | Source orchestration and publication of `activation_propagation.json` | The propagation workflow changes, not its low-level counters |
 | `clipping_evaluation.py` | One clipped validation evaluation and optional logical-product capture | Clipped-forward measurement changes |
-| `clipping.py` | Clipping-grid construction, source/checkpoint validation, orchestration, and frontier publication | The post-hoc clipping workflow or artifact changes |
+| `clipping.py` | Generic single-checkpoint clipping sweep and its source envelope | The reusable single-source clipping workflow or artifact changes |
+| `clipping_frontier.py` | Config-driven multi-checkpoint cohort lifecycle, exact source/reference validation, row arithmetic, and `clipping_frontier.jsonl` publication | The reviewed config-020 cohort or artifact contract changes |
 
 Diagnostic contracts are exercised mainly by
 `test_activation_propagation.py`, `test_activation_pressure.py`,
-`test_auxiliary_lifecycle.py`, and `test_config.py`. Define the estimand,
+`test_auxiliary_lifecycle.py`, `test_clipping_frontier.py`, and
+`test_config.py`. Define the estimand,
 integer numerator, denominator, coverage, and nonclaims in
 [`diagnostics.md`](diagnostics.md) before changing a diagnostic schema.
 
@@ -100,13 +102,15 @@ All paths in this table are under `src/paper_exp/plots/`.
 | `histograms.py` | Presentation-neutral histogram validation, pooling, and density reductions | Histogram mathematics shared by plot families changes |
 | `a1_lr_screen.py` | Exact eleven-run A1 cohort, fixed-horizon LR selection, training-progress panels, and deterministic suite provenance | The reviewed A1 evidence pins, selection presentation, progress rendering, or appendix output changes |
 | `a2_spillover.py` | Exact six-run A2 cohort plus diagnostic `018`, count-first site/attention reductions, exact layerwise and within-site pooled densities, and deterministic three-figure provenance | The accepted A2 evidence pins, spillover plane, distribution atlases, density reduction, or claim boundary changes |
+| `a2_clipping.py` | Exact diagnostic-020 A2 cohort, quality–`R_model` reductions, two-panel frontier, complete table, and deterministic provenance | The clipping-evidence pins, frontier reduction, presentation, or claim boundary changes |
 | `run_diagnostics.py` | Training-run summary figure | That figure's cohorts, labels, axes, or rendering change |
 | `activation_histograms.py` | Activation histogram figure | That figure family changes |
 | `weight_histograms.py` | Weight histogram figure | That figure family changes |
 | `propagation.py` | Activation-propagation figure | That figure family changes |
 | `clipping.py` | Clipping-frontier figure | That figure family changes |
 
-Plot tests live in `test_plot_api.py` and `test_plots.py`. Keep loading and
+Plot tests live in `test_plot_api.py`, `test_plots.py`, and
+`test_a2_clipping.py`. Keep loading and
 pinning, pure numerical reduction, rendering, and export as separate
 boundaries. See [`plotting.md`](plotting.md) before changing figure behavior.
 

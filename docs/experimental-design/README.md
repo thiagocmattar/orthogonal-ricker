@@ -50,10 +50,11 @@ launch packet was approved at commit
 
 A2 pretraining and diagnostics `018`–`019` are complete: the seed-0 ReLU
 control, five h-only L1 cells, and accepted activation diagnostics are
-immutable evidence. The joint six-site post-hoc clipping frontier is reviewed
-for implementation and non-evidence timing calibration; definitive diagnostic
-execution remains separately approval-gated. A3 is deferred in the backlog. Its packet
-and implementation create no materialization authority; no A3 config may be
+immutable evidence. The joint six-site post-hoc clipping design is reviewed,
+config `020` is materialized, and its implementation is ready. Non-evidence
+local timing calibration is next; definitive diagnostic execution remains
+separately approval-gated. A3 is deferred in the backlog. Its packet and
+implementation create no materialization authority; no A3 config may be
 created until a future explicit review is recorded in
 [`../experiment_plan.md`](../experiment_plan.md).
 

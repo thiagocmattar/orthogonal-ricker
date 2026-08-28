@@ -22,6 +22,7 @@ def find_source_run(
     section: str,
     checkpoint_files: tuple[str, ...] = STANDARD_CHECKPOINT_FILES,
     repository: str | Path | None = None,
+    require_final: bool = False,
 ) -> Path:
     """Resolve one exact completed selected run with a usable saved checkpoint."""
 
@@ -41,6 +42,8 @@ def find_source_run(
         config_id=config_id,
         run_id=run_id,
         checkpoint_files=checkpoint_files,
+        repository=scaffold.repository,
+        require_final=require_final,
     )
     return run_dir
 
@@ -52,6 +55,8 @@ def verify_completed_checkpoint_run(
     config_id: str,
     run_id: str,
     checkpoint_files: tuple[str, ...] = STANDARD_CHECKPOINT_FILES,
+    repository: str | Path | None = None,
+    require_final: bool = False,
 ) -> None:
     """Require the completed source envelope and an accepted checkpoint file."""
 
@@ -70,7 +75,12 @@ def verify_completed_checkpoint_run(
     if manifest.get("status") != "completed":
         raise ValueError(f"Selected source run is not completed: {run_dir}")
     require_completed_pretraining_manifest(manifest, source_run=run_dir)
-    checkpoint_path = source_checkpoint_path(run_dir, manifest)
+    checkpoint_path = source_checkpoint_path(
+        run_dir,
+        manifest,
+        repository=repository,
+        require_final=require_final,
+    )
     model_files = tuple(checkpoint_path / name for name in checkpoint_files)
     if not checkpoint_path.is_dir() or not any(path.is_file() for path in model_files):
         raise FileNotFoundError(f"Selected source checkpoint is incomplete: {checkpoint_path}")
@@ -91,16 +101,37 @@ def require_completed_pretraining_manifest(
         )
 
 
-def source_checkpoint_path(source_run: Path, manifest: dict[str, Any]) -> Path:
+def source_checkpoint_path(
+    source_run: Path,
+    manifest: dict[str, Any],
+    *,
+    repository: str | Path | None = None,
+    require_final: bool = False,
+) -> Path:
     """Resolve the exact checkpoint path recorded by a completed source manifest."""
 
     checkpoint = manifest.get("checkpoint")
     if not isinstance(checkpoint, dict) or checkpoint.get("saved") is not True:
         raise ValueError(f"Selected source run has no saved checkpoint: {source_run}")
-    return resolve_source_path(checkpoint.get("path"), source_run=source_run)
+    resolved = resolve_source_path(
+        checkpoint.get("path"),
+        source_run=source_run,
+        repository=repository,
+    )
+    if require_final and resolved != (source_run / "checkpoints" / "final").resolve():
+        raise ValueError(
+            "Selected source checkpoint must be the accepted checkpoints/final: "
+            f"{source_run}"
+        )
+    return resolved
 
 
-def resolve_source_path(value: Any, *, source_run: Path) -> Path:
+def resolve_source_path(
+    value: Any,
+    *,
+    source_run: Path,
+    repository: str | Path | None = None,
+) -> Path:
     """Resolve a recorded absolute, repository-relative, or run-relative path."""
 
     path_text = str(value or "").strip()
@@ -109,7 +140,8 @@ def resolve_source_path(value: Any, *, source_run: Path) -> Path:
     recorded = Path(path_text)
     if recorded.is_absolute():
         return recorded.resolve()
-    repository_path = (Path.cwd() / recorded).resolve()
+    root = Path(repository).resolve() if repository is not None else Path.cwd().resolve()
+    repository_path = (root / recorded).resolve()
     run_relative_path = (source_run / recorded).resolve()
     try:
         repository_path.relative_to(source_run.resolve())

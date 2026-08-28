@@ -163,13 +163,47 @@ layers only within a site. It does not replace the predeclared control-versus-
 in-panel; the companion table and provenance report both quantities for every
 condition and site.
 
+### A2 Post-hoc Clipping Frontier
+
+After diagnostic `020` is accepted and its exact run, Git commit, and artifact
+SHA-256 pins are filled in the renderer, generate the separate numbered
+post-hoc clipping package with:
+
+```bash
+python -m paper_exp.plots.a2_clipping
+```
+
+`experiments/02-a2-l1-screen/figs/04-a2-posthoc-clipping-frontier` is owned by
+diagnostic config `020-a2-posthoc-clipping-frontier`. The generator deliberately
+fails closed until one accepted diagnostic run, its clean Git commit, and the
+SHA-256 of `clipping_frontier.jsonl` are pinned in the renderer; it never scans
+for a latest attempt. It also requires the complete lifecycle envelope and
+checks that `predictions.jsonl` exactly repeats the 30-row cohort artifact.
+
+The figure maps all six accepted A2 checkpoints at joint symmetric clipping
+cutoffs `{0, 0.01, 0.03, 0.10, 0.30}` over
+`{a, m, h, q_post, k_post, v}`. Panel (a) shows absolute validation loss versus
+`R_model`; panel (b) shows within-checkpoint changes from that checkpoint's own
+same-sweep `t = 0` row. Curves retain cutoff order even when `R_model` is not
+monotone, all dominated or adverse points remain visible, and the common delta
+origin is not jittered. The Markdown companion defines every site and both
+logical-opportunity denominators, discloses the zoomed absolute-loss axis and
+single-seed limitation, and tabulates all 30 points. The provenance sidecar
+pins diagnostic, source checkpoint, validation-cache, zero-reference,
+reduction, input, and output hashes. This is descriptive checkpoint-level
+thresholdability, not site-causal attribution, a trained threshold topology,
+or measured speedup.
+
+### A2 Activation Distribution Notes
+
 Both density figures use 0.16-wide count-preserving bins and linear conditional
 densities; each shares x/y scales within a site column. No KDE or interpolation
 is used. Stored-range and display-window tails remain in the nonzero denominator
-and are disclosed in the companion Markdown and provenance. All three packages
-contain PDF, PNG, Markdown, and deterministic provenance. They are seed-0
-directional evidence (`n = 1` per condition): they do not establish seed
-robustness, functional compensation, compute reduction, or runtime speedup.
+and are disclosed in the companion Markdown and provenance. The three
+activation-response/distribution packages contain PDF, PNG, Markdown, and
+deterministic provenance. They are seed-0 directional evidence (`n = 1` per
+condition): they do not establish seed robustness, functional compensation,
+compute reduction, or runtime speedup.
 
 ## Current Explicit Diagnostic Plots
 

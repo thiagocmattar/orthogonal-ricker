@@ -59,13 +59,17 @@ def start_run(
     command: str,
     mode: str,
     run_id: str | None = None,
+    repository: str | Path | None = None,
 ) -> RunHandle:
     """Create a run and immediately persist its config and launch provenance."""
 
     config_snapshot = deepcopy(config)
     validate_config(config_snapshot, allow_todos=True)
     config_id, numbered_run_id, run_dir = create_run_dir(
-        config_snapshot, config_path, run_id=run_id
+        config_snapshot,
+        config_path,
+        run_id=run_id,
+        repository=repository,
     )
     tranche_id = _tranche_id_from_run_dir(run_dir)
     _atomic_write_yaml(run_dir / "config.yaml", config_snapshot)
@@ -78,6 +82,7 @@ def start_run(
         config_id=config_id,
         result_path=run_dir,
         tranche_id=tranche_id,
+        repository=repository,
     )
     manifest["status"] = "running"
     manifest["started_at"] = manifest["timestamp"]
@@ -141,6 +146,7 @@ def run_lifecycle(
     command: str,
     mode: str,
     run_id: str | None = None,
+    repository: str | Path | None = None,
 ) -> Iterator[RunHandle]:
     """Start a run and record any escaping exception without replacing it."""
 
@@ -150,6 +156,7 @@ def run_lifecycle(
         command=command,
         mode=mode,
         run_id=run_id,
+        repository=repository,
     )
     try:
         yield run
@@ -308,9 +315,14 @@ def create_run_dir(
     config_path: str | Path,
     *,
     run_id: str | None = None,
+    repository: str | Path | None = None,
 ) -> tuple[str, str, Path]:
     experiment_id = make_experiment_id(config_path)
-    experiment_dir = make_experiment_dir(config, experiment_id)
+    experiment_dir = make_experiment_dir(
+        config,
+        experiment_id,
+        repository=repository,
+    )
     numbered_run_id = make_run_id(experiment_dir, suffix=run_id)
     run_dir = experiment_dir / numbered_run_id
     run_dir.mkdir(parents=True, exist_ok=False)
@@ -321,8 +333,16 @@ def make_experiment_id(config_path: str | Path) -> str:
     return Path(config_path).stem
 
 
-def make_experiment_dir(config: dict[str, Any], experiment_id: str) -> Path:
-    experiment_dir = Path(config["output"]["dir"]) / experiment_id
+def make_experiment_dir(
+    config: dict[str, Any],
+    experiment_id: str,
+    *,
+    repository: str | Path | None = None,
+) -> Path:
+    output_dir = Path(config["output"]["dir"])
+    if not output_dir.is_absolute() and repository is not None:
+        output_dir = Path(repository).resolve() / output_dir
+    experiment_dir = output_dir / experiment_id
     experiment_dir.mkdir(parents=True, exist_ok=True)
     return experiment_dir
 

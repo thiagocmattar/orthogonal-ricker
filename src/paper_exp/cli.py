@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import math
 from pathlib import Path
 import shlex
@@ -159,6 +160,21 @@ def build_parser() -> argparse.ArgumentParser:
     )
     clip_sweep.add_argument("--seed", type=int, required=True)
 
+    clipping_frontier = subparsers.add_parser(
+        "clipping-frontier",
+        help="Measure one configured multi-checkpoint clipping frontier.",
+    )
+    clipping_frontier.add_argument("--config", required=True)
+
+    calibrate_clipping_frontier = subparsers.add_parser(
+        "calibrate-clipping-frontier",
+        help=(
+            "Time the first configured zero-threshold clipping point without "
+            "creating scientific artifacts."
+        ),
+    )
+    calibrate_clipping_frontier.add_argument("--config", required=True)
+
     activation_histograms = subparsers.add_parser(
         "activation-histograms",
         help="Measure validation activation histograms for configured checkpoints.",
@@ -314,6 +330,38 @@ def main(argv: list[str] | None = None) -> int:
                     seed=args.seed,
                 )
             print(f"Clipping sweep written to {run_dir}")
+            return 0
+
+        if args.command == "clipping-frontier":
+            from paper_exp.diagnostics.clipping_frontier import run_clipping_frontier
+
+            repository, config_path = resolve_launch_config(args.config)
+            config = load_config(config_path, allow_todos=False)
+            require_raw_output(config, repository=repository, config_path=config_path)
+            with direct_launch_guard(repository=repository):
+                run_dir = run_clipping_frontier(
+                    config,
+                    config_path=config_path,
+                    command=command,
+                    repository=repository,
+                )
+            print(f"Clipping frontier written to {run_dir}")
+            return 0
+
+        if args.command == "calibrate-clipping-frontier":
+            from paper_exp.diagnostics.clipping_frontier import (
+                calibrate_clipping_frontier,
+            )
+
+            repository, config_path = resolve_launch_config(args.config)
+            config = load_config(config_path, allow_todos=False)
+            require_raw_output(config, repository=repository, config_path=config_path)
+            with direct_launch_guard(repository=repository):
+                report = calibrate_clipping_frontier(
+                    config,
+                    repository=repository,
+                )
+            print(json.dumps(report, sort_keys=True))
             return 0
 
         if args.command == "activation-histograms":

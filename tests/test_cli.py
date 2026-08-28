@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import argparse
+from contextlib import nullcontext
+import json
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -16,6 +18,8 @@ EXPECTED_COMMANDS = {
     "profile-hardware",
     "check",
     "clip-sweep",
+    "clipping-frontier",
+    "calibrate-clipping-frontier",
     "activation-histograms",
     "activation-propagation",
     "weight-histograms",
@@ -219,6 +223,56 @@ def test_calibration_main_forwards_one_bounded_request(
     assert "paper_exp.cli calibrate" in str(captured["command"])
 
 
+def test_clipping_frontier_calibration_prints_only_the_safe_report(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    repository = tmp_path / "repository"
+    config_path = (
+        repository
+        / "experiments/02-a2-l1-screen/run/020-a2-posthoc-clipping-frontier.yaml"
+    )
+    config = {"kind": "clipping-frontier"}
+    report = {
+        "calibration": "clipping-frontier",
+        "timing": {"evaluation_wall_seconds": 12.0},
+        "coverage": {"validation_tokens": 311_296},
+        "memory": {"peak_gpu_allocated_mb": 100.0},
+        "runtime": {"resolved_device": "cuda"},
+    }
+    captured: dict[str, object] = {}
+    monkeypatch.setattr(
+        "paper_exp.cli.resolve_launch_config",
+        lambda _value: (repository, config_path),
+    )
+    monkeypatch.setattr(
+        "paper_exp.cli.load_config",
+        lambda _path, *, allow_todos: config,
+    )
+    monkeypatch.setattr("paper_exp.cli.require_raw_output", lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        "paper_exp.cli.direct_launch_guard",
+        lambda **_kwargs: nullcontext(),
+    )
+
+    def calibrate(passed_config: object, **kwargs: object) -> dict[str, object]:
+        captured["config"] = passed_config
+        captured.update(kwargs)
+        return report
+
+    monkeypatch.setattr(
+        "paper_exp.diagnostics.clipping_frontier.calibrate_clipping_frontier",
+        calibrate,
+    )
+
+    assert main(
+        ["calibrate-clipping-frontier", "--config", str(config_path)]
+    ) == 0
+    assert captured == {"config": config, "repository": repository}
+    assert json.loads(capsys.readouterr().out) == report
+
+
 def test_hardware_profile_requires_explicit_pinned_operational_inputs() -> None:
     parser = build_parser()
     args = parser.parse_args(
@@ -350,6 +404,8 @@ def test_profile_main_forwards_pinned_inputs_and_resolves_relative_root(
         "calibrate",
         "activation-histograms",
         "activation-propagation",
+        "clipping-frontier",
+        "calibrate-clipping-frontier",
         "weight-histograms",
     ],
 )

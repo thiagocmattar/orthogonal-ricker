@@ -236,6 +236,30 @@ def test_source_selection_requires_one_exact_completed_checkpoint_run(
     with pytest.raises(ValueError, match="no saved checkpoint"):
         source_checkpoint_path(run_dir, {"config_id": config_id})
 
+    alternate = run_dir / "checkpoints" / "alternate"
+    alternate.mkdir(parents=True)
+    (alternate / "model.safetensors").write_bytes(b"alternate")
+    manifest["checkpoint"]["path"] = "checkpoints/alternate"
+    _write_json(run_dir / "manifest.json", manifest)
+    selected = {
+        "tranche_id": tranche_id,
+        "config_id": config_id,
+        "run_id": run_id,
+    }
+    assert find_source_run(
+        selected,
+        section="activation_histograms",
+        repository=tmp_path,
+    ) == run_dir
+    with pytest.raises(ValueError, match="accepted checkpoints/final"):
+        find_source_run(
+            selected,
+            section="clipping_frontier",
+            repository=tmp_path,
+            require_final=True,
+        )
+
+    manifest["checkpoint"]["path"] = "checkpoints/final"
     manifest["status"] = "running"
     _write_json(run_dir / "manifest.json", manifest)
     with pytest.raises(ValueError, match="not completed"):

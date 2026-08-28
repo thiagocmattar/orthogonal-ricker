@@ -683,6 +683,7 @@ def _validate_config_file(
                     "activation_histograms",
                     "weight_histograms",
                     "activation_propagation",
+                    "clipping_frontier",
                 )
                 if kind in config
             ]
@@ -946,6 +947,7 @@ def _completed_artifacts_are_coherent(run_dir: Path) -> bool:
             "activation-histograms",
             "weight-histograms",
             "activation-propagation",
+            "clipping-frontier",
         }:
             validate_diagnostic_config(config, str(mode).replace("-", "_"))
     except ConfigError:
@@ -954,6 +956,7 @@ def _completed_artifacts_are_coherent(run_dir: Path) -> bool:
         "activation-histograms": "activation_histograms.json",
         "weight-histograms": "weight_histograms.json",
         "activation-propagation": "activation_propagation.json",
+        "clipping-frontier": "clipping_frontier.jsonl",
         "clip-sweep": "clipping_frontier.jsonl",
     }
     if mode in {"pretrain", "calibrate"}:
@@ -962,10 +965,36 @@ def _completed_artifacts_are_coherent(run_dir: Path) -> bool:
             return False
     if mode in specialized:
         artifact_path = run_dir / specialized[str(mode)]
-        if mode == "clip-sweep":
+        if mode in {"clip-sweep", "clipping-frontier"}:
             rows = _read_jsonl(artifact_path)
             if rows is None or not rows:
                 return False
+            if mode == "clipping-frontier":
+                if predictions != rows:
+                    return False
+                from paper_exp.diagnostics.clipping_frontier import (
+                    validate_completed_clipping_frontier_artifacts,
+                )
+
+                try:
+                    validate_completed_clipping_frontier_artifacts(
+                        run_dir=run_dir,
+                        config=config,
+                        manifest=manifest,
+                        metrics=metrics,
+                        rows=rows,
+                        repository=_repository_for_run_dir(run_dir),
+                    )
+                except (
+                    KeyError,
+                    LaunchError,
+                    OSError,
+                    RuntimeError,
+                    TypeError,
+                    ValueError,
+                    YAMLError,
+                ):
+                    return False
         else:
             try:
                 artifact = read_json(artifact_path)
@@ -1074,6 +1103,13 @@ def _manifest_tranche_is_coherent(run_dir: Path, manifest: dict[str, Any]) -> bo
         return True
     expected = run_dir.parents[2].name
     return manifest.get("tranche_id") in {None, expected}
+
+
+def _repository_for_run_dir(run_dir: Path) -> Path:
+    for parent in run_dir.resolve().parents:
+        if parent.name == EXPERIMENTS_DIR_NAME:
+            return parent.parent
+    raise ValueError(f"Run is not inside the repository experiments tree: {run_dir}")
 
 
 def _check_numbered_figures(

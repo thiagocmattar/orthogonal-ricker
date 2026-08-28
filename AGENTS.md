@@ -33,8 +33,12 @@ predeclared rule selected `lr_14m = 6.4e-2` from config
 `checkpoints/final`, at the fixed 400M-token horizon. This is the best tested
 setting for one seed, not a global, horizon-independent, or convergence claim.
 The exact A2 groups `[A2-relu-control, A2-l1-screen]` are reviewed at design
-commit `8d0a750f8f687041370037fa25553c13c9e4c081` for config materialization only;
-calibration and launch remain separately gated. Use
+commit `3a4b047b1f4712d07b32314461913aae09cc46a7`. Training configs `012`–`017`
+and diagnostics `018`–`019` are completed immutable evidence and must not be
+rerun. Diagnostic config `020` is materialized and its implementation is ready,
+but the diagnostic is unattempted. Non-evidence production-shaped local timing
+is permitted; definitive diagnostic execution remains separately
+approval-gated. Use
 `docs/experimental-design/cases.yaml` and
 `docs/experimental-design/run-reuse.md` to ensure one physical config per
 scientific condition and seed.

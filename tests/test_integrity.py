@@ -7,6 +7,7 @@ from types import SimpleNamespace
 import pytest
 
 import paper_exp.integrity as integrity
+import paper_exp.diagnostics.clipping_frontier as clipping_frontier
 from paper_exp.cli import main
 from paper_exp.integrity import (
     IntegrityFinding,
@@ -744,6 +745,55 @@ def test_completed_run_rejects_corrupt_core_artifact(tmp_path: Path) -> None:
     _write_lifecycle_run(run_dir, scaffold, status="completed", core=True)
     (run_dir / "metrics.json").write_text("not-json\n", encoding="utf-8")
 
+    assert classify_run_directory(run_dir) == "inconsistent"
+
+
+def test_completed_clipping_frontier_requires_valid_matching_rows(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _make_repository_skeleton(tmp_path)
+    scaffold = _make_scientific_scaffold(tmp_path, "02-a2-l1-screen")
+    run_dir = (
+        scaffold
+        / "raw"
+        / "020-a2-posthoc-clipping-frontier"
+        / "001-frontier"
+    )
+    _write_core_run(run_dir, scaffold, status="completed")
+    config_text = Path(
+        "experiments/02-a2-l1-screen/run/020-a2-posthoc-clipping-frontier.yaml"
+    ).read_text(encoding="utf-8")
+    (run_dir / "config.yaml").write_text(config_text, encoding="utf-8")
+    manifest = _manifest(run_dir, status="completed")
+    manifest.update(mode="clipping-frontier", git_dirty=False)
+    (run_dir / "manifest.json").write_text(
+        json.dumps(manifest) + "\n", encoding="utf-8"
+    )
+
+    accepted_rows = [{"accepted": True}]
+
+    def validate(*, rows: object, **_kwargs: object) -> None:
+        if rows != accepted_rows:
+            raise ValueError("corrupt frontier")
+
+    monkeypatch.setattr(
+        clipping_frontier,
+        "validate_completed_clipping_frontier_artifacts",
+        validate,
+    )
+    encoded = json.dumps(accepted_rows[0]) + "\n"
+    (run_dir / "clipping_frontier.jsonl").write_text(encoded, encoding="utf-8")
+    (run_dir / "predictions.jsonl").write_text(encoded, encoding="utf-8")
+    assert classify_run_directory(run_dir) == "complete"
+
+    corrupt = json.dumps({"accepted": False}) + "\n"
+    (run_dir / "clipping_frontier.jsonl").write_text(corrupt, encoding="utf-8")
+    (run_dir / "predictions.jsonl").write_text(corrupt, encoding="utf-8")
+    assert classify_run_directory(run_dir) == "inconsistent"
+
+    (run_dir / "clipping_frontier.jsonl").write_text(encoded, encoding="utf-8")
+    (run_dir / "predictions.jsonl").write_text("", encoding="utf-8")
     assert classify_run_directory(run_dir) == "inconsistent"
 
 

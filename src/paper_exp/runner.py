@@ -44,6 +44,7 @@ _NON_PRETRAIN_MODES = frozenset(
         "activation-histograms",
         "activation-propagation",
         "calibrate",
+        "clipping-frontier",
         "clip-sweep",
         "prepare-data",
         "smoke",
@@ -54,6 +55,7 @@ _POSTHOC_DIAGNOSTIC_SECTIONS = frozenset(
     {
         "activation_histograms",
         "activation_propagation",
+        "clipping_frontier",
         "weight_histograms",
     }
 )

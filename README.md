@@ -23,11 +23,13 @@ The tracked tree contains the definitive A1 recipes and their evidence index;
 raw attempts remain ignored and are addressed by exact identities from
 [`docs/experiment_log.md`](docs/experiment_log.md). The exact A2 groups
 `[A2-relu-control, A2-l1-screen]` were reviewed at design commit
-`8d0a750f8f687041370037fa25553c13c9e4c081`; their six training runs and common
-activation diagnostic are completed, accepted, immutable evidence. The active
-work is pinned A2 analysis and presentation. A3 is deferred in the backlog,
-with no config materialization, calibration, cloud spending, or launch
-authority.
+`3a4b047b1f4712d07b32314461913aae09cc46a7`. Training configs `012`–`017`
+and diagnostics `018`–`019` are completed, accepted, immutable evidence.
+Diagnostic config `020` is materialized and its implementation is ready, but
+the diagnostic is unattempted; only non-evidence local timing is currently
+permitted, and its definitive execution remains explicitly approval-gated. A3
+is deferred in the backlog, with no config materialization, calibration, cloud
+spending, or launch authority.
 
 ## Scientific Invariants
 
