@@ -129,7 +129,7 @@ limit.
 
 ## A2 Fixed-Cohort Outputs
 
-Regenerate both accepted A2 figure packages with:
+Regenerate all three accepted A2 figure packages with:
 
 ```bash
 python -m paper_exp.plots.a2_spillover
@@ -141,21 +141,32 @@ and activation-histogram diagnostic config `018` run
 terminal provenance, complete-selection coverage, checkpoint presence, and the
 stored histogram count envelope before reducing any result.
 
-`experiments/02-a2-l1-screen/figs/01-a2-spillover-response` reports the
-count-first change from the ReLU control in `n_s(0.01)` at all six measured
-sites, with pooled RMS change as supporting scale evidence. Its companion
-Markdown includes final validation loss and the complete numerical table.
+`experiments/02-a2-l1-screen/figs/01-a2-spillover-response` maps the
+percentage-point response at `m` against an explicit measured-attention pool
+over `{a, q_post, k_post, v}`. Both reductions sum threshold hits and totals
+before division. The five positive-lambda cells are directly labeled; the
+companion Markdown defines the pool and reports validation loss, `n_h(0.01)`,
+`n_m(0.01)`, attention-site responses, and pooled RMS values. This activation
+summary is not `R_model` or a logical-product opportunity metric.
 
-`experiments/02-a2-l1-screen/figs/02-a2-layer5-distributions` contrasts the
-deepest-layer ReLU control and L1 `lambda = 1` distributions. Exact-zero atoms
-are separate from the conditional nonzero densities. Stored-range underflow
-and overflow remain in the density denominator and are disclosed numerically
-in the companion Markdown.
+`experiments/02-a2-l1-screen/figs/02-a2-layerwise-distributions` is the
+supplemental six-layer by six-site atlas. Each panel overlays the ReLU control,
+L1 `lambda = 2`, and L1 `lambda = 5`. Exact-zero atoms are removed before an
+exact adjacent-bin rebin; all-atom cells are labeled rather than drawn as zero
+densities.
 
-Both packages contain PDF, PNG, Markdown, and deterministic provenance. They
-are seed-0 directional evidence (`n = 1` per condition): they do not establish
-seed robustness, functional compensation, compute reduction, or runtime
-speedup.
+`experiments/02-a2-l1-screen/figs/03-a2-site-distributions` is the cleaner
+main-paper candidate. Rows are the same three conditions, columns are sites,
+and integer counts are pooled across layers only within a site. Every panel
+reports its exact-zero atom and mass outside the displayed window.
+
+Both density figures use 0.16-wide count-preserving bins, linear conditional
+densities, and identical site-specific x/y scales. No KDE or interpolation is
+used. Stored-range and display-window tails remain in the nonzero denominator
+and are disclosed in the companion Markdown and provenance. All three packages
+contain PDF, PNG, Markdown, and deterministic provenance. They are seed-0
+directional evidence (`n = 1` per condition): they do not establish seed
+robustness, functional compensation, compute reduction, or runtime speedup.
 
 ## Current Explicit Diagnostic Plots
 

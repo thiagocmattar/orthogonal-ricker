@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import math
 import shutil
+from dataclasses import replace
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -14,9 +15,12 @@ from paper_exp.plots.a2_spillover import (
     A2_SOURCES,
     A2SpilloverData,
     SiteReduction,
-    build_a2_layer5_distributions_figure,
+    build_a2_layerwise_distributions_figure,
+    build_a2_site_distributions_figure,
     build_a2_spillover_response_figure,
     generate_a2_spillover_suite,
+    reduce_density_layers,
+    reduce_site_group,
     reduce_site_layers,
 )
 from paper_exp.plots.export import (
@@ -66,36 +70,147 @@ def test_a2_site_reduction_is_count_first_and_rms_is_second_moment_pooled() -> N
     )
 
 
-def test_a2_figures_pass_publication_checks_and_keep_distribution_atoms_separate() -> None:
+def test_a2_attention_group_is_count_first_with_unequal_site_totals() -> None:
+    data = _synthetic_data(bin_count=4)
+    source = A2_SOURCES[0]
+    replacements = {
+        "a": (10, 1),
+        "q_post": (90, 45),
+        "k_post": (20, 2),
+        "v": (80, 8),
+    }
+    reductions = tuple(
+        replace(
+            row,
+            total=replacements[row.site][0],
+            near_zero_0p01_hits=replacements[row.site][1],
+            near_zero_0p01_fraction=(
+                replacements[row.site][1] / replacements[row.site][0]
+            ),
+        )
+        if row.config_id == source.config_id and row.site in replacements
+        else row
+        for row in data.reductions
+    )
+
+    pooled = reduce_site_group(
+        reductions,
+        source=source,
+        sites=a2.ATTENTION_SITES,
+    )
+
+    assert pooled.total == 200
+    assert pooled.near_zero_0p01_hits == 56
+    assert pooled.near_zero_0p01_fraction == pytest.approx(0.28)
+    assert pooled.near_zero_0p01_fraction != pytest.approx(
+        (0.1 + 0.5 + 0.1 + 0.1) / 4.0
+    )
+
+
+def test_a2_density_rebin_preserves_zero_and_tail_mass() -> None:
+    layer = {
+        "counts": [1, 2, 5, 2],
+        "total": 14,
+        "underflow": 3,
+        "overflow": 1,
+        "threshold_hits": {"0": 5},
+    }
+
+    reduction = reduce_density_layers(
+        (layer,),
+        (-2.0, -1.0, 0.0, 1.0, 2.0),
+        display_window=(-2.0, 2.0),
+        rebin_factor=2,
+    )
+
+    assert reduction.edges == (-2.0, 0.0, 2.0)
+    assert reduction.total == 14
+    assert reduction.exact_zero_hits == 5
+    assert reduction.nonzero_total == 9
+    assert reduction.outside_stored_hits == 4
+    assert reduction.outside_display_hits == 4
+    assert reduction.exact_zero_fraction == pytest.approx(5 / 14)
+    assert reduction.outside_display_fraction_nonzero == pytest.approx(4 / 9)
+    integral = sum(
+        density * (right - left)
+        for density, left, right in zip(
+            reduction.density,
+            reduction.edges[:-1],
+            reduction.edges[1:],
+            strict=True,
+        )
+    )
+    assert integral == pytest.approx(5 / 9)
+
+    atom_only = reduce_density_layers(
+        (
+            {
+                "counts": [0, 0, 10, 0],
+                "total": 10,
+                "underflow": 0,
+                "overflow": 0,
+                "threshold_hits": {"0": 10},
+            },
+        ),
+        (-2.0, -1.0, 0.0, 1.0, 2.0),
+        display_window=(-2.0, 2.0),
+        rebin_factor=2,
+    )
+    assert atom_only.nonzero_total == 0
+    assert atom_only.density == (0.0, 0.0)
+    assert atom_only.outside_display_fraction_nonzero is None
+
+
+def test_a2_figures_pass_publication_checks_and_keep_distribution_atoms_separate(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(a2, "DENSITY_REBIN_FACTOR", 1)
+    monkeypatch.setattr(
+        a2,
+        "DENSITY_WINDOWS",
+        {site: a2.EXPECTED_RANGE for site in a2.DENSITY_SITES},
+    )
     data = _synthetic_data(bin_count=4)
     response = build_a2_spillover_response_figure(data)
-    distributions = build_a2_layer5_distributions_figure(data)
+    layerwise = build_a2_layerwise_distributions_figure(data)
+    pooled = build_a2_site_distributions_figure(data)
     try:
         assert publication_figure_issues(
             response, DOUBLE_COLUMN_PUBLICATION_PROFILE
         ) == ()
         assert publication_figure_issues(
-            distributions, DOUBLE_COLUMN_PUBLICATION_PROFILE
+            layerwise, DOUBLE_COLUMN_PUBLICATION_PROFILE
         ) == ()
-        assert len(response.axes) == 2
-        assert len(response.legends) == 1
-        assert len(response.legends[0].get_texts()) == len(a2.SITES)
-        assert len(distributions.axes) == 12
-        assert all(
-            axis.get_xlim() == pytest.approx(a2.EXPECTED_RANGE)
-            for axis in distributions.axes
-            if axis.get_yscale() == "log"
-        )
-        assert sum(len(axis.patches) for axis in distributions.axes) == 12
+        assert publication_figure_issues(
+            pooled, DOUBLE_COLUMN_PUBLICATION_PROFILE
+        ) == ()
+        assert len(response.axes) == 1
+        assert len(response.legends) == 0
+        assert len(response.axes[0].collections[0].get_offsets()) == 5
+        assert len(response.axes[0].texts) == 5
+        assert len(layerwise.axes) == 36
+        assert len(layerwise.legends) == 1
+        assert len(layerwise.legends[0].get_texts()) == 3
+        assert len(pooled.axes) == 18
+        assert len(pooled.legends) == 0
+        assert all(axis.get_yscale() == "linear" for axis in layerwise.axes)
+        assert all(axis.get_yscale() == "linear" for axis in pooled.axes)
     finally:
         plt.close(response)
-        plt.close(distributions)
+        plt.close(layerwise)
+        plt.close(pooled)
 
 
 def test_a2_suite_is_atomic_and_deterministic_from_compact_fixture(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr(a2, "EXPECTED_BINS", 4)
+    monkeypatch.setattr(a2, "DENSITY_REBIN_FACTOR", 1)
+    monkeypatch.setattr(
+        a2,
+        "DENSITY_WINDOWS",
+        {site: a2.EXPECTED_RANGE for site in a2.DENSITY_SITES},
+    )
     _write_a2_fixture(tmp_path, bin_count=4)
 
     outputs = generate_a2_spillover_suite(tmp_path)
@@ -106,23 +221,35 @@ def test_a2_suite_is_atomic_and_deterministic_from_compact_fixture(
         "01-a2-spillover-response.png",
         "01-a2-spillover-response.md",
         "01-a2-spillover-response.provenance.json",
-        "02-a2-layer5-distributions.pdf",
-        "02-a2-layer5-distributions.png",
-        "02-a2-layer5-distributions.md",
-        "02-a2-layer5-distributions.provenance.json",
+        "02-a2-layerwise-distributions.pdf",
+        "02-a2-layerwise-distributions.png",
+        "02-a2-layerwise-distributions.md",
+        "02-a2-layerwise-distributions.provenance.json",
+        "03-a2-site-distributions.pdf",
+        "03-a2-site-distributions.png",
+        "03-a2-site-distributions.md",
+        "03-a2-site-distributions.provenance.json",
     ]
     response_markdown = outputs[2].read_text(encoding="utf-8")
-    distribution_markdown = outputs[6].read_text(encoding="utf-8")
+    layerwise_markdown = outputs[6].read_text(encoding="utf-8")
+    pooled_markdown = outputs[10].read_text(encoding="utf-8")
     assert "single-seed directional screen" in response_markdown
-    assert "sums of integer hits divided by sums of totals" in response_markdown
-    assert "Underflow and overflow are not drawn" in distribution_markdown
-    assert "`[-16, 16]`" in distribution_markdown
+    assert "R_model" in response_markdown
+    assert "count-preserving" in layerwise_markdown
+    assert "Counts are never pooled across sites" in pooled_markdown
     response_provenance = json.loads(outputs[3].read_text(encoding="utf-8"))
-    distribution_provenance = json.loads(outputs[7].read_text(encoding="utf-8"))
+    layerwise_provenance = json.loads(outputs[7].read_text(encoding="utf-8"))
+    pooled_provenance = json.loads(outputs[11].read_text(encoding="utf-8"))
     assert response_provenance["cohort"]["diagnostic_run_id"] == a2.DIAGNOSTIC_RUN_ID
     assert response_provenance["reduction"]["primary_threshold"] == 0.01
-    assert distribution_provenance["reduction"]["distribution_layer"] == 5
-    assert distribution_provenance["reduction"]["exact_zero_atom_separate"] is True
+    assert response_provenance["reduction"]["attention_sites"] == list(
+        a2.ATTENTION_SITES
+    )
+    assert layerwise_provenance["reduction"]["layers"] == list(a2.LAYERS)
+    assert layerwise_provenance["reduction"]["exact_zero_atom_separate"] is True
+    assert pooled_provenance["reduction"]["layers"] == "pooled within site"
+    assert len(layerwise_provenance["reduction"]["panels"]) == 108
+    assert len(pooled_provenance["reduction"]["panels"]) == 18
     assert len(response_provenance["inputs"]) == 35
 
     assert generate_a2_spillover_suite(tmp_path) == outputs

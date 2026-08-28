@@ -25,6 +25,8 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import yaml
 from matplotlib.figure import Figure
+from matplotlib.lines import Line2D
+from matplotlib.ticker import MaxNLocator
 
 from paper_exp.config import validate_diagnostic_config, validate_training_config
 from paper_exp.design import complete_config_sha256
@@ -36,8 +38,8 @@ from .export import (
     export_figure,
     publish_staged_outputs,
 )
-from .histograms import bin_centers, histogram_layer, histogram_nonzero_density
-from .style import PAPER_STYLE, series_style
+from .histograms import histogram_layer
+from .style import PAPER_STYLE
 
 
 TRANCHE_ID = "02-a2-l1-screen"
@@ -45,10 +47,14 @@ DIAGNOSTIC_CONFIG_ID = "018-a2-activation-histograms"
 DIAGNOSTIC_RUN_ID = "001-20260828-082044-a031175f"
 DIAGNOSTIC_GIT_COMMIT = "a0f86e057b0f67e3a2726b9cb6e352d8f8914176"
 RESPONSE_STEM = "01-a2-spillover-response"
-DISTRIBUTION_STEM = "02-a2-layer5-distributions"
+LAYERWISE_DISTRIBUTION_STEM = "02-a2-layerwise-distributions"
+POOLED_DISTRIBUTION_STEM = "03-a2-site-distributions"
+OBSOLETE_STEMS = ("02-a2-layer5-distributions",)
 GENERATOR_PATH = "src/paper_exp/plots/a2_spillover.py"
 
 SITES = ("h", "a", "m", "q_post", "k_post", "v")
+DENSITY_SITES = ("h", "m", "a", "q_post", "k_post", "v")
+ATTENTION_SITES = ("a", "q_post", "k_post", "v")
 SITE_LABELS = {
     "h": r"$h$",
     "a": r"$a$",
@@ -58,6 +64,19 @@ SITE_LABELS = {
     "v": r"$v$",
 }
 LAYERS = tuple(range(6))
+DENSITY_SOURCE_INDICES = (0, 4, 5)
+DENSITY_REBIN_FACTOR = 16
+DENSITY_WINDOWS = {
+    "h": (0.0, 8.0),
+    "m": (-4.0, 4.0),
+    "a": (-4.0, 4.0),
+    "q_post": (-16.0, 16.0),
+    "k_post": (-16.0, 16.0),
+    "v": (-4.0, 4.0),
+}
+DENSITY_COLORS = ("#4D4D4D", "#0072B2", "#D55E00")
+DENSITY_LINESTYLES = ("-", "--", "-.")
+DENSITY_LABELS = ("ReLU control", r"L1 $\lambda=2$", r"L1 $\lambda=5$")
 THRESHOLDS = (0.0, 0.01, 0.1)
 THRESHOLD_KEYS = ("0", "0.01", "0.1")
 EXPECTED_BINS = 3_200
@@ -193,6 +212,34 @@ class LossPoint:
 
 
 @dataclass(frozen=True)
+class GroupReduction:
+    """Count-first near-zero summary over an explicit set of measured sites."""
+
+    config_id: str
+    label: str
+    lambda_value: float
+    sites: tuple[str, ...]
+    total: int
+    near_zero_0p01_hits: int
+    near_zero_0p01_fraction: float
+
+
+@dataclass(frozen=True)
+class DensityReduction:
+    """Exact rebinned density with zero and omitted mass kept explicit."""
+
+    edges: tuple[float, ...]
+    density: tuple[float, ...]
+    total: int
+    exact_zero_hits: int
+    nonzero_total: int
+    outside_stored_hits: int
+    outside_display_hits: int
+    exact_zero_fraction: float
+    outside_display_fraction_nonzero: float | None
+
+
+@dataclass(frozen=True)
 class A2SpilloverData:
     """Validated fixed-cohort data ready for rendering."""
 
@@ -256,6 +303,169 @@ def reduce_site_layers(
     )
 
 
+def reduce_site_group(
+    reductions: Sequence[SiteReduction],
+    *,
+    source: A2Source,
+    sites: Sequence[str],
+) -> GroupReduction:
+    """Pool near-zero hits count-first over an explicit measured-site set."""
+
+    site_tuple = tuple(sites)
+    if not site_tuple or len(set(site_tuple)) != len(site_tuple):
+        raise ValueError("Grouped A2 sites must be nonempty and unique.")
+    unsupported = tuple(site for site in site_tuple if site not in SITES)
+    if unsupported:
+        raise ValueError(f"Unsupported grouped A2 sites: {unsupported!r}.")
+    source_rows = {row.site: row for row in _source_rows(reductions, source)}
+    selected = tuple(source_rows[site] for site in site_tuple)
+    total = sum(row.total for row in selected)
+    hits = sum(row.near_zero_0p01_hits for row in selected)
+    if total <= 0:
+        raise ValueError(f"Grouped A2 sites have no observations: {source.config_id}.")
+    return GroupReduction(
+        config_id=source.config_id,
+        label=source.label,
+        lambda_value=source.lambda_value,
+        sites=site_tuple,
+        total=total,
+        near_zero_0p01_hits=hits,
+        near_zero_0p01_fraction=hits / total,
+    )
+
+
+def reduce_density_layers(
+    layers: Sequence[dict[str, Any]],
+    edges: Sequence[float],
+    *,
+    display_window: tuple[float, float],
+    rebin_factor: int = DENSITY_REBIN_FACTOR,
+) -> DensityReduction:
+    """Pool integer histograms, remove the zero atom, then rebin exactly."""
+
+    numeric_edges = tuple(float(value) for value in edges)
+    if len(numeric_edges) < 2 or any(
+        not math.isfinite(value) for value in numeric_edges
+    ) or any(
+        right <= left
+        for left, right in zip(numeric_edges[:-1], numeric_edges[1:], strict=True)
+    ):
+        raise ValueError("Density edges must be finite and strictly increasing.")
+    if (
+        isinstance(rebin_factor, bool)
+        or not isinstance(rebin_factor, int)
+        or rebin_factor <= 0
+    ):
+        raise ValueError("Density rebin factor must be a positive integer.")
+    bin_count = len(numeric_edges) - 1
+    if bin_count % rebin_factor:
+        raise ValueError("Density bin count must be divisible by the rebin factor.")
+
+    counts = [0] * bin_count
+    total = 0
+    exact_zero_hits = 0
+    outside_stored_hits = 0
+    if not layers:
+        raise ValueError("Density reduction requires at least one histogram layer.")
+    for layer in layers:
+        raw_counts = layer.get("counts")
+        if not isinstance(raw_counts, list) or len(raw_counts) != bin_count or any(
+            isinstance(value, bool) or not isinstance(value, int) or value < 0
+            for value in raw_counts
+        ):
+            raise ValueError("Density counts must be nonnegative integers matching the edges.")
+        raw_total = layer.get("total")
+        underflow = layer.get("underflow")
+        overflow = layer.get("overflow")
+        if any(
+            isinstance(value, bool) or not isinstance(value, int) or value < 0
+            for value in (raw_total, underflow, overflow)
+        ):
+            raise ValueError("Density totals and tails must be nonnegative integers.")
+        if sum(raw_counts) + underflow + overflow != raw_total:
+            raise ValueError("Density stored counts and tails must exactly cover the total.")
+        threshold_hits = layer.get("threshold_hits")
+        raw_zero = threshold_hits.get("0") if isinstance(threshold_hits, dict) else None
+        if (
+            isinstance(raw_zero, bool)
+            or not isinstance(raw_zero, int)
+            or raw_zero < 0
+            or raw_zero > raw_total
+        ):
+            raise ValueError("Density exact-zero hits must be valid integer counts.")
+        counts = [left + right for left, right in zip(counts, raw_counts, strict=True)]
+        total += raw_total
+        exact_zero_hits += raw_zero
+        outside_stored_hits += underflow + overflow
+
+    zero_bin = next(
+        (
+            index
+            for index, (left, right) in enumerate(
+                zip(numeric_edges[:-1], numeric_edges[1:], strict=True)
+            )
+            if left <= 0.0 < right
+            or (index == bin_count - 1 and right == 0.0)
+        ),
+        None,
+    )
+    if exact_zero_hits:
+        if zero_bin is None:
+            raise ValueError("Density range excludes zero despite an exact-zero atom.")
+        if counts[zero_bin] < exact_zero_hits:
+            raise ValueError("Density exact-zero atom exceeds its containing bin.")
+        counts[zero_bin] -= exact_zero_hits
+
+    nonzero_total = total - exact_zero_hits
+    if sum(counts) + outside_stored_hits != nonzero_total:
+        raise ValueError("Density nonzero mass is not conserved before rebinning.")
+    rebinned_counts = tuple(
+        sum(counts[index : index + rebin_factor])
+        for index in range(0, bin_count, rebin_factor)
+    )
+    rebinned_edges = tuple(numeric_edges[::rebin_factor])
+    if len(rebinned_edges) != len(rebinned_counts) + 1:
+        rebinned_edges = (*rebinned_edges, numeric_edges[-1])
+    lower, upper = (float(value) for value in display_window)
+    if not math.isfinite(lower) or not math.isfinite(upper) or lower >= upper:
+        raise ValueError("Density display window must be finite and increasing.")
+    start = _matching_edge_index(rebinned_edges, lower)
+    stop = _matching_edge_index(rebinned_edges, upper)
+    if start is None or stop is None or start >= stop:
+        raise ValueError("Density display window must align with rebinned edges.")
+    displayed_counts = rebinned_counts[start:stop]
+    displayed_edges = rebinned_edges[start : stop + 1]
+    outside_display_hits = (
+        outside_stored_hits
+        + sum(rebinned_counts[:start])
+        + sum(rebinned_counts[stop:])
+    )
+    density = tuple(
+        count / nonzero_total / (right - left) if nonzero_total else 0.0
+        for count, left, right in zip(
+            displayed_counts,
+            displayed_edges[:-1],
+            displayed_edges[1:],
+            strict=True,
+        )
+    )
+    if sum(displayed_counts) + outside_display_hits != nonzero_total:
+        raise ValueError("Density nonzero mass is not conserved after display cropping.")
+    return DensityReduction(
+        edges=displayed_edges,
+        density=density,
+        total=total,
+        exact_zero_hits=exact_zero_hits,
+        nonzero_total=nonzero_total,
+        outside_stored_hits=outside_stored_hits,
+        outside_display_hits=outside_display_hits,
+        exact_zero_fraction=exact_zero_hits / total,
+        outside_display_fraction_nonzero=(
+            outside_display_hits / nonzero_total if nonzero_total else None
+        ),
+    )
+
+
 def load_a2_spillover(
     repository: str | Path | None = None,
 ) -> A2SpilloverData:
@@ -291,268 +501,647 @@ def load_a2_spillover(
     )
 
 
-def build_a2_spillover_response_figure(data: A2SpilloverData) -> Figure:
-    """Plot primary near-zero and supporting RMS responses versus control."""
+def _density_reduction(
+    data: A2SpilloverData,
+    *,
+    source_index: int,
+    site: str,
+    layers: Sequence[int],
+) -> DensityReduction:
+    selected = tuple(
+        histogram_layer(data.methods[source_index], f"{site}.layer_{layer}")
+        for layer in layers
+    )
+    return reduce_density_layers(
+        selected,
+        data.bin_edges,
+        display_window=DENSITY_WINDOWS[site],
+        rebin_factor=DENSITY_REBIN_FACTOR,
+    )
 
-    figure, axes = plt.subplots(
-        1,
-        2,
-        figsize=(DOUBLE_COLUMN_WIDTH_INCHES, 4.25),
-        sharex=True,
-    )
-    x = tuple(range(len(A2_SOURCES)))
-    tick_labels = ("control", "0.1", "0.5", "1", "2", "5")
-    for site_index, site in enumerate(SITES):
-        rows = _site_rows(data.reductions, site)
-        control = rows[0]
-        near_zero_change = [
-            100.0 * (row.near_zero_0p01_fraction - control.near_zero_0p01_fraction)
-            for row in rows
-        ]
-        rms_change = [
-            100.0 * (row.pooled_rms / control.pooled_rms - 1.0) for row in rows
-        ]
-        style = series_style(site_index)
-        for axis, values in zip(axes, (near_zero_change, rms_change), strict=True):
-            axis.plot(
-                x,
-                values,
-                label=SITE_LABELS[site],
-                color=style.color,
-                marker=style.marker,
-                linestyle=style.linestyle,
-                linewidth=1.4,
-                markersize=4.2,
+
+def _density_column_limits(data: A2SpilloverData) -> dict[str, float]:
+    limits: dict[str, float] = {}
+    for site in DENSITY_SITES:
+        maximum = 0.0
+        for source_index in DENSITY_SOURCE_INDICES:
+            for layer in LAYERS:
+                curve = _density_reduction(
+                    data,
+                    source_index=source_index,
+                    site=site,
+                    layers=(layer,),
+                )
+                maximum = max(maximum, *curve.density)
+            pooled = _density_reduction(
+                data,
+                source_index=source_index,
+                site=site,
+                layers=LAYERS,
             )
-    axes[0].set_title(r"Near-zero response, $n_s(0.01)$")
-    axes[0].set_ylabel("Change from control (percentage points)")
-    axes[1].set_title("Activation-scale response")
-    axes[1].set_ylabel("Pooled RMS change from control (%)")
-    for axis in axes:
-        axis.axhline(0.0, color="#666666", linewidth=0.8, zorder=0)
-        axis.set_xticks(x)
-        axis.set_xticklabels(tick_labels)
-        axis.set_xlabel(r"L1 coefficient $\lambda$")
-        axis.grid(False)
-        axis.yaxis.grid(True, alpha=0.25)
-    handles, labels = axes[0].get_legend_handles_labels()
-    figure.legend(
-        handles,
-        labels,
-        loc="lower center",
-        ncol=len(SITES),
-        frameon=False,
-        bbox_to_anchor=(0.5, 0.015),
+            maximum = max(maximum, *pooled.density)
+        limits[site] = 1.08 * maximum if maximum > 0.0 else 1.0
+    return limits
+
+
+def build_a2_spillover_response_figure(data: A2SpilloverData) -> Figure:
+    """Plot m-site against measured-attention near-zero response."""
+
+    m_rows = _site_rows(data.reductions, "m")
+    attention_rows = tuple(
+        reduce_site_group(data.reductions, source=source, sites=ATTENTION_SITES)
+        for source in A2_SOURCES
     )
-    figure.suptitle("Pythia-14M A2 spillover response (seed 0)")
-    figure.subplots_adjust(left=0.09, right=0.985, top=0.84, bottom=0.25, wspace=0.30)
+    m_control = m_rows[0].near_zero_0p01_fraction
+    attention_control = attention_rows[0].near_zero_0p01_fraction
+    points = tuple(
+        (
+            100.0 * (m_rows[index].near_zero_0p01_fraction - m_control),
+            100.0
+            * (attention_rows[index].near_zero_0p01_fraction - attention_control),
+            A2_SOURCES[index],
+        )
+        for index in range(1, len(A2_SOURCES))
+    )
+    figure, axis = plt.subplots(figsize=(DOUBLE_COLUMN_WIDTH_INCHES, 3.60))
+    axis.axhline(0.0, color="#888888", linewidth=0.8, zorder=0)
+    axis.axvline(0.0, color="#888888", linewidth=0.8, zorder=0)
+    axis.scatter(
+        [point[0] for point in points],
+        [point[1] for point in points],
+        s=48,
+        color="#0072B2",
+        edgecolor="white",
+        linewidth=0.8,
+        zorder=3,
+    )
+    offsets = ((8, -12), (8, 6), (8, 6), (-5, 10), (-46, 10))
+    for (x_value, y_value, source), offset in zip(points, offsets, strict=True):
+        axis.annotate(
+            rf"$\lambda={source.lambda_value:g}$",
+            (x_value, y_value),
+            xytext=offset,
+            textcoords="offset points",
+            ha="left",
+            va="center",
+            fontsize=9,
+        )
+    axis.set_xlim(-2.2, 33.2)
+    axis.set_ylim(-0.9, 7.45)
+    axis.set_xlabel(r"$m$ near-zero response, $\Delta n_m(0.01)$ (pp)")
+    axis.set_ylabel(r"Attention response, $\Delta n_{\mathcal{A}}(0.01)$ (pp)")
+    axis.grid(False)
+    axis.xaxis.grid(True, alpha=0.18)
+    axis.yaxis.grid(True, alpha=0.18)
+    axis.spines["top"].set_visible(False)
+    axis.spines["right"].set_visible(False)
+    figure.subplots_adjust(left=0.155, right=0.98, top=0.96, bottom=0.20)
     return figure
 
 
-def build_a2_layer5_distributions_figure(data: A2SpilloverData) -> Figure:
-    """Plot deepest-layer control/L1-lambda-1 distributions at all six sites."""
+def build_a2_layerwise_distributions_figure(data: A2SpilloverData) -> Figure:
+    """Plot control/lambda-2/lambda-5 densities for every layer and site."""
 
-    control = data.methods[0]
-    lambda_one = data.methods[3]
-    centers = bin_centers(list(data.bin_edges))
-    figure = plt.figure(figsize=(DOUBLE_COLUMN_WIDTH_INCHES, 8.55))
-    grid = figure.add_gridspec(
-        4,
-        3,
-        height_ratios=(0.72, 2.15, 0.72, 2.15),
-        hspace=0.44,
-        wspace=0.28,
+    figure, axes = plt.subplots(
+        len(LAYERS),
+        len(DENSITY_SITES),
+        figsize=(DOUBLE_COLUMN_WIDTH_INCHES, 8.65),
+        sharex="col",
+        sharey="col",
+        squeeze=False,
     )
-    density_handles = []
-    density_labels = ("ReLU control", r"L1 $\lambda=1$")
-    for index, site in enumerate(SITES):
-        pair_row = 0 if index < 3 else 2
-        column = index % 3
-        atom_axis = figure.add_subplot(grid[pair_row, column])
-        density_axis = figure.add_subplot(grid[pair_row + 1, column])
-        atom_axis.set_title(SITE_LABELS[site], pad=2)
-        for method_index, method in enumerate((control, lambda_one)):
-            layer = histogram_layer(method, f"{site}.layer_5")
-            density, zero_fraction = histogram_nonzero_density(
-                layer, list(data.bin_edges)
+    limits = _density_column_limits(data)
+    for column, site in enumerate(DENSITY_SITES):
+        title = SITE_LABELS[site] + (r"$^{\dagger}$" if site == "k_post" else "")
+        axes[0, column].set_title(title, pad=4)
+        for row, layer in enumerate(LAYERS):
+            axis = axes[row, column]
+            curves = tuple(
+                _density_reduction(
+                    data,
+                    source_index=source_index,
+                    site=site,
+                    layers=(layer,),
+                )
+                for source_index in DENSITY_SOURCE_INDICES
             )
-            style = series_style(method_index)
-            bar = atom_axis.bar(
-                method_index,
-                100.0 * zero_fraction,
-                color=style.color,
-                width=0.62,
+            for condition_index, curve in enumerate(curves):
+                if curve.nonzero_total == 0:
+                    continue
+                axis.stairs(
+                    curve.density,
+                    curve.edges,
+                    color=DENSITY_COLORS[condition_index],
+                    linestyle=DENSITY_LINESTYLES[condition_index],
+                    linewidth=1.05,
+                )
+            atom_only = tuple(
+                DENSITY_LABELS[index]
+                for index, curve in enumerate(curves)
+                if curve.nonzero_total == 0
             )
-            height = float(bar[0].get_height())
-            atom_axis.text(
-                method_index,
-                max(height + 2.0, 2.0),
-                _format_percent(height),
-                ha="center",
-                va="bottom",
-                fontsize=8,
-            )
-            (line,) = density_axis.plot(
-                centers,
-                density,
-                color=style.color,
-                linestyle=style.linestyle,
-                linewidth=1.2,
-                label=density_labels[method_index],
-            )
-            if index == 0:
-                density_handles.append(line)
-        atom_axis.set_ylim(0.0, 108.0)
-        atom_axis.set_xticks((0, 1))
-        atom_axis.set_xticklabels(("control", r"$\lambda=1$"))
-        atom_axis.grid(False)
-        atom_axis.yaxis.grid(True, alpha=0.20)
-        if column == 0:
-            atom_axis.set_ylabel("Exact zeros (%)")
-        else:
-            atom_axis.tick_params(labelleft=False)
-        density_axis.set_xlim(EXPECTED_RANGE)
-        density_axis.set_yscale("log")
-        density_axis.grid(False)
-        density_axis.yaxis.grid(True, alpha=0.20)
-        if pair_row == 2:
-            density_axis.set_xlabel("Activation value")
-        if column == 0:
-            density_axis.set_ylabel("Nonzero density")
-        else:
-            density_axis.tick_params(labelleft=False)
+            if atom_only:
+                axis.text(
+                    0.98,
+                    0.10,
+                    " / ".join(atom_only) + ": atom only",
+                    transform=axis.transAxes,
+                    ha="right",
+                    va="bottom",
+                    fontsize=8,
+                    color="#333333",
+                    bbox={
+                        "facecolor": "white",
+                        "edgecolor": "none",
+                        "alpha": 0.82,
+                        "pad": 1.0,
+                    },
+                )
+            if site == "h":
+                values = "/".join(
+                    _format_compact_percentage(curve.exact_zero_fraction)
+                    for curve in curves
+                )
+                axis.text(
+                    0.98,
+                    0.95,
+                    "$P_0$ C/2/5\n" + values,
+                    transform=axis.transAxes,
+                    ha="right",
+                    va="top",
+                    fontsize=8,
+                    bbox={
+                        "facecolor": "white",
+                        "edgecolor": "none",
+                        "alpha": 0.78,
+                        "pad": 1.0,
+                    },
+                )
+            if site == "k_post":
+                values = "/".join(
+                    _format_compact_percentage(curve.outside_display_fraction_nonzero)
+                    for curve in curves
+                )
+                axis.text(
+                    0.98,
+                    0.95,
+                    "Out C/2/5\n" + values,
+                    transform=axis.transAxes,
+                    ha="right",
+                    va="top",
+                    fontsize=8,
+                    bbox={
+                        "facecolor": "white",
+                        "edgecolor": "none",
+                        "alpha": 0.78,
+                        "pad": 1.0,
+                    },
+                )
+            axis.set_xlim(DENSITY_WINDOWS[site])
+            axis.set_ylim(0.0, limits[site])
+            axis.grid(False)
+            axis.yaxis.grid(True, alpha=0.14)
+            axis.xaxis.set_major_locator(MaxNLocator(nbins=3))
+            axis.yaxis.set_major_locator(MaxNLocator(nbins=3, min_n_ticks=2))
+            axis.tick_params(labelbottom=row == len(LAYERS) - 1, labelleft=row == 0)
+            axis.spines["top"].set_visible(False)
+            axis.spines["right"].set_visible(False)
+            if column == 0:
+                axis.set_ylabel(f"Layer {layer}", labelpad=8)
+    handles = tuple(
+        Line2D(
+            (0,),
+            (0,),
+            color=DENSITY_COLORS[index],
+            linestyle=DENSITY_LINESTYLES[index],
+            linewidth=1.4,
+            label=DENSITY_LABELS[index],
+        )
+        for index in range(len(DENSITY_SOURCE_INDICES))
+    )
     figure.legend(
-        density_handles,
-        density_labels,
-        loc="lower center",
-        ncol=2,
+        handles=handles,
+        loc="upper center",
+        ncol=3,
         frameon=False,
-        bbox_to_anchor=(0.5, 0.012),
+        bbox_to_anchor=(0.5, 0.998),
     )
-    figure.suptitle("Pythia-14M layer 5 activation distributions (seed 0)")
-    figure.subplots_adjust(left=0.16, right=0.985, top=0.95, bottom=0.085)
+    figure.text(
+        0.012,
+        0.50,
+        r"Density conditional on $x\ne0$",
+        ha="center",
+        va="center",
+        rotation="vertical",
+    )
+    figure.supxlabel("Activation value", y=0.012)
+    figure.subplots_adjust(
+        left=0.115,
+        right=0.975,
+        top=0.935,
+        bottom=0.075,
+        wspace=0.26,
+        hspace=0.23,
+    )
+    return figure
+
+
+def build_a2_site_distributions_figure(data: A2SpilloverData) -> Figure:
+    """Plot within-site, across-layer pooled densities for three conditions."""
+
+    figure, axes = plt.subplots(
+        len(DENSITY_SOURCE_INDICES),
+        len(DENSITY_SITES),
+        figsize=(DOUBLE_COLUMN_WIDTH_INCHES, 5.15),
+        sharex="col",
+        sharey="col",
+        squeeze=False,
+    )
+    limits = _density_column_limits(data)
+    row_labels = ("Control", r"L1 $\lambda=2$", r"L1 $\lambda=5$")
+    for column, site in enumerate(DENSITY_SITES):
+        title = SITE_LABELS[site] + (r"$^{\dagger}$" if site == "k_post" else "")
+        axes[0, column].set_title(title, pad=4)
+        for row, source_index in enumerate(DENSITY_SOURCE_INDICES):
+            axis = axes[row, column]
+            curve = _density_reduction(
+                data,
+                source_index=source_index,
+                site=site,
+                layers=LAYERS,
+            )
+            if curve.nonzero_total:
+                axis.stairs(
+                    curve.density,
+                    curve.edges,
+                    fill=True,
+                    facecolor=DENSITY_COLORS[row],
+                    edgecolor="none",
+                    alpha=0.12,
+                )
+                axis.stairs(
+                    curve.density,
+                    curve.edges,
+                    color=DENSITY_COLORS[row],
+                    linewidth=1.25,
+                )
+            else:
+                axis.text(
+                    0.5,
+                    0.5,
+                    "All mass at x=0",
+                    transform=axis.transAxes,
+                    ha="center",
+                    va="center",
+                    fontsize=8,
+                )
+            axis.text(
+                0.97,
+                0.94,
+                (
+                    "$P_0$ "
+                    + _format_probability(curve.exact_zero_fraction)
+                    + "\nOut "
+                    + _format_probability(curve.outside_display_fraction_nonzero)
+                ),
+                transform=axis.transAxes,
+                ha="right",
+                va="top",
+                fontsize=8,
+                bbox={
+                    "facecolor": "white",
+                    "edgecolor": "none",
+                    "alpha": 0.80,
+                    "pad": 1.0,
+                },
+            )
+            axis.set_xlim(DENSITY_WINDOWS[site])
+            axis.set_ylim(0.0, limits[site])
+            axis.grid(False)
+            axis.yaxis.grid(True, alpha=0.14)
+            axis.xaxis.set_major_locator(MaxNLocator(nbins=3))
+            axis.yaxis.set_major_locator(MaxNLocator(nbins=3, min_n_ticks=2))
+            axis.tick_params(
+                labelbottom=row == len(DENSITY_SOURCE_INDICES) - 1,
+                labelleft=row == 0,
+            )
+            axis.spines["top"].set_visible(False)
+            axis.spines["right"].set_visible(False)
+            if column == 0:
+                axis.set_ylabel(
+                    row_labels[row],
+                    rotation=0,
+                    ha="right",
+                    va="center",
+                    labelpad=5,
+                )
+    figure.text(
+        0.012,
+        0.50,
+        r"Density conditional on $x\ne0$",
+        ha="center",
+        va="center",
+        rotation="vertical",
+    )
+    figure.supxlabel("Activation value", y=0.018)
+    figure.subplots_adjust(
+        left=0.155,
+        right=0.975,
+        top=0.92,
+        bottom=0.11,
+        wspace=0.26,
+        hspace=0.25,
+    )
     return figure
 
 
 def build_a2_response_markdown(data: A2SpilloverData) -> str:
-    """Build the response caption and exact count-first reduction tables."""
+    """Build the spillover-plane caption and compact measured-results table."""
 
+    controls = {row.site: row for row in _source_rows(data.reductions, A2_SOURCES[0])}
+    attention = tuple(
+        reduce_site_group(data.reductions, source=source, sites=ATTENTION_SITES)
+        for source in A2_SOURCES
+    )
+    attention_control = attention[0]
+    control_loss = data.losses[0].final_validation_loss
     lines = [
         "# A2 spillover response",
         "",
         (
-            "**Figure caption.** Seed-0 Pythia-14M response to h-only naive L1 "
-            "pressure relative to the matched ReLU-only A1-H control. The left "
-            "panel is the primary count-first change in near-zero mass "
-            "`n_s(0.01)`; the right panel is the supporting finite-count-weighted "
-            "pooled RMS change."
+            "**Figure caption.** Near-zero response outside the pressured `h` site "
+            "for seed-0 Pythia-14M. Each point is one positive L1 coefficient. "
+            "Both axes are percentage-point changes from the matched ReLU control. "
+            "The measured-attention aggregate is count-first over "
+            "`A = {a, q_post, k_post, v}` and all six layers: "
+            "`n_A(0.01) = sum(hits) / sum(total)`."
         ),
         "",
         (
-            "This is a single-seed directional screen (n = 1 per condition). It "
-            "does not estimate seed uncertainty or support robustness, functional-"
-            "compensation, compute-reduction, or speedup claims."
+            "The screen shows two descriptive response regimes: lambda <= 1 "
+            "increases attention-site near-zero mass while leaving `m` near its "
+            "control value; lambda 2 and 5 sharply increase near-zero mass at `m` "
+            "while the pooled attention response returns near control. This is not "
+            "a causal compensation claim."
         ),
         "",
-        "## Final validation loss",
+        "## Quality and activation response",
         "",
-        "| Condition | Config / run | Final validation loss | Change from control |",
-        "| --- | --- | ---: | ---: |",
+        (
+            "All `n(0.01)` values are percentages; deltas are percentage points. "
+            "RMS is pooled from finite-count-weighted second moments across layers."
+        ),
+        "",
+        (
+            "| Condition | Val. loss | Delta loss | n_h | Delta n_h | n_m | "
+            "Delta n_m | n_A | Delta n_A | RMS h | RMS m |"
+        ),
+        "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
     ]
-    control_loss = data.losses[0].final_validation_loss
-    for point in data.losses:
+    for source, loss, attention_row in zip(
+        A2_SOURCES, data.losses, attention, strict=True
+    ):
+        source_rows = {row.site: row for row in _source_rows(data.reductions, source)}
+        h_row = source_rows["h"]
+        m_row = source_rows["m"]
         lines.append(
-            f"| {point.label} | `{point.config_id}` / `{point.run_id}` | "
-            f"{point.final_validation_loss:.6f} | "
-            f"{point.final_validation_loss - control_loss:+.6f} |"
+            f"| {_condition_label(source)} | {loss.final_validation_loss:.6f} | "
+            f"{loss.final_validation_loss - control_loss:+.6f} | "
+            f"{100.0 * h_row.near_zero_0p01_fraction:.4f} | "
+            f"{100.0 * (h_row.near_zero_0p01_fraction - controls['h'].near_zero_0p01_fraction):+.4f} | "
+            f"{100.0 * m_row.near_zero_0p01_fraction:.4f} | "
+            f"{100.0 * (m_row.near_zero_0p01_fraction - controls['m'].near_zero_0p01_fraction):+.4f} | "
+            f"{100.0 * attention_row.near_zero_0p01_fraction:.4f} | "
+            f"{100.0 * (attention_row.near_zero_0p01_fraction - attention_control.near_zero_0p01_fraction):+.4f} | "
+            f"{h_row.pooled_rms:.5f} | {m_row.pooled_rms:.5f} |"
         )
     lines.extend(
         [
             "",
-            "## Count-first activation summaries",
+            "## Attention-site disaggregation",
             "",
-            (
-                "`z`, `n(.01)`, and `n(.1)` are sums of integer hits divided by "
-                "sums of totals across all six layers. RMS is "
-                "`sqrt(sum(finite * rms^2) / sum(finite))`."
-            ),
-            "",
-            (
-                "| Condition | Site | z | n(.01) | Δn(.01), pp | n(.1) | "
-                "Pooled RMS | ΔRMS, % |"
-            ),
-            "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |",
+            "| Condition | n_a | n_q_post | n_k_post | n_v |",
+            "| --- | ---: | ---: | ---: | ---: |",
         ]
     )
-    controls = {row.site: row for row in _source_rows(data.reductions, A2_SOURCES[0])}
     for source in A2_SOURCES:
-        for row in _source_rows(data.reductions, source):
-            control = controls[row.site]
-            lines.append(
-                f"| {source.label} | `{row.site}` | {row.exact_zero_fraction:.8f} | "
-                f"{row.near_zero_0p01_fraction:.8f} | "
-                f"{100.0 * (row.near_zero_0p01_fraction - control.near_zero_0p01_fraction):+.4f} | "
-                f"{row.near_zero_0p1_fraction:.8f} | {row.pooled_rms:.8f} | "
-                f"{100.0 * (row.pooled_rms / control.pooled_rms - 1.0):+.3f} |"
+        source_rows = {row.site: row for row in _source_rows(data.reductions, source)}
+        lines.append(
+            f"| {_condition_label(source)} | "
+            + " | ".join(
+                f"{100.0 * source_rows[site].near_zero_0p01_fraction:.4f}"
+                for site in ATTENTION_SITES
             )
-    lines.append("")
+            + " |"
+        )
+    lines.extend(
+        [
+            "",
+            (
+                "`R_model`, `R_block`, and an operation-level `R(m)` are not "
+                "reported: diagnostic `018` measured activation histograms, not "
+                "logical-product opportunities. Activation near-zero fractions "
+                "must not be relabeled as compute opportunity."
+            ),
+            "",
+            (
+                "This is a single-seed directional screen (`n = 1` per condition). "
+                "It does not estimate seed uncertainty or support robustness, "
+                "compute-reduction, or runtime-speedup claims."
+            ),
+            "",
+        ]
+    )
     return "\n".join(lines)
 
 
-def build_a2_distribution_markdown(data: A2SpilloverData) -> str:
-    """Build the layer-5 distribution caption and explicit tail disclosure."""
+def build_a2_layerwise_distribution_markdown(data: A2SpilloverData) -> str:
+    """Build the layerwise-atlas caption and material atom/tail disclosures."""
 
     lines = [
-        "# A2 layer-5 activation distributions",
+        "# A2 layerwise activation distributions",
         "",
         (
-            "**Figure caption.** Deepest-transformer-layer (`layer_5`) activation "
-            "distributions for the seed-0 ReLU-only control and h-only L1 at "
-            "lambda 1. Each site shows the exact-zero atom separately from the "
-            "conditional density among nonzero activations."
+            "**Figure caption.** Layer-resolved activation densities for the ReLU "
+            "control and the two strongest h-only L1 conditions (lambda 2 and 5). "
+            "Each panel is a density conditional on `x != 0`; exact-zero atoms are "
+            "removed before adjacent-bin rebinning and reported separately. Curves "
+            "use exact count-preserving 0.16-wide bins, linear density, and the same "
+            "x and y scales within each site column. No KDE or interpolation is used."
         ),
         "",
         (
-            "The curves show the complete stored histogram range `[-16, 16]`. "
-            "Underflow and overflow are not drawn but remain in the density "
-            "normalization denominator; the table reports their combined mass. "
-            "Accordingly, a curve need not integrate to one over the displayed "
-            "range. No nonfinite activations were accepted by the loader."
+            "Displayed windows are `h: [0, 8]`, `m/a/v: [-4, 4]`, and "
+            "`q_post/k_post: [-16, 16]`. Out-of-window mass remains in the "
+            "conditional-density denominator. The dagger on `k_post` marks material "
+            "stored-range tails; exact values are below."
+        ),
+        "",
+        "## Exact-zero mass at h",
+        "",
+        "| Layer | Control | lambda 2 | lambda 5 |",
+        "| ---: | ---: | ---: | ---: |",
+    ]
+    for layer in LAYERS:
+        curves = tuple(
+            _density_reduction(
+                data,
+                source_index=source_index,
+                site="h",
+                layers=(layer,),
+            )
+            for source_index in DENSITY_SOURCE_INDICES
+        )
+        lines.append(
+            f"| {layer} | "
+            + " | ".join(f"{curve.exact_zero_fraction:.6%}" for curve in curves)
+            + " |"
+        )
+    lines.extend(
+        [
+            "",
+            (
+                "The all-atom cases are lambda 5 at `h.layer_0` and `h.layer_1`, "
+                "and lambda 2 at `h.layer_4`; no conditional density is drawn for "
+                "those cells."
+            ),
+            "",
+            "## k_post mass outside the stored range, conditional on x != 0",
+            "",
+            "| Layer | Control | lambda 2 | lambda 5 |",
+            "| ---: | ---: | ---: | ---: |",
+        ]
+    )
+    for layer in LAYERS:
+        curves = tuple(
+            _density_reduction(
+                data,
+                source_index=source_index,
+                site="k_post",
+                layers=(layer,),
+            )
+            for source_index in DENSITY_SOURCE_INDICES
+        )
+        lines.append(
+            f"| {layer} | "
+            + " | ".join(
+                _format_probability(curve.outside_display_fraction_nonzero)
+                for curve in curves
+            )
+            + " |"
+        )
+    lines.extend(
+        [
+            "",
+            "## Maximum omitted conditional mass by site",
+            "",
+            "| Site | Maximum | Condition / layer |",
+            "| --- | ---: | --- |",
+        ]
+    )
+    for site in DENSITY_SITES:
+        candidates = []
+        for source_index in DENSITY_SOURCE_INDICES:
+            for layer in LAYERS:
+                curve = _density_reduction(
+                    data,
+                    source_index=source_index,
+                    site=site,
+                    layers=(layer,),
+                )
+                if curve.outside_display_fraction_nonzero is not None:
+                    candidates.append(
+                        (curve.outside_display_fraction_nonzero, source_index, layer)
+                    )
+        maximum, source_index, layer = max(candidates)
+        lines.append(
+            f"| `{site}` | {_format_probability(maximum)} | "
+            f"{_condition_label(A2_SOURCES[source_index])} / layer {layer} |"
+        )
+    lines.extend(
+        [
+            "",
+            (
+                "The large pooled `m` response is layer-local: lambda 2 concentrates "
+                "`m.layer_4` near zero, while lambda 5 concentrates `m.layer_0` and "
+                "`m.layer_1` near zero. Their exact-zero counts remain zero."
+            ),
+            "",
+            (
+                "This is seed-0 descriptive evidence (`n = 1` per condition), not "
+                "a uniform-across-layer, causal, compute, or speedup claim."
+            ),
+            "",
+        ]
+    )
+    return "\n".join(lines)
+
+
+def build_a2_site_distribution_markdown(data: A2SpilloverData) -> str:
+    """Build the across-layer pooled-site caption and mass table."""
+
+    lines = [
+        "# A2 across-layer pooled site distributions",
+        "",
+        (
+            "**Figure caption.** Per-site activation distributions after pooling "
+            "integer histogram counts across all six layers within each site. Rows "
+            "are the ReLU control, h-only L1 lambda 2, and h-only L1 lambda 5. "
+            "Densities are conditional on `x != 0`; exact-zero atoms and omitted "
+            "conditional mass are printed in each panel as `P0` and `Out`."
         ),
         "",
         (
-            "This is a seed-0 descriptive contrast (n = 1 per condition), not a "
-            "seed-robustness or population claim."
+            "The reduction, rebinning, windows, and site-column scales match the "
+            "layerwise atlas. Counts are never pooled across sites. The dagger on "
+            "`k_post` flags stored-range tails."
         ),
         "",
-        "| Condition | Site | Exact-zero atom | Outside stored range |",
+        "| Condition | Site | P(x = 0) | Outside window given x != 0 |",
         "| --- | --- | ---: | ---: |",
     ]
-    for source_index in (0, 3):
+    for source_index in DENSITY_SOURCE_INDICES:
         source = A2_SOURCES[source_index]
-        method = data.methods[source_index]
-        for site in SITES:
-            layer = histogram_layer(method, f"{site}.layer_5")
-            total = int(layer["total"])
-            zero = int(layer["threshold_hits"]["0"]) / total
-            tail = (int(layer["underflow"]) + int(layer["overflow"])) / total
-            lines.append(
-                f"| {source.label} | `{site}` | {zero:.8%} | {tail:.8%} |"
+        for site in DENSITY_SITES:
+            curve = _density_reduction(
+                data,
+                source_index=source_index,
+                site=site,
+                layers=LAYERS,
             )
-    lines.append("")
+            lines.append(
+                f"| {_condition_label(source)} | `{site}` | "
+                f"{_format_probability(curve.exact_zero_fraction)} | "
+                f"{_format_probability(curve.outside_display_fraction_nonzero)} |"
+            )
+    lines.extend(
+        [
+            "",
+            (
+                "This aggregation is element-weighted within a site and remains a "
+                "seed-0 descriptive view. It is not a logical-product or runtime "
+                "measurement."
+            ),
+            "",
+        ]
+    )
     return "\n".join(lines)
 
 
 def generate_a2_spillover_suite(
     repository: str | Path | None = None,
 ) -> tuple[Path, ...]:
-    """Validate inputs and atomically publish both A2 figure packages."""
+    """Validate inputs and atomically publish the three A2 figure packages."""
 
     root = _repository_root(repository)
     data = load_a2_spillover(root)
     figures_dir = root / "experiments" / TRANCHE_ID / "figs"
     figures_dir.mkdir(parents=True, exist_ok=True)
-    stems = (RESPONSE_STEM, DISTRIBUTION_STEM)
+    stems = (
+        RESPONSE_STEM,
+        LAYERWISE_DISTRIBUTION_STEM,
+        POOLED_DISTRIBUTION_STEM,
+    )
     final_paths = tuple(
         figures_dir / f"{stem}.{suffix}"
         for stem in stems
@@ -561,28 +1150,28 @@ def generate_a2_spillover_suite(
     with tempfile.TemporaryDirectory(prefix=".a2-spillover.", dir=figures_dir) as temp:
         staging = Path(temp)
         staged = {path: staging / path.name for path in final_paths}
-        response_pdf = staged[figures_dir / f"{RESPONSE_STEM}.pdf"]
-        distribution_pdf = staged[figures_dir / f"{DISTRIBUTION_STEM}.pdf"]
-        export_figure(
-            lambda: build_a2_spillover_response_figure(data),
-            response_pdf,
-            save_png=True,
-            style=PAPER_STYLE,
-            profile=DOUBLE_COLUMN_PUBLICATION_PROFILE,
-        )
-        export_figure(
-            lambda: build_a2_layer5_distributions_figure(data),
-            distribution_pdf,
-            save_png=True,
-            style=PAPER_STYLE,
-            profile=DOUBLE_COLUMN_PUBLICATION_PROFILE,
-        )
-        _write_text(staged[figures_dir / f"{RESPONSE_STEM}.md"], build_a2_response_markdown(data))
-        _write_text(
-            staged[figures_dir / f"{DISTRIBUTION_STEM}.md"],
-            build_a2_distribution_markdown(data),
-        )
+        builders = {
+            RESPONSE_STEM: build_a2_spillover_response_figure,
+            LAYERWISE_DISTRIBUTION_STEM: build_a2_layerwise_distributions_figure,
+            POOLED_DISTRIBUTION_STEM: build_a2_site_distributions_figure,
+        }
+        markdown_builders = {
+            RESPONSE_STEM: build_a2_response_markdown,
+            LAYERWISE_DISTRIBUTION_STEM: build_a2_layerwise_distribution_markdown,
+            POOLED_DISTRIBUTION_STEM: build_a2_site_distribution_markdown,
+        }
         for stem in stems:
+            export_figure(
+                lambda stem=stem: builders[stem](data),
+                staged[figures_dir / f"{stem}.pdf"],
+                save_png=True,
+                style=PAPER_STYLE,
+                profile=DOUBLE_COLUMN_PUBLICATION_PROFILE,
+            )
+            _write_text(
+                staged[figures_dir / f"{stem}.md"],
+                markdown_builders[stem](data),
+            )
             suite_outputs = tuple(
                 figures_dir / f"{stem}.{suffix}" for suffix in ("pdf", "png", "md")
             )
@@ -595,6 +1184,11 @@ def generate_a2_spillover_suite(
             )
             _write_json(staged[figures_dir / f"{stem}.provenance.json"], provenance)
         publish_staged_outputs({path: staged[path] for path in final_paths})
+    for obsolete_stem in OBSOLETE_STEMS:
+        for suffix in ("pdf", "png", "md", "provenance.json"):
+            obsolete = figures_dir / f"{obsolete_stem}.{suffix}"
+            if obsolete.is_file():
+                obsolete.unlink()
     return final_paths
 
 
@@ -983,6 +1577,52 @@ def _build_provenance(
     staged_outputs: Sequence[Path],
     final_outputs: Sequence[Path],
 ) -> dict[str, Any]:
+    density_stems = {LAYERWISE_DISTRIBUTION_STEM, POOLED_DISTRIBUTION_STEM}
+    reduction: dict[str, Any] = {
+        "threshold_fractions": "sum(layer hits) / sum(layer totals)",
+        "pooled_rms": "sqrt(sum(layer finite * layer rms^2) / sum(layer finite))",
+        "primary_threshold": 0.01,
+    }
+    if stem == RESPONSE_STEM:
+        reduction.update(
+            {
+                "x": "100 * (n_m(0.01, lambda) - n_m(0.01, control))",
+                "y": "100 * (n_A(0.01, lambda) - n_A(0.01, control))",
+                "attention_sites": list(ATTENTION_SITES),
+                "attention_pool": "sum(site-and-layer hits) / sum(site-and-layer totals)",
+                "logical_product_metric": "not measured",
+            }
+        )
+    elif stem in density_stems:
+        pooled = stem == POOLED_DISTRIBUTION_STEM
+        reduction.update(
+            {
+                "density_sources": [
+                    A2_SOURCES[index].config_id for index in DENSITY_SOURCE_INDICES
+                ],
+                "density_sites": list(DENSITY_SITES),
+                "layers": "pooled within site" if pooled else list(LAYERS),
+                "histogram_range": list(EXPECTED_RANGE),
+                "display_windows": {
+                    site: list(DENSITY_WINDOWS[site]) for site in DENSITY_SITES
+                },
+                "rebin_factor": DENSITY_REBIN_FACTOR,
+                "rebinned_width": (
+                    (EXPECTED_RANGE[1] - EXPECTED_RANGE[0])
+                    / EXPECTED_BINS
+                    * DENSITY_REBIN_FACTOR
+                ),
+                "density_normalization": (
+                    "rebinned count / ((total - exact_zero_hits) * bin width); "
+                    "stored and cropped tails remain in the denominator"
+                ),
+                "exact_zero_atom_separate": True,
+                "no_kde_or_interpolation": True,
+                "panels": _density_panel_summaries(data, pooled=pooled),
+            }
+        )
+    else:
+        raise ValueError(f"Unsupported A2 figure stem for provenance: {stem}.")
     return {
         "schema_version": 1,
         "figure_id": stem,
@@ -1002,14 +1642,7 @@ def _build_provenance(
             "validation_sequences": EXPECTED_VALIDATION_SEQUENCES,
             "validation_tokens": EXPECTED_VALIDATION_TOKENS,
         },
-        "reduction": {
-            "threshold_fractions": "sum(layer hits) / sum(layer totals)",
-            "pooled_rms": "sqrt(sum(layer finite * layer rms^2) / sum(layer finite))",
-            "primary_threshold": 0.01,
-            "distribution_layer": 5 if stem == DISTRIBUTION_STEM else None,
-            "histogram_range": list(EXPECTED_RANGE),
-            "exact_zero_atom_separate": stem == DISTRIBUTION_STEM,
-        },
+        "reduction": reduction,
         "losses": [asdict(point) for point in data.losses],
         "site_reductions": [asdict(row) for row in data.reductions],
         "inputs": list(data.inputs),
@@ -1026,6 +1659,45 @@ def _build_provenance(
             for staged_path, final_path in zip(staged_outputs, final_outputs, strict=True)
         ],
     }
+
+
+def _density_panel_summaries(
+    data: A2SpilloverData,
+    *,
+    pooled: bool,
+) -> list[dict[str, Any]]:
+    summaries: list[dict[str, Any]] = []
+    layer_groups: tuple[tuple[int, ...], ...] = (
+        (LAYERS,) if pooled else tuple((layer,) for layer in LAYERS)
+    )
+    for source_index in DENSITY_SOURCE_INDICES:
+        source = A2_SOURCES[source_index]
+        for site in DENSITY_SITES:
+            for layers in layer_groups:
+                curve = _density_reduction(
+                    data,
+                    source_index=source_index,
+                    site=site,
+                    layers=layers,
+                )
+                summaries.append(
+                    {
+                        "config_id": source.config_id,
+                        "lambda": source.lambda_value,
+                        "site": site,
+                        "layers": list(layers),
+                        "total": curve.total,
+                        "exact_zero_hits": curve.exact_zero_hits,
+                        "nonzero_total": curve.nonzero_total,
+                        "outside_stored_hits": curve.outside_stored_hits,
+                        "outside_display_hits": curve.outside_display_hits,
+                        "exact_zero_fraction": curve.exact_zero_fraction,
+                        "outside_display_fraction_nonzero": (
+                            curve.outside_display_fraction_nonzero
+                        ),
+                    }
+                )
+    return summaries
 
 
 def _input_record(
@@ -1073,12 +1745,49 @@ def _load_json(path: Path) -> dict[str, Any]:
     return value
 
 
-def _format_percent(value: float) -> str:
-    if value == 0.0:
+def _matching_edge_index(edges: Sequence[float], value: float) -> int | None:
+    return next(
+        (
+            index
+            for index, edge in enumerate(edges)
+            if math.isclose(edge, value, rel_tol=0.0, abs_tol=1e-10)
+        ),
+        None,
+    )
+
+
+def _format_probability(value: float | None) -> str:
+    if value is None:
+        return "n/a"
+    percentage = 100.0 * value
+    if percentage == 0.0:
+        return "0%"
+    if percentage < 0.001:
+        return "<0.001%"
+    if percentage < 0.1:
+        return f"{percentage:.3f}%"
+    if percentage < 10.0:
+        return f"{percentage:.2f}%"
+    return f"{percentage:.1f}%"
+
+
+def _format_compact_percentage(value: float | None) -> str:
+    if value is None:
+        return "n/a"
+    percentage = 100.0 * value
+    if percentage == 0.0:
         return "0"
-    if value < 0.01:
-        return f"{value:.1e}%"
-    return f"{value:.1f}%"
+    if percentage < 0.001:
+        return "<.001"
+    if percentage < 10.0:
+        return f"{percentage:.2f}"
+    if percentage < 99.95:
+        return f"{percentage:.1f}"
+    return "100"
+
+
+def _condition_label(source: A2Source) -> str:
+    return "Control" if source.lambda_value == 0.0 else f"lambda {source.lambda_value:g}"
 
 
 def _close(left: float, right: float) -> bool:
