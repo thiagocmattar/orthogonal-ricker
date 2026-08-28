@@ -13,8 +13,8 @@ Reviewed case groups: [A2-relu-control, A2-l1-screen]
 > Configs `009`–`011` completed serially on one A40. This is the best tested
 > setting for seed 0 at the fixed 400M-token horizon, not a global,
 > horizon-independent, or convergence claim. A1 remains historical-only.
-> A2 configs `012`–`017` and diagnostic `018` are also completed, accepted,
-> immutable evidence and must not be rerun.
+> A2 configs `012`–`017` and diagnostics `018`–`019` are also completed,
+> accepted, immutable evidence and must not be rerun.
 
 The active reviewed scope remains exactly
 `[A2-relu-control, A2-l1-screen]` for analysis of the completed seed-0 control
@@ -26,8 +26,8 @@ launch is authorized.
 Completed A1 configs remain tracked only because the experiment log indexes
 exact coherent completed runs whose immutable config snapshots match. That
 preservation does not reactivate A1 or authorize materialization, retry, or
-launch. Completed A2 configs and diagnostic `018` are the immutable inputs to
-the active analysis and must not be rerun.
+launch. Completed A2 configs and diagnostics `018`–`019` are the immutable
+inputs to the active analysis and must not be rerun.
 
 The [`A1 formal review packet`](experimental-design/a1-review-packet.md) was
 approved at design commit `54be534f383001b4af3d3b43597e135d4ca6653d`.
