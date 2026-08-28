@@ -100,6 +100,12 @@ EXPECTED_VALIDATION_BATCHES = 38
 EXPECTED_VALIDATION_CACHE_TOKENS = 311_739
 EXPECTED_TRAILING_VALIDATION_TOKENS = 443
 EXPECTED_BLOCK_SIZE = 2_048
+EXPECTED_PROPAGATION_EXECUTION = {
+    "requested_device": "cuda",
+    "requested_precision": "bfloat16",
+    "resolved_device": "cuda",
+    "resolved_precision": "bfloat16",
+}
 EXPECTED_SELECTION_HASH = (
     "ffc857a6f0771929dd75c93bc17729de98a692f3a175ac5742cc9d101ff4ea47"
 )
@@ -966,8 +972,99 @@ def build_a2_response_markdown(data: A2SpilloverData) -> str:
             f"{100.0 * (attention_row.near_zero_0p01_fraction - attention_control.near_zero_0p01_fraction):+.4f} | "
             f"{h_row.pooled_rms:.5f} | {m_row.pooled_rms:.5f} |"
         )
+    r_model_values = tuple(point.R_model for point in opportunities[1:])
+    r_model_deltas = tuple(
+        value - opportunity_control.R_model for value in r_model_values
+    )
+    response_shape = (
+        "non-monotonic"
+        if any(
+            left > right
+            for left, right in zip(r_model_values, r_model_values[1:])
+        )
+        else "monotonic non-decreasing"
+    )
+    sign_groups = (
+        (
+            "below",
+            tuple(
+                source
+                for source, delta in zip(
+                    A2_SOURCES[1:], r_model_deltas, strict=True
+                )
+                if delta < 0
+            ),
+        ),
+        (
+            "equal to",
+            tuple(
+                source
+                for source, delta in zip(
+                    A2_SOURCES[1:], r_model_deltas, strict=True
+                )
+                if delta == 0
+            ),
+        ),
+        (
+            "above",
+            tuple(
+                source
+                for source, delta in zip(
+                    A2_SOURCES[1:], r_model_deltas, strict=True
+                )
+                if delta > 0
+            ),
+        ),
+    )
+    sign_summary = "; ".join(
+        f"{_lambda_values(sources)} "
+        f"{'is' if len(sources) == 1 else 'are'} {relation} control"
+        for relation, sources in sign_groups
+        if sources
+    )
+    maximum_index = max(
+        range(1, len(opportunities)), key=lambda index: opportunities[index].R_model
+    )
+    maximum_source = A2_SOURCES[maximum_index]
+    maximum_opportunity = opportunities[maximum_index]
+    maximum_loss_delta = data.losses[maximum_index].final_validation_loss - control_loss
+    all_l1_losses_worse = all(
+        loss.final_validation_loss > control_loss for loss in data.losses[1:]
+    )
     lines.extend(
         [
+            "",
+            (
+                "`R_block` counts exact-zero operand products across QKV, valid-causal "
+                "QK and PV, Wo, W1, and W2. `R_model` keeps the same numerator and "
+                "adds the dense LM-head products to the denominator. Diagnostic `019` "
+                f"used BF16 eager attention at `T = {EXPECTED_BLOCK_SIZE:,}` over "
+                f"{EXPECTED_VALIDATION_SEQUENCES} complete validation blocks "
+                f"({EXPECTED_VALIDATION_TOKENS:,} tokens); "
+                f"{EXPECTED_TRAILING_VALIDATION_TOKENS} trailing tokens from the "
+                f"{EXPECTED_VALIDATION_CACHE_TOKENS:,}-token cache were excluded."
+            ),
+            "",
+            (
+                f"The seed-0 `R_model` response is {response_shape}: {sign_summary}. "
+                f"The largest observed value among the tested L1 coefficients is "
+                f"lambda {maximum_source.lambda_value:g} at "
+                f"{100.0 * maximum_opportunity.R_model:.6f}% "
+                f"({100.0 * (maximum_opportunity.R_model - opportunity_control.R_model):+.6f} pp), "
+                f"paired with a {maximum_loss_delta:+.6f} validation-loss change. "
+                + (
+                    "Every L1 cell has higher final validation loss than control."
+                    if all_l1_losses_worse
+                    else (
+                        "Not every L1 cell has higher final validation loss than "
+                        "control."
+                    )
+                )
+                + (
+                    " This is descriptive single-seed evidence, not a speedup or "
+                    "compute-reduction claim."
+                )
+            ),
             "",
             "## Complete per-site activation response",
             "",
@@ -1535,6 +1632,7 @@ def _validate_propagation_manifest(
         "validation_partition": "selection",
         "validation_partition_hash": EXPECTED_SELECTION_HASH,
         "complete_named_partition": True,
+        "execution": EXPECTED_PROPAGATION_EXECUTION,
     }
     if not isinstance(diagnostic, dict) or any(
         diagnostic.get(key) != value
@@ -1613,6 +1711,7 @@ def _validate_propagation_payload(
         "attention_implementation": "eager",
         "future_causal_positions_excluded": True,
         "matmul_stage_order": list(LOGICAL_MATMUL_STAGES),
+        "execution": EXPECTED_PROPAGATION_EXECUTION,
     }
     mismatches = [key for key, value in expected.items() if payload.get(key) != value]
     methods = payload.get("methods")
@@ -2093,6 +2192,16 @@ def _build_provenance(
                     "R_block": "block_zero_product_count / block_product_count",
                     "R_model": "block_zero_product_count / model_product_count",
                     "delta_R_model": "R_model(condition) - R_model(control)",
+                    "block_operations": list(LOGICAL_MATMUL_STAGES),
+                    "model_denominator_extension": (
+                        "dense hidden-to-vocabulary LM head"
+                    ),
+                    "execution": dict(EXPECTED_PROPAGATION_EXECUTION),
+                    "block_size": EXPECTED_BLOCK_SIZE,
+                    "validation_sequences": EXPECTED_VALIDATION_SEQUENCES,
+                    "validation_tokens": EXPECTED_VALIDATION_TOKENS,
+                    "validation_cache_tokens": EXPECTED_VALIDATION_CACHE_TOKENS,
+                    "trailing_tokens_excluded": EXPECTED_TRAILING_VALIDATION_TOKENS,
                     "unit": "exact-zero logical-product opportunity",
                     "not_a_speedup": True,
                 },
@@ -2275,6 +2384,15 @@ def _finite_fraction(value: Any) -> bool:
         and math.isfinite(float(value))
         and 0.0 <= float(value) <= 1.0
     )
+
+
+def _lambda_values(sources: Sequence[A2Source]) -> str:
+    values = [f"lambda {source.lambda_value:g}" for source in sources]
+    if len(values) == 1:
+        return values[0]
+    if len(values) == 2:
+        return " and ".join(values)
+    return ", ".join(values[:-1]) + f", and {values[-1]}"
 
 
 def _matching_edge_index(edges: Sequence[float], value: float) -> int | None:

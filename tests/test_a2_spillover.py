@@ -240,6 +240,12 @@ def test_a2_suite_is_atomic_and_deterministic_from_compact_fixture(
     assert "R_block (%)" in response_markdown
     assert "Delta R_model (pp)" in response_markdown
     assert "diagnostic `019`" in response_markdown
+    assert "BF16 eager attention" in response_markdown
+    assert "non-monotonic" in response_markdown
+    assert (
+        "Every L1 cell has higher final validation loss than control"
+        in response_markdown
+    )
     assert "Complete per-site activation response" in response_markdown
     assert "count-preserving" in layerwise_markdown
     assert "lambda 1" in layerwise_markdown
@@ -269,6 +275,10 @@ def test_a2_suite_is_atomic_and_deterministic_from_compact_fixture(
     assert len(pooled_provenance["reduction"]["panels"]) == 18
     assert len(response_provenance["logical_opportunities"]) == len(A2_SOURCES)
     assert response_provenance["reduction"]["logical_product_metric"]["not_a_speedup"] is True
+    logical_metric = response_provenance["reduction"]["logical_product_metric"]
+    assert logical_metric["execution"] == a2.EXPECTED_PROPAGATION_EXECUTION
+    assert logical_metric["block_size"] == 2_048
+    assert logical_metric["trailing_tokens_excluded"] == 443
     assert len(response_provenance["inputs"]) == 40
 
     assert generate_a2_spillover_suite(tmp_path) == outputs
@@ -390,7 +400,7 @@ def _opportunity_point(
     block_products = 600_000
     head_products = 1_200_000
     model_products = block_products + head_products
-    block_zeros = 60_000 + 6_000 * source_index
+    block_zeros = (60_000, 59_400, 64_800, 58_800, 70_200, 75_600)[source_index]
     return a2.LogicalOpportunityPoint(
         config_id=source.config_id,
         run_id=source.run_id,
@@ -625,6 +635,7 @@ def _write_a2_fixture(repository: Path, *, bin_count: int) -> None:
             "validation_partition": "selection",
             "validation_partition_hash": a2.EXPECTED_SELECTION_HASH,
             "complete_named_partition": True,
+            "execution": dict(a2.EXPECTED_PROPAGATION_EXECUTION),
         },
     }
     propagation_methods = [
@@ -663,6 +674,7 @@ def _write_a2_fixture(repository: Path, *, bin_count: int) -> None:
         "attention_implementation": "eager",
         "future_causal_positions_excluded": True,
         "matmul_stage_order": list(a2.LOGICAL_MATMUL_STAGES),
+        "execution": dict(a2.EXPECTED_PROPAGATION_EXECUTION),
         "methods": propagation_methods,
     }
     _write_json(propagation_run / "manifest.json", propagation_manifest)
