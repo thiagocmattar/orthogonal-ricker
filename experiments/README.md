@@ -81,8 +81,11 @@ template. Do not add scientific scaffolds while
 `docs/experiment_plan.md` says `Plan status: placeholder`, or for a case group
 outside its reviewed scope. The plan currently reviews exactly
 `[A2-relu-control, A2-l1-screen]` at design commit
-`8d0a750f8f687041370037fa25553c13c9e4c081`; only their six physical configs
-may be materialized. That review does not authorize calibration or launch.
+`8d0a750f8f687041370037fa25553c13c9e4c081`. Their six physical pretraining
+configs `012`–`017` are completed immutable evidence and must never be rerun.
+Post-hoc config `018` pins those exact runs for the completed A2 activation
+diagnostic; it is not an additional training condition. No other physical
+training config may be materialized under the current reviewed scope.
 
 One preservation-only exception applies to already tracked history: an
 immutable config may remain outside the current reviewed scope when the
